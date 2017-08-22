@@ -19,7 +19,7 @@ import scipy.optimize as scp_opt
 import astropy.constants as apy_con
 import astropy.units as u
 import astropy.cosmology as apy_cosmo
-from astropy.modeling import Fittable1DModel, Parameter
+from astropy.modeling import Fittable2DModel, Parameter
 import astropy.convolution as apy_conv
 import astropy.io.fits as fits
 
@@ -60,8 +60,11 @@ class Galaxy:
 
         if name is None:
             name = 'sersic'
-        serc_mod = Sersic(total_mass=mass, r_eff=re, n=n, name=name)
-        self._thick.append(2 * re / (invq * 2.35482))
+
+        thick = 2 * re / (invq * 2.35482)
+        serc_mod = Sersic(total_mass=mass, r_eff=re, n=n, thick=thick,
+                          name=name)
+        #self._thick.append(2 * re / (invq * 2.35482))
         self._light.append(light)
 
         if self.mass_model is None:
@@ -110,7 +113,7 @@ class Galaxy:
             self.mass_model += nfw_mod
 
 
-class Sersic(Fittable1DModel):
+class Sersic(Fittable2DModel):
     """
     1D Sersic mass model with parameters defined by the total mass,
     Sersic index, and effective radius.
@@ -119,22 +122,24 @@ class Sersic(Fittable1DModel):
     total_mass = Parameter(default=1)
     r_eff = Parameter(default=1)
     n = Parameter(default=4)
+    thick = Parameter(default=1)
 
     @staticmethod
-    def evaluate(r, total_mass, r_eff, n):
-        """1D Sersic profile parameterized by the total mass"""
+    def evaluate(r, z, total_mass, r_eff, n, thick):
+        """2D Sersic profile parameterized by the total mass and scale height"""
 
         bn = scp_spec.gammaincinv(2. * n, 0.5)
         alpha = r_eff / (bn ** n)
         amp = (10**total_mass / (2 * np.pi) / alpha ** 2 / n /
                scp_spec.gamma(2. * n))
+        radial = amp * np.exp(-bn * (r / r_eff) ** (1. / n))
+        height = np.exp(-0.5*(z/thick)**2)
+        return radial*height
 
-        return amp * np.exp(-bn * (r / r_eff) ** (1. / n))
 
-
-class NFW(Fittable1DModel):
+class NFW(Fittable2DModel):
     """
-    1D NFW mass model parameterized by the virial radius, virial mass, and
+    2D NFW mass model parameterized by the virial radius, virial mass, and
     concentration.
     """
 
@@ -147,12 +152,13 @@ class NFW(Fittable1DModel):
         super(NFW, self).__init__(mvirial, rvirial, conc, **kwargs)
 
     @staticmethod
-    def evaluate(r, mvirial, rvirial, conc):
-        """1D NFW model for a dark matter halo"""
+    def evaluate(r, z, mvirial, rvirial, conc):
+        """2D NFW model for a dark matter halo"""
 
         rho0 = (10**mvirial / (4 * np.pi * rvirial ** 3) * conc ** 3 /
                 (np.log(1 + conc) - conc / (1 + conc)))
-        return 2 * np.pi * rho0 * rvirial / conc / (1 + conc * r / rvirial) ** 2
+        rtrue = np.sqrt(r**2 + z**2)
+        return 2 * np.pi * rho0 * rvirial / conc / (1 + conc * rtrue / rvirial) ** 2
 
 
 def calc_rvir(mvirial, z):
