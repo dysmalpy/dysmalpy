@@ -19,7 +19,7 @@ import scipy.optimize as scp_opt
 import astropy.constants as apy_con
 import astropy.units as u
 import astropy.cosmology as apy_cosmo
-from astropy.modeling import Fittable2DModel, Parameter
+from astropy.modeling import Fittable1DModel, Parameter
 import astropy.convolution as apy_conv
 import astropy.io.fits as fits
 
@@ -30,6 +30,9 @@ cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 G = apy_con.G
 Msun = apy_con.M_sun
 pc = apy_con.pc
+
+# Directories
+dir_noordermeer = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/noordermeer/'
 
 
 class Galaxy:
@@ -42,6 +45,8 @@ class Galaxy:
         self.z = redshift
         self.name = name
         self.mass_model = None
+        self._comp_names = []
+        self._serc_comp = []
         self._light = []
         self._thick = []
         self.dscale = cosmo.arcsec_per_kpc_proper(self.z)
@@ -61,10 +66,10 @@ class Galaxy:
         if name is None:
             name = 'sersic'
 
-        thick = 2 * re / (invq * 2.35482)
-        serc_mod = Sersic(total_mass=mass, r_eff=re, n=n, thick=thick,
-                          name=name)
-        #self._thick.append(2 * re / (invq * 2.35482))
+        serc_mod = Sersic(total_mass=mass, r_eff=re, n=n, invq=invq, name=name)
+        self._comp_names.append(name)
+        self._serc_comp.append(True)
+        self._thick.append(2 * re / (invq * 2.35482))
         self._light.append(light)
 
         if self.mass_model is None:
@@ -90,7 +95,7 @@ class Galaxy:
             name = 'nfw'
 
         if (rvirial is None) & (not tie_rvir_mvir):
-            raise ValueError('Either a a value for rvirial must be provided or '
+            raise ValueError('Either a value for rvirial must be provided or '
                              'tie_rvir_mvir must be set to True')
         elif tie_rvir_mvir:
             print('Virial radius will be set based on the virial mass and '
@@ -103,7 +108,8 @@ class Galaxy:
         else:
             nfw_mod = NFW(mvirial=mvirial, rvirial=rvirial, conc=conc,
                           name=name)
-
+        self._comp_names.append(name)
+        self._serc_comp.append(False)
         self._thick.append(0)  # No flattening for DM halo
         self._light.append(False)  # No light component for DM halo
 
@@ -113,7 +119,7 @@ class Galaxy:
             self.mass_model += nfw_mod
 
 
-class Sersic(Fittable2DModel):
+class Sersic(Fittable1DModel):
     """
     1D Sersic mass model with parameters defined by the total mass,
     Sersic index, and effective radius.
@@ -121,12 +127,14 @@ class Sersic(Fittable2DModel):
 
     total_mass = Parameter(default=1)
     r_eff = Parameter(default=1)
-    n = Parameter(default=4)
-    thick = Parameter(default=1)
+    n = Parameter(default=1)
+
+    def __init__(self, total_mass, r_eff, n, invq=1.0, **kwargs):
+        self.invq = invq
+        super(Sersic, self).__init__(total_mass, r_eff, n, **kwargs)
 
     @staticmethod
-    def evaluate(r, z, total_mass, r_eff, n, thick):
-        """2D Sersic profile parameterized by the total mass and scale height"""
+    def evaluate(r, total_mass, r_eff, n):
 
         bn = scp_spec.gammaincinv(2. * n, 0.5)
         alpha = r_eff / (bn ** n)
@@ -137,9 +145,8 @@ class Sersic(Fittable2DModel):
         return radial*height
 
 
-class NFW(Fittable2DModel):
     """
-    2D NFW mass model parameterized by the virial radius, virial mass, and
+    1D NFW mass model parameterized by the virial radius, virial mass, and
     concentration.
     """
 
@@ -152,13 +159,16 @@ class NFW(Fittable2DModel):
         super(NFW, self).__init__(mvirial, rvirial, conc, **kwargs)
 
     @staticmethod
-    def evaluate(r, z, mvirial, rvirial, conc):
-        """2D NFW model for a dark matter halo"""
+    def evaluate(r, mvirial, rvirial, conc):
+        """1D NFW model for a dark matter halo"""
 
         rho0 = (10**mvirial / (4 * np.pi * rvirial ** 3) * conc ** 3 /
                 (np.log(1 + conc) - conc / (1 + conc)))
-        rtrue = np.sqrt(r**2 + z**2)
-        return 2 * np.pi * rho0 * rvirial / conc / (1 + conc * rtrue / rvirial) ** 2
+        # rtrue = np.sqrt(r**2 + h**2)
+
+        return (2*np.pi * rho0 * rvirial /
+                conc / (1+conc * r / rvirial)**2)
+
 
 
 def calc_rvir(mvirial, z):
