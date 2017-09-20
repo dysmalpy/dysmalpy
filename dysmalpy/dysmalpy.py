@@ -7,10 +7,7 @@ This is the main module to run DYSMALPY.
 from __future__ import (absolute_import, unicode_literals, division,
                         print_function)
 
-__all__ = ['Galaxy', 'Sersic', 'NFW', 'calc_rvir']
-__version__ = '0.1'
-__author__ = ''
-
+# Third Party
 import numpy as np
 import scipy.special as scp_spec
 import scipy.interpolate as scp_interp
@@ -20,8 +17,11 @@ import astropy.constants as apy_con
 import astropy.units as u
 import astropy.cosmology as apy_cosmo
 from astropy.modeling import Fittable1DModel, Parameter
-import astropy.convolution as apy_conv
-import astropy.io.fits as fits
+
+
+__all__ = ['Galaxy', 'Sersic', 'NFW', 'calc_rvir']
+__version__ = '0.1'
+__author__ = ''
 
 # Set the cosmology that will be assumed throughout
 cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
@@ -32,7 +32,7 @@ Msun = apy_con.M_sun
 pc = apy_con.pc
 
 # Directories
-dir_noordermeer = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/noordermeer/'
+_dir_noordermeer = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/noordermeer/'
 
 
 class Galaxy:
@@ -228,8 +228,8 @@ class Sersic(Fittable1DModel):
             nearest_q = noordermeer_invq[
                 np.argmin(np.abs(noordermeer_invq - self.invq))]
 
-            # print('Using Noordermeer RCs...')
-            file_noord = dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
+            # Need to do this internally instead of relying on IDL save files!!
+            file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
                 nearest_n, nearest_q)
             restNVC = scp_io.readsav(file_noord)
             N2008_vcirc = restNVC.N2008_vcirc
@@ -276,7 +276,6 @@ class NFW(Fittable1DModel):
 
         rho0 = (10**mvirial / (4 * np.pi * rvirial ** 3) * conc ** 3 /
                 (np.log(1 + conc) - conc / (1 + conc)))
-        # rtrue = np.sqrt(r**2 + h**2)
 
         return (2*np.pi * rho0 * rvirial /
                 conc / (1+conc * r / rvirial)**2)
