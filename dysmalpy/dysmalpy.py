@@ -16,7 +16,11 @@ import scipy.optimize as scp_opt
 import astropy.constants as apy_con
 import astropy.units as u
 import astropy.cosmology as apy_cosmo
+import astropy.convolution as apy_conv
 from astropy.modeling import Fittable1DModel, Parameter
+from astropy.wcs import WCS
+from radio_beam import Beam
+from spectral_cube import SpectralCube
 
 
 __all__ = ['Galaxy', 'Sersic', 'NFW', 'calc_rvir']
@@ -174,6 +178,104 @@ class Galaxy:
                 vel = np.sqrt(vel_squared)
 
         return vel
+
+    def simulate_cube(self, inc, pa, nx_sky, ny_sky, rstep, velmax, velstep,
+                      xshift=0, yshift=0, vshift=0, vrad=0, noise=0,
+                      beam_smear=True, beamsize=None, noord_flat=False,
+                      adi_contract=False, pressure_support=False,
+                      psupport_re=None, turb=None):
+
+        # Simulate an IFU observation of this galaxy
+        # Adjust position angle to be north of west instead of east of north
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        # Start with a 3D array in the sky coordinate system
+        # x and y sizes are user provided so we just need
+        # the z size where z is in the direction of the L.O.S.
+        # We'll just use the maximum of the given x and y
+        nz_sky = np.max([nx_sky, ny_sky])
+
+        # Create 3D arrays of the sky pixel coordinates
+        # Shift them so that (0,0,0) is in the center of the galaxy
+        sh = (nz_sky, ny_sky, nx_sky)
+        zsky, ysky, xsky = np.indices(sh)
+        zsky = zsky - (nz_sky - 1)/2.
+        xsky = xsky - (nx_sky - 1)/2. - xshift
+        ysky = ysky - (ny_sky - 1)/2. - yshift
+
+        # Transform from sky coordinates to galaxy plane coordinates
+        # 1. Rotate around zsky axis first so line of nodes lies along xsky axis
+        # 2. Rotate around xsky axis to remove inclination
+        xtmp = xsky*np.cos(pa) + ysky*np.sin(pa)
+        ytmp = -xsky*np.sin(pa) + ysky*np.cos(pa)
+        ztmp = zsky
+
+        xgal = xtmp
+        ygal = ytmp*np.cos(inc) - ztmp*np.sin(inc)
+        zgal = ytmp*np.sin(inc) + ztmp*np.cos(inc)
+
+        # The circular velocity at each position only depends on the radius
+        # Convert to kpc
+        rgal = np.sqrt(xgal**2 + ygal**2)*rstep/self.dscale
+        vcirc = self.velocity1d(rgal, noord_flat=noord_flat,
+                                adi_contract=adi_contract,
+                                pressure_support=pressure_support,
+                                psupport_re=psupport_re,
+                                turb=turb)
+
+        # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
+        # is the position angle in the plane of the disk
+        # cos(theta) is just xgal/rgal
+        vobs = vshift + vcirc*np.sin(inc)*xgal/(rgal/rstep*self.dscale)
+        vobs[rgal == 0] = 0.
+
+        # Calculate "flux" for each position
+        flux = np.zeros(vobs.shape)
+        for i, n in enumerate(self.mass_model.submodel_names):
+            if self._light[i]:
+                cpt_mass = 10**self.mass_model[n].total_mass.value
+                hz = self._thick[i]*self.dscale/rstep
+                zscale = np.exp(-0.5*(zgal/hz)**2)
+                flux += self.mass_model[n](rgal)/cpt_mass*zscale
+
+        # Begin constructing the IFU cube
+        vx = np.arange(np.int(2 * velmax / velstep + 1)) * velstep - velmax
+        nv = len(vx)
+        velcube = np.tile(np.resize(vx, (nv, 1, 1)), (1, ny_sky, nx_sky))
+        cube_final = np.zeros((nv, ny_sky, nx_sky))
+
+        # The final spectrum will be a flux weighted sum of Gaussians at each
+        # velocity along the line of sight.
+        for zz in range(nz_sky):
+            f_cube = np.tile(flux[zz, :, :], (nv, 1, 1))
+            vobs_cube = np.tile(vobs[zz, :, :], (nv, 1, 1))
+            tmp_cube = np.exp(-0.5*((velcube - vobs_cube)/(turb/2.355))**2)
+            cube_final += tmp_cube/np.sum(tmp_cube, 0)*100.*f_cube
+
+        # Apply beam smearing if requested
+        if beam_smear:
+            beam = Beam(major=beamsize * u.arcsec,
+                        minor=beamsize * u.arcsec,
+                        pa=0. * u.deg)
+            beam_kernel = beam.as_kernel(rstep*u.arcsec)
+
+            for i in range(nv):
+                cube_final[i, :, :] = apy_conv.convolve_fft(cube_final[i, :, :],
+                                                            beam_kernel)
+
+        # Create a simple header for the simulate cube
+        w = WCS(naxis=3)
+        w.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'VOPT']
+        w.wcs.cdelt = [rstep / 3600., rstep / 3600., velstep]
+        w.wcs.crpix = [1, 1, 1]
+        w.wcs.cunit = ['deg', 'deg', 'km/s']
+        w.wcs.crval = [xsky[0, 0, 0]*rstep, ysky[0, 0, 0]*rstep, vx[0]]
+        spec_cube = SpectralCube(data=cube_final, wcs=w)
+
+
+        return spec_cube
+
 
 class Sersic(Fittable1DModel):
     """
