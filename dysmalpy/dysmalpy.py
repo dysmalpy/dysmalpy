@@ -53,7 +53,7 @@ class Galaxy:
         self._serc_comp = []
         self._light = []
         self._thick = []
-        self.dscale = cosmo.arcsec_per_kpc_proper(self.z)
+        self.dscale = cosmo.arcsec_per_kpc_proper(self.z).value
 
     def addSersic(self, re, n, mass, invq=1.0, light=True, name=None):
         """
