@@ -255,7 +255,8 @@ def dysmalpy(inc, theta, maxr, rstep, dscale, mscale, beam, velmax, vstep, turb,
 
     for i in np.arange(1, rsize-1):
         for j in range(n_cpts):
-            msum_int[i, j] = msum_int[i-1, j] + np.pi*(r1d[i]**2 - r1d[i-1]**2)*mcpt[i, j]
+            msum_int[i, j] = (msum_int[i-1, j] +
+                              np.pi*(r1d[i]**2 - r1d[i-1]**2)*mcpt[i, j])
 
         msum[i] = np.sum(msum_int[i, :])
 
