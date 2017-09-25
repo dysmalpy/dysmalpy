@@ -123,21 +123,21 @@ class Galaxy:
 
         vhalo = np.zeros(len(r))
         vbaryon = np.zeros(len(r))
-        
+
         for i, n in enumerate(self.mass_model.submodel_names):
-            
+
             # If its not a Sersic component, assume its an NFW component
             # and add to the halo velocity component
             if not self._serc_comp[i]:
-            
-                vhalo = np.sqrt(vhalo**2 +
-                                self.mass_model[n].circular_velocity(r)**2)
-            
+
+                cmpnt_v = self.mass_model[n].circular_velocity(r)
+                vhalo = np.sqrt(vhalo**2 + cmpnt_v**2)
+
             else:
-                
-                vbaryon = np.sqrt(vbaryon**2 +
-                                  self.mass_model[n].circular_velocity(r,
-                                                                       noord_flat=noord_flat)**2)
+
+                cmpnt_v = self.mass_model[n].circular_velocity(
+                    r, noord_flat=noord_flat)
+                vbaryon = np.sqrt(vbaryon**2 + cmpnt_v**2)
 
         # Perform adiabatic contraction
         if adi_contract:
@@ -148,7 +148,7 @@ class Galaxy:
                 rprime_all[i] = result
 
             vhalo_adi_interp = scp_interp.interp1d(r, vhalo,
-                                                    fill_value='extrapolate')
+                                                   fill_value='extrapolate')
             vhalo_adi = vhalo_adi_interp(rprime_all)
             vel = np.sqrt(vhalo_adi**2 + vbaryon**2)
 
@@ -174,7 +174,6 @@ class Galaxy:
                 vel = np.sqrt(vel_squared)
 
         return vel
-            
 
 class Sersic(Fittable1DModel):
     """
