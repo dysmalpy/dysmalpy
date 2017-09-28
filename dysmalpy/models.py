@@ -4,16 +4,68 @@
 # File containing all of the available models to use build the
 # galaxy
 
+# Standard library
+import abc
+
+
+# Third party imports
 import numpy as np
 import scipy.special as scp_spec
+import scipy.io as scp_io
+import scipy.interpolate as scp_interp
+import astropy.constants as apy_con
+import astropy.units as u
 from astropy.modeling import Fittable1DModel, Parameter
 
+# Directory where Noordermeer flattening curves are located
 _dir_noordermeer = "data/noordermeer/"
 
-class Model:
-    pass
+# Useful constants
+G = apy_con.G
+Msun = apy_con.M_sun
+pc = apy_con.pc
 
-class Sersic(Fittable1DModel):
+
+# Generic model container which tracks all components, parameters,
+# parameter settings, model settings, etc.
+class ModelSet:
+
+    def __init__(self):
+
+        self.mass_components = []  # List of all of the mass components
+        self.mass_comp_names = []  # List of the names of the mass models
+        self.parameters = None     # Array of the current parameter values
+        self.fixed = {}            # Dict. of bools for fixed parameters
+        self.param_names = {}      # Dict. of parameter names
+        self.bounds = {}           # Dict. of bounds for each parameter
+        self.priors = {}           # Dict. of prior functions for each parameter
+        self._param_keys = {}      # Dict. of location of each parameters within
+                                   # the parameter array
+
+
+# Base abstract mass model component class
+class MassModel(Fittable1DModel):
+
+    @abc.abstractmethod
+    def enclosed_mass(self, *args, **kwargs):
+        """Evaluate the enclosed mass as a function of radius"""
+
+    def circular_velocity(self, r):
+        """
+        Default method to evaluate the circular velocity
+        as a function of radius using the standard equation:
+        v(r) = SQRT(GM(r)/r)
+        """
+
+        mass_enc = self.enclosed_mass(r)
+        vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+                        (r * 1000. * pc.cgs.value))
+        vcirc = vcirc/1e5
+
+        return vcirc
+
+
+class Sersic(MassModel):
     """
     1D Sersic mass model with parameters defined by the total mass,
     Sersic index, and effective radius.
@@ -29,7 +81,10 @@ class Sersic(Fittable1DModel):
 
     @staticmethod
     def evaluate(r, total_mass, r_eff, n):
-        """1D Sersic profile parameterized by the total mass and scale height"""
+        """
+        1D Sersic profile parameterized by the total mass and
+        effective radius
+        """
 
         bn = scp_spec.gammaincinv(2.*n, 0.5)
         alpha = r_eff/(bn**n)
@@ -74,26 +129,19 @@ class Sersic(Fittable1DModel):
             N2008_Re = restNVC.N2008_Re
             N2008_mass = restNVC.N2008_mass
 
-            # Mass scaling to test out code
-            rscale = 16.94174001289003
-            mscale = self.enclosed_mass(rscale)
-
             v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
                                            fill_value="extrapolate")
             vcirc = (v_interp(r/self.r_eff*N2008_Re)*np.sqrt(
-                mscale/N2008_mass)*np.sqrt(N2008_Re/self.r_eff))
+                10**self.total_mass/N2008_mass)*np.sqrt(N2008_Re/self.r_eff))
 
         else:
 
-            mass_enc = self.enclosed_mass(r)
-            vcirc = np.sqrt(G.cgs.value*mass_enc*Msun.cgs.value /
-                            (r*1000.*pc.cgs.value))
-            vcirc = vcirc/1e5
+            vcirc = super(Sersic, self).circular_velocity(r)
 
         return vcirc
 
 
-class NFW(Fittable1DModel):
+class NFW(MassModel):
     """
     1D NFW mass model parameterized by the virial radius, virial mass, and
     concentration.
@@ -136,15 +184,6 @@ class NFW(Fittable1DModel):
         bb = self.conc**3/(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 
         return aa*bb
-
-    def circular_velocity(self, r):
-
-        mass_enc = self.enclosed_mass(r)
-        vcirc = np.sqrt(G.cgs.value*mass_enc*Msun.cgs.value /
-                        (r*1000.*pc.cgs.value))
-        vcirc = vcirc/1e5
-
-        return vcirc
 
 
 def calc_rvir(mvirial, z):
