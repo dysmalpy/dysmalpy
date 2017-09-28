@@ -15,7 +15,7 @@ import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import astropy.constants as apy_con
 import astropy.units as u
-from astropy.modeling import Fittable1DModel, Parameter
+from astropy.modeling import FittableModel, Fittable1DModel, Parameter
 
 # Directory where Noordermeer flattening curves are located
 _dir_noordermeer = "data/noordermeer/"
@@ -42,9 +42,11 @@ class ModelSet:
         self._param_keys = {}      # Dict. of location of each parameters within
                                    # the parameter array
 
-
+# ***** Mass Component Model Classes ******
 # Base abstract mass model component class
 class MassModel(Fittable1DModel):
+
+    _type = 'mass'
 
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
@@ -184,6 +186,47 @@ class NFW(MassModel):
         bb = self.conc**3/(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 
         return aa*bb
+
+
+# ****** Geometric "Model" ********
+class Fittable3DModel(FittableModel):
+
+    inputs = ('x', 'y', 'z')
+    outputs = ('xp', 'yp', 'zp')
+
+
+class Geometry(Fittable3DModel):
+    """
+    Class to hold the geometric parameters that can be fit.
+    Also takes as input the sky coordinates and returns the
+    corresponding galaxy plane coordinates.
+    """
+
+    inc = Parameter(default=45.0, bounds=(0, 90))
+    pa = Parameter(default=0.0, bounds=(-180, 180))
+    xshift = Parameter(default=0.0)
+    yshift = Parameter(default=0.0)
+
+    @staticmethod
+    def evaluate(x, y, z, inc, pa, xshift, yshift):
+
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        nz, ny, nx = x.shape
+        zsky = z - (nz - 1) / 2.
+        xsky = x - (nx - 1) / 2. - xshift
+        ysky = y - (ny - 1) / 2. - yshift
+
+        xtmp = xsky * np.cos(pa) + ysky * np.sin(pa)
+        ytmp = -xsky * np.sin(pa) + ysky * np.cos(pa)
+        ztmp = zsky
+
+        xgal = xtmp
+        ygal = ytmp * np.cos(inc) - ztmp * np.sin(inc)
+        zgal = ytmp * np.sin(inc) + ztmp * np.cos(inc)
+
+        return (xgal, ygal, zgal)
 
 
 def calc_rvir(mvirial, z):
