@@ -188,7 +188,7 @@ class NFW(MassModel):
         return aa*bb
 
 
-# ****** Geometric "Model" ********
+# ****** Geometric Model ********
 class Fittable3DModel(FittableModel):
 
     inputs = ('x', 'y', 'z')
@@ -206,6 +206,8 @@ class Geometry(Fittable3DModel):
     pa = Parameter(default=0.0, bounds=(-180, 180))
     xshift = Parameter(default=0.0)
     yshift = Parameter(default=0.0)
+
+    _type = 'geometry'
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift):
