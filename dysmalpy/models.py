@@ -15,7 +15,10 @@ import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import astropy.constants as apy_con
 import astropy.units as u
-from astropy.modeling import FittableModel, Fittable1DModel, Parameter
+from astropy.modeling import Model, FittableModel
+
+# Local imports
+from parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'Geometry']
 
@@ -55,7 +58,7 @@ class ModelSet:
         """Add a model component to the set"""
 
         # Check to make sure its an astropy.modeling.FittableModel
-        if isinstance(model, FittableModel):
+        if isinstance(model, _DysmalModel):
             if model._type == 'mass':
 
                 if (name is None) & (model.name is None):
@@ -87,7 +90,7 @@ class ModelSet:
         else:
 
             raise TypeError('Model component must be an an'
-                            'astropy.modeling.FittableModel instance!')
+                            'dysmalpy.models.DysmalModel instance!')
 
     def _add_comp(self, model):
 
@@ -182,7 +185,27 @@ class ModelSet:
 
 # ***** Mass Component Model Classes ******
 # Base abstract mass model component class
-class MassModel(Fittable1DModel):
+class _DysmalModel(Model):
+
+    parameter_constraints = DysmalParameter.constraints
+
+    @property
+    def prior(self):
+        return self._constraints['prior']
+
+
+class _DysmalFittable1DModel(_DysmalModel):
+
+    linear = False
+    fit_deriv = None
+    col_fit_deriv = True
+    fittable = True
+
+    inputs = ('x',)
+    outputs = ('y',)
+
+
+class MassModel(_DysmalFittable1DModel):
 
     _type = 'mass'
 
@@ -211,9 +234,9 @@ class Sersic(MassModel):
     Sersic index, and effective radius.
     """
 
-    total_mass = Parameter(default=1)
-    r_eff = Parameter(default=1)
-    n = Parameter(default=1)
+    total_mass = DysmalParameter(default=1)
+    r_eff = DysmalParameter(default=1)
+    n = DysmalParameter(default=1)
 
     def __init__(self, total_mass, r_eff, n, invq=1.0, **kwargs):
         self.invq = invq
@@ -287,9 +310,9 @@ class NFW(MassModel):
     concentration.
     """
 
-    mvirial = Parameter(default=1.0)
-    rvirial = Parameter(default=1.0)
-    conc = Parameter(default=5.0)
+    mvirial = DysmalParameter(default=1.0)
+    rvirial = DysmalParameter(default=1.0)
+    conc = DysmalParameter(default=5.0)
 
     def __init__(self, mvirial, rvirial, conc, z=0, **kwargs):
         self.z = z
@@ -327,23 +350,32 @@ class NFW(MassModel):
 
 
 # ****** Geometric Model ********
-class Fittable3DModel(FittableModel):
+class _DysmalFittable3DModel(_DysmalModel):
+
+    linear = False
+    fit_deriv = None
+    col_fit_deriv = True
+    fittable = True
 
     inputs = ('x', 'y', 'z')
     outputs = ('xp', 'yp', 'zp')
 
+    @property
+    def prior(self):
+        return self._constraints['prior']
 
-class Geometry(Fittable3DModel):
+
+class Geometry(_DysmalFittable3DModel):
     """
     Class to hold the geometric parameters that can be fit.
     Also takes as input the sky coordinates and returns the
     corresponding galaxy plane coordinates.
     """
 
-    inc = Parameter(default=45.0, bounds=(0, 90))
-    pa = Parameter(default=0.0, bounds=(-180, 180))
-    xshift = Parameter(default=0.0)
-    yshift = Parameter(default=0.0)
+    inc = DysmalParameter(default=45.0, bounds=(0, 90))
+    pa = DysmalParameter(default=0.0, bounds=(-180, 180))
+    xshift = DysmalParameter(default=0.0)
+    yshift = DysmalParameter(default=0.0)
 
     _type = 'geometry'
 
