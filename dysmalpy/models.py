@@ -38,20 +38,18 @@ class ModelSet:
 
     def __init__(self):
 
-        self.mass_components = []  # List of all of the mass components
-        self.mass_comp_names = []  # List of the names of the mass models
-        self.components = []       # List of all of the components
-        self.comp_names = []       # List of all of the component names
+        self.mass_components = {}  # List of all of the mass components
+        self.components = {}       # List of all of the components
         self.geometry = None       # The Geometric model component
         self.parameters = None     # Array of the current parameter values
+        self.parameters_free = None  # Array of free parameters
         self.fixed = {}            # Dict. of bools for fixed parameters
         self.param_names = {}      # Dict. of parameter names
-        # self.bounds = {}           # Dict. of bounds for each parameter
-        # self.priors = {}           # Dict. of prior functions for each parameter
-        self._param_keys = {}      # Dict. of location of each parameters within
+        self._param_keys = {}      # Dict. of location of each parameter within
                                    # the parameter array
+        self._param_free_keys = {}
         self.nparams = 0
-        self.nparams_fixed = 0
+        self.nparams_free = 0
 
     def add_component(self, model, name=None):
         """Add a model component to the set"""
@@ -67,19 +65,18 @@ class ModelSet:
                     model = model.rename(name)
 
                 # Make sure there isn't a mass component already named this
-                if self.mass_comp_names.count(model.name) > 0:
+                if list(self.mass_components.keys()).count(model.name) > 0:
                     raise ValueError('Component already exists. Please give'
                                      'it a unique name.')
                 else:
-                    self.mass_comp_names.append(model.name)
-                    self.mass_components.append(model)
-
+                    self.mass_components[model.name] = True
 
             elif model._type == 'geometry':
                 if self.geometry is not None:
                     logger.warning('Current Geometry model is being '
                                    'overwritten!')
                 self.geometry = model
+                self.mass_components[model.name] = False
 
             else:
                 raise TypeError("This model type is not known! Must be either"
@@ -94,61 +91,93 @@ class ModelSet:
 
     def _add_comp(self, model):
 
-        self.components.append(model)
-        self.comp_names.append(model.name)
+        # Update the components list
+        self.components[model.name] = model
 
+        # Update the parameters and parameters_free arrays
         if self.parameters is None:
             self.parameters = model.parameters
+            pfree = []
         else:
 
             self.parameters = np.concatenate([self.parameters,
                                               model.parameters])
+            pfree = self.parameters_free.tolist()
 
+        for i, n in enumerate(model.param_names):
+            if not model.fixed[n]:
+                pfree.append(model.parameters[i])
+        self.parameters_free = np.array(pfree)
         self.param_names[model.name] = model.param_names
         self.fixed[model.name] = model.fixed
-        self.nparams_fixed += sum(model.fixed.values())
-        key_dict = {p:i + self.nparams
-                    for i,p in enumerate(model.param_names)}
+
+        # Update the dictionaries containing the locations of the parameters
+        # in the full and only free arrays
+        key_dict = {}
+        key_dict_free = {}
+        j = 0
+        for i, p in enumerate(model.param_names):
+            key_dict[p] = i + self.nparams
+            if not model.fixed[p]:
+                key_dict_free[p] = j + self.nparams_free
+                j += 1
+            else:
+                key_dict_free[p] = -99
+
         self._param_keys[model.name] = key_dict
+        self._param_free_keys[model.name] = key_dict_free
         self.nparams += len(model.param_names)
+        self.nparams_free = len(self.parameters_free)
 
     def set_parameter_value(self, model_name, param_name, value):
         """Method to set a specific parameter value"""
 
         try:
-            comp_i = self.comp_names.index(model_name)
+            comp = self.components[model_name]
         except ValueError:
             raise ValueError('Model not included.')
 
         try:
-            param_i = self.components[comp_i].param_names.index(param_name)
+            param_i = comp.param_names.index(param_name)
         except ValueError:
             raise ValueError('Parameter is not part of model.')
 
-        self.components[comp_i].parameters[param_i] = value
+        self.components[model_name].parameters[param_i] = value
+        self.parameters[self._param_keys[model_name][param_name]] = value
+        if not self.components[model_name].fixed[param_name]:
+            free_ind = self._param_free_keys[model_name][param_name]
+            self.parameters_free[free_ind] = value
 
     def set_parameter_fixed(self, model_name, param_name, fix):
-        """Method to set a specific parameter value"""
+        """Method to set a specific parameter fixed or not"""
 
         try:
-            comp_i = self.comp_names.index(model_name)
-        except ValueError:
-            raise ValueError('Model not included.')
+            comp = self.components[model_name]
+        except KeyError:
+            raise KeyError('Model not included.')
 
         try:
-            param_i = self.components[comp_i].param_names.index(param_name)
+            param_i = comp.param_names.index(param_name)
         except ValueError:
             raise ValueError('Parameter is not part of model.')
 
-        self.components[comp_i].fixed[param_name] = fix
+        self.components[model_name].fixed[param_name] = fix
+        self.fixed[model_name][param_name] = fix
 
     def update_parameters(self, theta):
-        """Update all of the parameters of the model"""
+        """Update all of the free parameters of the model"""
 
         # Sanity check to make sure the array given is the right length
-        if len(theta) != (self.nparams - self.nparams_fixed):
-            raise ValueError('theta is not the correct length')
-        
+        if len(theta) != self.nparams_free:
+            raise ValueError('Length of theta is not equal to number '
+                             'of free parameters, {}'.format(self.nparams_free))
+
+        # Loop over all of the free parameter keys
+        for cmp in self._param_free_keys:
+            for pp in self._param_free_keys[cmp]:
+                ind = self._param_free_keys[cmp][pp]
+                if ind != -99:
+                    self.set_parameter_value(cmp, pp, theta[ind])
 
 
 # ***** Mass Component Model Classes ******
@@ -337,7 +366,7 @@ class Geometry(Fittable3DModel):
         ygal = ytmp * np.cos(inc) - ztmp * np.sin(inc)
         zgal = ytmp * np.sin(inc) + ztmp * np.cos(inc)
 
-        return (xgal, ygal, zgal)
+        return xgal, ygal, zgal
 
 
 def calc_rvir(mvirial, z):
@@ -374,4 +403,3 @@ def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
     result = (r_adi + r_adi * ((r_adi*adia_v_disk**2) /
                                (rprime*(rprime_interp(rprime))**2)) - rprime)
     return result
-
