@@ -160,14 +160,14 @@ class ModelSet:
                              'of free parameters, {}'.format(self.nparams_free))
 
         # Loop over all of the parameters
-        pfree, pfree_keys = self.get_free_parameters()
+        pfree, pfree_keys = self._get_free_parameters()
         for cmp in pfree_keys:
             for pp in pfree_keys[cmp]:
                 ind = pfree_keys[cmp][pp]
                 if ind != -99:
                     self.set_parameter_value(cmp, pp, theta[ind])
 
-    def get_free_parameters(self):
+    def _get_free_parameters(self):
         p = np.zeros(self.nparams_free)
         pkeys = OrderedDict()
         j = 0
@@ -181,6 +181,15 @@ class ModelSet:
                     p[j] = self.parameters[self._param_keys[cmp][pm]]
                     j += 1
         return p, pkeys
+
+    def get_free_parameters(self):
+        pfree, pfree_keys = self._get_free_parameters()
+        return pfree
+
+    def get_free_parameter_keys(self):
+        pfree, pfree_keys = self._get_free_parameters()
+        return pfree_keys
+
 
 
 # ***** Mass Component Model Classes ******
