@@ -7,6 +7,7 @@
 # Standard library
 import abc
 import logging
+from collections import OrderedDict
 
 # Third party imports
 import numpy as np
@@ -41,16 +42,13 @@ class ModelSet:
 
     def __init__(self):
 
-        self.mass_components = {}  # List of all of the mass components
-        self.components = {}       # List of all of the components
-        self.geometry = None       # The Geometric model component
-        self.parameters = None     # Array of the current parameter values
-        self.parameters_free = None  # Array of free parameters
-        self.fixed = {}            # Dict. of bools for fixed parameters
-        self.param_names = {}      # Dict. of parameter names
-        self._param_keys = {}      # Dict. of location of each parameter within
-                                   # the parameter array
-        self._param_free_keys = {}
+        self.mass_components = OrderedDict()
+        self.components = OrderedDict()
+        self.geometry = None
+        self.parameters = None
+        self.fixed = OrderedDict()
+        self.param_names = OrderedDict()
+        self._param_keys = OrderedDict()
         self.nparams = 0
         self.nparams_free = 0
 
@@ -105,19 +103,19 @@ class ModelSet:
 
             self.parameters = np.concatenate([self.parameters,
                                               model.parameters])
-            pfree = self.parameters_free.tolist()
+            # pfree = self.parameters_free.tolist()
 
-        for i, n in enumerate(model.param_names):
-            if not model.fixed[n]:
-                pfree.append(model.parameters[i])
-        self.parameters_free = np.array(pfree)
+        # for i, n in enumerate(model.param_names):
+        #    if not model.fixed[n]:
+        #        pfree.append(model.parameters[i])
+        # self.parameters_free = np.array(pfree)
         self.param_names[model.name] = model.param_names
         self.fixed[model.name] = model.fixed
 
         # Update the dictionaries containing the locations of the parameters
         # in the full and only free arrays
-        key_dict = {}
-        key_dict_free = {}
+        key_dict = OrderedDict()
+        key_dict_free = OrderedDict()
         j = 0
         for i, p in enumerate(model.param_names):
             key_dict[p] = i + self.nparams
@@ -128,9 +126,9 @@ class ModelSet:
                 key_dict_free[p] = -99
 
         self._param_keys[model.name] = key_dict
-        self._param_free_keys[model.name] = key_dict_free
+        # self._param_free_keys[model.name] = key_dict_free
         self.nparams += len(model.param_names)
-        self.nparams_free = len(self.parameters_free)
+        self.nparams_free += len(model.param_names) - sum(model.fixed.values())
 
     def set_parameter_value(self, model_name, param_name, value):
         """Method to set a specific parameter value"""
@@ -147,9 +145,9 @@ class ModelSet:
 
         self.components[model_name].parameters[param_i] = value
         self.parameters[self._param_keys[model_name][param_name]] = value
-        if not self.components[model_name].fixed[param_name]:
-            free_ind = self._param_free_keys[model_name][param_name]
-            self.parameters_free[free_ind] = value
+        # if not self.components[model_name].fixed[param_name]:
+        #    free_ind = self._param_free_keys[model_name][param_name]
+        #    self.parameters_free[free_ind] = value
 
     def set_parameter_fixed(self, model_name, param_name, fix):
         """Method to set a specific parameter fixed or not"""
@@ -166,6 +164,14 @@ class ModelSet:
 
         self.components[model_name].fixed[param_name] = fix
         self.fixed[model_name][param_name] = fix
+        if fix:
+            self.nparams_free -= 1
+        else:
+            self.nparams_free += 1
+        # if fix:
+        #    free_ind = self._param_free_keys[model_name][param_name]
+        #    self.parameters_free = np.delete(self.parameters_free, free_ind)
+
 
     def update_parameters(self, theta):
         """Update all of the free parameters of the model"""
@@ -175,12 +181,30 @@ class ModelSet:
             raise ValueError('Length of theta is not equal to number '
                              'of free parameters, {}'.format(self.nparams_free))
 
-        # Loop over all of the free parameter keys
-        for cmp in self._param_free_keys:
-            for pp in self._param_free_keys[cmp]:
-                ind = self._param_free_keys[cmp][pp]
+        # Loop over all of the parameters
+        pfree, pfree_keys = self.get_free_parameters()
+        for cmp in pfree_keys:
+            for pp in pfree_keys[cmp]:
+                ind = pfree_keys[cmp][pp]
                 if ind != -99:
                     self.set_parameter_value(cmp, pp, theta[ind])
+
+    def get_free_parameters(self):
+        p = np.zeros(self.nparams_free)
+        pkeys = OrderedDict()
+        j = 0
+        for cmp in self.fixed:
+            pkeys[cmp] = OrderedDict()
+            for pm in self.fixed[cmp]:
+                if self.fixed[cmp][pm]:
+                    pkeys[cmp][pm] = -99
+                else:
+                    pkeys[cmp][pm] = j
+                    p[j] = self.parameters[self._param_keys[cmp][pm]]
+                    j += 1
+        return p, pkeys
+
+
 
 
 # ***** Mass Component Model Classes ******
