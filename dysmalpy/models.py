@@ -134,8 +134,8 @@ class ModelSet:
 
         try:
             comp = self.components[model_name]
-        except ValueError:
-            raise ValueError('Model not included.')
+        except KeyError:
+            raise KeyError('Model not part of the set.')
 
         try:
             param_i = comp.param_names.index(param_name)
@@ -154,7 +154,7 @@ class ModelSet:
         try:
             comp = self.components[model_name]
         except KeyError:
-            raise KeyError('Model not included.')
+            raise KeyError('Model not part of the set.')
 
         try:
             param_i = comp.param_names.index(param_name)
