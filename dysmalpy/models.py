@@ -6,7 +6,7 @@
 
 # Standard library
 import abc
-
+import logging
 
 # Third party imports
 import numpy as np
@@ -17,13 +17,19 @@ import astropy.constants as apy_con
 import astropy.units as u
 from astropy.modeling import FittableModel, Fittable1DModel, Parameter
 
-# Directory where Noordermeer flattening curves are located
+__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'Geometry']
+
+# NOORDERMEER DIRECTORY
 _dir_noordermeer = "data/noordermeer/"
 
-# Useful constants
+# CONSTANTS
 G = apy_con.G
 Msun = apy_con.M_sun
 pc = apy_con.pc
+
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
 
 
 # Generic model container which tracks all components, parameters,
@@ -34,13 +40,116 @@ class ModelSet:
 
         self.mass_components = []  # List of all of the mass components
         self.mass_comp_names = []  # List of the names of the mass models
+        self.components = []       # List of all of the components
+        self.comp_names = []       # List of all of the component names
+        self.geometry = None       # The Geometric model component
         self.parameters = None     # Array of the current parameter values
         self.fixed = {}            # Dict. of bools for fixed parameters
         self.param_names = {}      # Dict. of parameter names
-        self.bounds = {}           # Dict. of bounds for each parameter
-        self.priors = {}           # Dict. of prior functions for each parameter
+        # self.bounds = {}           # Dict. of bounds for each parameter
+        # self.priors = {}           # Dict. of prior functions for each parameter
         self._param_keys = {}      # Dict. of location of each parameters within
                                    # the parameter array
+        self.nparams = 0
+        self.nparams_fixed = 0
+
+    def add_component(self, model, name=None):
+        """Add a model component to the set"""
+
+        # Check to make sure its an astropy.modeling.FittableModel
+        if isinstance(model, FittableModel):
+            if model._type == 'mass':
+
+                if (name is None) & (model.name is None):
+                    raise ValueError('Please give this component a name!')
+
+                elif name is not None:
+                    model = model.rename(name)
+
+                # Make sure there isn't a mass component already named this
+                if self.mass_comp_names.count(model.name) > 0:
+                    raise ValueError('Component already exists. Please give'
+                                     'it a unique name.')
+                else:
+                    self.mass_comp_names.append(model.name)
+                    self.mass_components.append(model)
+
+
+            elif model._type == 'geometry':
+                if self.geometry is not None:
+                    logger.warning('Current Geometry model is being '
+                                   'overwritten!')
+                self.geometry = model
+
+            else:
+                raise TypeError("This model type is not known! Must be either"
+                                "'mass' or 'geometry.'")
+
+            self._add_comp(model)
+
+        else:
+
+            raise TypeError('Model component must be an an'
+                            'astropy.modeling.FittableModel instance!')
+
+    def _add_comp(self, model):
+
+        self.components.append(model)
+        self.comp_names.append(model.name)
+
+        if self.parameters is None:
+            self.parameters = model.parameters
+        else:
+
+            self.parameters = np.concatenate([self.parameters,
+                                              model.parameters])
+
+        self.param_names[model.name] = model.param_names
+        self.fixed[model.name] = model.fixed
+        self.nparams_fixed += sum(model.fixed.values())
+        key_dict = {p:i + self.nparams
+                    for i,p in enumerate(model.param_names)}
+        self._param_keys[model.name] = key_dict
+        self.nparams += len(model.param_names)
+
+    def set_parameter_value(self, model_name, param_name, value):
+        """Method to set a specific parameter value"""
+
+        try:
+            comp_i = self.comp_names.index(model_name)
+        except ValueError:
+            raise ValueError('Model not included.')
+
+        try:
+            param_i = self.components[comp_i].param_names.index(param_name)
+        except ValueError:
+            raise ValueError('Parameter is not part of model.')
+
+        self.components[comp_i].parameters[param_i] = value
+
+    def set_parameter_fixed(self, model_name, param_name, fix):
+        """Method to set a specific parameter value"""
+
+        try:
+            comp_i = self.comp_names.index(model_name)
+        except ValueError:
+            raise ValueError('Model not included.')
+
+        try:
+            param_i = self.components[comp_i].param_names.index(param_name)
+        except ValueError:
+            raise ValueError('Parameter is not part of model.')
+
+        self.components[comp_i].fixed[param_name] = fix
+
+    def update_parameters(self, theta):
+        """Update all of the parameters of the model"""
+
+        # Sanity check to make sure the array given is the right length
+        if len(theta) != (self.nparams - self.nparams_fixed):
+            raise ValueError('theta is not the correct length')
+        
+
 
 # ***** Mass Component Model Classes ******
 # Base abstract mass model component class
