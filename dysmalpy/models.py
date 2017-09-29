@@ -16,7 +16,7 @@ import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import astropy.constants as apy_con
 import astropy.units as u
-from astropy.modeling import Model, FittableModel
+from astropy.modeling import Model
 
 # Local imports
 from parameters import DysmalParameter
@@ -55,7 +55,7 @@ class ModelSet:
     def add_component(self, model, name=None):
         """Add a model component to the set"""
 
-        # Check to make sure its an astropy.modeling.FittableModel
+        # Check to make sure its the correct class
         if isinstance(model, _DysmalModel):
             if model._type == 'mass':
 
@@ -98,35 +98,20 @@ class ModelSet:
         # Update the parameters and parameters_free arrays
         if self.parameters is None:
             self.parameters = model.parameters
-            pfree = []
         else:
 
             self.parameters = np.concatenate([self.parameters,
                                               model.parameters])
-            # pfree = self.parameters_free.tolist()
-
-        # for i, n in enumerate(model.param_names):
-        #    if not model.fixed[n]:
-        #        pfree.append(model.parameters[i])
-        # self.parameters_free = np.array(pfree)
         self.param_names[model.name] = model.param_names
         self.fixed[model.name] = model.fixed
 
         # Update the dictionaries containing the locations of the parameters
         # in the full and only free arrays
         key_dict = OrderedDict()
-        key_dict_free = OrderedDict()
-        j = 0
         for i, p in enumerate(model.param_names):
             key_dict[p] = i + self.nparams
-            if not model.fixed[p]:
-                key_dict_free[p] = j + self.nparams_free
-                j += 1
-            else:
-                key_dict_free[p] = -99
 
         self._param_keys[model.name] = key_dict
-        # self._param_free_keys[model.name] = key_dict_free
         self.nparams += len(model.param_names)
         self.nparams_free += len(model.param_names) - sum(model.fixed.values())
 
@@ -145,9 +130,6 @@ class ModelSet:
 
         self.components[model_name].parameters[param_i] = value
         self.parameters[self._param_keys[model_name][param_name]] = value
-        # if not self.components[model_name].fixed[param_name]:
-        #    free_ind = self._param_free_keys[model_name][param_name]
-        #    self.parameters_free[free_ind] = value
 
     def set_parameter_fixed(self, model_name, param_name, fix):
         """Method to set a specific parameter fixed or not"""
@@ -168,10 +150,6 @@ class ModelSet:
             self.nparams_free -= 1
         else:
             self.nparams_free += 1
-        # if fix:
-        #    free_ind = self._param_free_keys[model_name][param_name]
-        #    self.parameters_free = np.delete(self.parameters_free, free_ind)
-
 
     def update_parameters(self, theta):
         """Update all of the free parameters of the model"""
@@ -203,8 +181,6 @@ class ModelSet:
                     p[j] = self.parameters[self._param_keys[cmp][pm]]
                     j += 1
         return p, pkeys
-
-
 
 
 # ***** Mass Component Model Classes ******
@@ -434,9 +410,9 @@ def calc_rvir(mvirial, z):
     :param z: Redshift
     :return: rvirial: Virial radius in kpc
     """
-    G_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
+    g_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
     Hz = cosmo.H(z).value
-    rvir = ((10**mvirial * (G_new_unit * 1e-3) /
+    rvir = ((10**mvirial * (g_new_unit * 1e-3) /
              (10 * Hz * 1e-3) ** 2) ** (1./3.))
 
     return rvir
