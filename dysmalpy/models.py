@@ -20,9 +20,11 @@ import astropy.units as u
 from astropy.modeling import Model
 
 # Local imports
+from galaxy import _default_cosmo
 from parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'Geometry']
+__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
+           'DispersionProfileConst', 'Geometry']
 
 # NOORDERMEER DIRECTORY
 _dir_noordermeer = "data/noordermeer/"
@@ -203,6 +205,49 @@ class ModelSet:
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
 
+    def velocity_profile(self, r):
+        """
+        Method to calculate the 1D velocity profile
+        as a function of radius
+        """
+
+        # First check to make sure there is at least one mass component in the
+        # model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so a velocity "
+                                 "can't be calculated.")
+        else:
+
+            vdm = np.zeros(len(r))
+            vbaryon = np.zeros(len(r))
+
+            for cmp in self.mass_components:
+
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    cmpnt_v = mcomp.circular_velocity(r)
+                    if mcomp._subtype == 'dark_matter':
+
+                        vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
+
+                    elif mcomp._subtype == 'baryonic':
+
+                        vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
+
+                    else:
+                        raise TypeError("{} mass model subtype not recognized"
+                                        " for {} component. Only 'dark_matter'"
+                                        " or 'baryonic' accepted.".format(
+                            mcomp._subtype, cmp
+                        ))
+
+            vel = self.kinematic_options.apply_adiabatic_contract(r,
+                                                                  vbaryon, vdm)
+            vel = self.kinematic_options.apply_pressure_support(r, self, vel)
+
+            return vel
+
+
 
 # ***** Mass Component Model Classes ******
 # Base abstract mass model component class
@@ -376,6 +421,20 @@ class NFW(MassModel):
         return aa*bb
 
 
+class HaloMo98(NFW):
+    """
+    NFW model with the virial radius tied to the virial mass according to
+    Mo et al. 1998
+    """
+    mvirial = DysmalParameter(default=1.0)
+    rvirial = DysmalParameter(default=1.0, tied=_tie_rvir_mvir)
+    conc = DysmalParameter(default=1.0, fixed=True)
+
+    def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo, **kwargs):
+        super(HaloMo98, self).__init__(mvirial, conc, z=z, cosmo=cosmo,
+                                       **kwargs)
+
+
 # ****** Geometric Model ********
 class _DysmalFittable3DModel(_DysmalModel):
 
@@ -428,7 +487,7 @@ class Geometry(_DysmalFittable3DModel):
         return xgal, ygal, zgal
 
 #******* Dispersion Profiles **************
-class DispersionConstProfile(_DysmalFittable1DModel):
+class DispersionProfileConst(_DysmalFittable1DModel):
 
     sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
 
@@ -448,13 +507,16 @@ class KinematicOptions:
     has methods for applying these options.
     """
 
-    def __init__(self, adiabatic_contract=False, pressure_support=False):
+    def __init__(self, adiabatic_contract=False, pressure_support=False,
+                 pressure_support_re=None):
         self.adiabatic_contract = adiabatic_contract
         self.pressure_support = pressure_support
+        self.pressure_support_re = pressure_support_re
 
     def apply_adiabatic_contract(self, r, vbaryon, vhalo):
 
         if self.adiabatic_contract:
+            logger.info("Applying adiabatic contraction.")
             rprime_all = np.zeros(len(r))
             for i in range(len(r)):
                 result = scp_opt.newton(_adiabatic, r[i] + 1.,
@@ -467,29 +529,40 @@ class KinematicOptions:
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
 
         else:
+
             vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
 
         return vel
 
-    def apply_pressure_support(self, r, model, vel, pre=None):
+    def apply_pressure_support(self, r, model, vel):
 
         if self.pressure_support:
 
-            if pre is None:
+            if self.pressure_support_re is None:
+                pre = None
                 for cmp in model.mass_components:
-                    if cmp._subtype == 'baryonic':
-                        pre = cmp.r_eff.value
-                        break
+                    if model.mass_components[cmp]:
+                        mcomp = model.components[cmp]
+                        if mcomp._subtype == 'baryonic':
+                            pre = mcomp.r_eff.value
+                            break
 
-            if pre is None:
-                logger.warning("No baryonic mass component found. Using "
-                               "1 kpc as the pressure support effective"
-                               " radius")
-                pre = 1.0
+
+                if pre is None:
+                    logger.warning("No baryonic mass component found. Using "
+                                   "1 kpc as the pressure support effective"
+                                   " radius")
+                    pre = 1.0
+
+            else:
+                pre = self.pressure_support_re
 
             if model.dispersion_profile is None:
                 raise AttributeError("Can't apply pressure support without "
                                      "a dispersion profile!")
+
+            logger.info("Applying pressure support with effective radius of {} "
+                        "kpc.".format(pre))
             sigma = model.dispersion_profile(r)
             vel_squared = (
                 vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
