@@ -14,6 +14,7 @@ import numpy as np
 import scipy.special as scp_spec
 import scipy.io as scp_io
 import scipy.interpolate as scp_interp
+import scipy.optimize as scp_opt
 import astropy.constants as apy_con
 import astropy.units as u
 from astropy.modeling import Model
@@ -45,25 +46,29 @@ class ModelSet:
         self.mass_components = OrderedDict()
         self.components = OrderedDict()
         self.geometry = None
+        self.dispersion_profile = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.param_names = OrderedDict()
         self._param_keys = OrderedDict()
         self.nparams = 0
         self.nparams_free = 0
+        self.kinematic_options = KinematicOptions()
 
     def add_component(self, model, name=None):
         """Add a model component to the set"""
 
         # Check to make sure its the correct class
         if isinstance(model, _DysmalModel):
+
+            # Check to make sure it has a name
+            if (name is None) & (model.name is None):
+                raise ValueError('Please give this component a name!')
+
+            elif name is not None:
+                model = model.rename(name)
+
             if model._type == 'mass':
-
-                if (name is None) & (model.name is None):
-                    raise ValueError('Please give this component a name!')
-
-                elif name is not None:
-                    model = model.rename(name)
 
                 # Make sure there isn't a mass component already named this
                 if list(self.mass_components.keys()).count(model.name) > 0:
@@ -79,15 +84,22 @@ class ModelSet:
                 self.geometry = model
                 self.mass_components[model.name] = False
 
+            elif model._type == 'dispersion':
+                if self.dispersion_profile is not None:
+                    logger.warning('Current Dispersion model is being '
+                                   'overwritten!')
+                self.dispersion_profile = model
+                self.mass_components[model.name] = False
+
             else:
-                raise TypeError("This model type is not known! Must be either"
-                                "'mass' or 'geometry.'")
+                raise TypeError("This model type is not known. Must be one of"
+                                "'mass', 'geometry', or 'dispersion.'")
 
             self._add_comp(model)
 
         else:
 
-            raise TypeError('Model component must be an an'
+            raise TypeError('Model component must be a '
                             'dysmalpy.models.DysmalModel instance!')
 
     def _add_comp(self, model):
@@ -167,6 +179,7 @@ class ModelSet:
                 if ind != -99:
                     self.set_parameter_value(cmp, pp, theta[ind])
 
+    # Methods to grab the free parameters and keys
     def _get_free_parameters(self):
         p = np.zeros(self.nparams_free)
         pkeys = OrderedDict()
@@ -182,14 +195,13 @@ class ModelSet:
                     j += 1
         return p, pkeys
 
-    def get_free_parameters(self):
+    def get_free_parameters_values(self):
         pfree, pfree_keys = self._get_free_parameters()
         return pfree
 
     def get_free_parameter_keys(self):
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
-
 
 
 # ***** Mass Component Model Classes ******
@@ -247,8 +259,12 @@ class Sersic(MassModel):
     r_eff = DysmalParameter(default=1)
     n = DysmalParameter(default=1)
 
-    def __init__(self, total_mass, r_eff, n, invq=1.0, **kwargs):
+    _subtype = 'baryonic'
+
+    def __init__(self, total_mass, r_eff, n, invq=1.0, noord_flat=False,
+                 **kwargs):
         self.invq = invq
+        self.noord_flat = noord_flat
         super(Sersic, self).__init__(total_mass, r_eff, n, **kwargs)
 
     @staticmethod
@@ -280,9 +296,9 @@ class Sersic(MassModel):
 
         return norm*integ
 
-    def circular_velocity(self, r, noord_flat=False):
+    def circular_velocity(self, r):
 
-        if noord_flat:
+        if self.noord_flat:
             noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
             noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
                                          100])  # 1:1, 1:2, 1:3, ...flattening
@@ -322,6 +338,8 @@ class NFW(MassModel):
     mvirial = DysmalParameter(default=1.0)
     rvirial = DysmalParameter(default=1.0)
     conc = DysmalParameter(default=5.0)
+
+    _subtype = 'dark_matter'
 
     def __init__(self, mvirial, rvirial, conc, z=0, **kwargs):
         self.z = z
@@ -408,6 +426,77 @@ class Geometry(_DysmalFittable3DModel):
         zgal = ytmp * np.sin(inc) + ztmp * np.cos(inc)
 
         return xgal, ygal, zgal
+
+#******* Dispersion Profiles **************
+class DispersionConstProfile(_DysmalFittable1DModel):
+
+    sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
+
+    _type = 'dispersion'
+
+    @staticmethod
+    def evaluate(r, sigma0):
+
+        return np.ones(r.shape)*sigma0
+
+
+# ****** Kinematic Options Class **********
+class KinematicOptions:
+    """
+    A simple container for holding the settings for different
+    options for calculating the kinematics of a galaxy. Also
+    has methods for applying these options.
+    """
+
+    def __init__(self, adiabatic_contract=False, pressure_support=False):
+        self.adiabatic_contract = adiabatic_contract
+        self.pressure_support = pressure_support
+
+    def apply_adiabatic_contract(self, r, vbaryon, vhalo):
+
+        if self.adiabatic_contract:
+            rprime_all = np.zeros(len(r))
+            for i in range(len(r)):
+                result = scp_opt.newton(_adiabatic, r[i] + 1.,
+                                        args=(r[i], vhalo, r, vbaryon[i]))
+                rprime_all[i] = result
+
+            vhalo_adi_interp = scp_interp.interp1d(r, vhalo,
+                                                   fill_value='extrapolate')
+            vhalo_adi = vhalo_adi_interp(rprime_all)
+            vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
+
+        else:
+            vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
+
+        return vel
+
+    def apply_pressure_support(self, r, model, vel, pre=None):
+
+        if self.pressure_support:
+
+            if pre is None:
+                for cmp in model.mass_components:
+                    if cmp._subtype == 'baryonic':
+                        pre = cmp.r_eff.value
+                        break
+
+            if pre is None:
+                logger.warning("No baryonic mass component found. Using "
+                               "1 kpc as the pressure support effective"
+                               " radius")
+                pre = 1.0
+
+            if model.dispersion_profile is None:
+                raise AttributeError("Can't apply pressure support without "
+                                     "a dispersion profile!")
+            sigma = model.dispersion_profile(r)
+            vel_squared = (
+                vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
+            vel_squared[vel_squared < 0] = 0.
+            vel = np.sqrt(vel_squared)
+
+        return vel
 
 
 def calc_rvir(mvirial, z):
