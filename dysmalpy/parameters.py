@@ -15,9 +15,7 @@ from scipy.stats import norm
 from astropy.modeling import Parameter
 from astropy.units import Quantity
 
-__all__ = ['DysmalParameter']
-
-
+__all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior']
 
 def _binary_comparison_operation(op):
     @functools.wraps(op)
@@ -91,9 +89,12 @@ class DysmalParameter(Parameter):
 
     def __init__(self, name='', description='', default=None, unit=None,
                  getter=None, setter=None, fixed=False, tied=False, min=None,
-                 max=None, bounds=None, model=None, prior=UniformPrior()):
+                 max=None, bounds=None, model=None, prior=None):
 
+        if prior is None:
+            prior = UniformPrior
         self._prior = prior
+
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,
                                               default=default,
