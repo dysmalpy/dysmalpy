@@ -393,8 +393,12 @@ class NFW(MassModel):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, rvirial, conc, z=0, **kwargs):
+    def __init__(self, mvirial, conc, rvirial=None, z=0, cosmo=_default_cosmo,
+                 **kwargs):
         self.z = z
+        self.cosmo = cosmo
+        if rvirial is None:
+            rvirial = calc_rvir(mvirial, z, cosmo=cosmo)
         super(NFW, self).__init__(mvirial, rvirial, conc, **kwargs)
 
     @staticmethod
@@ -579,7 +583,7 @@ class KinematicOptions:
         return vel
 
 
-def calc_rvir(mvirial, z):
+def calc_rvir(mvirial, z, cosmo=_default_cosmo):
     """
     Calculate the virial radius based on virial mass and redshift
     M_vir = 100*H(z)^2/G * R_vir^3
@@ -600,10 +604,11 @@ def _tie_rvir_mvir(model):
     # Function that will tie the virial radius to the virial mass within
     # the model fitting
 
-    return calc_rvir(model.mvirial, model.z)
+    return calc_rvir(model.mvirial, model.z, model.cosmo)
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
+
     if rprime < 0.:
         rprime = 0.1
     if rprime < adia_x_dm[1]:
