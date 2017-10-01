@@ -262,6 +262,65 @@ class ModelSet:
 
             return vel
 
+    def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
+                      velmax, velstep, vshift=0):
+        """Simulate an IFU cube of this model set"""
+
+        # Start with a 3D array in the sky coordinate system
+        # x and y sizes are user provided so we just need
+        # the z size where z is in the direction of the L.O.S.
+        # We'll just use the maximum of the given x and y
+        nz_sky = np.max([nx_sky, ny_sky])
+
+        # Create 3D arrays of the sky pixel coordinates
+        sh = (nz_sky, ny_sky, nx_sky)
+        zsky, ysky, xsky = np.indices(sh)
+
+        # Apply the geometric transformation to get galactic coordinates
+        xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
+
+        # The circular velocity at each position only depends on the radius
+        # Convert to kpc
+        rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep / dscale
+        vcirc = self.velocity_profile(rgal)
+
+        # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
+        # is the position angle in the plane of the disk
+        # cos(theta) is just xgal/rgal
+        vobs = (vshift + vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+                xgal / (rgal / rstep * dscale))
+        vobs[rgal == 0] = 0.
+
+        # Calculate "flux" for each position
+        flux = np.zeros(vobs.shape)
+        for cmp in self.light_components:
+            if self.light_components[cmp]:
+                cpt_mass = 10 ** self.components[cmp].total_mass.value
+                zscale = self.zprofile(zgal * dscale / rstep)
+                flux += self.components[cmp](rgal) / cpt_mass * zscale
+
+        # Begin constructing the IFU cube
+        vx = np.arange(
+            np.int(2 * velmax / velstep + 1)) * velstep - velmax
+        nv = len(vx)
+        velcube = np.tile(np.resize(vx, (nv, 1, 1)),
+                          (1, ny_sky, nx_sky))
+        cube_final = np.zeros((nv, ny_sky, nx_sky))
+
+        # The final spectrum will be a flux weighted sum of Gaussians at each
+        # velocity along the line of sight.
+        sigmar = self.dispersion_profile(rgal)
+        for zz in range(nz_sky):
+            f_cube = np.tile(flux[zz, :, :], (nv, 1, 1))
+            vobs_cube = np.tile(vobs[zz, :, :], (nv, 1, 1))
+            sig_cube = np.tile(sigmar[zz, :, :], (nv, 1, 1))
+            tmp_cube = np.exp(
+                -0.5 * ((velcube - vobs_cube) / (sig_cube)) ** 2)
+            cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
+
+        return cube_final
+
+
 
 
 # ***** Mass Component Model Classes ******
