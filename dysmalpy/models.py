@@ -48,6 +48,7 @@ class ModelSet:
 
         self.mass_components = OrderedDict()
         self.components = OrderedDict()
+        self.light_components = OrderedDict()
         self.geometry = None
         self.dispersion_profile = None
         self.parameters = None
@@ -59,7 +60,7 @@ class ModelSet:
         self.nparams_free = 0
         self.kinematic_options = KinematicOptions()
 
-    def add_component(self, model, name=None):
+    def add_component(self, model, name=None, light=False):
         """Add a model component to the set"""
 
         # Check to make sure its the correct class
@@ -80,6 +81,13 @@ class ModelSet:
                                      'it a unique name.')
                 else:
                     self.mass_components[model.name] = True
+
+                # Only mass components can also be a light component
+                # TODO: When I add in outflow components I'll need to change this
+                if light:
+                    self.light_components[model.name] = True
+                else:
+                    self.light_components[model.name] = False
 
             elif model._type == 'geometry':
                 if self.geometry is not None:
