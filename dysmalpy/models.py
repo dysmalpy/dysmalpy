@@ -51,6 +51,7 @@ class ModelSet:
         self.light_components = OrderedDict()
         self.geometry = None
         self.dispersion_profile = None
+        self.zprofile = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -101,6 +102,13 @@ class ModelSet:
                     logger.warning('Current Dispersion model is being '
                                    'overwritten!')
                 self.dispersion_profile = model
+                self.mass_components[model.name] = False
+
+            elif model._type == 'zheight':
+                if self.zprofile is not None:
+                    logger.warning('Current z-height model is being '
+                                   'overwritten!')
+                self.zprofile = model
                 self.mass_components[model.name] = False
 
             else:
@@ -575,6 +583,23 @@ class DispersionProfileConst(_DysmalFittable1DModel):
     def evaluate(r, sigma0):
 
         return np.ones(r.shape)*sigma0
+
+#******* Z-Height Profiles ***************
+class ZHeightProfile(_DysmalFittable1DModel):
+    """Base z-height profile model class"""
+    _type = 'zheight'
+
+
+class ZHeightGauss(ZHeightProfile):
+
+    sigmaz = DysmalParameter(default=1.0, fixed=True)
+
+    def __init__(self, sigmaz, **kwargs):
+        super(ZHeightGauss, self).__init__(sigmaz, **kwargs)
+
+    @staticmethod
+    def evaluate(z, sigmaz):
+        return np.exp(-0.5*(z/sigmaz)**2)
 
 
 # ****** Kinematic Options Class **********
