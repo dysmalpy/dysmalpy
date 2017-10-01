@@ -573,11 +573,14 @@ class Geometry(_DysmalFittable3DModel):
         return xgal, ygal, zgal
 
 #******* Dispersion Profiles **************
-class DispersionProfileConst(_DysmalFittable1DModel):
+class DispersionProfile(_DysmalFittable1DModel):
+    """Base dispersion profile model class"""
+    _type = 'dispersion'
+
+
+class DispersionConst(DispersionProfile):
 
     sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
-
-    _type = 'dispersion'
 
     @staticmethod
     def evaluate(r, sigma0):
