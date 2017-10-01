@@ -38,6 +38,7 @@ pc = apy_con.pc
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+# TODO: Tied parameters are NOT automatically updated when variables change!! Need to keep track during the fitting!
 
 # Generic model container which tracks all components, parameters,
 # parameter settings, model settings, etc.
@@ -51,6 +52,7 @@ class ModelSet:
         self.dispersion_profile = None
         self.parameters = None
         self.fixed = OrderedDict()
+        self.tied = OrderedDict()
         self.param_names = OrderedDict()
         self._param_keys = OrderedDict()
         self.nparams = 0
@@ -118,16 +120,21 @@ class ModelSet:
                                               model.parameters])
         self.param_names[model.name] = model.param_names
         self.fixed[model.name] = model.fixed
+        self.tied[model.name] = model.tied
 
         # Update the dictionaries containing the locations of the parameters
-        # in the full and only free arrays
+        # in the parameters array. Also count number of tied parameters
         key_dict = OrderedDict()
+        ntied = 0
         for i, p in enumerate(model.param_names):
             key_dict[p] = i + self.nparams
+            if model.tied[p]:
+                ntied += 1
 
         self._param_keys[model.name] = key_dict
         self.nparams += len(model.param_names)
-        self.nparams_free += len(model.param_names) - sum(model.fixed.values())
+        self.nparams_free += (len(model.param_names) - sum(model.fixed.values())
+                              - ntied)
 
     def set_parameter_value(self, model_name, param_name, value):
         """Method to set a specific parameter value"""
@@ -189,7 +196,7 @@ class ModelSet:
         for cmp in self.fixed:
             pkeys[cmp] = OrderedDict()
             for pm in self.fixed[cmp]:
-                if self.fixed[cmp][pm]:
+                if self.fixed[cmp][pm] | self.tied[cmp][pm]:
                     pkeys[cmp][pm] = -99
                 else:
                     pkeys[cmp][pm] = j
@@ -382,7 +389,7 @@ class NFW(MassModel):
 
     mvirial = DysmalParameter(default=1.0)
     rvirial = DysmalParameter(default=1.0)
-    conc = DysmalParameter(default=5.0)
+    conc = DysmalParameter(default=5.0, fixed=True)
 
     _subtype = 'dark_matter'
 
