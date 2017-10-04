@@ -4,6 +4,9 @@
 # This module contains our new Parameter class which applies a prior function
 # to a parameter
 
+from __future__ import (absolute_import, unicode_literals, division,
+                        print_function)
+
 # Standard library
 import abc
 import operator
@@ -14,6 +17,7 @@ import numpy as np
 from scipy.stats import norm
 from astropy.modeling import Parameter
 from astropy.units import Quantity
+from astropy.extern import six
 
 __all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior']
 
@@ -39,9 +43,11 @@ def _binary_comparison_operation(op):
 
     return wrapper
 
+
 # ******* PRIORS ************
 # Base class for priors
-class Prior(abc.ABC):
+@six.add_metaclass(abc.ABCMeta)
+class Prior:
 
     @abc.abstractmethod
     def log_prior(self, *args, **kwargs):
@@ -49,7 +55,7 @@ class Prior(abc.ABC):
 
 
 class UniformPrior(Prior):
-
+    # TODO: Do we need to scale the uniform priors?
     @staticmethod
     def log_prior(param):
 
@@ -93,7 +99,7 @@ class DysmalParameter(Parameter):
 
         if prior is None:
             prior = UniformPrior
-        self._prior = prior
+        self.prior = prior
 
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,
@@ -122,7 +128,7 @@ class DysmalParameter(Parameter):
         """Set the prior function"""
 
         if self._model is not None:
-            if not isinstance(Prior):
+            if not isinstance(value, Prior):
                 raise TypeError('Prior must be an instance of '
                                 'dysmalpy.parameters.Prior')
             self._model._constraints['prior'][self._name] = value
