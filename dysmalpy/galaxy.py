@@ -17,8 +17,8 @@ import scipy.interpolate as scp_interp
 
 # Local imports
 # Package imports
-from instrument import Instrument
-from models import ModelSet
+from .instrument import Instrument
+from .models import ModelSet
 
 __all__ = ['Galaxy']
 

@@ -17,7 +17,7 @@ from radio_beam import Beam
 __all__ = ["Instrument", "Beam"]
 
 # CONSTANTS
-sig_to_fwhm = 2.*np.sqrt(2*np.log(2))
+sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
