@@ -18,10 +18,11 @@ import scipy.optimize as scp_opt
 import astropy.constants as apy_con
 import astropy.units as u
 from astropy.modeling import Model
+import astropy.cosmology as apy_cosmo
 
 # Local imports
-from galaxy import _default_cosmo
-from parameters import DysmalParameter
+#from .galaxy import _default_cosmo
+from .parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
            'DispersionProfileConst', 'Geometry']
@@ -34,11 +35,40 @@ G = apy_con.G
 Msun = apy_con.M_sun
 pc = apy_con.pc
 
+# DEFAULT COSMOLOGY
+_default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
+
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 # TODO: Tied parameters are NOT automatically updated when variables change!! Need to keep track during the fitting!
+
+
+
+def calc_rvir(mvirial, z, cosmo=_default_cosmo):
+    """
+    Calculate the virial radius based on virial mass and redshift
+    M_vir = 100*H(z)^2/G * R_vir^3
+
+    :param mvirial: Virial mass in log(Msun)
+    :param z: Redshift
+    :return: rvirial: Virial radius in kpc
+    """
+    g_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
+    Hz = cosmo.H(z).value
+    rvir = ((10**mvirial * (g_new_unit * 1e-3) /
+             (10 * Hz * 1e-3) ** 2) ** (1./3.))
+
+    return rvir
+
+
+def _tie_rvir_mvir(model):
+    # Function that will tie the virial radius to the virial mass within
+    # the model fitting
+
+    return calc_rvir(model.mvirial, model.z, model.cosmo)
+
 
 # Generic model container which tracks all components, parameters,
 # parameter settings, model settings, etc.
@@ -282,6 +312,9 @@ class ModelSet:
         # Create 3D arrays of the sky pixel coordinates
         sh = (nz_sky, ny_sky, nx_sky)
         zsky, ysky, xsky = np.indices(sh)
+        zsky = zsky - (nz_sky - 1) / 2.
+        ysky = ysky - (ny_sky - 1) / 2.
+        xsky = xsky - (nx_sky - 1) / 2.
 
         # Apply the geometric transformation to get galactic coordinates
         xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
@@ -303,7 +336,6 @@ class ModelSet:
         for cmp in self.light_components:
             if self.light_components[cmp]:
                 cpt_mass = 10 ** self.components[cmp].total_mass.value
-                zscale = self.zprofile(zgal * dscale / rstep)
                 flux += self.components[cmp](rgal) / cpt_mass * zscale
 
         # Begin constructing the IFU cube
@@ -326,8 +358,6 @@ class ModelSet:
             cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
 
         return cube_final
-
-
 
 
 # ***** Mass Component Model Classes ******
@@ -556,10 +586,10 @@ class Geometry(_DysmalFittable3DModel):
         inc = np.pi / 180. * inc
         pa = np.pi / 180. * (pa - 90.)
 
-        nz, ny, nx = x.shape
-        zsky = z - (nz - 1) / 2.
-        xsky = x - (nx - 1) / 2. - xshift
-        ysky = y - (ny - 1) / 2. - yshift
+        # Apply the shifts in the sky system
+        xsky = x - xshift
+        ysky = y - yshift
+        zsky = z
 
         xtmp = xsky * np.cos(pa) + ysky * np.sin(pa)
         ytmp = -xsky * np.sin(pa) + ysky * np.cos(pa)
@@ -676,30 +706,6 @@ class KinematicOptions:
             vel = np.sqrt(vel_squared)
 
         return vel
-
-
-def calc_rvir(mvirial, z, cosmo=_default_cosmo):
-    """
-    Calculate the virial radius based on virial mass and redshift
-    M_vir = 100*H(z)^2/G * R_vir^3
-
-    :param mvirial: Virial mass in log(Msun)
-    :param z: Redshift
-    :return: rvirial: Virial radius in kpc
-    """
-    g_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
-    Hz = cosmo.H(z).value
-    rvir = ((10**mvirial * (g_new_unit * 1e-3) /
-             (10 * Hz * 1e-3) ** 2) ** (1./3.))
-
-    return rvir
-
-
-def _tie_rvir_mvir(model):
-    # Function that will tie the virial radius to the virial mass within
-    # the model fitting
-
-    return calc_rvir(model.mvirial, model.z, model.cosmo)
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
