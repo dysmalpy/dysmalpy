@@ -99,7 +99,7 @@ class DysmalParameter(Parameter):
 
         if prior is None:
             prior = UniformPrior
-        self.prior = prior
+        self._prior = prior
 
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,
