@@ -336,6 +336,7 @@ class ModelSet:
         for cmp in self.light_components:
             if self.light_components[cmp]:
                 cpt_mass = 10 ** self.components[cmp].total_mass.value
+                zscale = self.zprofile(zgal * rstep / dscale)
                 flux += self.components[cmp](rgal) / cpt_mass * zscale
 
         # Begin constructing the IFU cube
@@ -525,7 +526,8 @@ class NFW(MassModel):
         rho0 = self.calc_rho0()
         rs = self.rvirial/self.conc
         aa = 4.*np.pi*rho0*self.rvirial**3/self.conc**3
-        bb = np.log((rs + r)/rs) - r/(rs + r)
+        # For very small r, bb can be negative.
+        bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
 
         return aa*bb
 
