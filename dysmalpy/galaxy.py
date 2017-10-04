@@ -8,14 +8,17 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-# Package imports
-from .instrument import Instrument
-from .models import Model
-
 # Third party imports
 import numpy as np
 import astropy.cosmology as apy_cosmo
 from astropy.extern import six
+import scipy.optimize as scp_opt
+import scipy.interpolate as scp_interp
+
+# Local imports
+# Package imports
+from instrument import Instrument
+from models import ModelSet
 
 __all__ = ['Galaxy']
 
@@ -29,36 +32,43 @@ class Galaxy:
     user provided mass components.
     """
 
-    def __init__(self, z=0, cosmo=None, model=None, instrument=None,
+    def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
                  data=None, name='galaxy'):
 
         self._z = z
         self.name = name
-        self.model = model
+        if model is None:
+            self.model = ModelSet()
+        else:
+            self.model = model
         self.data = data
         self.instrument = instrument
         self._cosmo = cosmo
         self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
 
-        @property
-        def z(self):
-            return self._z
+    @property
+    def z(self):
+        return self._z
 
-        @z.setter
-        def z(self, value):
-            if value < 0:
-                raise ValueError("Redshift can't be negative!")
-            self._z = value
+    @z.setter
+    def z(self, value):
+        if value < 0:
+            raise ValueError("Redshift can't be negative!")
+        self._z = value
 
-        @property
-        def cosmo(self):
-            return self._cosmo
+    @property
+    def cosmo(self):
+        return self._cosmo
 
-        @cosmo.setter
-        def cosmo(self, new_cosmo):
-            if isinstance(apy_cosmo.FLRW, new_cosmo):
-                raise TypeError("Cosmology must be an astropy.cosmology.FLRW "
-                                "instance.")
-            if new_cosmo is None:
-                self._cosmo = _default_cosmo
-            self._cosmo = new_cosmo
+    @cosmo.setter
+    def cosmo(self, new_cosmo):
+        if isinstance(apy_cosmo.FLRW, new_cosmo):
+            raise TypeError("Cosmology must be an astropy.cosmology.FLRW "
+                            "instance.")
+        if new_cosmo is None:
+            self._cosmo = _default_cosmo
+        self._cosmo = new_cosmo
+
+
+
+
