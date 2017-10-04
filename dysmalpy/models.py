@@ -261,8 +261,7 @@ class ModelSet:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
-                            mcomp._subtype, cmp
-                        ))
+                                        mcomp._subtype, cmp))
 
             vel = self.kinematic_options.apply_adiabatic_contract(r,
                                                                   vbaryon, vdm)
@@ -572,7 +571,8 @@ class Geometry(_DysmalFittable3DModel):
 
         return xgal, ygal, zgal
 
-#******* Dispersion Profiles **************
+
+# ******* Dispersion Profiles **************
 class DispersionProfile(_DysmalFittable1DModel):
     """Base dispersion profile model class"""
     _type = 'dispersion'
@@ -587,7 +587,8 @@ class DispersionConst(DispersionProfile):
 
         return np.ones(r.shape)*sigma0
 
-#******* Z-Height Profiles ***************
+
+# ******* Z-Height Profiles ***************
 class ZHeightProfile(_DysmalFittable1DModel):
     """Base z-height profile model class"""
     _type = 'zheight'
@@ -652,7 +653,6 @@ class KinematicOptions:
                         if mcomp._subtype == 'baryonic':
                             pre = mcomp.r_eff.value
                             break
-
 
                 if pre is None:
                     logger.warning("No baryonic mass component found. Using "
