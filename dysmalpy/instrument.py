@@ -158,7 +158,8 @@ class LSF(u.Quantity):
         Return a Gaussian convolution kernel in velocity space
         """
 
-        sigma_pixel = self.dispersion.value/velstep.value
+        sigma_pixel = (self.dispersion.value /
+                       velstep.to(self.dispersion.unit).value)
 
         return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
 
