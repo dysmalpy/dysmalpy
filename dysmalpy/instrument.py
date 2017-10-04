@@ -6,12 +6,12 @@
 
 # Standard library
 import logging
-import abc
 
 # Third party imports
 import numpy as np
 import astropy.convolution as apy_conv
 import astropy.units as u
+import astropy.constants as c
 from radio_beam import Beam
 
 __all__ = ["Instrument", "Beam"]
@@ -19,9 +19,11 @@ __all__ = ["Instrument", "Beam"]
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 
+
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+
 
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
@@ -30,9 +32,9 @@ class Instrument:
                  name='Instrument'):
 
         self.name = name
-        self.pixscale = pixscale
-        self.beam = beam
-        self.lsf = lsf
+        self._pixscale = pixscale
+        self._beam = beam
+        self._lsf = lsf
 
     def convolve(self, cube):
         """
@@ -59,7 +61,6 @@ class Instrument:
 
         return cube
 
-
     @property
     def beam(self):
         return self._beam
@@ -71,6 +72,7 @@ class Instrument:
         else:
             raise TypeError("Beam must be an instance of"
                             "radio_beam.beam.Beam")
+
     @property
     def lsf(self):
         return self._lsf
@@ -110,20 +112,14 @@ class LSF(u.Quantity):
         # give specified values priority
         if dispersion is not None:
             if (u.km/u.s).is_equivalent(dispersion):
-                dispersion= dispersion
+                dispersion = dispersion
             else:
-                warnings.warn("Assuming dispersion has been specified in "
-                              "km/s.")
+                logger.warning("Assuming dispersion has been specified in "
+                               "km/s.")
                 dispersion = dispersion * default_unit
 
-        # some sensible defaults
-        if minor is None:
-            minor = major
-
-        self = super(Beam, cls).__new__(cls, _to_area(major,minor).value, u.sr)
-        self._major = major
-        self._minor = minor
-        self._pa = pa
+        self = super(LSF, cls).__new__(cls, dispersion.value, u.km/u.s)
+        self._dispersion = dispersion
         self.default_unit = default_unit
 
         if meta is None:
@@ -134,3 +130,43 @@ class LSF(u.Quantity):
             raise TypeError("metadata must be a dictionary")
 
         return self
+
+    def __repr__(self):
+        return "LSF: Vel. Disp. = {0}".format(
+            self.dispersion.to(self.default_unit))
+
+    def __str__(self):
+        return self.__repr__()
+
+    @property
+    def dispersion(self):
+        return self._dispersion
+
+    def vel_to_lambda(self, wave):
+        """
+        Convert from velocity dispersion to wavelength dispersion for
+        a given central wavelength.
+        """
+
+        if not isinstance(wave, u.quantity.Quantity):
+            raise TypeError("wave must be a Quantity object. "
+                            "Try 'wave*u.Angstrom' or another equivalent unit.")
+        return (self.dispersion/c.c.to(self.dispersion.unit))*wave
+
+    def as_velocity_kernel(self, velstep, **kwargs):
+        """
+        Return a Gaussian convolution kernel in velocity space
+        """
+
+        sigma_pixel = self.dispersion.value/velstep.value
+
+        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+    def as_wave_kernel(self, wavestep, wavecenter, **kwargs):
+        """
+        Return a Gaussian convolution kernel in wavelength space
+        """
+
+        sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
+
+        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)

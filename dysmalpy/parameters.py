@@ -116,7 +116,6 @@ class DysmalParameter(Parameter):
 
     @property
     def prior(self):
-        """Prior class to calculate the prior"""
         if self._model is not None:
             prior = self._model._constraints['prior']
             return prior.get(self._name, self._prior)
