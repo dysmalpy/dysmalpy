@@ -38,12 +38,13 @@ class Instrument:
         self.beam = beam
         self.lsf = lsf
 
-    def convolve(self, cube):
+    def convolve(self, cube, spec_units='velocity', spec_step=None,
+                 spec_center=None):
         """
         Method to perform the convolutions in both the spatial and
         spectral space. Cube is assumed to be 3D with the first dimension
         corresponding to the spectral dimension.
-        First convolve with the instrument PSF, the with the LSF.
+        First convolve with the instrument PSF, then with the LSF.
         """
 
         if self.beam is None and self.lsf is None:
@@ -54,18 +55,114 @@ class Instrument:
 
         elif self.lsf is None:
 
-            if self.pixscale is None:
-                raise ValueError("Pixelscale for this instrument has not "
-                                 "been set yet. Can't convolve with beam.")
-            kernel = self.beam.as_kernel(self.pixscale)
-            for i in range(cube.shape[0]):
-                cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
+            cube = self.convolve_with_beam(cube)
 
-        #elif self.beam is None:
+        elif self.beam is None:
 
+            cube = self.convolve_with_lsf(cube, spec_units=spec_units,
+                                          spec_step=spec_step,
+                                          spec_center=spec_center)
 
+        else:
+
+            cube_conv_beam = self.convolve_with_beam(cube)
+            cube = self.convolve_with_lsf(cube_conv_beam, spec_units=spec_units,
+                                          spec_step=spec_step,
+                                          spec_center=spec_center)\
 
         return cube
+
+    def convolve_with_lsf(self, cube, spec_units='velocity', spec_step=None,
+                          spec_center=None):
+        """Convolve cube with the LSF"""
+
+        if (spec_units != 'velocity') | (spec_units != 'wavelength'):
+            raise ValueError("spec_units must be either 'velocity' or "
+                             "'wavelength'.")
+
+        if (self.wavestep is None) and (spec_step is None):
+            raise ValueError("Spectral step not defined. Either set "
+                             "'wavestep' for this instrument or specify in"
+                             " 'spec_step'.")
+
+        elif (spec_step is not None) and (spec_units == 'velocity'):
+
+            kernel = self.lsf.as_velocity_kernel(spec_step)
+
+        elif (spec_step is not None) and (spec_units == 'wavelength'):
+
+            if (self.center_wave is None) and (spec_center is None):
+                raise ValueError("Center wavelength not defined in either "
+                                 "the instrument or call to convolve.")
+
+            elif (spec_center is not None):
+                logger.info("Overriding the instrument central wavelength "
+                            "with {}.".format(spec_center))
+
+                kernel = self.lsf.as_wave_kernel(spec_step, spec_center)
+
+            else:
+
+                kernel = self.lsf.as_wave_kernel(spec_step,
+                                                 self.center_wave)
+
+        elif (self.wavestep is not None) and (spec_units == 'velocity'):
+
+            if (self.center_wave is None) and (spec_center is None):
+                raise ValueError("Center wavelength not defined in either "
+                                 "the instrument or call to convolve.")
+
+            elif (spec_center is not None):
+
+                logger.info("Overriding the instrument central wavelength "
+                            "with {}.".format(spec_center))
+                velstep = ((self.wavestep /
+                            spec_center.to(self.wavestep.unit)) *
+                            c.c.to(u.km / u.s))
+
+            else:
+
+                velstep = ((self.wavestep /
+                            self.center_wave.to(self.wavestep.unit)) *
+                           c.c.to(u.km / u.s))
+
+            kernel = self.lsf.as_velocity_kernel(velstep)
+
+        elif (self.wavestep is not None) and (spec_units == 'wavelength'):
+
+            if (self.center_wave is None) and (spec_center is None):
+                raise ValueError("Center wavelength not defined in either "
+                                 "the instrument or call to convolve.")
+
+            elif (spec_center is not None):
+
+                logger.info("Overriding the instrument central wavelength "
+                            "with {}.".format(spec_center))
+                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                                                 spec_center)
+
+            else:
+
+                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                                                 self.center_wave)
+
+        for i in range(cube.shape[1]):
+            for j in range(cube.shape[2]):
+                cube[:, i, j] = apy_conv.convolve_fft(cube[:, i, j], kernel)
+
+        return cube
+
+    def convolve_with_beam(self, cube):
+
+        if self.pixscale is None:
+            raise ValueError("Pixelscale for this instrument has not "
+                             "been set yet. Can't convolve with beam.")
+        kernel = self.beam.as_kernel(self.pixscale)
+        for i in range(cube.shape[0]):
+            cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
+
+        return cube
+
 
     @property
     def beam(self):
