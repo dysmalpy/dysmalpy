@@ -4,6 +4,9 @@
 # File containing classes for defining different instruments
 # to "observe" a model galaxy.
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 # Standard library
 import logging
 
@@ -14,7 +17,7 @@ import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam
 
-__all__ = ["Instrument", "Beam"]
+__all__ = ["Instrument", "Beam", "LSF"]
 
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
