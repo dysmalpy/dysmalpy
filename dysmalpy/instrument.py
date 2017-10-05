@@ -32,11 +32,11 @@ class Instrument:
                  wavestep=None, name='Instrument'):
 
         self.name = name
-        self._pixscale = pixscale
-        self._center_wave = center_wave
-        self._wavestep = wavestep
-        self._beam = beam
-        self._lsf = lsf
+        self.pixscale = pixscale
+        self.center_wave = center_wave
+        self.wavestep = wavestep
+        self.beam = beam
+        self.lsf = lsf
 
     def convolve(self, cube):
         """
@@ -75,8 +75,10 @@ class Instrument:
     def beam(self, new_beam):
         if isinstance(new_beam, Beam):
             self._beam = new_beam
+        elif new_beam is None:
+            self._beam = None
         else:
-            raise TypeError("Beam must be an instance of"
+            raise TypeError("Beam must be an instance of "
                             "radio_beam.beam.Beam")
 
     @property
@@ -93,7 +95,9 @@ class Instrument:
 
     @pixscale.setter
     def pixscale(self, value):
-        if not isinstance(value, u.Quantity):
+        if value is None:
+            self._pixscale = value
+        elif not isinstance(value, u.Quantity):
             logger.warning("No units on pixscale. Assuming arcseconds.")
             self._pixscale = value*u.arcsec
         else:
@@ -109,7 +113,9 @@ class Instrument:
 
     @center_wave.setter
     def center_wave(self, value):
-        if not isinstance(value, u.Quantity):
+        if value is None:
+            self._center_wave = value
+        elif not isinstance(value, u.Quantity):
             logger.warning("No units on center_wave. Assuming Angstroms.")
             self._center_wave = value * u.Angstrom
         else:
@@ -125,7 +131,9 @@ class Instrument:
 
     @wavestep.setter
     def wavestep(self, value):
-        if not isinstance(value, u.Quantity):
+        if value is None:
+            self._wavestep = value
+        elif not isinstance(value, u.Quantity):
             logger.warning("No units on wavestep. Assuming Angstoms.")
             self._wavestep = value * u.Angstrom
         else:
