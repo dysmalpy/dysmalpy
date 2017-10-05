@@ -28,11 +28,13 @@ logger = logging.getLogger('DysmalPy')
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
-    def __init__(self, beam=None, lsf=None, pixscale=None,
-                 name='Instrument'):
+    def __init__(self, beam=None, lsf=None, pixscale=None, center_wave=None,
+                 wavestep=None, name='Instrument'):
 
         self.name = name
         self._pixscale = pixscale
+        self._center_wave = center_wave
+        self._wavestep = wavestep
         self._beam = beam
         self._lsf = lsf
 
@@ -55,9 +57,13 @@ class Instrument:
             if self.pixscale is None:
                 raise ValueError("Pixelscale for this instrument has not "
                                  "been set yet. Can't convolve with beam.")
-            kernel = self.beam.as_kernel(self.pixscale*u.arcsec)
+            kernel = self.beam.as_kernel(self.pixscale)
             for i in range(cube.shape[0]):
                 cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
+
+        #elif self.beam is None:
+
+
 
         return cube
 
@@ -87,7 +93,48 @@ class Instrument:
 
     @pixscale.setter
     def pixscale(self, value):
-        self._pixscale = value
+        if not isinstance(value, u.Quantity):
+            logger.warning("No units on pixscale. Assuming arcseconds.")
+            self._pixscale = value*u.arcsec
+        else:
+            if (u.arcsec).is_equivalent(value):
+                self._pixscale = value
+            else:
+                raise u.UnitsError("pixscale not in equivalent units to "
+                                   "arcseconds.")
+
+    @property
+    def center_wave(self):
+        return self._center_wave
+
+    @center_wave.setter
+    def center_wave(self, value):
+        if not isinstance(value, u.Quantity):
+            logger.warning("No units on center_wave. Assuming Angstroms.")
+            self._center_wave = value * u.Angstrom
+        else:
+            if (u.Angstrom).is_equivalent(value):
+                self._center_wave = value
+            else:
+                raise u.UnitsError("center_wave not in equivalent units to "
+                                   "Angstoms.")
+
+    @property
+    def wavestep(self):
+        return self._wavestep
+
+    @wavestep.setter
+    def wavestep(self, value):
+        if not isinstance(value, u.Quantity):
+            logger.warning("No units on wavestep. Assuming Angstoms.")
+            self._wavestep = value * u.Angstrom
+        else:
+            if (u.Angstrom).is_equivalent(value):
+                self._wavestep = value
+            else:
+                raise u.UnitsError("wavestep not in equivalent units to "
+                                   "Angstrom.")
+
 
 
 class LSF(u.Quantity):
@@ -148,7 +195,7 @@ class LSF(u.Quantity):
         a given central wavelength.
         """
 
-        if not isinstance(wave, u.quantity.Quantity):
+        if not isinstance(wave, u.Quantity):
             raise TypeError("wave must be a Quantity object. "
                             "Try 'wave*u.Angstrom' or another equivalent unit.")
         return (self.dispersion/c.c.to(self.dispersion.unit))*wave
