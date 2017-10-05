@@ -139,3 +139,46 @@ class Data2D(Data):
                                      shape=shape)
 
 
+class Data3D(Data):
+
+    def __init__(self, cube, pixscale, spec_type, spec_arr,
+                 err_cube=None, mask=None, estimate_err=False, error_frac=0.2):
+
+        if mask is not None:
+            if mask.shape != cube.shape:
+                raise ValueError("mask and velocity are not the same size.")
+
+        if err_cube is not None:
+            if err_cube.shape != cube.shape:
+                raise ValueError("err_cube and cube are not the same size.")
+
+        if len(spec_arr) != cube.shape[0]:
+            raise ValueError("First dimension of cube not the same size as "
+                             "spec_arr.")
+
+        # Estimate the error cube if requested by taking error_frac*cube
+        if estimate_err:
+            err_cube = error_frac*cube
+
+        # Get the spectral step by just taking the difference between the
+        # first and second elements. Assumes uniform spacing.
+        spec_step = spec_arr[1] - spec_arr[0]
+
+        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
+            raise ValueError("spec_type must be one of 'velocity' or "
+                             "'wavelength.'")
+
+        data = np.ma.masked_array(cube, mask=mask)
+        if err_cube is not None:
+            error = np.ma.masked_array(err_cube, mask=mask)
+        else:
+            error = None
+
+        shape = cube.shape
+        self.pixscale = pixscale
+        self.spec_type = spec_type
+        self.spec_arr = spec_arr
+        self.spec_step = spec_step
+        super(Data3D, self).__init__(data=data, error=error, ndim=3,
+                                     shape=shape)
+
