@@ -4,6 +4,9 @@
 # File containing all of the available models to use build the
 # galaxy
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 # Standard library
 import abc
 import logging
