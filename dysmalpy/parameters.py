@@ -52,6 +52,10 @@ class Prior:
     @abc.abstractmethod
     def log_prior(self, *args, **kwargs):
         """Every prior should have a method that returns log(prior)"""
+        
+    @abc.abstractmethod
+    def sample_prior(self, *args, **kwargs):
+        """Every prior should have a method that returns random sample weighted by prior"""
 
 
 class UniformPrior(Prior):
@@ -70,10 +74,25 @@ class UniformPrior(Prior):
             pmax = param.bounds[1]
 
         if (param.value >= pmin) & (param.value <= pmax):
-            return 0
+            return 0.
         else:
             return -np.inf
+            
+    @staticmethod
+    def sample_prior(param, N=1):
+        if param.bounds[0] is None:
+            # pmin = -np.inf 
+            pmin = -1.e5  # Need to default to a finite value for the rand dist.
+        else:
+            pmin = param.bounds[0]
 
+        if param.bounds[1] is None:
+            #pmax = np.inf
+            pmax = 1.e5 # Need to default to a finite value for the rand dist.
+        else:
+            pmax = param.bounds[1]
+            
+        return np.random.rand(N)*(pmax-pmin) + pmin
 
 class GaussianPrior(Prior):
 
@@ -86,6 +105,12 @@ class GaussianPrior(Prior):
     def log_prior(self, param):
         return norm.pdf(param.value, loc=self.center,
                         scale=self.stddev)
+                        
+                        
+    def sample_prior(self, param, N=1):
+        return np.random.normal(loc=self.center, 
+                    scale=self.stddev, size=N)
+        
 
 
 
