@@ -242,7 +242,7 @@ class ModelSet:
         for cmp in self.fixed:
             pkeys[cmp] = OrderedDict()
             for pm in self.fixed[cmp]:
-                if self.fixed[cmp][pm] | self.tied[cmp][pm]:
+                if self.fixed[cmp][pm] | np.bool(self.tied[cmp][pm]):
                     pkeys[cmp][pm] = -99
                 else:
                     pkeys[cmp][pm] = j
@@ -257,6 +257,22 @@ class ModelSet:
     def get_free_parameter_keys(self):
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
+        
+    
+    def get_log_prior(self):
+        log_prior_model = 0.
+        pfree_dict = self.get_free_parameter_keys()
+        comps_names = pfree_dict.keys()
+        for compn in comps_names:
+            comp = self.components.__getitem__(compn)
+            params_names = pfree_dict[compn].keys()
+            for paramn in params_names:
+                if (pfree_dict[compn][paramn] >= 0) :
+                    # Free parameter: add to total prior
+                    log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
+        return log_prior_model
+        
+        
 
     def velocity_profile(self, r):
         """
