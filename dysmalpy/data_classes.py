@@ -37,8 +37,8 @@ class Data:
 class Data1D(Data):
 
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
-                 vel_disp_err=None, mask=None, aper_size=None,
-                 aper_pa=None, estimate_err=False, error_frac=0.2):
+                 vel_disp_err=None, mask=None, slit_width=None,
+                 slit_pa=None, estimate_err=False, error_frac=0.2):
 
         if r.shape != velocity.shape:
             raise ValueError("r and velocity are not the same size.")
@@ -101,8 +101,8 @@ class Data1D(Data):
             error['dispersion'] = None
 
         shape = velocity.shape
-        self.aper_size = aper_size
-        self.aper_pa = aper_pa
+        self.slit_width = slit_width
+        self.slit_pa = slit_pa
         self.rarr = r
         super(Data1D, self).__init__(data=data, error=error, ndim=1,
                                      shape=shape)
