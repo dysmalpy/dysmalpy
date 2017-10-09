@@ -303,7 +303,8 @@ class ModelSet:
             return vel
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
-                      velmax, velstep, vshift=0):
+                      spec_type, spec_step, spec_start, nspec,
+                      wave_center=None):
         """Simulate an IFU cube of this model set"""
 
         # Start with a 3D array in the sky coordinate system
@@ -330,7 +331,7 @@ class ModelSet:
         # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
         # is the position angle in the plane of the disk
         # cos(theta) is just xgal/rgal
-        vobs = (vshift + vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+        vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                 xgal / (rgal / rstep * dscale))
         vobs[rgal == 0] = 0.
 
@@ -343,25 +344,39 @@ class ModelSet:
                 flux += self.components[cmp](rgal) / cpt_mass * zscale
 
         # Begin constructing the IFU cube
-        vx = np.arange(
-            np.int(2 * velmax / velstep + 1)) * velstep - velmax
-        nv = len(vx)
-        velcube = np.tile(np.resize(vx, (nv, 1, 1)),
+        spec = np.arange(nspec) * spec_step + spec_start
+        if spec_type == 'velocity':
+            vx = spec
+        elif spec_type == 'wavelength':
+            if wave_center is None:
+                raise ValueError("wave_center must be provided if spec_type is "
+                                 "'wavelength.'")
+            vx = spec/wave_center*apy_con.c.to(u.km/u.s).value
+
+        velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
                           (1, ny_sky, nx_sky))
-        cube_final = np.zeros((nv, ny_sky, nx_sky))
+        cube_final = np.zeros((nspec, ny_sky, nx_sky))
 
         # The final spectrum will be a flux weighted sum of Gaussians at each
         # velocity along the line of sight.
         sigmar = self.dispersion_profile(rgal)
         for zz in range(nz_sky):
-            f_cube = np.tile(flux[zz, :, :], (nv, 1, 1))
-            vobs_cube = np.tile(vobs[zz, :, :], (nv, 1, 1))
-            sig_cube = np.tile(sigmar[zz, :, :], (nv, 1, 1))
+            f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
+            vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+            sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
             tmp_cube = np.exp(
                 -0.5 * ((velcube - vobs_cube) / (sig_cube)) ** 2)
             cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
 
         return cube_final
+
+    def create_model_data(self, ndim_final, nx_sky, ny_sky, dscale, rstep,
+                          spec_type, spec_step, spec_start, nspec,
+                          aper_centers=None, aper_radius=None, aper_pa=None):
+        """Simulate an IFU cube then optionally collapse it down to a 2D
+        velocity/dispersion field or 1D velocity/dispersion profile."""
+
+
 
 
 # ***** Mass Component Model Classes ******
