@@ -68,7 +68,7 @@ def plot_trace(mcmcResults, fileout=None):
 def plot_corner(mcmcResults, fileout=None):
     names = make_clean_mcmc_plot_names(mcmcResults)
     
-    title_kwargs = {'horizontalalignment': 'left'}
+    title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(mcmcResults.sampler['flatchain'], 
                             labels=names, 
                             quantiles= [.02275, 0.15865, 0.84135, .97725],
@@ -82,7 +82,7 @@ def plot_corner(mcmcResults, fileout=None):
     # possible: , title_kwargs={"fontsize": 12}
     
     if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=100)
+        plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
         plt.close(fig)
     else:
         plt.show()
