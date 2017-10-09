@@ -20,6 +20,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
+__all__ = ["Data", "Data1D", "Data2D", "Data3D"]
+
+
 # Base Class for a data container
 class Data:
 
