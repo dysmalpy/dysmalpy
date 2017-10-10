@@ -392,35 +392,38 @@ class ModelSet:
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      line_center=None):
+                      line_center=None, oversample=1):
         """Simulate an IFU cube of this model set"""
 
         # Start with a 3D array in the sky coordinate system
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
-        nz_sky = np.max([nx_sky, ny_sky])
+        nx_sky_samp = nx_sky*oversample
+        ny_sky_samp = ny_sky*oversample
+        rstep_samp = rstep/oversample
+        nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Create 3D arrays of the sky pixel coordinates
-        sh = (nz_sky, ny_sky, nx_sky)
+        sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
         zsky, ysky, xsky = np.indices(sh)
-        zsky = zsky - (nz_sky - 1) / 2.
-        ysky = ysky - (ny_sky - 1) / 2.
-        xsky = xsky - (nx_sky - 1) / 2.
+        zsky = zsky - (nz_sky_samp - 1) / 2.
+        ysky = ysky - (ny_sky_samp - 1) / 2.
+        xsky = xsky - (nx_sky_samp - 1) / 2.
 
         # Apply the geometric transformation to get galactic coordinates
         xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
 
         # The circular velocity at each position only depends on the radius
         # Convert to kpc
-        rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep / dscale
+        rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
         vcirc = self.velocity_profile(rgal)
 
         # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
         # is the position angle in the plane of the disk
         # cos(theta) is just xgal/rgal
         vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
-                xgal / (rgal / rstep * dscale))
+                xgal / (rgal / rstep_samp * dscale))
         vobs[rgal == 0] = 0.
 
         # Calculate "flux" for each position
@@ -428,7 +431,7 @@ class ModelSet:
         for cmp in self.light_components:
             if self.light_components[cmp]:
                 cpt_mass = 10 ** self.components[cmp].total_mass.value
-                zscale = self.zprofile(zgal * rstep / dscale)
+                zscale = self.zprofile(zgal * rstep_samp / dscale)
                 flux += self.components[cmp](rgal) / cpt_mass * zscale
 
         # Begin constructing the IFU cube
@@ -436,14 +439,14 @@ class ModelSet:
         if spec_type == 'velocity':
             vx = spec
         elif spec_type == 'wavelength':
-            if wave_center is None:
+            if line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            vx = (spec - wave_center)/wave_center*apy_con.c.to(u.km/u.s).value
+            vx = (spec - line_center)/line_center*apy_con.c.to(u.km/u.s).value
 
         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
-                          (1, ny_sky, nx_sky))
-        cube_final = np.zeros((nspec, ny_sky, nx_sky))
+                          (1, ny_sky_samp, nx_sky_samp))
+        cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
 
         # The final spectrum will be a flux weighted sum of Gaussians at each
         # velocity along the line of sight.
