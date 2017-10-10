@@ -79,7 +79,9 @@ class Galaxy:
         """Simulate an IFU cube then optionally collapse it down to a 2D
         velocity/dispersion field or 1D velocity/dispersion profile."""
 
+        # Pull parameters from the observed data if specified
         if from_data:
+
             ndim_final = self.data.ndim
 
             if ndim_final == 3:
@@ -97,6 +99,37 @@ class Galaxy:
                 spec_step = (self.data.data.spectral_axis[1].value -
                              self.data.data.spectral_axis[0].value)
                 rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
+
+            elif ndim_final == 2:
+
+                nx_sky = self.data.shape[2]
+                ny_sky = self.data.shape[1]
+                rstep = self.data.pixscale
+                spec_type = 'velocity'
+                spec_start = -1000.0
+                spec_unit = u.km/u.s
+                spec_step = 10.
+                nspec = len(np.arange(spec_start, -spec_start+spec_step,
+                                      spec_step))
+
+            elif ndim_final == 1:
+
+                maxr = 1.5*np.max(np.abs(self.data.rarr))
+                rstep = np.mean(self.data.rarr[1:] - self.data.rarr[0:-1])/3.
+                nx_sky = int(np.ceil(maxr/rstep))
+                ny_sky = int(np.ceil(maxr/rstep))
+                spec_type = 'velocity'
+                spec_start = -1000.0
+                spec_unit = u.km / u.s
+                spec_step = 10.
+                nspec = len(np.arange(spec_start, -spec_start + spec_step,
+                                      spec_step))
+                slit_width = self.data.slit_width
+                slit_pa = self.data.slit_pa
+                aper_centers = self.data.rarr
+
+        # Pull parameters from the instrument
+        elif from_instrument:
 
 
 
