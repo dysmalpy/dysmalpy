@@ -23,6 +23,7 @@ logger = logging.getLogger('DysmalPy')
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 
+# TODO: Are masked arrays significantly larger than an unmasked array?
 
 # Base Class for a data container
 class Data:
@@ -257,3 +258,5 @@ class Data3D(Data):
 
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
                                      shape=shape)
+
+# TODO: Dimension order for Data2D and Data3D?
