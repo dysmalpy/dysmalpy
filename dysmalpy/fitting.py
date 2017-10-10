@@ -38,7 +38,6 @@ acor_force_min = 49
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-
 def fit(gal, inst, model, 
            nWalkers=10,
            cpuFrac=None,
@@ -74,7 +73,8 @@ def fit(gal, inst, model,
     """
     # --------------------------------
     # Basic setup:
-    if nCPUs is None:
+    #if nCPUs is None:
+    if cpuFrac is not None:
         nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac)) 
         
     nDim = model.nparams_free
