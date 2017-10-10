@@ -12,6 +12,7 @@ import logging
 
 # Third party imports
 import numpy as np
+import astropy.units as u
 from astropy.wcs import WCS
 from spectral_cube import SpectralCube, BooleanArrayMask
 
@@ -213,14 +214,14 @@ class Data3D(Data):
         # first and second elements. Assumes uniform spacing.
         spec_step = spec_arr[1] - spec_arr[0]
 
-        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
+        if (spec_type != 'velocity') & (spec_type != 'wavelength'):
             raise ValueError("spec_type must be one of 'velocity' or "
                              "'wavelength.'")
 
         if (spec_type == 'velocity') and (spec_unit is None):
-            spec_unit = 'km/s'
+            spec_unit = u.km/u.s
         elif (spec_type == 'wavelength') and (spec_unit is None):
-            spec_unit = 'Angstrom'
+            spec_unit = u.Angstrom
 
         if spec_type == 'velocity':
             spec_ctype = 'VOPT'
@@ -245,7 +246,7 @@ class Data3D(Data):
         w.wcs.ctype = ['RA---TAN', 'DEC--TAN', spec_ctype]
         w.wcs.cdelt = [pixscale / 3600., pixscale / 3600., spec_step]
         w.wcs.crpix = [xref, yref, 1]
-        w.wcs.cunit = ['deg', 'deg', spec_unit]
+        w.wcs.cunit = ['deg', 'deg', spec_unit.to_string()]
         w.wcs.crval = [ra, dec, spec_arr[0]]
         data = SpectralCube(data=cube, wcs=w)
         if err_cube is not None:
