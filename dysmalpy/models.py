@@ -18,14 +18,16 @@ import scipy.special as scp_spec
 import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import scipy.optimize as scp_opt
+import scipy.ndimage as scp_ndi
 import astropy.constants as apy_con
 import astropy.units as u
 from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-#from .galaxy import _default_cosmo
+# from .galaxy import _default_cosmo
 from .parameters import DysmalParameter
+from .data_classes import Data1D, Data2D, Data3D
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
            'DispersionProfileConst', 'Geometry']
@@ -45,23 +47,19 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-# TODO: Tied parameters are NOT automatically updated when variables change!! Need to keep track during the fitting!
-
+# TODO: Tied parameters are NOT automatically updated when variables change!!
+# TODO: Need to keep track during the fitting!
 
 
 def calc_rvir(mvirial, z, cosmo=_default_cosmo):
     """
     Calculate the virial radius based on virial mass and redshift
     M_vir = 100*H(z)^2/G * R_vir^3
-
-    :param mvirial: Virial mass in log(Msun)
-    :param z: Redshift
-    :return: rvirial: Virial radius in kpc
     """
     g_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
-    Hz = cosmo.H(z).value
+    hz = cosmo.H(z).value
     rvir = ((10**mvirial * (g_new_unit * 1e-3) /
-             (10 * Hz * 1e-3) ** 2) ** (1./3.))
+             (10 * hz * 1e-3) ** 2) ** (1./3.))
 
     return rvir
 
@@ -71,6 +69,96 @@ def _tie_rvir_mvir(model):
     # the model fitting
 
     return calc_rvir(model.mvirial, model.z, model.cosmo)
+
+
+def area_segm(rr, dd):
+
+    return (rr**2 * np.arccos(dd/rr) -
+            dd * np.sqrt(2. * rr * (rr-dd) - (rr-dd)**2))
+
+
+def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
+
+    # Get the data for the observed velocity profile
+    cube_shape = cube.shape
+    psize = cube_shape[1]
+    vsize = cube_shape[0]
+    lin = np.arange(psize) - np.fix(psize/2.)
+    veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
+                                           reshape=False)
+    tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
+            ((lin*pxs) >= (soff-slit_width/2.)))
+    data = np.zeros((psize, vsize))
+    flux = np.zeros(psize)
+
+    yvec = vx
+    xvec = lin*pxs
+
+    for i in range(psize):
+        for j in range(vsize):
+            data[i, j] = np.mean(veldata[j, i, tmpn])
+        tmp = data[i]
+        flux[i] = np.sum(tmp)
+
+    flux = flux / np.max(flux) * 10.
+    pvec = (flux < 0.)
+
+    # Calculate circular segments
+    rr = 0.5 * slit_width
+    pp = pxs
+
+    nslice = np.int(1 + 2 * np.ceil((rr - 0.5 * pp) / pp))
+
+    circaper_idx = np.arange(nslice) - 0.5 * (nslice - 1)
+    circaper_sc = np.zeros(nslice)
+
+    circaper_sc[int(0.5*nslice - 0.5)] = (np.pi*rr**2 -
+                                          2.*area_segm(rr, 0.5*pp))
+
+    if nslice > 1:
+        circaper_sc[0] = area_segm(rr, (0.5*nslice - 1)*pp)
+        circaper_sc[nslice-1] = circaper_sc[0]
+
+    if nslice > 3:
+        for cnt in range(1, int(0.5*(nslice-3))+1):
+            circaper_sc[cnt] = (area_segm(rr, (0.5*nslice - 1. - cnt)*pp) -
+                                area_segm(rr, (0.5*nslice - cnt)*pp))
+            circaper_sc[nslice-1-cnt] = circaper_sc[cnt]
+
+    circaper_vel = np.zeros(psize)
+    circaper_disp = np.zeros(psize)
+
+    nidx = len(circaper_idx)
+    for i in range(psize):
+        tot_vnum = 0.
+        tot_denom = 0.
+        cnt_idx = 0
+        cnt_start = int(i + circaper_idx[0]) if (i + circaper_idx[0]) > 0 else 0
+        cnt_end = (int(i + circaper_idx[nidx-1]) if (i + circaper_idx[nidx-1]) <
+                                                    (psize-1) else (psize-1))
+        for cnt in range(cnt_start, cnt_end+1):
+            tmp = data[cnt]
+            tot_vnum += circaper_sc[cnt_idx] * np.sum(tmp*yvec)
+            tot_denom += circaper_sc[cnt_idx] * np.sum(tmp)
+            cnt_idx = cnt_idx + 1
+
+        circaper_vel[i] = tot_vnum / tot_denom
+
+        tot_dnum = 0.
+        cnt_idx = 0
+        for cnt in range(cnt_start, cnt_end+1):
+            tmp = data[cnt]
+            tot_dnum = (tot_dnum + circaper_sc[cnt_idx] *
+                        np.sum(tmp*(yvec-circaper_vel[i])**2))
+            cnt_idx = cnt_idx + 1
+
+        circaper_disp[i] = np.sqrt(tot_dnum / tot_denom)
+
+    if np.sum(pvec) > 0.:
+        circaper_vel[pvec] = -1.e3
+        circaper_disp[pvec] = 0.
+
+    return xvec, circaper_vel, circaper_disp
 
 
 # Generic model container which tracks all components, parameters,
@@ -304,7 +392,7 @@ class ModelSet:
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      wave_center=None):
+                      line_center=None):
         """Simulate an IFU cube of this model set"""
 
         # Start with a 3D array in the sky coordinate system
@@ -349,9 +437,9 @@ class ModelSet:
             vx = spec
         elif spec_type == 'wavelength':
             if wave_center is None:
-                raise ValueError("wave_center must be provided if spec_type is "
+                raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            vx = spec/wave_center*apy_con.c.to(u.km/u.s).value
+            vx = (spec - wave_center)/wave_center*apy_con.c.to(u.km/u.s).value
 
         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
                           (1, ny_sky, nx_sky))
@@ -365,17 +453,10 @@ class ModelSet:
             vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
             sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
             tmp_cube = np.exp(
-                -0.5 * ((velcube - vobs_cube) / (sig_cube)) ** 2)
+                -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
             cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
 
-        return cube_final
-
-    def create_model_data(self, ndim_final, nx_sky, ny_sky, dscale, rstep,
-                          spec_type, spec_step, spec_start, nspec,
-                          aper_centers=None, aper_radius=None, aper_pa=None):
-        """Simulate an IFU cube then optionally collapse it down to a 2D
-        velocity/dispersion field or 1D velocity/dispersion profile."""
-
+        return cube_final, spec
 
 
 

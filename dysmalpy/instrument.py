@@ -22,7 +22,6 @@ __all__ = ["Instrument", "Beam", "LSF"]
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 
-
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
@@ -71,7 +70,7 @@ class Instrument:
             cube_conv_beam = self.convolve_with_beam(cube)
             cube = self.convolve_with_lsf(cube_conv_beam, spec_units=spec_units,
                                           spec_step=spec_step,
-                                          spec_center=spec_center)\
+                                          spec_center=spec_center)
 
         return cube
 
