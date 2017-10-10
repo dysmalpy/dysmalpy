@@ -31,14 +31,17 @@ class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
     def __init__(self, beam=None, lsf=None, pixscale=None, center_wave=None,
-                 wavestep=None, name='Instrument'):
+                 wave_start=None, wave_step=None, nwave=None,
+                 fov=None, name='Instrument'):
 
         self.name = name
         self.pixscale = pixscale
-        self.center_wave = center_wave
-        self.wavestep = wavestep
         self.beam = beam
         self.lsf = lsf
+        self.fov = fov
+        self.wave_start = wave_start
+        self.wave_step = wave_step
+        self.nwave = nwave
 
     def convolve(self, cube, spec_units='velocity', spec_step=None,
                  spec_center=None):
@@ -207,24 +210,6 @@ class Instrument:
                                    "arcseconds.")
 
     @property
-    def center_wave(self):
-        return self._center_wave
-
-    @center_wave.setter
-    def center_wave(self, value):
-        if value is None:
-            self._center_wave = value
-        elif not isinstance(value, u.Quantity):
-            logger.warning("No units on center_wave. Assuming Angstroms.")
-            self._center_wave = value * u.Angstrom
-        else:
-            if (u.Angstrom).is_equivalent(value):
-                self._center_wave = value
-            else:
-                raise u.UnitsError("center_wave not in equivalent units to "
-                                   "Angstoms.")
-
-    @property
     def wavestep(self):
         return self._wavestep
 
@@ -241,6 +226,10 @@ class Instrument:
             else:
                 raise u.UnitsError("wavestep not in equivalent units to "
                                    "Angstrom.")
+
+    @property
+    def center_wave(self):
+        return self.wave_start + self.nwave/2
 
 
 
