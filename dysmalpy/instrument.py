@@ -30,7 +30,7 @@ logger = logging.getLogger('DysmalPy')
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
-    def __init__(self, beam=None, lsf=None, pixscale=None, center_wave=None,
+    def __init__(self, beam=None, lsf=None, pixscale=None,
                  wave_start=None, wave_step=None, nwave=None,
                  fov=None, name='Instrument'):
 
@@ -111,7 +111,7 @@ class Instrument:
                 kernel = self.lsf.as_wave_kernel(spec_step,
                                                  self.center_wave)
 
-        elif (self.wavestep is not None) and (spec_units == 'velocity'):
+        elif (self.wave_step is not None) and (spec_units == 'velocity'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -121,19 +121,19 @@ class Instrument:
 
                 logger.info("Overriding the instrument central wavelength "
                             "with {}.".format(spec_center))
-                velstep = ((self.wavestep /
-                            spec_center.to(self.wavestep.unit)) *
+                velstep = ((self.wave_step /
+                            spec_center.to(self.wave_step.unit)) *
                             c.c.to(u.km / u.s))
 
             else:
 
-                velstep = ((self.wavestep /
-                            self.center_wave.to(self.wavestep.unit)) *
+                velstep = ((self.wave_step /
+                            self.center_wave.to(self.wave_step.unit)) *
                            c.c.to(u.km / u.s))
 
             kernel = self.lsf.as_velocity_kernel(velstep)
 
-        elif (self.wavestep is not None) and (spec_units == 'wavelength'):
+        elif (self.wave_step is not None) and (spec_units == 'wavelength'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -143,12 +143,12 @@ class Instrument:
 
                 logger.info("Overriding the instrument central wavelength "
                             "with {}.".format(spec_center))
-                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  spec_center)
 
             else:
 
-                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  self.center_wave)
 
         for i in range(cube.shape[1]):
@@ -210,26 +210,29 @@ class Instrument:
                                    "arcseconds.")
 
     @property
-    def wavestep(self):
-        return self._wavestep
+    def wave_step(self):
+        return self._wave_step
 
-    @wavestep.setter
-    def wavestep(self, value):
+    @wave_step.setter
+    def wave_step(self, value):
         if value is None:
-            self._wavestep = value
+            self._wave_step = value
         elif not isinstance(value, u.Quantity):
             logger.warning("No units on wavestep. Assuming Angstoms.")
-            self._wavestep = value * u.Angstrom
+            self._wave_step = value * u.Angstrom
         else:
             if (u.Angstrom).is_equivalent(value):
-                self._wavestep = value
+                self._wave_step = value
             else:
                 raise u.UnitsError("wavestep not in equivalent units to "
                                    "Angstrom.")
 
     @property
     def center_wave(self):
-        return self.wave_start + self.nwave/2
+        if (self.wave_start is None) | (self.nwave is None):
+            return None
+        else:
+            return self.wave_start + self.nwave/2
 
 
 
