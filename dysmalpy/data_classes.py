@@ -23,17 +23,18 @@ logger = logging.getLogger('DysmalPy')
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 
-# TODO: Are masked arrays significantly larger than an unmasked array?
 
 # Base Class for a data container
 class Data:
 
-    def __init__(self, data=None, error=None, ndim=None, shape=None):
+    def __init__(self, data=None, error=None, ndim=None, mask=None,
+                 shape=None):
 
         self.data = data
         self.error = error
         self.ndim = ndim
         self.shape = shape
+        self.mask = mask
 
 
 class Data1D(Data):
@@ -49,7 +50,7 @@ class Data1D(Data):
             if mask.shape != velocity.shape:
                 raise ValueError("mask and velocity are not the same size.")
 
-        data = {'velocity': np.ma.masked_array(velocity, mask=mask)}
+        data = {'velocity': velocity}
 
         if vel_disp is None:
 
@@ -76,15 +77,14 @@ class Data1D(Data):
                 raise ValueError("vel_err and velocity are not the "
                                  "same size.")
 
-            error = {'velocity': np.ma.masked_array(vel_err, mask=mask)}
+            error = {'velocity': vel_err}
 
         if (vel_disp is not None) and (vel_disp_err is None):
 
             if estimate_err:
 
                 vel_disp_err = error_frac * vel_disp
-                error['dispersion'] = np.ma.masked_array(vel_disp_err,
-                                                         mask=mask)
+                error['dispersion'] = vel_disp_err
             else:
 
                 error['dispersion'] = None
@@ -96,8 +96,7 @@ class Data1D(Data):
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
 
-            error['dispersion'] = np.ma.masked_array(vel_disp_err,
-                                                     mask=mask)
+            error['dispersion'] = vel_disp_err
         else:
 
             error['dispersion'] = None
@@ -107,7 +106,7 @@ class Data1D(Data):
         self.slit_pa = slit_pa
         self.rarr = r
         super(Data1D, self).__init__(data=data, error=error, ndim=1,
-                                     shape=shape)
+                                     shape=shape, mask=mask)
 
 
 class Data2D(Data):
@@ -120,7 +119,7 @@ class Data2D(Data):
             if mask.shape != velocity.shape:
                 raise ValueError("mask and velocity are not the same size.")
 
-        data = {'velocity': np.ma.masked_array(velocity, mask=mask)}
+        data = {'velocity': velocity}
 
         if vel_disp is None:
 
@@ -131,7 +130,7 @@ class Data2D(Data):
             if vel_disp.shape != velocity.shape:
                 raise ValueError("vel_disp and velocity are not the same size.")
 
-            data['dispersion'] = np.ma.masked_array(vel_disp, mask=mask)
+            data['dispersion'] = vel_disp
 
         # Override any array given to vel_err if estimate_err is True
         if estimate_err:
@@ -147,15 +146,14 @@ class Data2D(Data):
                 raise ValueError("vel_err and velocity are not the "
                                  "same size.")
 
-            error = {'velocity': np.ma.masked_array(vel_err, mask=mask)}
+            error = {'velocity': vel_err}
 
         if (vel_disp is not None) and (vel_disp_err is None):
 
             if estimate_err:
 
                 vel_disp_err = error_frac * vel_disp
-                error['dispersion'] = np.ma.masked_array(vel_disp_err,
-                                                         mask=mask)
+                error['dispersion'] = vel_disp_err
             else:
 
                 error['dispersion'] = None
@@ -167,8 +165,7 @@ class Data2D(Data):
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
 
-            error['dispersion'] = np.ma.masked_array(vel_disp_err,
-                                                     mask=mask)
+            error['dispersion'] = vel_disp_err
         else:
 
             error['dispersion'] = None
@@ -179,7 +176,7 @@ class Data2D(Data):
         self.dec = dec
         self.ref_pixel = ref_pixel
         super(Data2D, self).__init__(data=data, error=error, ndim=2,
-                                     shape=shape)
+                                     shape=shape, mask=mask)
 
 
 class Data3D(Data):
@@ -193,11 +190,18 @@ class Data3D(Data):
             if mask_sky.shape != cube.shape[1:]:
                 raise ValueError("mask_sky and last two dimensions of cube do "
                                  "not match.")
+        else:
+
+            mask_sky = np.ones((cube.shape[1:]))
 
         if mask_spec is not None:
             if mask_spec.shape != spec_arr.shape:
                 raise ValueError("The length of mask_spec and spec_arr do not "
                                  "match.")
+        else:
+            mask_spec = np.ones(len(spec_arr))
+
+        mask = _create_cube_mask(mask_sky=mask_sky, mask_spec=mask_spec)
 
         if err_cube is not None:
             if err_cube.shape != cube.shape:
@@ -257,6 +261,16 @@ class Data3D(Data):
         shape = cube.shape
 
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
-                                     shape=shape)
+                                     shape=shape, mask=mask)
 
-# TODO: Dimension order for Data2D and Data3D?
+
+def _create_cube_mask(mask_sky=None, mask_spec=None):
+    """Create a 3D mask from a 2D sky mask and 1D spectral mask"""
+
+    mask_spec = mask_spec.reshape((len(mask_spec), 1, 1))
+    mask_spec_3d = np.tile(mask_spec, (1, mask_sky.shape[0], mask_sky.shape[1]))
+    mask_sky_3d = np.tile(mask_sky, (mask_spec.shape[0], 1, 1))
+
+    mask_total_3d = mask_spec_3d*mask_sky_3d
+
+    return mask_total_3d
