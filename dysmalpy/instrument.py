@@ -43,7 +43,7 @@ class Instrument:
         self.wave_step = wave_step
         self.nwave = nwave
 
-    def convolve(self, cube, spec_units='velocity', spec_step=None,
+    def convolve(self, cube, spec_type='velocity', spec_step=None,
                  spec_center=None):
         """
         Method to perform the convolutions in both the spatial and
@@ -64,37 +64,37 @@ class Instrument:
 
         elif self.beam is None:
 
-            cube = self.convolve_with_lsf(cube, spec_units=spec_units,
+            cube = self.convolve_with_lsf(cube, spec_type=spec_type,
                                           spec_step=spec_step,
                                           spec_center=spec_center)
 
         else:
 
             cube_conv_beam = self.convolve_with_beam(cube)
-            cube = self.convolve_with_lsf(cube_conv_beam, spec_units=spec_units,
+            cube = self.convolve_with_lsf(cube_conv_beam, spec_type=spec_type,
                                           spec_step=spec_step,
                                           spec_center=spec_center)
 
         return cube
 
-    def convolve_with_lsf(self, cube, spec_units='velocity', spec_step=None,
+    def convolve_with_lsf(self, cube, spec_type='velocity', spec_step=None,
                           spec_center=None):
         """Convolve cube with the LSF"""
 
-        if (spec_units != 'velocity') | (spec_units != 'wavelength'):
+        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
             raise ValueError("spec_units must be either 'velocity' or "
                              "'wavelength'.")
 
-        if (self.wavestep is None) and (spec_step is None):
+        if (self.wave_step is None) and (spec_step is None):
             raise ValueError("Spectral step not defined. Either set "
                              "'wavestep' for this instrument or specify in"
                              " 'spec_step'.")
 
-        elif (spec_step is not None) and (spec_units == 'velocity'):
+        elif (spec_step is not None) and (spec_type == 'velocity'):
 
             kernel = self.lsf.as_velocity_kernel(spec_step)
 
-        elif (spec_step is not None) and (spec_units == 'wavelength'):
+        elif (spec_step is not None) and (spec_type == 'wavelength'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -111,7 +111,7 @@ class Instrument:
                 kernel = self.lsf.as_wave_kernel(spec_step,
                                                  self.center_wave)
 
-        elif (self.wave_step is not None) and (spec_units == 'velocity'):
+        elif (self.wave_step is not None) and (spec_type == 'velocity'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -119,8 +119,6 @@ class Instrument:
 
             elif (spec_center is not None):
 
-                logger.info("Overriding the instrument central wavelength "
-                            "with {}.".format(spec_center))
                 velstep = ((self.wave_step /
                             spec_center.to(self.wave_step.unit)) *
                             c.c.to(u.km / u.s))
@@ -133,7 +131,7 @@ class Instrument:
 
             kernel = self.lsf.as_velocity_kernel(velstep)
 
-        elif (self.wave_step is not None) and (spec_units == 'wavelength'):
+        elif (self.wave_step is not None) and (spec_type == 'wavelength'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
