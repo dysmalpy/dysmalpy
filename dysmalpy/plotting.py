@@ -91,8 +91,14 @@ def plot_corner(mcmcResults, fileout=None):
     return None
 
 def plot_bestfit(mcmcResults, gal, 
+            oversample=1,
             fitdispersion=True, 
             fileout=None):
+            
+    
+    gal.model.update_parameters(mcmcResults.bestfit_parameters)     # Update the parameters
+    gal.create_model_data(oversample=oversample,
+                          line_center=gal.model.line_center)
     
     if gal.data.ndim == 1:
         
