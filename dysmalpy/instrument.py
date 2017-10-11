@@ -22,7 +22,6 @@ __all__ = ["Instrument", "Beam", "LSF"]
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 
-
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
@@ -31,17 +30,20 @@ logger = logging.getLogger('DysmalPy')
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
-    def __init__(self, beam=None, lsf=None, pixscale=None, center_wave=None,
-                 wavestep=None, name='Instrument'):
+    def __init__(self, beam=None, lsf=None, pixscale=None,
+                 wave_start=None, wave_step=None, nwave=None,
+                 fov=None, name='Instrument'):
 
         self.name = name
         self.pixscale = pixscale
-        self.center_wave = center_wave
-        self.wavestep = wavestep
         self.beam = beam
         self.lsf = lsf
+        self.fov = fov
+        self.wave_start = wave_start
+        self.wave_step = wave_step
+        self.nwave = nwave
 
-    def convolve(self, cube, spec_units='velocity', spec_step=None,
+    def convolve(self, cube, spec_type='velocity', spec_step=None,
                  spec_center=None):
         """
         Method to perform the convolutions in both the spatial and
@@ -62,37 +64,37 @@ class Instrument:
 
         elif self.beam is None:
 
-            cube = self.convolve_with_lsf(cube, spec_units=spec_units,
+            cube = self.convolve_with_lsf(cube, spec_type=spec_type,
                                           spec_step=spec_step,
                                           spec_center=spec_center)
 
         else:
 
             cube_conv_beam = self.convolve_with_beam(cube)
-            cube = self.convolve_with_lsf(cube_conv_beam, spec_units=spec_units,
+            cube = self.convolve_with_lsf(cube_conv_beam, spec_type=spec_type,
                                           spec_step=spec_step,
-                                          spec_center=spec_center)\
+                                          spec_center=spec_center)
 
         return cube
 
-    def convolve_with_lsf(self, cube, spec_units='velocity', spec_step=None,
+    def convolve_with_lsf(self, cube, spec_type='velocity', spec_step=None,
                           spec_center=None):
         """Convolve cube with the LSF"""
 
-        if (spec_units != 'velocity') | (spec_units != 'wavelength'):
+        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
             raise ValueError("spec_units must be either 'velocity' or "
                              "'wavelength'.")
 
-        if (self.wavestep is None) and (spec_step is None):
+        if (self.wave_step is None) and (spec_step is None):
             raise ValueError("Spectral step not defined. Either set "
                              "'wavestep' for this instrument or specify in"
                              " 'spec_step'.")
 
-        elif (spec_step is not None) and (spec_units == 'velocity'):
+        elif (spec_step is not None) and (spec_type == 'velocity'):
 
             kernel = self.lsf.as_velocity_kernel(spec_step)
 
-        elif (spec_step is not None) and (spec_units == 'wavelength'):
+        elif (spec_step is not None) and (spec_type == 'wavelength'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -109,7 +111,7 @@ class Instrument:
                 kernel = self.lsf.as_wave_kernel(spec_step,
                                                  self.center_wave)
 
-        elif (self.wavestep is not None) and (spec_units == 'velocity'):
+        elif (self.wave_step is not None) and (spec_type == 'velocity'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -117,21 +119,19 @@ class Instrument:
 
             elif (spec_center is not None):
 
-                logger.info("Overriding the instrument central wavelength "
-                            "with {}.".format(spec_center))
-                velstep = ((self.wavestep /
-                            spec_center.to(self.wavestep.unit)) *
+                velstep = ((self.wave_step /
+                            spec_center.to(self.wave_step.unit)) *
                             c.c.to(u.km / u.s))
 
             else:
 
-                velstep = ((self.wavestep /
-                            self.center_wave.to(self.wavestep.unit)) *
+                velstep = ((self.wave_step /
+                            self.center_wave.to(self.wave_step.unit)) *
                            c.c.to(u.km / u.s))
 
             kernel = self.lsf.as_velocity_kernel(velstep)
 
-        elif (self.wavestep is not None) and (spec_units == 'wavelength'):
+        elif (self.wave_step is not None) and (spec_type == 'wavelength'):
 
             if (self.center_wave is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
@@ -141,12 +141,12 @@ class Instrument:
 
                 logger.info("Overriding the instrument central wavelength "
                             "with {}.".format(spec_center))
-                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  spec_center)
 
             else:
 
-                kernel = self.lsf.as_wave_kernel(self.wavestep,
+                kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  self.center_wave)
 
         for i in range(cube.shape[1]):
@@ -208,40 +208,29 @@ class Instrument:
                                    "arcseconds.")
 
     @property
-    def center_wave(self):
-        return self._center_wave
+    def wave_step(self):
+        return self._wave_step
 
-    @center_wave.setter
-    def center_wave(self, value):
+    @wave_step.setter
+    def wave_step(self, value):
         if value is None:
-            self._center_wave = value
-        elif not isinstance(value, u.Quantity):
-            logger.warning("No units on center_wave. Assuming Angstroms.")
-            self._center_wave = value * u.Angstrom
-        else:
-            if (u.Angstrom).is_equivalent(value):
-                self._center_wave = value
-            else:
-                raise u.UnitsError("center_wave not in equivalent units to "
-                                   "Angstoms.")
-
-    @property
-    def wavestep(self):
-        return self._wavestep
-
-    @wavestep.setter
-    def wavestep(self, value):
-        if value is None:
-            self._wavestep = value
+            self._wave_step = value
         elif not isinstance(value, u.Quantity):
             logger.warning("No units on wavestep. Assuming Angstoms.")
-            self._wavestep = value * u.Angstrom
+            self._wave_step = value * u.Angstrom
         else:
             if (u.Angstrom).is_equivalent(value):
-                self._wavestep = value
+                self._wave_step = value
             else:
                 raise u.UnitsError("wavestep not in equivalent units to "
                                    "Angstrom.")
+
+    @property
+    def center_wave(self):
+        if (self.wave_start is None) | (self.nwave is None):
+            return None
+        else:
+            return self.wave_start + self.nwave/2
 
 
 

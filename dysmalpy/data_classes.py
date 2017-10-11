@@ -12,12 +12,18 @@ import logging
 
 # Third party imports
 import numpy as np
-
+import astropy.units as u
+from astropy.wcs import WCS
+from spectral_cube import SpectralCube, BooleanArrayMask
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+
+__all__ = ["Data", "Data1D", "Data2D", "Data3D"]
+
+# TODO: Are masked arrays significantly larger than an unmasked array?
 
 # Base Class for a data container
 class Data:
@@ -33,8 +39,8 @@ class Data:
 class Data1D(Data):
 
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
-                 vel_disp_err=None, mask=None, aper_size=None,
-                 aper_pa=None, estimate_err=False, error_frac=0.2):
+                 vel_disp_err=None, mask=None, slit_width=None,
+                 slit_pa=None, estimate_err=False, error_frac=0.2):
 
         if r.shape != velocity.shape:
             raise ValueError("r and velocity are not the same size.")
@@ -97,8 +103,8 @@ class Data1D(Data):
             error['dispersion'] = None
 
         shape = velocity.shape
-        self.aper_size = aper_size
-        self.aper_pa = aper_pa
+        self.slit_width = slit_width
+        self.slit_pa = slit_pa
         self.rarr = r
         super(Data1D, self).__init__(data=data, error=error, ndim=1,
                                      shape=shape)
@@ -179,12 +185,19 @@ class Data2D(Data):
 class Data3D(Data):
 
     def __init__(self, cube, pixscale, spec_type, spec_arr,
-                 err_cube=None, mask=None, estimate_err=False, error_frac=0.2,
-                 ra=None, dec=None, ref_pixel=None):
+                 err_cube=None, mask_sky=None, mask_spec=None,
+                 estimate_err=False, error_frac=0.2, ra=None, dec=None,
+                 ref_pixel=None, spec_unit=None):
 
-        if mask is not None:
-            if mask.shape != cube.shape:
-                raise ValueError("mask and velocity are not the same size.")
+        if mask_sky is not None:
+            if mask_sky.shape != cube.shape[1:]:
+                raise ValueError("mask_sky and last two dimensions of cube do "
+                                 "not match.")
+
+        if mask_spec is not None:
+            if mask_spec.shape != spec_arr.shape:
+                raise ValueError("The length of mask_spec and spec_arr do not "
+                                 "match.")
 
         if err_cube is not None:
             if err_cube.shape != cube.shape:
@@ -202,23 +215,48 @@ class Data3D(Data):
         # first and second elements. Assumes uniform spacing.
         spec_step = spec_arr[1] - spec_arr[0]
 
-        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
+        if (spec_type != 'velocity') & (spec_type != 'wavelength'):
             raise ValueError("spec_type must be one of 'velocity' or "
                              "'wavelength.'")
 
-        data = np.ma.masked_array(cube, mask=mask)
+        if (spec_type == 'velocity') and (spec_unit is None):
+            spec_unit = u.km/u.s
+        elif (spec_type == 'wavelength') and (spec_unit is None):
+            spec_unit = u.Angstrom
+
+        if spec_type == 'velocity':
+            spec_ctype = 'VOPT'
+        else:
+            spec_ctype = 'WAVE'
+
+        if (ra is None) | (dec is None):
+            xref = 0
+            yref = 0
+            ra = 0.
+            dec = 0.
+        elif ref_pixel is not None:
+            xref = ref_pixel[1]
+            yref = ref_pixel[0]
+
+        else:
+            xref = np.int(cube.shape[2] / 2.)
+            yref = np.int(cube.shape[1] / 2.)
+
+        # Create a simple header for the cube
+        w = WCS(naxis=3)
+        w.wcs.ctype = ['RA---TAN', 'DEC--TAN', spec_ctype]
+        w.wcs.cdelt = [pixscale / 3600., pixscale / 3600., spec_step]
+        w.wcs.crpix = [xref, yref, 1]
+        w.wcs.cunit = ['deg', 'deg', spec_unit.to_string()]
+        w.wcs.crval = [ra, dec, spec_arr[0]]
+        data = SpectralCube(data=cube, wcs=w)
         if err_cube is not None:
-            error = np.ma.masked_array(err_cube, mask=mask)
+            error = SpectralCube(data=err_cube, wcs=w)
         else:
             error = None
-
         shape = cube.shape
-        self.pixscale = pixscale
-        self.spec_type = spec_type
-        self.spec_arr = spec_arr
-        self.spec_step = spec_step
-        self.ra = ra
-        self.dec = dec
-        self.re_pixel = ref_pixel
+
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
                                      shape=shape)
+
+# TODO: Dimension order for Data2D and Data3D?
