@@ -51,8 +51,8 @@ def fit(gal, nWalkers=10,
            minAF = 0.2,
            maxAF = 0.5,
            nEff = 10,
-           oversample = 1, 
-           fitdispersion = True, 
+           oversample = 1,
+           fitdispersion = True,
            do_plotting = True,
            out_dir = 'mcmc_fit_results/',
            f_plot_trace_burnin = None,
@@ -81,15 +81,15 @@ def fit(gal, nWalkers=10,
     #if nCPUs is None:
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
-        
+
     nDim = gal.model.nparams_free
     #len(model.get_free_parameters_values())
-    
+
     # Output filenames
     if (len(out_dir) > 0):
         if (out_dir[-1] != '/'): out_dir += '/'
     ensure_dir(out_dir)
-    
+
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
@@ -97,23 +97,23 @@ def fit(gal, nWalkers=10,
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
-    
+
     # --------------------------------
     # Initialize walker starting positions
     initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
-    
+
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                args=[gal], kwargs=kwargs_dict, 
+                args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
-                
+
     # --------------------------------
     # Output some fitting info to logger:
     logger.info(' nCPUs: '+str(nCPUs))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
-    
+
     ################################################################
     # --------------------------------
     # Run burn-in
@@ -121,7 +121,7 @@ def fit(gal, nWalkers=10,
         logger.info('\nBurn-in:'+'\n'
                     'Start: '+str(datetime.datetime.now()))
         start = time.time()
-        
+
         ####
         pos = initial_pos
         prob = None
@@ -293,6 +293,8 @@ def fit(gal, nWalkers=10,
         dump_pickle(sampler_dict, filename=f_sampler)
 
 
+    if nCPUs > 1:
+        sampler.pool.close()
 
     ##########################################
     ##########################################
@@ -326,7 +328,8 @@ def fit(gal, nWalkers=10,
         plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner)
 
     if (do_plotting) & (f_plot_bestfit is not None):
-        plotting.plot_bestfit(mcmcResults, gal, 
+        logger.info('WRITE THE PLOT PARAM BESTFIT')
+        plotting.plot_bestfit(mcmcResults, gal,
                 fitdispersion=fitdispersion, fileout=f_plot_bestfit)
                 
     return mcmcResults
@@ -339,7 +342,7 @@ class MCMCResults(object):
     """
     Class to hold results of MCMC fitting to DYSMALPY models
     """
-    def __init__(self, model, 
+    def __init__(self, model,
             sampler=None,
             f_plot_trace_burnin = None,
             f_plot_trace = None,
@@ -445,19 +448,20 @@ class MCMCResults(object):
 
 
 
-def log_prob(theta, gal, 
+def log_prob(theta, gal,
             oversample=1,
             fitdispersion=True):
     """
     Evaluate the log probability of the given model
     """
     gal.model.update_parameters(theta)                  # Update the parameters
-    gal.create_model_data(oversample=oversample)
-    
+    gal.create_model_data(oversample=oversample,
+                          line_center=gal.model.line_center)
+
     lprior = gal.model.get_log_prior()                  # Evaluate prior prob of theta
     llike = log_like(gal, fitdispersion=fitdispersion)  # Evaluate likelihood prob of theta
     lprob = lprior + llike
-    
+
     if not np.isfinite(lprob):
         # Make sure the non-finite ln_prob is -Inf,
         #    as this can be escaped in the next step
@@ -466,14 +470,11 @@ def log_prob(theta, gal,
 
 
 def log_like(gal, fitdispersion=True):
-    """
-    Evaluate log likelihood of model, for different 1D/2D/3D cases
-    """
-    
+
     if gal.data.ndim == 3:
         chisq_arr_raw = ( gal.data.mask* ( gal.data.data.unmasked_data - \
                     gal.model_data.data.data.unmasked_data ) / gal.data.error.unmasked_data )**2
-        
+
         llike = -0.5*chisq_arr_raw.sum()
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         chisq_arr_raw_vel = ( gal.data.mask* ( gal.data.data['velocity'] - \
@@ -483,12 +484,12 @@ def log_like(gal, fitdispersion=True):
                         gal.model_data.data['dispersion'] ) / gal.data.error['dispersion'] )**2
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum() )
         else:
-            llike = -0.5*chisq_arr_raw_vel.sum() 
+            llike = -0.5*chisq_arr_raw_vel.sum()
     else:
         logger.warning("ndim="+str(gal.data.ndim)+" not supported!")
         raise ValueError
-    
-    
+
+
     return llike
 
 def initialize_walkers(model, nWalkers=None):

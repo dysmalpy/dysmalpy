@@ -181,6 +181,7 @@ class ModelSet:
         self.nparams = 0
         self.nparams_free = 0
         self.kinematic_options = KinematicOptions()
+        self.line_center = None
 
     def add_component(self, model, name=None, light=False):
         """Add a model component to the set"""
@@ -348,8 +349,8 @@ class ModelSet:
     def get_free_parameter_keys(self):
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
-        
-    
+
+
     def get_log_prior(self):
         log_prior_model = 0.
         pfree_dict = self.get_free_parameter_keys()
@@ -362,8 +363,8 @@ class ModelSet:
                     # Free parameter: add to total prior
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
         return log_prior_model
-        
-        
+
+
 
     def velocity_profile(self, r):
         """

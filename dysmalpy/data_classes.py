@@ -50,6 +50,9 @@ class Data1D(Data):
             if mask.shape != velocity.shape:
                 raise ValueError("mask and velocity are not the same size.")
 
+        else:
+            mask = np.ones(len(velocity))
+
         data = {'velocity': velocity}
 
         if vel_disp is None:
@@ -61,7 +64,7 @@ class Data1D(Data):
             if vel_disp.shape != velocity.shape:
                 raise ValueError("vel_disp and velocity are not the same size.")
 
-            data['dispersion'] = np.ma.masked_array(vel_disp, mask=mask)
+            data['dispersion'] = vel_disp
 
         # Override any array given to vel_err if estimate_err is True
         if estimate_err:
@@ -118,6 +121,9 @@ class Data2D(Data):
         if mask is not None:
             if mask.shape != velocity.shape:
                 raise ValueError("mask and velocity are not the same size.")
+
+        else:
+            mask = np.ones(velocity.shape)
 
         data = {'velocity': velocity}
 
