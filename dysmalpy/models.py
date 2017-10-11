@@ -451,7 +451,7 @@ class ModelSet:
         # The final spectrum will be a flux weighted sum of Gaussians at each
         # velocity along the line of sight.
         sigmar = self.dispersion_profile(rgal)
-        for zz in range(nz_sky):
+        for zz in range(nz_sky_samp):
             f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
             vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
             sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
