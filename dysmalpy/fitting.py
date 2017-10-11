@@ -293,6 +293,8 @@ def fit(gal, nWalkers=10,
         dump_pickle(sampler_dict, filename=f_sampler)
 
 
+    if nCPUs > 1:
+        sampler.pool.close()
 
     ##########################################
     ##########################################
