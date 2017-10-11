@@ -23,7 +23,6 @@ logger = logging.getLogger('DysmalPy')
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 
-# TODO: Pull out mask as a separate attribute for data
 
 # Base Class for a data container
 class Data:
@@ -193,8 +192,7 @@ class Data3D(Data):
                                  "not match.")
         else:
 
-            mask_sky = np.ones((cube_shape[1:]))
-
+            mask_sky = np.ones((cube.shape[1:]))
 
         if mask_spec is not None:
             if mask_spec.shape != spec_arr.shape:
@@ -265,12 +263,11 @@ class Data3D(Data):
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
                                      shape=shape, mask=mask)
 
-# TODO: Dimension order for Data2D and Data3D?
 
 def _create_cube_mask(mask_sky=None, mask_spec=None):
     """Create a 3D mask from a 2D sky mask and 1D spectral mask"""
 
-    mask_spec = mask_spec.reshape((len(mask_spec, 1, 1)))
+    mask_spec = mask_spec.reshape((len(mask_spec), 1, 1))
     mask_spec_3d = np.tile(mask_spec, (1, mask_sky.shape[0], mask_sky.shape[1]))
     mask_sky_3d = np.tile(mask_sky, (mask_spec.shape[0], 1, 1))
 
