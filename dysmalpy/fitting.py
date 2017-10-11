@@ -326,10 +326,9 @@ def fit(gal, nWalkers=10,
         plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner)
 
     if (do_plotting) & (f_plot_bestfit is not None):
-        logger.info('WRITE THE PLOT PARAM BESTFIT')
         plotting.plot_bestfit(mcmcResults, gal, 
                 fitdispersion=fitdispersion, fileout=f_plot_bestfit)
-
+                
     return mcmcResults
 
 

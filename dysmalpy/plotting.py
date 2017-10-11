@@ -105,7 +105,7 @@ def plot_bestfit(mcmcResults, gal,
             ncols = 2 
         else:
             ncols = 1
-        nrows = 1
+        nrows = 2
         f.set_size_inches(1.1*ncols*scale, nrows*scale)
         gs = gridspec.GridSpec(nrows, ncols, wspace=0.2, hspace=0.2)
         
@@ -114,17 +114,23 @@ def plot_bestfit(mcmcResults, gal,
         keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
         keyxtitle = r'$r$ [arcsec]'
         
+        
+        keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]', 
+                        r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+        
         errbar_lw = 0.5
         errbar_cap = 1.5 
         
         axes = []
         
-        for k in six.moves.xrange(ncols):
+        k = 0
+        for j in six.moves.xrange(ncols):
             # Comparison:
-            axes.append(plt.subplot(gs[k,0]))
+            axes.append(plt.subplot(gs[0,j]))
+            k += 1
             
-            axes[k].errorbar( gal.data.rarr, gal.data.data[keyyarr[k]], 
-                    xerr=None, yerr = gal.data.error[keyyarr[k]], 
+            axes[k].errorbar( gal.data.rarr, gal.data.data[keyyarr[j]], 
+                    xerr=None, yerr = gal.data.error[keyyarr[j]], 
                     marker=None, ls='None', 
                     ecolor='k', zorder=-1.,
                     lw = errbar_lw,
@@ -132,18 +138,40 @@ def plot_bestfit(mcmcResults, gal,
                     capsize=errbar_cap,
                     label=None )
             
-            axes[k].scatter( gal.data.rarr, gal.data.data[keyyarr[k]], 
+            axes[k].scatter( gal.data.rarr, gal.data.data[keyyarr[j]], 
                 c='black', marker='o', s=25, lw=1, label=None)
                 
             #
-            axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[k]], 
+            axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[j]], 
                 c='red', marker='s', s=25, lw=1, label=None)
                 
             axes[k].set_xlabel(keyxtitle)
-            axes[k].set_ylabel(keyytitlearr[k])
+            axes[k].set_ylabel(keyytitlearr[j])
             
             
             # Residuals:
+            axes.append(plt.subplot(gs[1,j]))
+            k += 1
+            
+            axes[k].errorbar( gal.data.rarr, gal.model_data.data[keyyarr[j]]-gal.data.data[keyyarr[j]], 
+                    xerr=None, yerr = gal.data.error[keyyarr[j]], 
+                    marker=None, ls='None', 
+                    ecolor='k', zorder=-1.,
+                    lw = errbar_lw,
+                    capthick= errbar_lw,
+                    capsize=errbar_cap,
+                    label=None )
+            
+            
+            axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[j]]-gal.data.data[keyyarr[j]], 
+                c='red', marker='s', s=25, lw=1, label=None)
+                
+            axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
+                
+            axes[k].set_xlabel(keyxtitle)
+            axes[k].set_ylabel(keyyresidtitlearr[j])
+            
+            
 
         #############################################################
         # Save to file:
