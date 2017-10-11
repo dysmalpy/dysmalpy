@@ -38,8 +38,7 @@ acor_force_min = 49
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-def fit(gal, inst, model,
-           nWalkers=10,
+def fit(gal, nWalkers=10,
            cpuFrac=None,
            nCPUs = 1,
            scale_param_a = 3.,
@@ -60,9 +59,9 @@ def fit(gal, inst, model,
     Fit observed kinematics using DYSMALPY model set.
 
     Input:
-            gal:            observed galaxy, including kinematics
-            inst:           instrument galaxy was observed with
-            model:          DSYMALPY model set, with parameters to be fit
+            gal:            observed galaxy, including kinematics.
+                            also contains instrument the galaxy was observed with (gal.instrument)
+                            and the DYSMALPY model set, with the parameters to be fit (gal.model)
 
             mcmc_options:   dictionary with MCMC fitting options
                             ** potentially expand this in the future, and force this to
@@ -77,7 +76,7 @@ def fit(gal, inst, model,
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
 
-    nDim = model.nparams_free
+    nDim = gal.model.nparams_free
     #len(model.get_free_parameters_values())
 
     # Output filenames
@@ -95,12 +94,12 @@ def fit(gal, inst, model,
 
     # --------------------------------
     # Initialize walker starting positions
-    initial_pos = initialize_walkers(model, nWalkers=nWalkers)
+    initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
 
     # --------------------------------
     # Initialize emcee sampler
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                args=(gal, inst, model,), a = scale_param_a, threads = nCPUs)
+                args=(gal,), a = scale_param_a, threads = nCPUs)
 
     # --------------------------------
     # Output some fitting info to logger:
@@ -173,7 +172,7 @@ def fit(gal, inst, model,
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
-            mcmcResultsburn = MCMCResults(model, sampler=sampler_burn)
+            mcmcResultsburn = MCMCResults(gal.model, sampler=sampler_burn)
             plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin)
 
         # Reset sampler after burn-in:
@@ -294,7 +293,7 @@ def fit(gal, inst, model,
 
     # --------------------------------
     # Bundle the results up into a results class:
-    mcmcResults = MCMCResults(model, sampler=sampler_dict,
+    mcmcResults = MCMCResults(gal.model, sampler=sampler_dict,
                 f_plot_trace_burnin = f_plot_trace_burnin,
                 f_plot_trace = f_plot_trace,
                 f_sampler = f_sampler,
@@ -438,12 +437,12 @@ class MCMCResults(object):
 
 
 
-def log_prob(theta, gal, inst, model):
+def log_prob(theta, gal):
     """
     Evaluate the log probability of the given model
     """
-    model.update_parameters(theta)      # Update the parameters
-    log_prior = model.get_log_prior()   # Evaluate prior prob of theta
+    gal.model.update_parameters(theta)      # Update the parameters
+    log_prior = gal.model.get_log_prior()   # Evaluate prior prob of theta
 
     logger.warning('IMPLEMENT THE LOG LIKELIHOOD EVALUATION!')
     log_like = 42.
@@ -485,7 +484,7 @@ def create_default_mcmc_options():
     Create a default dictionary of MCMC options.
     These are used when calling fit, eg:
         mcmc_options = fitting.create_default_mcmc_options()
-        mcmcResults = fitting.fit(gal, inst, model, **mcmc_options)
+        mcmcResults = fitting.fit(gal, **mcmc_options)
 
     This dictionary is provides the full set of keywords that fit() can take,
         and some potentially useful values for these parameters.
