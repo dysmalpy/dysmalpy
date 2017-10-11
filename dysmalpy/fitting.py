@@ -327,7 +327,8 @@ def fit(gal, nWalkers=10,
 
     if (do_plotting) & (f_plot_bestfit is not None):
         logger.info('WRITE THE PLOT PARAM BESTFIT')
-        plotting.plot_bestfit(mcmcResults, fileout=f_plot_bestfit)
+        plotting.plot_bestfit(mcmcResults, gal, 
+                fitdispersion=fitdispersion, fileout=f_plot_bestfit)
 
     return mcmcResults
 
@@ -339,7 +340,7 @@ class MCMCResults(object):
     """
     Class to hold results of MCMC fitting to DYSMALPY models
     """
-    def __init__(self, model,
+    def __init__(self, model, 
             sampler=None,
             f_plot_trace_burnin = None,
             f_plot_trace = None,
@@ -466,6 +467,9 @@ def log_prob(theta, gal,
 
 
 def log_like(gal, fitdispersion=True):
+    """
+    Evaluate log likelihood of model, for different 1D/2D/3D cases
+    """
     
     if gal.data.ndim == 3:
         chisq_arr_raw = ( gal.data.mask* ( gal.data.data.unmasked_data - \

@@ -90,10 +90,74 @@ def plot_corner(mcmcResults, fileout=None):
 
     return None
 
-def plot_bestfit(mcmcResults, fileout=None):
-    logger.warning("Need to implement fitting plot_bestfit *AFTER* Dysmalpy datastructure finalized!")
+def plot_bestfit(mcmcResults, gal, 
+            fitdispersion=True, 
+            fileout=None):
+    
+    if gal.data.ndim == 1:
+        
+        
+        ######################################
+        # Setup plot:
+        f = plt.figure()
+        scale = 3.5
+        if fitdispersion:
+            ncols = 2 
+        else:
+            ncols = 1
+        nrows = 1
+        f.set_size_inches(1.1*ncols*scale, nrows*scale)
+        gs = gridspec.GridSpec(nrows, ncols, wspace=0.2, hspace=0.2)
+        
+        
+        keyyarr = ['velocity', 'dispersion']
+        keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+        keyxtitle = r'$r$ [arcsec]'
+        
+        errbar_lw = 0.5
+        errbar_cap = 1.5 
+        
+        axes = []
+        
+        for k in six.moves.xrange(ncols):
+            # Comparison:
+            axes.append(plt.subplot(gs[k,0]))
+            
+            axes[k].errorbar( gal.data.rarr, gal.data.data[keyyarr[k]], 
+                    xerr=None, yerr = gal.data.error[keyyarr[k]], 
+                    marker=None, ls='None', 
+                    ecolor='k', zorder=-1.,
+                    lw = errbar_lw,
+                    capthick= errbar_lw,
+                    capsize=errbar_cap,
+                    label=None )
+            
+            axes[k].scatter( gal.data.rarr, gal.data.data[keyyarr[k]], 
+                c='black', marker='o', s=25, lw=1, label=None)
+                
+            #
+            axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[k]], 
+                c='red', marker='s', s=25, lw=1, label=None)
+                
+            axes[k].set_xlabel(keyxtitle)
+            axes[k].set_ylabel(keyytitlearr[k])
+            
+            
+            # Residuals:
 
-    #raise ValueError
+        #############################################################
+        # Save to file:
+        if fileout is not None:
+            plt.savefig(fileout, bbox_inches='tight', dpi=300)
+            plt.close()
+        else:
+            plt.show()
+        
+        
+    else:
+        logger.warning("Need to implement fitting plot_bestfit *AFTER* Dysmalpy datastructure finalized!")
+    
+    
 
     return None
 
