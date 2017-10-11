@@ -205,7 +205,8 @@ class Galaxy:
 
 
         if ndim_final == 3:
-
+            
+            logger.info("Implement scaling of sim_cube_obs here!")
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)
