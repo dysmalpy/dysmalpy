@@ -531,9 +531,9 @@ class Sersic(MassModel):
     Sersic index, and effective radius.
     """
 
-    total_mass = DysmalParameter(default=1)
-    r_eff = DysmalParameter(default=1)
-    n = DysmalParameter(default=1)
+    total_mass = DysmalParameter(default=1, bounds=(5, 14))
+    r_eff = DysmalParameter(default=1, bounds=(0, 50))
+    n = DysmalParameter(default=1, bounds=(0, 8))
 
     _subtype = 'baryonic'
 
@@ -611,9 +611,9 @@ class NFW(MassModel):
     concentration.
     """
 
-    mvirial = DysmalParameter(default=1.0)
-    rvirial = DysmalParameter(default=1.0)
-    conc = DysmalParameter(default=5.0, fixed=True)
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    rvirial = DysmalParameter(default=1.0, bounds=(0, 1000))
+    conc = DysmalParameter(default=5.0, fixed=True, bounds=(1, 10))
 
     _subtype = 'dark_matter'
 
@@ -662,9 +662,9 @@ class HaloMo98(NFW):
     NFW model with the virial radius tied to the virial mass according to
     Mo et al. 1998
     """
-    mvirial = DysmalParameter(default=1.0)
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rvirial = DysmalParameter(default=1.0, tied=_tie_rvir_mvir)
-    conc = DysmalParameter(default=1.0, fixed=True)
+    conc = DysmalParameter(default=1.0, fixed=True, bounds=(1, 10))
 
     def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo, **kwargs):
         super(HaloMo98, self).__init__(mvirial, conc, z=z, cosmo=cosmo,
@@ -747,7 +747,7 @@ class ZHeightProfile(_DysmalFittable1DModel):
 
 class ZHeightGauss(ZHeightProfile):
 
-    sigmaz = DysmalParameter(default=1.0, fixed=True)
+    sigmaz = DysmalParameter(default=1.0, fixed=True, bounds=(0, 10))
 
     def __init__(self, sigmaz, **kwargs):
         super(ZHeightGauss, self).__init__(sigmaz, **kwargs)
