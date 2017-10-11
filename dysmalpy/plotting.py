@@ -113,7 +113,7 @@ def plot_bestfit(mcmcResults, gal,
             ncols = 1
         nrows = 2
         f.set_size_inches(1.1*ncols*scale, nrows*scale)
-        gs = gridspec.GridSpec(nrows, ncols, wspace=0.2, hspace=0.2)
+        gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
         
         
         keyyarr = ['velocity', 'dispersion']
