@@ -1,7 +1,7 @@
 # coding=utf8
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 #
-# Main classes and functions for fitting DYSMALPY kinematic models 
+# Main classes and functions for fitting DYSMALPY kinematic models
 #   to the observed data using MCMC
 
 from __future__ import (absolute_import, division, print_function,
@@ -18,8 +18,8 @@ from . import plotting
 import os
 import numpy as np
 from collections import OrderedDict
-
-import pickle as _pickle
+from astropy.extern import six
+import dill as _pickle
 
 import emcee
 import psutil
@@ -38,36 +38,36 @@ acor_force_min = 49
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-def fit(gal, inst, model, 
+def fit(gal, inst, model,
            nWalkers=10,
            cpuFrac=None,
-           nCPUs = 1, 
+           nCPUs = 1,
            scale_param_a = 3.,
-           nBurn = 2, 
-           nSteps = 10, 
-           minAF = 0.2, 
-           maxAF = 0.5, 
-           nEff = 10, 
+           nBurn = 2,
+           nSteps = 10,
+           minAF = 0.2,
+           maxAF = 0.5,
+           nEff = 10,
            do_plotting = True,
-           out_dir = 'mcmc_fit_results/', 
+           out_dir = 'mcmc_fit_results/',
            f_plot_trace_burnin = None,
            f_plot_trace = None,
-           f_sampler = None, 
-           f_plot_param_corner = None, 
-           f_plot_bestfit = None, 
+           f_sampler = None,
+           f_plot_param_corner = None,
+           f_plot_bestfit = None,
            f_mcmc_results = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
-    
+
     Input:
             gal:            observed galaxy, including kinematics
             inst:           instrument galaxy was observed with
             model:          DSYMALPY model set, with parameters to be fit
-            
+
             mcmc_options:   dictionary with MCMC fitting options
-                            ** potentially expand this in the future, and force this to 
+                            ** potentially expand this in the future, and force this to
                             be an explicit set of parameters -- might be smarter!!!
-                            
+
     Output:
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
@@ -75,16 +75,16 @@ def fit(gal, inst, model,
     # Basic setup:
     #if nCPUs is None:
     if cpuFrac is not None:
-        nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac)) 
-        
+        nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
+
     nDim = model.nparams_free
     #len(model.get_free_parameters_values())
-        
+
     # Output filenames
-    if (len(out_dir) > 0): 
+    if (len(out_dir) > 0):
         if (out_dir[-1] != '/'): out_dir += '/'
     ensure_dir(out_dir)
-    
+
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
@@ -92,21 +92,21 @@ def fit(gal, inst, model,
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
-    
+
     # --------------------------------
     # Initialize walker starting positions
     initial_pos = initialize_walkers(model, nWalkers=nWalkers)
-    
+
     # --------------------------------
     # Initialize emcee sampler
-    sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob, 
+    sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=(gal, inst, model,), a = scale_param_a, threads = nCPUs)
-    
+
     # --------------------------------
     # Output some fitting info to logger:
     logger.info(' nCPUs: '+str(nCPUs))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
-    
+
     ################################################################
     # --------------------------------
     # Run burn-in
@@ -114,26 +114,27 @@ def fit(gal, inst, model,
         logger.info('\nBurn-in:'+'\n'
                     'Start: '+str(datetime.datetime.now()))
         start = time.time()
-        
+
         ####
         pos = initial_pos
         prob = None
         state = None
-        for k in xrange(nBurn):
+        for k in six.moves.xrange(nBurn):
             logger.info(" k, time.time="+str(k)+" "+str(datetime.datetime.now()) )
-            pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob, rstate0=state)
-        ##### 
+            pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                rstate0=state)
+        #####
         ## This would run in one go:
         #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
         end = time.time()
         elapsed = end-start
-        
+
         try:
             acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
         except:
             acor_time = "Undefined, chain did not converge"
-            
-            
+
+
         #######################################################################################
         # Return Burn-in info
         # ****
@@ -141,7 +142,7 @@ def fit(gal, inst, model,
         nthingsmsg = 'nCPU, nParam, nWalker, nBurn = %s, %s, %s, %s'%(nCPUs,
             nDim, nWalkers, nBurn)
         scaleparammsg = 'Scale param a= %s' % scale_param_a
-        timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.), 
+        timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.),
                 (elapsed/60.-np.floor(elapsed/60.))*60.)
         macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
@@ -154,7 +155,7 @@ def fit(gal, inst, model,
                     "Ideal acceptance frac: 0.2 - 0.5\n"
                     ''+acortimemsg+'\n'
                     '******************')
-        
+
         nBurn_nEff = 2
         try:
             if nBurn < np.max(acor_time) * nBurn_nEff:
@@ -167,26 +168,26 @@ def fit(gal, inst, model,
             logger.info('\n#################\n'
                         "acorr time undefined -> can't check convergence\n"
                         '#################\n')
-        
+
         # --------------------------------
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
             mcmcResultsburn = MCMCResults(model, sampler=sampler_burn)
             plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin)
-        
+
         # Reset sampler after burn-in:
         sampler.reset()
-            
+
     else:
         # --------------------------------
         # No burn-in: set initial position:
         pos = np.array(initial_pos)
         prob = None
         state = None
-        
-        
-    
+
+
+
     #######################################################################################
     # ****
     # --------------------------------
@@ -194,18 +195,18 @@ def fit(gal, inst, model,
     logger.info('\nEnsemble sampling:\n'
                 'Start: '+str(datetime.datetime.now()))
     start = time.time()
-    
+
     # --------------------------------
     # Case: test for convergence and truncate early:
     if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        for ii in xrange(nSteps):
+        for ii in six.moves.xrange(nSteps):
             pos_cur = pos.copy()    # copy just in case things are set strangely
-            
+
             # --------------------------------
             # 1: only do one step at a time.
             pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
             # --------------------------------
-            
+
             # --------------------------------
             # Test for convergence
             nowtime = str(datetime.datetime.now())
@@ -215,7 +216,7 @@ def fit(gal, inst, model,
             if(minAF < np.mean(sampler.acceptance_fraction) < maxAF):
                 try:
                     acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
-                    
+
                     logger.info( str(ii)+": acor_time =", np.array(acor_time))
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
@@ -225,24 +226,24 @@ def fit(gal, inst, model,
                             break
                 except RuntimeError:
                     # acor raises exception if the chain isn't long
-                    # enough to compute the acor time. However, could also be other 
+                    # enough to compute the acor time. However, could also be other
                     #   runtime errors..... need to be careful!
                     logger.info( " "+str(ii)+": Chain is too short for acor to run")
                     pass
-        
+
         # --------------------------------
         # Check if it failed to converge before the max number of steps
         finishedSteps= ii+1
         if (finishedSteps  == nSteps):
             logger.info(" Warning: chain did not converge after nSteps.")
-        
-        
+
+
     # --------------------------------
     # Case: don't do convergence testing with early truncation: just run max number of steps
     else:
         sampler.run_mcmc(pos, nSteps)
         finishedSteps = nSteps
-    
+
     # --------------------------------
     # Finishing info for fitting:
     end = time.time()
@@ -252,7 +253,7 @@ def fit(gal, inst, model,
         acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
     except:
         acor_time = "Undefined, chain did not converge"
-        
+
     #######################################################################################
     # ***********
     # Consider overall acceptance fraction
@@ -260,7 +261,7 @@ def fit(gal, inst, model,
     nthingsmsg = 'nCPU, nParam, nWalker, nSteps = %s, %s, %s, %s'%(nCPUs,
         nDim, nWalkers, nSteps)
     scaleparammsg = 'Scale param a= %s' % scale_param_a
-    timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.), 
+    timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.),
             (elapsed/60.-np.floor(elapsed/60.))*60.)
     macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
@@ -273,114 +274,114 @@ def fit(gal, inst, model,
                 "Ideal acceptance frac: 0.2 - 0.5\n"
                 ''+acortimemsg+'\n'
                 '******************')
-    
+
     # --------------------------------
     # Save sampler, if output file set:
     #   Burn-in is already cut by resetting the sampler at the beginning.
     # Get pickleable format:  # _fit_io.make_emcee_sampler_dict
     sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0)
-    
+
     if f_sampler is not None:
         # Save stuff to file, for future use:
         dump_pickle(sampler_dict, filename=f_sampler)
-        
-            
-        
+
+
+
     ##########################################
     ##########################################
     ##########################################
 
-    
+
     # --------------------------------
     # Bundle the results up into a results class:
-    mcmcResults = MCMCResults(model, sampler=sampler_dict, 
+    mcmcResults = MCMCResults(model, sampler=sampler_dict,
                 f_plot_trace_burnin = f_plot_trace_burnin,
                 f_plot_trace = f_plot_trace,
-                f_sampler = f_sampler, 
-                f_plot_param_corner = f_plot_param_corner, 
-                f_plot_bestfit = f_plot_bestfit, 
+                f_sampler = f_sampler,
+                f_plot_param_corner = f_plot_param_corner,
+                f_plot_bestfit = f_plot_bestfit,
                 f_mcmc_results = f_mcmc_results)
-    
-    mcmcResults.analyze_posterior_dist()   # Get the best-fit values, 
+
+    mcmcResults.analyze_posterior_dist()   # Get the best-fit values,
                                            # uncertainty bounds from marginalized posteriors
     if f_mcmc_results is not None:
-        dump_pickle(mcmcResults, filename=f_mcmc_results) # Save mcmcResults class 
+        dump_pickle(mcmcResults, filename=f_mcmc_results) # Save mcmcResults class
     #
-    
+
     # --------------------------------
     # Plot trace, if output file set
     if (do_plotting) & (f_plot_trace is not None) :
         plotting.plot_trace(mcmcResults, fileout=f_plot_trace)
-        
+
     # --------------------------------
     # Plot results: corner plot, best-fit
     if (do_plotting) & (f_plot_param_corner is not None):
         plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner)
-        
+
     if (do_plotting) & (f_plot_bestfit is not None):
         logger.info('WRITE THE PLOT PARAM BESTFIT')
         plotting.plot_bestfit(mcmcResults, fileout=f_plot_bestfit)
-        
+
     return mcmcResults
-    
-    
-    
+
+
+
 
 
 class MCMCResults(object):
     """
     Class to hold results of MCMC fitting to DYSMALPY models
     """
-    def __init__(self, model, 
+    def __init__(self, model,
             sampler=None,
             f_plot_trace_burnin = None,
             f_plot_trace = None,
-            f_sampler = None, 
-            f_plot_param_corner = None, 
-            f_plot_bestfit = None, 
+            f_sampler = None,
+            f_plot_param_corner = None,
+            f_plot_bestfit = None,
             f_mcmc_results = None):
-            
+
         self.sampler = sampler
-        
+
         #self.components = OrderedDict()
-        
+
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
         self.bestfit_parameters_l68_err = None
         self.bestfit_parameters_u68_err = None
-        
+
         self.bestfit_parameters_l68 = None
         self.bestfit_parameters_u68 = None
-        
+
         self.param_names = model.param_names.copy()
         self._param_keys = model._param_keys.copy()
         self.nparams = model.nparams
-        
+
         self.free_param_names = OrderedDict()
         self._free_param_keys = OrderedDict()
         self.nparams_free = model.nparams_free
-        
+
         self.init_free_param_info(model)
-        
+
         # Save what the filenames are for reference - eg, if they were defined by default.
         self.f_plot_trace_burnin = f_plot_trace_burnin
         self.f_plot_trace = f_plot_trace
-        self.f_sampler = f_sampler 
-        self.f_plot_param_corner = f_plot_param_corner 
-        self.f_plot_bestfit = f_plot_bestfit 
+        self.f_sampler = f_sampler
+        self.f_plot_param_corner = f_plot_param_corner
+        self.f_plot_bestfit = f_plot_bestfit
         self.f_mcmc_results = f_mcmc_results
-        
-        
+
+
     def init_free_param_info(self, model):
         """
-        Initialize the free parameter info 
+        Initialize the free parameter info
         (similar to all params for ModelSet, but just the free parameters.)
         """
         freeparam = model.get_free_parameter_keys()
-        
+
         dictfreecomp = OrderedDict()
         dictfreenames = OrderedDict()
-        
+
         for key in freeparam.keys():
             dictparams = OrderedDict()
             tuplefreenames = ()
@@ -391,50 +392,50 @@ class MCMCResults(object):
             if len(dictparams) > 0:
                 dictfreecomp[key] = dictparams
                 dictfreenames[key] = tuplefreenames
-        
+
         self.free_param_names = dictfreenames
         self._free_param_keys = dictfreecomp
-        
-        
+
+
     def analyze_posterior_dist(self):
         """
         Default analysis of posterior distributions from MCMC fitting:
-            look at marginalized posterior distributions, and extract the best-fit value (peak of KDE), 
+            look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
             and extract the +- 1 sigma uncertainty bounds (eg, the 16%/84% distribution of posteriors)
         """
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
-        
+
         ## location of peaks of *marginalized histograms* for each parameter
         mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
-        for i in xrange(self.sampler['flatchain'].shape[1]):
+        for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
             yb, xb = np.histogram(self.sampler['flatchain'][:,i], bins=50)
             wh_pk = np.where(yb == yb.max())[0][0]
             mcmc_peak_hist[i] = np.average([xb[wh_pk], xb[wh_pk+1]])
-        
-        ## Use max prob as guess to get peakKDE value, 
+
+        ## Use max prob as guess to get peakKDE value,
         ##      the peak of the marginalized posterior distributions (following M. George's speclens)
         mcmc_peak_KDE = getPeakKDE(self.sampler['flatchain'], mcmc_peak_hist)
-        
+
         # Save best-fit results in the MCMCResults instance
         self.bestfit_parameters = mcmc_peak_KDE
-        
+
         mcmc_stack = np.concatenate(([mcmc_peak_KDE], mcmc_limits), axis=0)
         # Order: best fit value, lower 1sig bound, upper 1sig bound
-        
-        mcmc_uncertainties_1sig = np.array(map(lambda v: (v[0]-v[1], v[2]-v[0]), 
-                            zip(*mcmc_stack)))
+
+        mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
+                            list(zip(*mcmc_stack)))))
         # 1sig lower, upper uncertainty
         self.bestfit_parameters_err = mcmc_uncertainties_1sig
-        
+
         # Bound limits (in case it's useful)
         self.bestfit_parameters_l68 = mcmc_limits[0]
         self.bestfit_parameters_u68 = mcmc_limits[1]
-        
+
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_peak_KDE - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_peak_KDE
-        
+
 
 
 def log_prob(theta, gal, inst, model):
@@ -443,29 +444,29 @@ def log_prob(theta, gal, inst, model):
     """
     model.update_parameters(theta)      # Update the parameters
     log_prior = model.get_log_prior()   # Evaluate prior prob of theta
-    
+
     logger.warning('IMPLEMENT THE LOG LIKELIHOOD EVALUATION!')
     log_like = 42.
-    
+
     log_prob = log_prior + log_like
-    
+
     if not np.isfinite(log_prob):
-        # Make sure the non-finite ln_prob is -Inf, 
+        # Make sure the non-finite ln_prob is -Inf,
         #    as this can be escaped in the next step
         log_prob = -np.inf
     return log_prob
 
 
 def initialize_walkers(model, nWalkers=None):
-    """ 
-    Initialize a set of MCMC walkers by randomly drawing from the 
+    """
+    Initialize a set of MCMC walkers by randomly drawing from the
     model set parameter priors
     """
     # nDim = len(model.get_free_parameters_values())
     stack_rand = []
     pfree_dict = model.get_free_parameter_keys()
     comps_names = pfree_dict.keys()
-    
+
     for compn in comps_names:
         comp = model.components.__getitem__(compn)
         params_names = pfree_dict[compn].keys()
@@ -474,44 +475,44 @@ def initialize_walkers(model, nWalkers=None):
                 # Free parameter: randomly sample from prior nWalker times:
                 param_rand = comp.prior[paramn].sample_prior(comp.__getattribute__(paramn), N=nWalkers)
                 stack_rand.append(param_rand)
-    pos = np.array(zip(*stack_rand))            # should have shape:   (nWalkers, nDim)
+    pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos
-    
-    
-    
+
+
+
 def create_default_mcmc_options():
     """
     Create a default dictionary of MCMC options.
     These are used when calling fit, eg:
         mcmc_options = fitting.create_default_mcmc_options()
         mcmcResults = fitting.fit(gal, inst, model, **mcmc_options)
-        
-    This dictionary is provides the full set of keywords that fit() can take, 
+
+    This dictionary is provides the full set of keywords that fit() can take,
         and some potentially useful values for these parameters.
-        
+
     """
     mcmc_options = dict(nWalkers=10,
        cpuFrac=None,
-       nCPUs = 1, 
+       nCPUs = 1,
        scale_param_a = 3.,
-       nBurn = 2, 
-       nSteps = 10, 
-       minAF = 0.2, 
-       maxAF = 0.5, 
-       nEff = 10, 
-       do_plotting = True, 
-       out_dir = 'mcmc_fit_results/', 
+       nBurn = 2,
+       nSteps = 10,
+       minAF = 0.2,
+       maxAF = 0.5,
+       nEff = 10,
+       do_plotting = True,
+       out_dir = 'mcmc_fit_results/',
        f_plot_trace_burnin = None,
        f_plot_trace = None,
-       f_sampler = None, 
-       f_plot_param_corner = None, 
+       f_sampler = None,
+       f_plot_param_corner = None,
        f_plot_bestfit = None,
        f_mcmc_results = None)
-    
-    
+
+
     return mcmc_options
-    
-    
+
+
 
 def getPeakKDE(flatchain, guess):
     """
@@ -530,13 +531,13 @@ def getPeakKDE(flatchain, guess):
             kern=gaussian_kde(flatchain[:,ii])
             peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
         return peakKDE
-    
+
 
 
 def make_emcee_sampler_dict(sampler, nBurn=0):
     """
-    Save chain + key results from emcee sampler instance to a dict, 
-    as the emcee samplers aren't pickleable. 
+    Save chain + key results from emcee sampler instance to a dict,
+    as the emcee samplers aren't pickleable.
     """
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.dim))
@@ -544,12 +545,12 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
 
     # Make a dictionary:
-    df = { 'chain': sampler.chain[:, nBurn:, :], 
-           'lnprobability': sampler.lnprobability[:, nBurn:], 
+    df = { 'chain': sampler.chain[:, nBurn:, :],
+           'lnprobability': sampler.lnprobability[:, nBurn:],
            'flatchain': samples,
            'flatlnprobability': probs,
-           'nIter': sampler.iterations, 
-           'nParam': sampler.dim, 
+           'nIter': sampler.iterations,
+           'nParam': sampler.dim,
            'nCPU': sampler.threads,
            'nWalkers': len(sampler.chain) }
 
@@ -573,6 +574,6 @@ def dump_pickle(data, filename=None):
     return None
 
 
-    
-    
-    
+
+
+
