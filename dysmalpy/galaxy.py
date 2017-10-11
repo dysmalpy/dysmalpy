@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Third party imports
 import numpy as np
+import logging
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
 from astropy.extern import six
@@ -27,6 +28,9 @@ __all__ = ['Galaxy']
 # Default cosmology
 _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
@@ -205,8 +209,13 @@ class Galaxy:
 
 
         if ndim_final == 3:
+            sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
+            data_cube_flat = np.sum(self.data.data.unmasked_data*self.data.mask, axis=0)
+            errsq_cube_flat = np.sum( ( self.data.error.unmasked_data**2 )*self.data.mask, axis=0)
             
-            logger.info("Implement scaling of sim_cube_obs here!")
+            scale = np.sum( data_cube_flat*sim_cube_flat / errsq_cube_flat )/\
+                        np.sum( sim_cube_flat**2 / errsq_cube_flat )
+            sim_cube_obs *= scale
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)

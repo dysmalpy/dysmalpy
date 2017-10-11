@@ -469,7 +469,7 @@ def log_like(gal, fitdispersion=True):
     
     if gal.data.ndim == 3:
         chisq_arr_raw = ( gal.data.mask* ( gal.data.data.unmasked_data - \
-                    gal.model_data.data.data.unmasked_data ) / gal.data.err.unmasked_data )**2
+                    gal.model_data.data.data.unmasked_data ) / gal.data.error.unmasked_data )**2
         
         llike = -0.5*chisq_arr_raw.sum()
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
