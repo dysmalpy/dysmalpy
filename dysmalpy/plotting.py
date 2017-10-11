@@ -123,7 +123,7 @@ def plot_bestfit(mcmcResults, gal,
         
         axes = []
         
-        k = 0
+        k = -1
         for j in six.moves.xrange(ncols):
             # Comparison:
             axes.append(plt.subplot(gs[0,j]))
