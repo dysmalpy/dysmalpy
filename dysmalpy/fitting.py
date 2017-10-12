@@ -445,7 +445,36 @@ class MCMCResults(object):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_peak_KDE - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_peak_KDE
-
+        
+    def reload_mcmc_results(self, filename=None):
+        """Reload MCMC results saved earlier: the whole object"""
+        if filename is None:
+            filename = self.f_mcmc_results
+        self = load_pickle(filename)
+        
+    def reload_sampler(self, filename=None):
+        """Reload the MCMC sampler saved earlier"""
+        if filename is None:
+            filename = self.f_sampler
+        self.sampler = load_pickle(filename)
+        
+    def plot_results(self, fitdispersion=True, oversample=1, 
+                f_plot_param_corner=None, f_plot_bestfit=None):
+        """Plot/replot the corner plot and bestfit for the MCMC fitting"""
+        self.plot_corner(fileout=f_plot_param_corner)
+        self.plot_bestfit(fitdispersion=fitdispersion, 
+                oversample=oversample, fileout=f_plot_bestfit)
+    def plot_corner(self, fileout=None):
+        """Plot/replot the corner plot for the MCMC fitting"""
+        if fileout is None: 
+            fileout = self.f_plot_param_corner
+        plotting.plot_corner(self, fileout=fileout)
+    def plot_bestfit(self, fitdispersion=True, oversample=1, fileout=None):
+        """Plot/replot the bestfit for the MCMC fitting"""
+        if fileout is None: 
+            fileout = self.f_plot_bestfit
+        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, 
+                    oversample=oversample, fileout=fileout)
 
 
 def log_prob(theta, gal,
