@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
+import os
 import abc
 import logging
 from collections import OrderedDict
@@ -33,7 +34,9 @@ __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
            'DispersionProfileConst', 'Geometry']
 
 # NOORDERMEER DIRECTORY
-_dir_noordermeer = "data/noordermeer/"
+path = os.path.abspath(__file__)
+dir_path = os.path.dirname(path)
+_dir_noordermeer = dir_path+"/data/noordermeer/"
 
 # CONSTANTS
 G = apy_con.G
