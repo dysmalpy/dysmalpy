@@ -54,6 +54,55 @@ logger = logging.getLogger('DysmalPy')
 # TODO: Need to keep track during the fitting!
 
 
+def sersic_mr(r, mass, n, r_eff):
+    """Radial mass function for a generic sersic model"""
+
+    bn = scp_spec.gammaincinv(2. * n, 0.5)
+    alpha = r_eff / (bn ** n)
+    amp = (mass / (2 * np.pi) / alpha ** 2 / n /
+           scp_spec.gamma(2. * n))
+    mr = amp * np.exp(-bn * (r / r_eff) ** (1. / n))
+
+    return mr
+
+
+def sersic_menc(r, mass, n, r_eff):
+    """Enclosed mass as a function of r for a sersic model"""
+
+    bn = scp_spec.gammaincinv(2. * n, 0.5)
+    integ = scp_spec.gammainc(2 * n, bn * (r / r_eff) ** (1. / n))
+    norm = mass
+
+    return norm*integ
+
+
+def apply_noord_flat(r, r_eff, mass, n, invq):
+
+    noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
+    noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
+                                 100])  # 1:1, 1:2, 1:3, ...flattening
+
+    nearest_n = noordermeer_n[
+        np.argmin(np.abs(noordermeer_n - n))]
+    nearest_q = noordermeer_invq[
+        np.argmin(np.abs(noordermeer_invq - invq))]
+
+    # Need to do this internally instead of relying on IDL save files!!
+    file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
+        nearest_n, nearest_q)
+    restNVC = scp_io.readsav(file_noord)
+    N2008_vcirc = restNVC.N2008_vcirc
+    N2008_rad = restNVC.N2008_rad
+    N2008_Re = restNVC.N2008_Re
+    N2008_mass = restNVC.N2008_mass
+
+    v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+                                   fill_value="extrapolate")
+    vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
+             mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
+
+    return vcirc
+
 def area_segm(rr, dd):
 
     return (rr**2 * np.arccos(dd/rr) -
@@ -333,7 +382,6 @@ class ModelSet:
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
 
-
     def get_log_prior(self):
         log_prior_model = 0.
         pfree_dict = self.get_free_parameter_keys()
@@ -342,12 +390,10 @@ class ModelSet:
             comp = self.components.__getitem__(compn)
             params_names = pfree_dict[compn].keys()
             for paramn in params_names:
-                if (pfree_dict[compn][paramn] >= 0) :
+                if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: add to total prior
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
         return log_prior_model
-
-
 
     def velocity_profile(self, r):
         """
@@ -430,9 +476,8 @@ class ModelSet:
         flux = np.zeros(vobs.shape)
         for cmp in self.light_components:
             if self.light_components[cmp]:
-                cpt_mass = 10 ** self.components[cmp].total_mass.value
                 zscale = self.zprofile(zgal * rstep_samp / dscale)
-                flux += self.components[cmp](rgal) / cpt_mass * zscale
+                flux += self.components[cmp].mass_to_light(rgal) * zscale
 
         # Begin constructing the IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
@@ -460,7 +505,6 @@ class ModelSet:
             cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
 
         return cube_final, spec
-
 
 
 # ***** Mass Component Model Classes ******
@@ -533,14 +577,7 @@ class Sersic(MassModel):
         effective radius
         """
 
-        bn = scp_spec.gammaincinv(2.*n, 0.5)
-        alpha = r_eff/(bn**n)
-        amp = (10**total_mass / (2*np.pi) / alpha**2 / n /
-               scp_spec.gamma(2.*n))
-        radial = amp * np.exp(-bn*(r/r_eff)**(1./n))
-        # height = np.exp(-0.5*(z/thick)**2)
-
-        return radial
+        return sersic_mr(r, 10**total_mass, n, r_eff)
 
     def enclosed_mass(self, r):
         """
@@ -549,43 +586,118 @@ class Sersic(MassModel):
         :return: 1D enclosed mass profile
         """
 
-        bn = scp_spec.gammaincinv(2.*self.n, 0.5)
-        integ = scp_spec.gammainc(2*self.n, bn*(r/self.r_eff)**(1./self.n))
-        norm = 10**self.total_mass
-
-        return norm*integ
+        return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
 
     def circular_velocity(self, r):
 
         if self.noord_flat:
-            noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
-            noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
-                                         100])  # 1:1, 1:2, 1:3, ...flattening
 
-            nearest_n = noordermeer_n[
-                np.argmin(np.abs(noordermeer_n - self.n))]
-            nearest_q = noordermeer_invq[
-                np.argmin(np.abs(noordermeer_invq - self.invq))]
-
-            # Need to do this internally instead of relying on IDL save files!!
-            file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
-                nearest_n, nearest_q)
-            restNVC = scp_io.readsav(file_noord)
-            N2008_vcirc = restNVC.N2008_vcirc
-            N2008_rad = restNVC.N2008_rad
-            N2008_Re = restNVC.N2008_Re
-            N2008_mass = restNVC.N2008_mass
-
-            v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-                                           fill_value="extrapolate")
-            vcirc = (v_interp(r/self.r_eff*N2008_Re)*np.sqrt(
-                10**self.total_mass/N2008_mass)*np.sqrt(N2008_Re/self.r_eff))
+            vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
+                                     self.n, self.invq)
 
         else:
 
             vcirc = super(Sersic, self).circular_velocity(r)
 
         return vcirc
+
+    def mass_to_light(self, r):
+
+        return sersic_mr(r, 1.0, self.n, self.r_eff)
+
+
+class DiskBulge(MassModel):
+    """Class with a combined disk and bulge to allow varying of B/T and the
+    total baryonic mass"""
+
+    total_mass = DysmalParameter(default=1, bounds=(5, 14))
+    r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
+    n_disk = DysmalParameter(default=1, fixed=True, bounds=(0, 8))
+    r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
+    n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
+    bt = DysmalParameter(default=0.2, bounds=(0, 1))
+
+    _subtype = 'baryonic'
+
+    def __init__(self, total_mass, r_eff_disk, n_disk, r_eff_bulge,
+                 n_bulge, bt, invq_disk=5, invq_bulge=1, noord_flat=False,
+                 light_component='disk', **kwargs):
+
+        self.invq_disk = invq_disk
+        self.invq_bulge = invq_bulge
+        self.noord_flat = noord_flat
+        self.light_component = light_component
+
+        super(DiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
+                                        r_eff_bulge, n_bulge, bt, **kwargs)
+
+    @staticmethod
+    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
+
+        mbulge_total = 10**total_mass*bt
+        mdisk_total = 10**total_mass*(1 - bt)
+
+        mr_bulge = sersic_mr(r, mbulge_total, n_bulge, r_eff_bulge)
+        mr_disk = sersic_mr(r, mdisk_total, n_disk, r_eff_disk)
+
+        return mr_bulge+mr_disk
+
+    def enclosed_mass(self, r):
+
+        mbulge_total = 10 ** self.total_mass * self.bt
+        mdisk_total = 10 ** self.total_mass * (1 - self.bt)
+
+        menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge,
+                                 self.r_eff_bulge)
+        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
+                                self.r_eff_disk)
+
+        return menc_disk+menc_bulge
+
+    def circular_velocity(self, r):
+
+        mbulge_total = 10**self.total_mass*self.bt
+        mdisk_total = 10**self.total_mass*(1-self.bt)
+
+        if self.noord_flat:
+
+            vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+                                     self.n_bulge, self.invq_bulge)
+            vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+                                     self.n_disk, self.invq_disk)
+
+            vcirc = np.sqrt(vbulge**2 + vdisk**2)
+
+        else:
+
+            vcirc = super(DiskBulge, self).circular_velocity(r)
+
+        return vcirc
+
+    def mass_to_light(self, r):
+
+        if self.light_component == 'disk':
+
+            flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+
+        elif self.light_component == 'bulge':
+
+            flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+
+        elif self.light_component == 'total':
+
+            flux_disk = sersic_mr(r, 1.0-self.bt,
+                                  self.n_disk, self.r_eff_disk)
+            flux_bulge = sersic_mr(r, self.bt,
+                                  self.n_bulge, self.r_eff_bulge)
+            flux = flux_disk + flux_bulge
+
+        else:
+
+            raise ValueError("light_component can only be 'disk', 'bulge', "
+                             "or 'total.'")
+
+        return flux
 
 
 class NFW(MassModel):
@@ -782,7 +894,10 @@ class KinematicOptions:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
                         if mcomp._subtype == 'baryonic':
-                            pre = mcomp.r_eff.value
+                            if isinstance(mcomp, DiskBulge):
+                                pre = mcomp.r_eff_disk.value
+                            else:
+                                pre = mcomp.r_eff.value
                             break
 
                 if pre is None:
