@@ -68,7 +68,7 @@ def plot_trace(mcmcResults, fileout=None):
 
 def plot_corner(mcmcResults, fileout=None):
     names = make_clean_mcmc_plot_names(mcmcResults)
-
+    
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(mcmcResults.sampler['flatchain'],
                             labels=names,
@@ -80,8 +80,7 @@ def plot_corner(mcmcResults, fileout=None):
                             plot_contours=True,
                             verbose=False,
                             title_kwargs=title_kwargs)
-    # possible: , title_kwargs={"fontsize": 12}
-
+                            
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
         plt.close(fig)
@@ -95,14 +94,11 @@ def plot_bestfit(mcmcResults, gal,
             fitdispersion=True, 
             fileout=None):
             
-    
     gal.model.update_parameters(mcmcResults.bestfit_parameters)     # Update the parameters
     gal.create_model_data(oversample=oversample,
                           line_center=gal.model.line_center)
     
     if gal.data.ndim == 1:
-        
-        
         ######################################
         # Setup plot:
         f = plt.figure()
@@ -115,12 +111,9 @@ def plot_bestfit(mcmcResults, gal,
         f.set_size_inches(1.1*ncols*scale, nrows*scale)
         gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
         
-        
+        keyxtitle = r'$r$ [arcsec]'
         keyyarr = ['velocity', 'dispersion']
         keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
-        keyxtitle = r'$r$ [arcsec]'
-        
-        
         keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]', 
                         r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
         
@@ -128,57 +121,33 @@ def plot_bestfit(mcmcResults, gal,
         errbar_cap = 1.5 
         
         axes = []
-        
         k = -1
         for j in six.moves.xrange(ncols):
             # Comparison:
             axes.append(plt.subplot(gs[0,j]))
             k += 1
-            
             axes[k].errorbar( gal.data.rarr, gal.data.data[keyyarr[j]], 
                     xerr=None, yerr = gal.data.error[keyyarr[j]], 
-                    marker=None, ls='None', 
-                    ecolor='k', zorder=-1.,
-                    lw = errbar_lw,
-                    capthick= errbar_lw,
-                    capsize=errbar_cap,
-                    label=None )
-            
+                    marker=None, ls='None', ecolor='k', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
             axes[k].scatter( gal.data.rarr, gal.data.data[keyyarr[j]], 
                 c='black', marker='o', s=25, lw=1, label=None)
-                
-            #
             axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[j]], 
                 c='red', marker='s', s=25, lw=1, label=None)
-                
             axes[k].set_xlabel(keyxtitle)
             axes[k].set_ylabel(keyytitlearr[j])
-            
-            
             # Residuals:
             axes.append(plt.subplot(gs[1,j]))
             k += 1
-            
             axes[k].errorbar( gal.data.rarr, gal.model_data.data[keyyarr[j]]-gal.data.data[keyyarr[j]], 
                     xerr=None, yerr = gal.data.error[keyyarr[j]], 
-                    marker=None, ls='None', 
-                    ecolor='k', zorder=-1.,
-                    lw = errbar_lw,
-                    capthick= errbar_lw,
-                    capsize=errbar_cap,
-                    label=None )
-            
-            
+                    marker=None, ls='None', ecolor='k', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
             axes[k].scatter( gal.data.rarr, gal.model_data.data[keyyarr[j]]-gal.data.data[keyyarr[j]], 
                 c='red', marker='s', s=25, lw=1, label=None)
-                
             axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
-                
             axes[k].set_xlabel(keyxtitle)
             axes[k].set_ylabel(keyyresidtitlearr[j])
-            
-            
-
         #############################################################
         # Save to file:
         if fileout is not None:
@@ -186,11 +155,13 @@ def plot_bestfit(mcmcResults, gal,
             plt.close()
         else:
             plt.show()
-        
-        
+    elif gal.data.ndim == 2:
+        logger.warning("Need to implement fitting plot_bestfit for 2D *AFTER* Dysmalpy datastructure finalized!")
+    elif gal.data.ndim == 3:
+        logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
     else:
-        logger.warning("Need to implement fitting plot_bestfit *AFTER* Dysmalpy datastructure finalized!")
-    
+        logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
+        raise ValueError
     
 
     return None
