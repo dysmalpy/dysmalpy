@@ -54,26 +54,6 @@ logger = logging.getLogger('DysmalPy')
 # TODO: Need to keep track during the fitting!
 
 
-def calc_rvir(mvirial, z, cosmo=_default_cosmo):
-    """
-    Calculate the virial radius based on virial mass and redshift
-    M_vir = 100*H(z)^2/G * R_vir^3
-    """
-    g_new_unit = G.to(u.pc/u.Msun*(u.km/u.s)**2).value
-    hz = cosmo.H(z).value
-    rvir = ((10**mvirial * (g_new_unit * 1e-3) /
-             (10 * hz * 1e-3) ** 2) ** (1./3.))
-
-    return rvir
-
-
-def _tie_rvir_mvir(model):
-    # Function that will tie the virial radius to the virial mass within
-    # the model fitting
-
-    return calc_rvir(model.mvirial, model.z, model.cosmo)
-
-
 def area_segm(rr, dd):
 
     return (rr**2 * np.arccos(dd/rr) -
