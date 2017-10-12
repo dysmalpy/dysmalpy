@@ -331,7 +331,7 @@ def fit(gal, nWalkers=10,
         logger.info('WRITE THE PLOT PARAM BESTFIT')
         plotting.plot_bestfit(mcmcResults, gal,
                 fitdispersion=fitdispersion, oversample=oversample, fileout=f_plot_bestfit)
-                
+
     return mcmcResults
 
 
