@@ -445,35 +445,35 @@ class MCMCResults(object):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_peak_KDE - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_peak_KDE
-        
+
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
         if filename is None:
             filename = self.f_mcmc_results
         self = load_pickle(filename)
-        
+
     def reload_sampler(self, filename=None):
         """Reload the MCMC sampler saved earlier"""
         if filename is None:
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
-        
-    def plot_results(self, fitdispersion=True, oversample=1, 
+
+    def plot_results(self, fitdispersion=True, oversample=1,
                 f_plot_param_corner=None, f_plot_bestfit=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(fileout=f_plot_param_corner)
-        self.plot_bestfit(fitdispersion=fitdispersion, 
+        self.plot_bestfit(fitdispersion=fitdispersion,
                 oversample=oversample, fileout=f_plot_bestfit)
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
-        if fileout is None: 
+        if fileout is None:
             fileout = self.f_plot_param_corner
         plotting.plot_corner(self, fileout=fileout)
     def plot_bestfit(self, fitdispersion=True, oversample=1, fileout=None):
         """Plot/replot the bestfit for the MCMC fitting"""
-        if fileout is None: 
+        if fileout is None:
             fileout = self.f_plot_bestfit
-        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, 
+        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
                     oversample=oversample, fileout=fileout)
 
 
@@ -501,17 +501,30 @@ def log_prob(theta, gal,
 def log_like(gal, fitdispersion=True):
 
     if gal.data.ndim == 3:
-        chisq_arr_raw = ( gal.data.mask* ( gal.data.data.unmasked_data - \
-                    gal.model_data.data.data.unmasked_data ) / gal.data.error.unmasked_data )**2
-
+        dat = gal.data.data.unmasked_data
+        mod = gal.model_data.data.unmasked_data
+        err = gal.data.error.unmasked_data
+        msk = gal.data.mask
+        chisq_arr_raw = msk * (((dat - mod)/err)**2 + np.log(2.*np.pi*err**2))
         llike = -0.5*chisq_arr_raw.sum()
+
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-        chisq_arr_raw_vel = ( gal.data.mask* ( gal.data.data['velocity'] - \
-                    gal.model_data.data['velocity'] ) / gal.data.error['velocity'] )**2
+        vel_dat = gal.data.data['velocity']
+        vel_mod = gal.model_data.data['velocity']
+        vel_err = gal.data.error['velocity']
+
+        disp_dat = gal.data.data['dispersion']
+        disp_mod = gal.model_data.data['dispersion']
+        disp_err = gal.data.error['dispersion']
+
+        msk = gal.data.mask
+
+        chisq_arr_raw_vel = msk * (((vel_dat - vel_mod)/vel_err)**2 +
+                                   np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
-            chisq_arr_raw_disp = ( gal.data.mask* ( gal.data.data['dispersion'] - \
-                        gal.model_data.data['dispersion'] ) / gal.data.error['dispersion'] )**2
-            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum() )
+            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod)/disp_err)**2 +
+                                   np.log(2.*np.pi*disp_err**2))
+            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
     else:
