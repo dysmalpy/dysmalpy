@@ -483,19 +483,30 @@ def log_prob(theta, gal,
     """
     Evaluate the log probability of the given model
     """
-    gal.model.update_parameters(theta)                  # Update the parameters
-    gal.create_model_data(oversample=oversample,
-                          line_center=gal.model.line_center)
 
-    lprior = gal.model.get_log_prior()                  # Evaluate prior prob of theta
-    llike = log_like(gal, fitdispersion=fitdispersion)  # Evaluate likelihood prob of theta
-    lprob = lprior + llike
+    # Update the parameters
+    gal.model.update_parameters(theta)
 
-    if not np.isfinite(lprob):
-        # Make sure the non-finite ln_prob is -Inf,
-        #    as this can be escaped in the next step
-        lprob = -np.inf
-    return lprob
+    # Evaluate prior prob of theta
+    lprior = gal.model.get_log_prior()
+
+    # First check to see if log prior is finite
+    if not np.isfinite(lprior):
+        return -np.inf
+    else:
+        # Update the model data
+        gal.create_model_data(oversample=oversample,
+                              line_center=gal.model.line_center)
+
+        # Evaluate likelihood prob of theta
+        llike = log_like(gal, fitdispersion=fitdispersion)
+        lprob = lprior + llike
+
+        if not np.isfinite(lprob):
+            # Make sure the non-finite ln_prob is -Inf,
+            #    as this can be escaped in the next step
+            lprob = -np.inf
+        return lprob
 
 
 def log_like(gal, fitdispersion=True):
