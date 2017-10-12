@@ -615,25 +615,21 @@ class NFW(MassModel):
     """
 
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    rvirial = DysmalParameter(default=1.0, bounds=(0, 1000))
-    conc = DysmalParameter(default=5.0, fixed=True, bounds=(1, 10))
+    conc = DysmalParameter(default=5.0, bounds=(1, 40))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, rvirial=None, z=0, cosmo=_default_cosmo,
+    def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo,
                  **kwargs):
         self.z = z
         self.cosmo = cosmo
-        if rvirial is None:
-            rvirial = calc_rvir(mvirial, z, cosmo=cosmo)
-        super(NFW, self).__init__(mvirial, rvirial, conc, **kwargs)
+        super(NFW, self).__init__(mvirial, conc, **kwargs)
 
-    @staticmethod
-    def evaluate(r, mvirial, rvirial, conc):
+    def evaluate(self, r, mvirial, conc):
         """1D NFW model for a dark matter halo"""
 
-        rho0 = (10**mvirial / (4 * np.pi * rvirial ** 3) * conc ** 3 /
-                (np.log(1 + conc) - conc / (1 + conc)))
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
 
         return (2*np.pi * rho0 * rvirial /
                 conc / (1+conc * r / rvirial)**2)
@@ -646,32 +642,33 @@ class NFW(MassModel):
         """
 
         rho0 = self.calc_rho0()
-        rs = self.rvirial/self.conc
-        aa = 4.*np.pi*rho0*self.rvirial**3/self.conc**3
+        rvirial = self.calc_rvir()
+        rs = rvirial/self.conc
+        aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
         # For very small r, bb can be negative.
         bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
 
         return aa*bb
 
     def calc_rho0(self):
-        aa = 10**self.mvirial/(4.*np.pi*self.rvirial**3)
+
+        rvirial = self.calc_rvir()
+        aa = 10**self.mvirial/(4.*np.pi*rvirial**3)
         bb = self.conc**3/(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 
-        return aa*bb
+        return aa * bb
 
+    def calc_rvir(self):
+        """
+        Calculate the virial radius based on virial mass and redshift
+        M_vir = 100*H(z)^2/G * R_vir^3
+        """
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
+                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
-class HaloMo98(NFW):
-    """
-    NFW model with the virial radius tied to the virial mass according to
-    Mo et al. 1998
-    """
-    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    rvirial = DysmalParameter(default=1.0, tied=_tie_rvir_mvir)
-    conc = DysmalParameter(default=1.0, fixed=True, bounds=(1, 10))
-
-    def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo, **kwargs):
-        super(HaloMo98, self).__init__(mvirial, conc, z=z, cosmo=cosmo,
-                                       **kwargs)
+        return rvir
 
 
 # ****** Geometric Model ********
