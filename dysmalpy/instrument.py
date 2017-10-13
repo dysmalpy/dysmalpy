@@ -13,6 +13,7 @@ import logging
 # Third party imports
 import numpy as np
 import astropy.convolution as apy_conv
+from scipy.signal import fftconvolve 
 import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam
@@ -148,10 +149,15 @@ class Instrument:
 
                 kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  self.center_wave)
-
-        for i in range(cube.shape[1]):
-            for j in range(cube.shape[2]):
-                cube[:, i, j] = apy_conv.convolve_fft(cube[:, i, j], kernel)
+        # Test new:
+        kern1D = kernel.array
+        kern3D = np.zeros(shape=(cube.shape[0], 1, 1,))
+        kern3D[:, 0, 0] = kern1D
+        cube = fftconvolve(cube, kern3D, mode='same')
+        # # Old
+        # for i in range(cube.shape[1]):
+        #     for j in range(cube.shape[2]):
+        #         cube[:, i, j] = apy_conv.convolve_fft(cube[:, i, j], kernel)
 
         return cube
 
@@ -161,8 +167,13 @@ class Instrument:
             raise ValueError("Pixelscale for this instrument has not "
                              "been set yet. Can't convolve with beam.")
         kernel = self.beam.as_kernel(self.pixscale)
-        for i in range(cube.shape[0]):
-            cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
+        # Test new:
+        kern2D = kernel.array
+        kern3D = np.zeros(shape=(1, cube.shape[1], cube.shape[2],))
+        kern3D[0, :, :] = kern2D
+        cube = fftconvolve(cube, kern3D, mode='same')
+        # for i in range(cube.shape[0]):
+        #     cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
 
         return cube
 
