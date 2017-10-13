@@ -13,7 +13,7 @@ import logging
 # Third party imports
 import numpy as np
 import astropy.convolution as apy_conv
-from scipy.signal import fftconvolve 
+from scipy.signal import fftconvolve
 import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam
@@ -169,7 +169,7 @@ class Instrument:
         kernel = self.beam.as_kernel(self.pixscale)
         # Test new:
         kern2D = kernel.array
-        kern3D = np.zeros(shape=(1, cube.shape[1], cube.shape[2],))
+        kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
         cube = fftconvolve(cube, kern3D, mode='same')
         # for i in range(cube.shape[0]):
