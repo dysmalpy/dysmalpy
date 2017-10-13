@@ -18,6 +18,7 @@ from astropy.extern import six
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
 
 import corner
 
@@ -157,7 +158,63 @@ def plot_bestfit(mcmcResults, gal,
         else:
             plt.show()
     elif gal.data.ndim == 2:
-        logger.warning("Need to implement fitting plot_bestfit for 2D *AFTER* Dysmalpy datastructure finalized!")
+        ######################################
+        # Setup plot:
+        f = plt.figure()
+        scale = 3.5
+        if fitdispersion:
+            nrows = 2 
+        else:
+            nrows = 1
+        ncols = 3
+        f.set_size_inches(1.1*ncols*scale, nrows*scale)
+        gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
+        
+        keyxarr = ['data', 'model', 'residual']
+        keyyarr = ['velocity', 'dispersion']
+        keyxtitlearr = ['Data', 'Model', 'Residual']
+        keyytitlearr = [r'$V$', r'$\sigma$']
+        
+        int_mode = "nearest"
+        origin = 'lower'
+        cmap =  cm.spectral
+        
+        axes = []
+        k = -1
+        for j in six.moves.xrange(ncols):
+            for i in six.moves.xrange(nrows):
+                k += 1
+                axes.append(plt.subplot(gs[i,j]))
+                vmin = gal.data.data[keyyarr[i]].min()
+                vmax = gal.data.data[keyyarr[i]].max()
+                if keyxarr[j] == 'data':
+                    im = gal.data.data[keyyarr[i]]
+                elif keyxarr[j] == 'model':
+                    im = gal.model_data.data[keyyarr[i]]
+                elif keyxarr[j] == 'residual':
+                    im = gal.data.data[keyyarr[i]] - gal.model_data.data[keyyarr[i]]
+                else:
+                    raise ValueError("key not supported")
+                axes[k].imshow(im, cmap=cmap, interpolation=int_mode,
+                        vmin=vmin, vmax=vmax, origin=origin)
+                if j == 0:
+                    axes[k].set_ylabel(keyytitlearr[i])
+                    axes[k].tick_params(which='both', top='off', bottom='off', left='off', 
+                           right='off', labelbottom='off', labelleft='off')
+                    for sp in axes[k].spines.values():
+                        sp.set_visible(False)
+                else:
+                    axes[k].set_axis_off()
+                if i == 0:
+                    axes[k].set_title(keyxtitlearr[j])
+                    
+        #############################################################
+        # Save to file:
+        if fileout is not None:
+            plt.savefig(fileout, bbox_inches='tight', dpi=300)
+            plt.close()
+        else:
+            plt.show()
     elif gal.data.ndim == 3:
         logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
     else:
