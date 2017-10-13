@@ -122,8 +122,8 @@ class Galaxy:
 
             elif ndim_final == 2:
 
-                nx_sky = self.data.shape[2]
-                ny_sky = self.data.shape[1]
+                nx_sky = self.data.data['velocity'].shape[1]
+                ny_sky = self.data.data['velocity'].shape[0]
                 rstep = self.data.pixscale
                 if from_instrument:
                     spec_type = 'wavelength'
@@ -177,7 +177,7 @@ class Galaxy:
                 raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                  "be set if from_instrument and/or from_data"
                                  " is False.")
-
+        time1 = time.time()
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,
                                                   dscale=self.dscale,
@@ -188,12 +188,7 @@ class Galaxy:
                                                   spec_start=spec_start,
                                                   line_center=line_center,
                                                   oversample=oversample)
-
-        # Save the "raw" model cube before adjusting for any oversampling,
-        # beam smearing, and line spreading.
-        self.model_cube = Data3D(cube=sim_cube, pixscale=rstep,
-                                 spec_type=spec_type, spec_arr=spec,
-                                 spec_unit=spec_unit)
+        time2 = time.time()
 
         # Correct for any oversampling
         if oversample > 1:
@@ -207,9 +202,13 @@ class Galaxy:
                                                     spec_type=spec_type,
                                                     spec_step=spec_step,
                                                     spec_center=line_center)
+            time3 = time.time()
         else:
             sim_cube_obs = sim_cube_nooversamp
 
+        self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
+                                 spec_type=spec_type, spec_arr=spec,
+                                 spec_unit=spec_unit)
 
         if ndim_final == 3:
             sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
@@ -275,7 +274,11 @@ class Galaxy:
                                               fill_value='extrapolate')
             vel1d = vinterp(aper_centers)
             disp1d = disp_interp(aper_centers)
-
+            time4 = time.time()
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
+
+            print(time2-time1)
+            print(time3-time2)
+            print(time4-time3)
