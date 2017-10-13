@@ -516,7 +516,7 @@ def log_like(gal, fitdispersion=True):
         mod = gal.model_data.data.unmasked_data
         err = gal.data.error.unmasked_data
         msk = gal.data.mask
-        chisq_arr_raw = msk * (((dat - mod)/err)**2 + np.log(2.*np.pi*err**2))
+        chisq_arr_raw = msk * (((dat - mod)/err)**2 + np.log(2.*np.pi*msk*err**2))
         llike = -0.5*chisq_arr_raw.sum()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
@@ -531,10 +531,10 @@ def log_like(gal, fitdispersion=True):
         msk = gal.data.mask
 
         chisq_arr_raw_vel = msk * (((vel_dat - vel_mod)/vel_err)**2 +
-                                   np.log(2.*np.pi*vel_err**2))
+                                   np.log(2.*np.pi*msk*vel_err**2))
         if fitdispersion:
             chisq_arr_raw_disp = msk * (((disp_dat - disp_mod)/disp_err)**2 +
-                                   np.log(2.*np.pi*disp_err**2))
+                                   np.log(2.*np.pi*msk*disp_err**2))
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()

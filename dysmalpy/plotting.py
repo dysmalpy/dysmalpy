@@ -136,6 +136,7 @@ def plot_bestfit(mcmcResults, gal,
                 c='red', marker='s', s=25, lw=1, label=None)
             axes[k].set_xlabel(keyxtitle)
             axes[k].set_ylabel(keyytitlearr[j])
+            axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
             # Residuals:
             axes.append(plt.subplot(gs[1,j]))
             k += 1
