@@ -22,9 +22,9 @@ import scipy.interpolate as scp_interp
 
 # Local imports
 # Package imports
-from .instrument import Instrument
-from .models import ModelSet, calc_1dprofile
-from .data_classes import Data1D, Data2D, Data3D
+from instrument import Instrument
+from models import ModelSet, calc_1dprofile
+from data_classes import Data1D, Data2D, Data3D
 
 __all__ = ['Galaxy']
 
@@ -237,6 +237,7 @@ class Galaxy:
 
                 vel = cube_with_vel.moment1().value
                 disp = cube_with_vel.linewidth_sigma().value
+                disp[np.isnan(disp)] = 0.
 
             else:
                 raise ValueError("spec_type can only be 'velocity' or "
