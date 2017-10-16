@@ -38,6 +38,7 @@ class Instrument:
         self.name = name
         self.pixscale = pixscale
         self.beam = beam
+        self._beam_kernel = None
         self.lsf = lsf
         self.fov = fov
         self.wave_start = wave_start
@@ -166,16 +167,23 @@ class Instrument:
         if self.pixscale is None:
             raise ValueError("Pixelscale for this instrument has not "
                              "been set yet. Can't convolve with beam.")
+
+        if self._beam_kernel is None:
+            self.set_beam_kernel()
+
+        cube = fftconvolve(cube, self._beam_kernel, mode='same')
+
+        return cube
+
+    def set_beam_kernel(self):
+
         kernel = self.beam.as_kernel(self.pixscale)
-        # Test new:
         kern2D = kernel.array
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
-        cube = fftconvolve(cube, kern3D, mode='same')
-        # for i in range(cube.shape[0]):
-        #     cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
 
-        return cube
+        self._beam_kernel = kern3D
+
 
 
     @property
