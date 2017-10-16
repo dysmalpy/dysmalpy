@@ -254,7 +254,10 @@ class Data3D(Data):
 
         # Create a simple header for the cube
         w = WCS(naxis=3)
-        w.wcs.ctype = ['RA---TAN', 'DEC--TAN', spec_ctype]
+        if (ra is None) | (dec is None):
+            w.wcs.ctype = ['RA---CAR', 'DEC--CAR', spec_ctype]
+        else:
+            w.wcs.ctype = ['RA---TAN', 'DEC--TAN', spec_ctype]
         w.wcs.cdelt = [pixscale / 3600., pixscale / 3600., spec_step]
         w.wcs.crpix = [xref, yref, 1]
         w.wcs.cunit = ['deg', 'deg', spec_unit.to_string()]
