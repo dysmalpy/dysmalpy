@@ -38,7 +38,9 @@ class Instrument:
         self.name = name
         self.pixscale = pixscale
         self.beam = beam
+        self._beam_kernel = None
         self.lsf = lsf
+        self._lsf_kernel = None
         self.fov = fov
         self.wave_start = wave_start
         self.wave_step = wave_step
@@ -82,7 +84,40 @@ class Instrument:
                           spec_center=None):
         """Convolve cube with the LSF"""
 
-        if (spec_type != 'velocity') | (spec_type != 'wavelength'):
+        if self._lsf_kernel is None:
+            self.set_lsf_kernel(spec_type=spec_type, spec_step=spec_step,
+                                spec_center=spec_center)
+
+        cube = fftconvolve(cube, self._lsf_kernel, mode='same')
+
+        return cube
+
+    def convolve_with_beam(self, cube):
+
+        if self.pixscale is None:
+            raise ValueError("Pixelscale for this instrument has not "
+                             "been set yet. Can't convolve with beam.")
+
+        if self._beam_kernel is None:
+            self.set_beam_kernel()
+
+        cube = fftconvolve(cube, self._beam_kernel, mode='same')
+
+        return cube
+
+    def set_beam_kernel(self):
+
+        kernel = self.beam.as_kernel(self.pixscale)
+        kern2D = kernel.array
+        kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
+        kern3D[0, :, :] = kern2D
+
+        self._beam_kernel = kern3D
+
+    def set_lsf_kernel(self, spec_type='velocity', spec_step=None,
+                       spec_center=None):
+
+        if (spec_type != 'velocity') & (spec_type != 'wavelength'):
             raise ValueError("spec_units must be either 'velocity' or "
                              "'wavelength'.")
 
@@ -102,8 +137,8 @@ class Instrument:
                                  "the instrument or call to convolve.")
 
             elif (spec_center is not None):
-                logger.info("Overriding the instrument central wavelength "
-                            "with {}.".format(spec_center))
+                #logger.info("Overriding the instrument central wavelength "
+                #            "with {}.".format(spec_center))
 
                 kernel = self.lsf.as_wave_kernel(spec_step, spec_center)
 
@@ -122,7 +157,7 @@ class Instrument:
 
                 velstep = ((self.wave_step /
                             spec_center.to(self.wave_step.unit)) *
-                            c.c.to(u.km / u.s))
+                           c.c.to(u.km / u.s))
 
             else:
 
@@ -140,8 +175,8 @@ class Instrument:
 
             elif (spec_center is not None):
 
-                logger.info("Overriding the instrument central wavelength "
-                            "with {}.".format(spec_center))
+                #logger.info("Overriding the instrument central wavelength "
+                #            "with {}.".format(spec_center))
                 kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  spec_center)
 
@@ -149,33 +184,12 @@ class Instrument:
 
                 kernel = self.lsf.as_wave_kernel(self.wave_step,
                                                  self.center_wave)
-        # Test new:
+
         kern1D = kernel.array
-        kern3D = np.zeros(shape=(cube.shape[0], 1, 1,))
+        kern3D = np.zeros(shape=(kern1D.shape[0], 1, 1,))
         kern3D[:, 0, 0] = kern1D
-        cube = fftconvolve(cube, kern3D, mode='same')
-        # # Old
-        # for i in range(cube.shape[1]):
-        #     for j in range(cube.shape[2]):
-        #         cube[:, i, j] = apy_conv.convolve_fft(cube[:, i, j], kernel)
 
-        return cube
-
-    def convolve_with_beam(self, cube):
-
-        if self.pixscale is None:
-            raise ValueError("Pixelscale for this instrument has not "
-                             "been set yet. Can't convolve with beam.")
-        kernel = self.beam.as_kernel(self.pixscale)
-        # Test new:
-        kern2D = kernel.array
-        kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
-        kern3D[0, :, :] = kern2D
-        cube = fftconvolve(cube, kern3D, mode='same')
-        # for i in range(cube.shape[0]):
-        #     cube[i, :, :] = apy_conv.convolve_fft(cube[i, :, :], kernel)
-
-        return cube
+        self._lsf_kernel = kern3D
 
 
     @property
@@ -241,7 +255,7 @@ class Instrument:
         if (self.wave_start is None) | (self.nwave is None):
             return None
         else:
-            return self.wave_start + self.nwave/2
+            return (self.wave_start.value + self.nwave/2)*self.wave_start.unit
 
 
 

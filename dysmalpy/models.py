@@ -26,12 +26,10 @@ from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-# from .galaxy import _default_cosmo
-from .parameters import DysmalParameter
-from .data_classes import Data1D, Data2D, Data3D
+from parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
-           'DispersionProfileConst', 'Geometry']
+           'DispersionConst', 'Geometry']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -502,7 +500,9 @@ class ModelSet:
             sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
             tmp_cube = np.exp(
                 -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-            cube_final += tmp_cube / np.sum(tmp_cube, 0) * 100. * f_cube
+            cube_sum = np.nansum(tmp_cube, 0)
+            cube_sum[cube_sum == 0] = 1
+            cube_final += tmp_cube / cube_sum * 100. * f_cube
 
         return cube_final, spec
 
@@ -610,7 +610,7 @@ class DiskBulge(MassModel):
     """Class with a combined disk and bulge to allow varying of B/T and the
     total baryonic mass"""
 
-    total_mass = DysmalParameter(default=1, bounds=(5, 14))
+    total_mass = DysmalParameter(default=10, bounds=(5, 14))
     r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
     n_disk = DysmalParameter(default=1, fixed=True, bounds=(0, 8))
     r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
@@ -913,8 +913,8 @@ class KinematicOptions:
                 raise AttributeError("Can't apply pressure support without "
                                      "a dispersion profile!")
 
-            logger.info("Applying pressure support with effective radius of {} "
-                        "kpc.".format(pre))
+            #logger.info("Applying pressure support with effective radius of {} "
+            #            "kpc.".format(pre))
             sigma = model.dispersion_profile(r)
             vel_squared = (
                 vel ** 2 - 3.36 * (r / pre) * sigma ** 2)

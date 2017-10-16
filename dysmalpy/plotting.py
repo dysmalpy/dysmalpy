@@ -19,6 +19,7 @@ from astropy.extern import six
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 import corner
 
@@ -163,12 +164,48 @@ def plot_bestfit(mcmcResults, gal,
         f = plt.figure()
         scale = 3.5
         if fitdispersion:
-            nrows = 2
+            grid_vel = ImageGrid(f, 211,
+                                 nrows_ncols=(1, 3),
+                                 direction="row",
+                                 axes_pad=0.05,
+                                 add_all=True,
+                                 label_mode="1",
+                                 share_all=True,
+                                 cbar_location="right",
+                                 cbar_mode="single",
+                                 cbar_size="7%",
+                                 cbar_pad="1%",
+                                 )
+
+            grid_disp = ImageGrid(f, 212,
+                                  nrows_ncols=(1, 3),
+                                  direction="row",
+                                  axes_pad=0.05,
+                                  add_all=True,
+                                  label_mode="1",
+                                  share_all=True,
+                                  cbar_location="right",
+                                  cbar_mode="single",
+                                  cbar_size="7%",
+                                  cbar_pad="1%",
+                                  )
+
         else:
-            nrows = 1
-        ncols = 3
-        f.set_size_inches(1.1*ncols*scale, nrows*scale)
-        gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
+            grid_vel = ImageGrid(f, 111,
+                                 nrows_ncols=(1, 3),
+                                 direction="row",
+                                 axes_pad=0.05,
+                                 add_all=True,
+                                 label_mode="1",
+                                 share_all=True,
+                                 cbar_location="right",
+                                 cbar_mode="single",
+                                 cbar_size="7%",
+                                 cbar_pad="1%",
+                                 )
+
+        #f.set_size_inches(1.1*ncols*scale, nrows*scale)
+        #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
 
         keyxarr = ['data', 'model', 'residual']
         keyyarr = ['velocity', 'dispersion']
@@ -179,37 +216,70 @@ def plot_bestfit(mcmcResults, gal,
         origin = 'lower'
         cmap =  cm.spectral
 
-        axes = []
-        k = -1
-        for j in six.moves.xrange(ncols):
-            for i in six.moves.xrange(nrows):
-                k += 1
-                axes.append(plt.subplot(gs[i,j]))
-                vmin = gal.data.data[keyyarr[i]][np.array(gal.data.mask, dtype=bool)].min()
-                vmax = gal.data.data[keyyarr[i]][np.array(gal.data.mask, dtype=bool)].max()
-                if keyxarr[j] == 'data':
-                    im = gal.data.data[keyyarr[i]]
-                elif keyxarr[j] == 'model':
-                    im = gal.model_data.data[keyyarr[i]]
-                elif keyxarr[j] == 'residual':
-                    im = gal.data.data[keyyarr[i]] - gal.model_data.data[keyyarr[i]]
+        vel_vmin = gal.data.data['velocity'][
+            np.array(gal.data.mask, dtype=bool)].min()
+        vel_vmax = gal.data.data['velocity'][
+            np.array(gal.data.mask, dtype=bool)].max()
+
+        for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
+            if k == 'data':
+                im = gal.data.data['velocity']
+            elif k == 'model':
+                im = gal.model_data.data['velocity']
+            elif k == 'residual':
+                im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+            else:
+                raise ValueError("key not supported.")
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=vel_vmin, vmax=vel_vmax, origin=origin)
+
+            if k == 'data':
+                ax.set_ylabel(keyytitlearr[0])
+                ax.tick_params(which='both', top='off', bottom='off',
+                               left='off', right='off', labelbottom='off',
+                               labelleft='off')
+                for sp in ax.spines.values():
+                    sp.set_visible(False)
+            else:
+                ax.set_axis_off()
+
+            ax.set_title(xt)
+
+        ax.cax.colorbar(imax)
+
+        if fitdispersion:
+
+            disp_vmin = gal.data.data['dispersion'][
+                np.array(gal.data.mask, dtype=bool)].min()
+            disp_vmax = gal.data.data['dispersion'][
+                np.array(gal.data.mask, dtype=bool)].max()
+
+            for ax, k in zip(grid_disp, keyxarr):
+                if k == 'data':
+                    im = gal.data.data['dispersion']
+                elif k == 'model':
+                    im = gal.model_data.data['dispersion']
+                elif k == 'residual':
+                    im = gal.data.data['dispersion'] - gal.model_data.data[
+                        'dispersion']
                 else:
-                    raise ValueError("key not supported")
-                axes[k].imshow(im, cmap=cmap, interpolation=int_mode,
-                               vmin=vmin, vmax=vmax, origin=origin)
-                if j == 0:
-                    axes[k].set_ylabel(keyytitlearr[i])
-                    axes[k].tick_params(which='both', top='off', bottom='off', left='off',
-                           right='off', labelbottom='off', labelleft='off')
-                    for sp in axes[k].spines.values():
+                    raise ValueError("key not supported.")
+
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+
+                if k == 'data':
+                    ax.set_ylabel(keyytitlearr[1])
+                    ax.tick_params(which='both', top='off', bottom='off',
+                                   left='off', right='off', labelbottom='off',
+                                   labelleft='off')
+                    for sp in ax.spines.values():
                         sp.set_visible(False)
-
                 else:
-                    
-                    axes[k].set_axis_off()
+                    ax.set_axis_off()
 
-                if i == 0:
-                    axes[k].set_title(keyxtitlearr[j])
+            ax.cax.colorbar(imax)
 
         #############################################################
         # Save to file:
@@ -217,6 +287,7 @@ def plot_bestfit(mcmcResults, gal,
             plt.savefig(fileout, bbox_inches='tight', dpi=300)
             plt.close()
         else:
+            plt.draw()
             plt.show()
     elif gal.data.ndim == 3:
         logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")

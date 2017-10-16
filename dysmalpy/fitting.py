@@ -11,7 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-from . import plotting
+import plotting
 
 
 # Third party imports
@@ -534,7 +534,7 @@ def log_like(gal, fitdispersion=True):
                                    np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
             chisq_arr_raw_disp = msk * (((disp_dat - disp_mod)/disp_err)**2 +
-                                   np.log(2.*np.pi*disp_err**2))
+                                          np.log(2.*np.pi*disp_err**2))
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
