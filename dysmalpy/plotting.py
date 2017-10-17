@@ -225,9 +225,9 @@ def plot_bestfit(mcmcResults, gal,
             if k == 'data':
                 im = gal.data.data['velocity']
             elif k == 'model':
-                im = gal.model_data.data['velocity']
+                im = gal.model_data.data['velocity'] * gal.data.mask
             elif k == 'residual':
-                im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                im = gal.data.data['velocity'] - gal.model_data.data['velocity'] * gal.data.mask
             else:
                 raise ValueError("key not supported.")
 
