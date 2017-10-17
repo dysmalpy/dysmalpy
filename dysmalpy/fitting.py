@@ -450,6 +450,8 @@ class MCMCResults(object):
                                 format:  set of linked parameter sets, with each linked parameter set
                                          consisting of len-2 tuples/lists of the component+parameter names.
                                 eg:  look at halo: mvirial and disk+bulge: total_mass together
+                                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
+                        eg:
                             linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
                          or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
                                          
