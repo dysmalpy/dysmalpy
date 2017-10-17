@@ -82,7 +82,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
     if step_slice is None:
         sampler_chain = mcmcResults.sampler['flatchain']
     else:
-        sampler_chain = mcmcResults.sampler['flatchain'][step_slice[0]:step_slice[1],:]
+        sampler_chain = mcmcResults.sampler['chain'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['nParam']))
 
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(sampler_chain,
