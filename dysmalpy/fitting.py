@@ -56,6 +56,8 @@ def fit(gal, nWalkers=10,
            do_plotting = True,
            save_burn = False, 
            out_dir = 'mcmc_fit_results/',
+           continue_steps = False, 
+           input_sampler = None, 
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_sampler = None,
@@ -91,7 +93,10 @@ def fit(gal, nWalkers=10,
     if (len(out_dir) > 0):
         if (out_dir[-1] != '/'): out_dir += '/'
     ensure_dir(out_dir)
-
+    
+    # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
+    if continue_steps and (f_sampler is None):  f_sampler = out_dir+'mcmc_sampler_continue.pickle'
+    
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
@@ -100,11 +105,18 @@ def fit(gal, nWalkers=10,
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
-
-    # --------------------------------
-    # Initialize walker starting positions
-    initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
-
+    
+    
+    if not continue_steps:
+        # --------------------------------
+        # Initialize walker starting positions
+        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+    else:
+        if input_sampler is None:
+            raise ValueError("Must set input_sampler if you will restart the sampler.")
+        initial_pos = input_sampler['chain'][:,-1,:]
+        
+    
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
