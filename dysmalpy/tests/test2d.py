@@ -18,10 +18,10 @@ import astropy.units as u
 import astropy.io.fits as fits
 
 # Directory where the data lives
-data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/data/GS4_43501/'
+data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 
 # Directory where to save output files
-out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/test_dysmalpy_GS4_43501/2D_test/'
+out_dir = '/data/dysmalpy/2D_tests/GS4_43501/'
 
 # Initialize the Galaxy, Instrument, and Model Set
 gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
@@ -48,7 +48,7 @@ bary_fixed = {'total_mass': False,
               'bt': False}
 
 # Set bounds
-bary_bounds = {'total_mass': (5, 14),
+bary_bounds = {'total_mass': (10, 13),
                'r_eff_disk': (0.5, 50.0),
                'n_disk': (1, 8),
                'r_eff_bulge': (1, 5),
@@ -73,7 +73,7 @@ conc = 5.0
 halo_fixed = {'mvirial': False,
               'conc': True}
 
-halo_bounds = {'mvirial': (5, 14),
+halo_bounds = {'mvirial': (10, 13),
                'conc': (1, 20)}
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
@@ -136,11 +136,15 @@ pixscale = 0.125*u.arcsec                # arcsec/pixel
 fov = [33, 33]                           # (nx, ny) pixels
 beamsize = 0.55*u.arcsec                 # FWHM of beam
 wave_start = 6528.15155*u.Angstrom       # Starting wavelength of spectrum
-wave_step = 0.22*u.Angstrom             # Spectral step
-nwave = 201                               # Number of spectral pixels
+wave_step = 0.655*u.Angstrom             # Spectral step
+nwave = 67                               # Number of spectral pixels
+sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
 
 beam = instrument.Beam(major=beamsize)
+lsf = instrument.LSF(sig_inst)
+
 inst.beam = beam
+inst.lsf = lsf
 inst.pixscale = pixscale
 inst.fov = fov
 inst.wave_step = wave_step
@@ -149,6 +153,7 @@ inst.nwave = nwave
 
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
+inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
 
 # Add the model set and instrument to the Galaxy
 gal.model = mod_set
@@ -157,7 +162,6 @@ gal.instrument = inst
 # Upload the data set to be fit
 gs4_vel = fits.getdata(data_dir+'GS4_43501-vel.fits')
 gs4_disp = fits.getdata(data_dir+'GS4_43501-disp.fits')
-gs4_disp = np.sqrt(gs4_disp**2 - 45.**2)
 gs4_disp[(gs4_disp > 1000.) | (~np.isfinite(gs4_disp))] = -1e6
 mask = np.ones(gs4_vel.shape)
 mask[(gs4_disp < 0)] = 0
@@ -171,13 +175,13 @@ test_data2d = data_classes.Data2D(pixscale=0.125, velocity=gs4_vel,
 gal.data = test_data2d
 
 # Parameters for the MCMC fitting
-nwalkers = 200
-ncpus = 4
+nwalkers = 500
+ncpus = 8
 scale_param_a = 2
-nburn = 10
-nsteps = 200
-minaf = 0.2
-maxaf = 0.5
+nburn = 200
+nsteps = 1000
+minaf = None
+maxaf = None
 neff = 10
 do_plotting = True
 oversample = 1

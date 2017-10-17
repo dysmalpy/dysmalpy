@@ -82,7 +82,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
     if step_slice is None:
         sampler_chain = mcmcResults.sampler['flatchain']
     else:
-        sampler_chain = mcmcResults.sampler['flatchain'][step_slice[0]:step_slice[1],:]
+        sampler_chain = mcmcResults.sampler['chain'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['nParam']))
 
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(sampler_chain,
@@ -113,10 +113,10 @@ def plot_data_model_comparison(gal,
     """
     Plot data, model, and residuals between the data and this model.
     """
-    
-    gal.model.update_parameters(theta)     # Update the parameters
-    gal.create_model_data(oversample=oversample,
-                          line_center=gal.model.line_center)
+    if theta is not None:
+        gal.model.update_parameters(theta)     # Update the parameters
+        gal.create_model_data(oversample=oversample,
+                              line_center=gal.model.line_center)
 
     if gal.data.ndim == 1:
         ######################################

@@ -250,7 +250,7 @@ def fit(gal, nWalkers=10,
                 try:
                     acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
 
-                    logger.info( str(ii)+": acor_time =", np.array(acor_time))
+                    logger.info( str(ii)+": acor_time =" + str(np.array(acor_time)))
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
                             logger.info(" Enforced min step limit: {}.".format(ii+1))
