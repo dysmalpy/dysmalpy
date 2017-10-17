@@ -112,6 +112,7 @@ def fit(gal, nWalkers=10,
         # Initialize walker starting positions
         initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
     else:
+        nBurn = 0
         if input_sampler is None:
             raise ValueError("Must set input_sampler if you will restart the sampler.")
         initial_pos = input_sampler['chain'][:,-1,:]
