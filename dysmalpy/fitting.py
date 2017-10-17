@@ -56,6 +56,8 @@ def fit(gal, nWalkers=10,
            do_plotting = True,
            save_burn = False, 
            out_dir = 'mcmc_fit_results/',
+           linked_posterior_names= None, 
+           nPostBins = 50, 
            continue_steps = False, 
            input_sampler = None, 
            f_plot_trace_burnin = None,
@@ -334,9 +336,11 @@ def fit(gal, nWalkers=10,
                 f_plot_param_corner = f_plot_param_corner,
                 f_plot_bestfit = f_plot_bestfit,
                 f_mcmc_results = f_mcmc_results)
-
-    mcmcResults.analyze_posterior_dist()   # Get the best-fit values,
-                                           # uncertainty bounds from marginalized posteriors
+    
+    # Get the best-fit values, uncertainty bounds from marginalized posteriors
+    mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names, 
+                nPostBins=nPostBins)   
+    
     if f_mcmc_results is not None:
         dump_pickle(mcmcResults, filename=f_mcmc_results) # Save mcmcResults class
     #
@@ -373,9 +377,11 @@ class MCMCResults(object):
             f_sampler = None,
             f_plot_param_corner = None,
             f_plot_bestfit = None,
-            f_mcmc_results = None):
+            f_mcmc_results = None,
+            linked_posterior_names=None):
 
         self.sampler = sampler
+        self.linked_posterior_names = linked_posterior_names
 
         #self.components = OrderedDict()
 
@@ -432,11 +438,21 @@ class MCMCResults(object):
         self._free_param_keys = dictfreecomp
 
 
-    def analyze_posterior_dist(self):
+    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
         """
         Default analysis of posterior distributions from MCMC fitting:
             look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
             and extract the +- 1 sigma uncertainty bounds (eg, the 16%/84% distribution of posteriors)
+            
+        Optional input:
+                    linked_posterior_names:  indicate if best-fit of parameters 
+                                             should be measured in multi-D histogram space
+                                format:  set of linked parameter sets, with each linked parameter set
+                                         consisting of len-2 tuples/lists of the component+parameter names.
+                                eg:  look at halo: mvirial and disk+bulge: total_mass together
+                            linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
+                         or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
+                                         
         """
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
@@ -444,22 +460,46 @@ class MCMCResults(object):
         ## location of peaks of *marginalized histograms* for each parameter
         mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
         for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
-            yb, xb = np.histogram(self.sampler['flatchain'][:,i], bins=50)
+            yb, xb = np.histogram(self.sampler['flatchain'][:,i], bins=nPostBins)
             wh_pk = np.where(yb == yb.max())[0][0]
             mcmc_peak_hist[i] = np.average([xb[wh_pk], xb[wh_pk+1]])
 
         ## Use max prob as guess to get peakKDE value,
         ##      the peak of the marginalized posterior distributions (following M. George's speclens)
-        mcmc_peak_KDE = getPeakKDE(self.sampler['flatchain'], mcmc_peak_hist)
+        mcmc_param_bestfit = getPeakKDE(self.sampler['flatchain'], mcmc_peak_hist)
 
-        # Save best-fit results in the MCMCResults instance
-        self.bestfit_parameters = mcmc_peak_KDE
+        # --------------------------------------------
+        if linked_posterior_names is not None:
+            # Make sure the param of self is updated 
+            #   (for ref. when reloading saved mcmcResult objects)
+            self.linked_posterior_names = linked_posterior_names
+            linked_posterior_ind_arr = get_linked_posterior_indices(self, 
+                            linked_posterior_names=linked_posterior_names)
+            
+            bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'], 
+                            linked_posterior_ind_arr=linked_posterior_ind_arr,
+                            nPostBins=nPostBins)
+            
+            for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+                for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
+                    mcmc_param_bestfit[linked_posterior_ind_arr[k][j]] = bestfit_theta_linked[k][j]
 
-        mcmc_stack = np.concatenate(([mcmc_peak_KDE], mcmc_limits), axis=0)
+
+
+        # --------------------------------------------
+        # Uncertainty bounds are currently determined from marginalized posteriors
+        #   (even if the best-fit is found from linked posterior).
+        
+        mcmc_stack = np.concatenate(([mcmc_param_bestfit], mcmc_limits), axis=0)
         # Order: best fit value, lower 1sig bound, upper 1sig bound
-
+        
         mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
                             list(zip(*mcmc_stack)))))
+        
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        self.bestfit_parameters = mcmc_param_bestfit
+                      
         # 1sig lower, upper uncertainty
         self.bestfit_parameters_err = mcmc_uncertainties_1sig
 
@@ -468,8 +508,8 @@ class MCMCResults(object):
         self.bestfit_parameters_u68 = mcmc_limits[1]
 
         # Separate 1sig l, u uncertainty, for utility:
-        self.bestfit_parameters_l68_err = mcmc_peak_KDE - mcmc_limits[0]
-        self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_peak_KDE
+        self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
+        self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
 
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -647,7 +687,62 @@ def getPeakKDE(flatchain, guess):
         return peakKDE
 
 
+def get_linked_posterior_peak_values(flatchain, 
+                linked_posterior_ind_arr=None,
+                nPostBins=50):
+    """
+    Get linked posterior best-fit values using a multi-D histogram for the 
+    given linked parameter indices. 
+    """
+    if nPostBins % 2 == 0:
+        nPostBinsOdd = nPostBins+1
+    else:
+        nPostBinsOdd = nPostBins
+    
+    bestfit_theta_linked = np.array([])
+    
+    for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+        H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
+        wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
+        
+        bestfit_thetas = np.array([])
+        for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
+            bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
+                                                            edges[j][wh_H_peak[j]+1]]))
+        bestfit_theta_linked = np.append(bestfit_theta_linked, bestfit_thetas)
+        
+    return bestfit_theta_linked
+    
+def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
+    free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
+    
+    linked_posterior_ind_arr = []
+    for k in six.moves.xrange(len(linked_posterior_names)):
+        # Loop over *sets* of linked posteriors:
+        # This is an array of len-2 arrays/tuples with cmp, param names
+        linked_post_inds = []
+        for j in six.moves.xrange(len(linked_posterior_names[k])):
+            cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
+                        linked_posterior_names[k][j][1].strip().lower()
+            try:
+                whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
+                linked_post_inds.append(whmatch)
+            except:
+                raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
+        
+        linked_posterior_ind_arr.append(linked_post_inds)
+        
+    return linked_posterior_ind_arr
+    
+def make_arr_cmp_params(mcmcResults):
+    arr = []
+    for cmp in mcmcResults.free_param_names.keys():
+        for i in six.moves.xrange(len(mcmcResults.free_param_names[cmp])):
+            param = mcmcResults.free_param_names[key][i]
+            arr.append(cmp.strip().lower()+':'+param.strip().lower())
 
+    return arr
+    
 def make_emcee_sampler_dict(sampler, nBurn=0):
     """
     Save chain + key results from emcee sampler instance to a dict,
