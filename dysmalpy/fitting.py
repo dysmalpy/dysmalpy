@@ -54,10 +54,14 @@ def fit(gal, nWalkers=10,
            oversample = 1,
            fitdispersion = True,
            do_plotting = True,
+           save_burn = False, 
            out_dir = 'mcmc_fit_results/',
+           continue_steps = False, 
+           input_sampler = None, 
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_sampler = None,
+           f_burn_sampler = None, 
            f_plot_param_corner = None,
            f_plot_bestfit = None,
            f_mcmc_results = None ):
@@ -89,19 +93,31 @@ def fit(gal, nWalkers=10,
     if (len(out_dir) > 0):
         if (out_dir[-1] != '/'): out_dir += '/'
     ensure_dir(out_dir)
-
+    
+    # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
+    if continue_steps and (f_sampler is None):  f_sampler = out_dir+'mcmc_sampler_continue.pickle'
+    
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
     if f_sampler is None:            f_sampler = out_dir+'mcmc_sampler.pickle'
+    if save_burn and (f_burn_sampler is None):  f_burn_sampler = out_dir+'mcmc_burn_sampler.pickle'
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
-
-    # --------------------------------
-    # Initialize walker starting positions
-    initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
-
+    
+    
+    if not continue_steps:
+        # --------------------------------
+        # Initialize walker starting positions
+        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+    else:
+        nBurn = 0
+        if input_sampler is None:
+            raise ValueError("Must set input_sampler if you will restart the sampler.")
+        initial_pos = input_sampler['chain'][:,-1,:]
+        
+    
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
@@ -175,7 +191,15 @@ def fit(gal, nWalkers=10,
             logger.info('\n#################\n'
                         "acorr time undefined -> can't check convergence\n"
                         '#################\n')
-
+        
+        # --------------------------------
+        # Save burn-in sampler, if desired
+        if (save_burn) & (f_burn_sampler is not None):
+            sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
+            # Save stuff to file, for future use:
+            dump_pickle(sampler_burn, filename=f_burn_sampler)
+        
+        
         # --------------------------------
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
@@ -345,6 +369,7 @@ class MCMCResults(object):
             sampler=None,
             f_plot_trace_burnin = None,
             f_plot_trace = None,
+            f_burn_sampler = None, 
             f_sampler = None,
             f_plot_param_corner = None,
             f_plot_bestfit = None,
@@ -375,6 +400,7 @@ class MCMCResults(object):
         # Save what the filenames are for reference - eg, if they were defined by default.
         self.f_plot_trace_burnin = f_plot_trace_burnin
         self.f_plot_trace = f_plot_trace
+        self.f_burn_sampler = f_burn_sampler
         self.f_sampler = f_sampler
         self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
@@ -592,6 +618,7 @@ def create_default_mcmc_options():
        f_plot_trace_burnin = None,
        f_plot_trace = None,
        f_sampler = None,
+       f_burn_sampler = None, 
        f_plot_param_corner = None,
        f_plot_bestfit = None,
        f_mcmc_results = None)
