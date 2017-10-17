@@ -106,10 +106,10 @@ def plot_data_model_comparison(gal,
     """
     Plot data, model, and residuals between the data and this model.
     """
-    
-    gal.model.update_parameters(theta)     # Update the parameters
-    gal.create_model_data(oversample=oversample,
-                          line_center=gal.model.line_center)
+    if theta is not None:
+        gal.model.update_parameters(theta)     # Update the parameters
+        gal.create_model_data(oversample=oversample,
+                              line_center=gal.model.line_center)
 
     if gal.data.ndim == 1:
         ######################################
