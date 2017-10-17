@@ -71,14 +71,21 @@ def plot_trace(mcmcResults, fileout=None):
     return None
 
 
-def plot_corner(mcmcResults, fileout=None):
+def plot_corner(mcmcResults, fileout=None, step_slice=None):
     """
-    Plot corner plot of MCMC result posterior distributions
+    Plot corner plot of MCMC result posterior distributions.
+    Optional:
+            step slice: 2 element tuple/array with beginning and end step number to use
     """
     names = make_clean_mcmc_plot_names(mcmcResults)
+    
+    if step_slice is None:
+        sampler_chain = mcmcResults.sampler['flatchain']
+    else:
+        sampler_chain = mcmcResults.sampler['flatchain'][step_slice[0]:step_slice[1],:]
 
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
-    fig = corner.corner(mcmcResults.sampler['flatchain'],
+    fig = corner.corner(sampler_chain,
                             labels=names,
                             quantiles= [.02275, 0.15865, 0.84135, .97725],
                             truths=mcmcResults.bestfit_parameters,
