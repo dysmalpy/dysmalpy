@@ -32,6 +32,9 @@ logger = logging.getLogger('DysmalPy')
 
 
 def plot_trace(mcmcResults, fileout=None):
+    """
+    Plot trace of MCMC walkers
+    """
     names = make_clean_mcmc_plot_names(mcmcResults)
 
     ######################################
@@ -69,6 +72,9 @@ def plot_trace(mcmcResults, fileout=None):
 
 
 def plot_corner(mcmcResults, fileout=None):
+    """
+    Plot corner plot of MCMC result posterior distributions
+    """
     names = make_clean_mcmc_plot_names(mcmcResults)
 
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
@@ -90,13 +96,18 @@ def plot_corner(mcmcResults, fileout=None):
         plt.show()
 
     return None
-
-def plot_bestfit(mcmcResults, gal,
-            oversample=1,
-            fitdispersion=True,
+    
+    
+def plot_data_model_comparison(gal, 
+            theta = None, 
+            oversample=1, 
+            fitdispersion=True, 
             fileout=None):
-
-    gal.model.update_parameters(mcmcResults.bestfit_parameters)     # Update the parameters
+    """
+    Plot data, model, and residuals between the data and this model.
+    """
+    
+    gal.model.update_parameters(theta)     # Update the parameters
     gal.create_model_data(oversample=oversample,
                           line_center=gal.model.line_center)
 
@@ -225,9 +236,9 @@ def plot_bestfit(mcmcResults, gal,
             if k == 'data':
                 im = gal.data.data['velocity']
             elif k == 'model':
-                im = gal.model_data.data['velocity']
+                im = gal.model_data.data['velocity'] * gal.data.mask
             elif k == 'residual':
-                im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                im = gal.data.data['velocity'] - gal.model_data.data['velocity'] * gal.data.mask
             else:
                 raise ValueError("key not supported.")
 
@@ -294,8 +305,20 @@ def plot_bestfit(mcmcResults, gal,
     else:
         logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
         raise ValueError
+    
+    return None
+        
 
-
+def plot_bestfit(mcmcResults, gal,
+            oversample=1,
+            fitdispersion=True,
+            fileout=None):
+    """
+    Plot data, bestfit model, and residuals from the MCMC fitting.
+    """
+    plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
+            oversample=oversample, fitdispersion=fitdispersion, fileout=fileout)
+                
     return None
 
 

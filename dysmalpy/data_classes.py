@@ -25,7 +25,7 @@ __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 
 
 # Base Class for a data container
-class Data:
+class Data(object):
 
     def __init__(self, data=None, error=None, ndim=None, mask=None,
                  shape=None):
