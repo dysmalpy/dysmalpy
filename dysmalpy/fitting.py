@@ -465,9 +465,30 @@ class MCMCResults(object):
                                              should be measured in multi-D histogram space
                                 format:  set of linked parameter sets, with each linked parameter set
                                          consisting of len-2 tuples/lists of the component+parameter names.
-                                eg:  look at halo: mvirial and disk+bulge: total_mass together
+                                
+                                
+                        Structure explanation:
+                        (1) Want to analyze component+param 1 and 2 together, and then 
+                                3 and 4 together.
+                                
+                            Input structure would be:
+                            linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
+                            with 
+                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+                            jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
+                            for a full array of:
+                            linked_posterior_names = 
+                                [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+                            
+                        (2) Want to analyze component+param 1 and 2 together:
+                            linked_posterior_names = [ joint_param_bundle1 ]
+                            with 
+                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+                            
+                            for a full array of:
                                 linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
-                        eg:
+                            
+                        eg:  look at halo: mvirial and disk+bulge: total_mass together
                             linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
                          or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
 
@@ -720,6 +741,20 @@ def get_linked_posterior_peak_values(flatchain,
     """
     Get linked posterior best-fit values using a multi-D histogram for the
     given linked parameter indices.
+    
+    Input:
+        flatchain:                  sampler flatchain, shape (Nwalkers, Nparams)
+        linked_posterior_inds_arr:  array of arrays of parameters to be analyzed together
+        
+                                    eg: analyze ind1+ind2 together, and then ind3+ind4 together
+                                    linked_posterior_inds_arr = [ [ind1, ind2], [ind3, ind4] ]
+                                    
+        nPostBins:                  number of bins on each parameter "edge" of the multi-D histogram
+                                    
+    Output:
+        bestfit_theta_linked:       array of the linked bestfit paramter values from multiD param space
+                                    eg:
+                                    bestfit_theta_linked = [ [best1, best2], [best3, best4] ]
     """
     if nPostBins % 2 == 0:
         nPostBinsOdd = nPostBins+1
@@ -744,6 +779,28 @@ def get_linked_posterior_peak_values(flatchain,
     return bestfit_theta_linked
 
 def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
+    """
+    Convert the input set of linked posterior names to set of indices:
+    
+    Input:
+        (example structure)
+        
+        linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
+        with 
+        join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+        jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
+        for a full array of:
+        linked_posterior_names = 
+            [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+    
+    Output:
+        linked_posterior_inds = [ joint_bundle1_inds, joint_bundle2_inds ]
+        with joint_bundle1_inds = [ ind1, ind2 ], etc
+        
+        ex: 
+            output = [ [ind1, ind2], [ind3, ind4] ]
+        
+    """
     free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
 
     linked_posterior_ind_arr = []
