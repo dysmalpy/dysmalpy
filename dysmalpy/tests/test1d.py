@@ -3,15 +3,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import sys
-sys.path.append('..')
-
-import galaxy
-import models
-import fitting
-import instrument
-import data_classes
-import parameters
+from .. import galaxy
+from .. import models
+from .. import fitting
+from .. import instrument
+from .. import data_classes
+from .. import parameters
 
 import numpy as np
 import astropy.units as u
@@ -64,7 +61,7 @@ bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                         name='disk+bulge',
                         fixed=bary_fixed, bounds=bary_bounds)
 
-bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
+#bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
 
 # Halo component
 mvirial = 12.0
@@ -97,13 +94,13 @@ zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
 # Geometry
 inc = 62.     # degrees
 pa = 142.     # degrees, blue-shifted side CCW from north
-xshift = 2    # pixels from center
-yshift = -6    # pixels from center
+xshift = 0    # pixels from center
+yshift = 0    # pixels from center
 
 geom_fixed = {'inc': False,
-              'pa': False,
-              'xshift': False,
-              'yshift': False}
+              'pa': True,
+              'xshift': True,
+              'yshift': True}
 
 geom_bounds = {'inc': (0, 90),
                'pa': (90, 180),

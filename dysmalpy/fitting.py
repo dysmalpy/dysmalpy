@@ -11,7 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-import plotting
+from . import plotting
 
 
 # Third party imports
