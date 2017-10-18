@@ -736,7 +736,10 @@ def get_linked_posterior_peak_values(flatchain,
         for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
             bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
                                                             edges[j][wh_H_peak[j]+1]]))
-        bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
+        if len(bestfit_theta_linked) >= 1:
+            bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
+        else:
+            bestfit_theta_linked = np.array([bestfit_thetas])
 
     return bestfit_theta_linked
 
