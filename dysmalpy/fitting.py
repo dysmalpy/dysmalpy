@@ -765,7 +765,7 @@ def make_arr_cmp_params(mcmcResults):
     arr = []
     for cmp in mcmcResults.free_param_names.keys():
         for i in six.moves.xrange(len(mcmcResults.free_param_names[cmp])):
-            param = mcmcResults.free_param_names[key][i]
+            param = mcmcResults.free_param_names[cmp][i]
             arr.append(cmp.strip().lower()+':'+param.strip().lower())
 
     return arr
