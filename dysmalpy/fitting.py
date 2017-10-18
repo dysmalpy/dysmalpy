@@ -206,7 +206,7 @@ def fit(gal, nWalkers=10,
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
-            mcmcResultsburn = MCMCResults(gal.model, sampler=sampler_burn)
+            mcmcResultsburn = MCMCResults(model=gal.model, sampler=sampler_burn)
             plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin)
 
         # Reset sampler after burn-in:
@@ -329,7 +329,7 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Bundle the results up into a results class:
-    mcmcResults = MCMCResults(gal.model, sampler=sampler_dict,
+    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
                 f_plot_trace_burnin = f_plot_trace_burnin,
                 f_plot_trace = f_plot_trace,
                 f_sampler = f_sampler,
@@ -369,7 +369,7 @@ class MCMCResults(object):
     """
     Class to hold results of MCMC fitting to DYSMALPY models
     """
-    def __init__(self, model,
+    def __init__(self, model=None,
             sampler=None,
             f_plot_trace_burnin = None,
             f_plot_trace = None,
@@ -393,15 +393,16 @@ class MCMCResults(object):
         self.bestfit_parameters_l68 = None
         self.bestfit_parameters_u68 = None
 
-        self.param_names = model.param_names.copy()
-        self._param_keys = model._param_keys.copy()
-        self.nparams = model.nparams
+        if model is not None:
+            self.set_model(model)
+        else:
+            self.param_names = OrderedDict()
+            self._param_keys = OrderedDict()
+            self.nparams = None 
+            self.free_param_names = OrderedDict()
+            self._free_param_keys = OrderedDict()
+            self.nparams_free = None
 
-        self.free_param_names = OrderedDict()
-        self._free_param_keys = OrderedDict()
-        self.nparams_free = model.nparams_free
-
-        self.init_free_param_info(model)
 
         # Save what the filenames are for reference - eg, if they were defined by default.
         self.f_plot_trace_burnin = f_plot_trace_burnin
@@ -412,6 +413,17 @@ class MCMCResults(object):
         self.f_plot_bestfit = f_plot_bestfit
         self.f_mcmc_results = f_mcmc_results
 
+    def set_model(self, model):
+        self.param_names = model.param_names.copy()
+        self._param_keys = model._param_keys.copy()
+        self.nparams = model.nparams
+
+        self.free_param_names = OrderedDict()
+        self._free_param_keys = OrderedDict()
+        
+        self.nparams_free = model.nparams_free
+        self.init_free_param_info(model)
+        
 
     def init_free_param_info(self, model):
         """
