@@ -22,9 +22,9 @@ import scipy.interpolate as scp_interp
 
 # Local imports
 # Package imports
-from .instrument import Instrument
-from .models import ModelSet, calc_1dprofile
-from .data_classes import Data1D, Data2D, Data3D
+from dysmalpy.instrument import Instrument
+from dysmalpy.models import ModelSet, calc_1dprofile
+from dysmalpy.data_classes import Data1D, Data2D, Data3D
 
 __all__ = ['Galaxy']
 
