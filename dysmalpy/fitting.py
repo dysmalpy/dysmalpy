@@ -11,7 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-from . import plotting
+from dysmalpy import plotting
 
 
 # Third party imports
@@ -378,7 +378,8 @@ class MCMCResults(object):
             f_plot_param_corner = None,
             f_plot_bestfit = None,
             f_mcmc_results = None,
-            linked_posterior_names=None):
+            linked_posterior_names=None,
+            reload_mcmc_results_file=None):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
@@ -412,6 +413,9 @@ class MCMCResults(object):
         self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
         self.f_mcmc_results = f_mcmc_results
+        
+        
+        
 
     def set_model(self, model):
         self.param_names = model.param_names.copy()
@@ -468,6 +472,10 @@ class MCMCResults(object):
                          or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
                                          
         """
+        
+        if self.sampler is None:
+            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
+        
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
 
@@ -529,7 +537,9 @@ class MCMCResults(object):
         """Reload MCMC results saved earlier: the whole object"""
         if filename is None:
             filename = self.f_mcmc_results
-        self = load_pickle(filename)
+        mcmcSaved = load_pickle(filename)
+        for key in self.__dict__.keys():
+            self.__dict__[key] = mcmcSaved.__dict__[key]
 
     def reload_sampler(self, filename=None):
         """Reload the MCMC sampler saved earlier"""
