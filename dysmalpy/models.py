@@ -26,7 +26,7 @@ from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-from .parameters import DysmalParameter
+from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
            'DispersionConst', 'Geometry']
