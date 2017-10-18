@@ -755,6 +755,8 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
                 whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
                 linked_post_inds.append(whmatch)
             except:
+                print("free_cmp_param_arr="+free_cmp_param_arr)
+                print("cmp_param="+cmp_param)
                 raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
         
         linked_posterior_ind_arr.append(linked_post_inds)
