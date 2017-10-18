@@ -539,7 +539,10 @@ class MCMCResults(object):
             filename = self.f_mcmc_results
         mcmcSaved = load_pickle(filename)
         for key in self.__dict__.keys():
-            self.__dict__[key] = mcmcSaved.__dict__[key]
+            try:
+                self.__dict__[key] = mcmcSaved.__dict__[key]
+            except:
+                pass
 
     def reload_sampler(self, filename=None):
         """Reload the MCMC sampler saved earlier"""
