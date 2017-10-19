@@ -210,6 +210,7 @@ class ModelSet:
         self._param_keys = OrderedDict()
         self.nparams = 0
         self.nparams_free = 0
+        self.nparams_tied = 0
         self.kinematic_options = KinematicOptions()
         self.line_center = None
 
@@ -303,6 +304,7 @@ class ModelSet:
         self.nparams += len(model.param_names)
         self.nparams_free += (len(model.param_names) - sum(model.fixed.values())
                               - ntied)
+        self.nparams_tied += ntied
 
     def set_parameter_value(self, model_name, param_name, value):
         """Method to set a specific parameter value"""
@@ -341,7 +343,9 @@ class ModelSet:
             self.nparams_free += 1
 
     def update_parameters(self, theta):
-        """Update all of the free parameters of the model"""
+        """Update all of the free parameters of the model
+           Then update all of the tied parameters.
+        """
 
         # Sanity check to make sure the array given is the right length
         if len(theta) != self.nparams_free:
@@ -355,6 +359,14 @@ class ModelSet:
                 ind = pfree_keys[cmp][pp]
                 if ind != -99:
                     self.set_parameter_value(cmp, pp, theta[ind])
+
+        # Now update all of the tied parameters if there are any
+        if self.nparams_tied > 0:
+            for cmp in self.tied:
+                for pp in self.tied[cmp]:
+                    if self.tied[cmp][pp]:
+                        new_value = self.tied[cmp][pp](self)
+                        self.set_parameter_value(cmp, pp, new_value)
 
     # Methods to grab the free parameters and keys
     def _get_free_parameters(self):
