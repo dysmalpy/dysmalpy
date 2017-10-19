@@ -64,7 +64,7 @@ bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                         name='disk+bulge',
                         fixed=bary_fixed, bounds=bary_bounds)
 
-bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
+#bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
 
 # Halo component
 mvirial = 12.0

@@ -243,9 +243,11 @@ def plot_data_model_comparison(gal,
             if k == 'data':
                 im = gal.data.data['velocity']
             elif k == 'model':
-                im = gal.model_data.data['velocity'] * gal.data.mask
+                im = gal.model_data.data['velocity'].copy()
+                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
             elif k == 'residual':
-                im = gal.data.data['velocity'] - gal.model_data.data['velocity'] * gal.data.mask
+                im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
             else:
                 raise ValueError("key not supported.")
 
@@ -277,10 +279,11 @@ def plot_data_model_comparison(gal,
                 if k == 'data':
                     im = gal.data.data['dispersion']
                 elif k == 'model':
-                    im = gal.model_data.data['dispersion']
+                    im = gal.model_data.data['dispersion'].copy()
+                    im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
                 elif k == 'residual':
-                    im = gal.data.data['dispersion'] - gal.model_data.data[
-                        'dispersion']
+                    im = gal.data.data['dispersion'] - gal.model_data.data['dispersion']
+                    im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
                 else:
                     raise ValueError("key not supported.")
 
