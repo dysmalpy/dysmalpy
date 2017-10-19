@@ -13,8 +13,8 @@ import logging
 # Third party imports
 import numpy as np
 from astropy.extern import six
-# import matplotlib
-# matplotlib.use('agg')
+import matplotlib
+matplotlib.use('agg')
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec

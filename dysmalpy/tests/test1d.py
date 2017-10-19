@@ -18,7 +18,7 @@ import astropy.io.fits as fits
 data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/1D_tests/GS4_43501/'
+out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reffANDmvirial/'
 
 # Initialize the Galaxy, Instrument, and Model Set
 gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
@@ -61,7 +61,7 @@ bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                         name='disk+bulge',
                         fixed=bary_fixed, bounds=bary_bounds)
 
-#bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
+bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
 
 # Halo component
 mvirial = 12.0
@@ -75,6 +75,7 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
+halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
 sigma0 = 39.   # km/s
@@ -167,7 +168,7 @@ err_disp = dat_arr[:,4]
 test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
                                   vel_disp_err=err_disp, slit_width=0.22,
-								  slit_pa=-37)
+								  slit_pa=-37.)
 
 gal.data = test_data1d
 
@@ -183,8 +184,12 @@ neff = 10
 do_plotting = True
 oversample = 1
 
-mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
-                           scale_param_a=scale_param_a, nBurn=nburn,
-                           nSteps=nsteps, minAF=minaf, maxAF=maxaf,
-                           nEff=neff, do_plotting=do_plotting,
-                           oversample=oversample, out_dir=out_dir)
+def run_1d_test():
+    mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
+                               scale_param_a=scale_param_a, nBurn=nburn,
+                               nSteps=nsteps, minAF=minaf, maxAF=maxaf,
+                               nEff=neff, do_plotting=do_plotting,
+                               oversample=oversample, out_dir=out_dir)
+
+if __name__ == "__main__":
+		run_1d_test()
