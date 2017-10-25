@@ -25,6 +25,16 @@ data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 out_dir = '/data/dysmalpy/3D_tests/GS4_43501/quick_test/'
 #out_dir = '/Users/sedona/data/kmos3d/dysmalpy_tests/3D_tests/quick_test/'
 
+# Function to tie the scale height to the effective radius
+def tie_sigz_reff(model_set):
+ 
+    reff = model_set.components['disk+bulge'].r_eff_disk.value
+    invq = model_set.components['disk+bulge'].invq_disk
+    sigz = 2.0*reff/invq/2.35482
+
+    return sigz
+
+
 # Initialize the Galaxy, Instrument, and Model Set
 gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
 mod_set = models.ModelSet()
@@ -84,17 +94,18 @@ halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
 # Dispersion profile
 sigma0 = 39.   # km/s
 disp_fixed = {'sigma0': False}
-disp_bounds = {'sigma0': (10, 200)}
+disp_bounds = {'sigma0': (10, 100)}
 
 disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
                                           bounds=disp_bounds, name='dispprof')
 
 # z-height profile
-sigmaz = 0.9   # kpc
+sigmaz = 2./2.35482   # kpc
 zheight_fixed = {'sigmaz': True}
 
 zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
                                    fixed=zheight_fixed)
+zheight_prof.sigmaz.tied = tie_sigz_reff
 
 # Geometry
 inc = 62.     # degrees
@@ -177,11 +188,11 @@ test_data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', s
 gal.data = test_data3d
 
 # Parameters for the MCMC fitting
-nwalkers = 20
+nwalkers = 500
 ncpus = 8
 scale_param_a = 2
-nburn = 10
-nsteps = 10
+nburn = 200
+nsteps = 1000
 minaf = None
 maxaf = None
 neff = 10
