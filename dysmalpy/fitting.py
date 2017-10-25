@@ -129,7 +129,7 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Output some fitting info to logger:
-    logger.info(' nCPUs: '+str(nCPUs))
+    logger.info(' nCPUs: {}'.format(nCPUs))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
@@ -137,7 +137,7 @@ def fit(gal, nWalkers=10,
     # Run burn-in
     if nBurn > 0:
         logger.info('\nBurn-in:'+'\n'
-                    'Start: '+str(datetime.datetime.now()))
+                    'Start: {}'.format(datetime.datetime.now()))
         start = time.time()
 
         ####
@@ -145,7 +145,7 @@ def fit(gal, nWalkers=10,
         prob = None
         state = None
         for k in six.moves.xrange(nBurn):
-            logger.info(" k, time.time="+str(k)+" "+str(datetime.datetime.now()) )
+            logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                 rstate0=state)
         #####
@@ -164,11 +164,11 @@ def fit(gal, nWalkers=10,
         # Return Burn-in info
         # ****
         endtime = str(datetime.datetime.now())
-        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = %s, %s, %s, %s'%(nCPUs,
+        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(nCPUs,
             nDim, nWalkers, nBurn)
-        scaleparammsg = 'Scale param a= %s' % scale_param_a
-        timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.),
-                (elapsed/60.-np.floor(elapsed/60.))*60.)
+        scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+        timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
+                (elapsed/60.-np.floor(elapsed/60.))*60. )
         macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
         logger.info('\nEnd: '+endtime+'\n'
@@ -226,7 +226,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Run sampler: Get start time
     logger.info('\nEnsemble sampling:\n'
-                'Start: '+str(datetime.datetime.now()))
+                'Start: {}'.format(datetime.datetime.now()))
     start = time.time()
 
     # --------------------------------
@@ -243,14 +243,14 @@ def fit(gal, nWalkers=10,
             # --------------------------------
             # Test for convergence
             nowtime = str(datetime.datetime.now())
-            stepinfomsg = "ii=%s, a_frac=%s" % (ii, np.mean(sampler.acceptance_fraction))
-            logger.info( " time.time()="+nowtime+'\n'
+            stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
+            logger.info( " time.time()={}".format(nowtime)+'\n'
                          ''+stepinfomsg+'')
             if(minAF < np.mean(sampler.acceptance_fraction) < maxAF):
                 try:
                     acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
 
-                    logger.info( str(ii)+": acor_time =" + str(np.array(acor_time)))
+                    logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
                             logger.info(" Enforced min step limit: {}.".format(ii+1))
@@ -261,7 +261,7 @@ def fit(gal, nWalkers=10,
                     # acor raises exception if the chain isn't long
                     # enough to compute the acor time. However, could also be other
                     #   runtime errors..... need to be careful!
-                    logger.info( " "+str(ii)+": Chain is too short for acor to run")
+                    logger.info( " {}: Chain is too short for acor to run".format(ii) )
                     pass
 
         # --------------------------------
@@ -291,11 +291,11 @@ def fit(gal, nWalkers=10,
     # ***********
     # Consider overall acceptance fraction
     endtime = str(datetime.datetime.now())
-    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = %s, %s, %s, %s'%(nCPUs,
+    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(nCPUs,
         nDim, nWalkers, nSteps)
-    scaleparammsg = 'Scale param a= %s' % scale_param_a
-    timemsg = 'Time= %3.2f (sec), %3.0f:%3.2f (m:s)' % (elapsed, np.floor(elapsed/60.),
-            (elapsed/60.-np.floor(elapsed/60.))*60.)
+    scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+    timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
+            (elapsed/60.-np.floor(elapsed/60.))*60. )
     macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
     logger.info('\nEnd: '+endtime+'\n'
@@ -652,7 +652,7 @@ def log_like(gal, fitdispersion=True):
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
     else:
-        logger.warning("ndim="+str(gal.data.ndim)+" not supported!")
+        logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
 

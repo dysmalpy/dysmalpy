@@ -188,7 +188,7 @@ class Galaxy:
                                                   spec_unit=spec_unit,
                                                   line_center=line_center,
                                                   oversample=oversample)
-        print(sim_cube[:, 22, 22])
+                                                  
         # Correct for any oversampling
         if oversample > 1:
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky, nx_sky))
@@ -212,10 +212,18 @@ class Galaxy:
             sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
             data_cube_flat = np.sum(self.data.data.unmasked_data[:].value*self.data.mask, axis=0)
             errsq_cube_flat = np.sum( ( self.data.error.unmasked_data[:].value**2 )*self.data.mask, axis=0)
-
-            scale = np.sum( data_cube_flat*sim_cube_flat / errsq_cube_flat )/\
-                        np.sum( sim_cube_flat**2 / errsq_cube_flat )
+            
+            # Fill errsq_cube_flat == 0 of *masked* parts with 99., 
+            #   so that later (data*sim/errsq) * mask is finite (and contributes nothing)
+            # Potentially make this a *permanent mask* that can be accessed for faster calculations?
+            mask_flat = np.sum(self.data.mask, axis=0)/self.data.mask.shape[0]
+            mask_flat[mask_flat != 0] = 1.
+            errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
+            
+            scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
+                        np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
             sim_cube_obs *= scale
+            
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)

@@ -19,9 +19,11 @@ import astropy.io.fits as fits
 
 # Directory where the data lives
 data_dir = '/data/dysmalpy/test_data/GS4_43501/'
+#data_dir = '/Users/sedona/data/kmos3d/dysmalpy_tests/'
 
 # Directory where to save output files
 out_dir = '/data/dysmalpy/3D_tests/GS4_43501/quick_test/'
+#out_dir = '/Users/sedona/data/kmos3d/dysmalpy_tests/3D_tests/quick_test/'
 
 # Initialize the Galaxy, Instrument, and Model Set
 gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
@@ -192,6 +194,8 @@ def run3d_test():
                                nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                nEff=neff, do_plotting=do_plotting,
                                oversample=oversample, out_dir=out_dir)
+                               
+    return mcmc_results
 
 if __name__ == "__main__":
-    run_3d_test()
+    run3d_test()
