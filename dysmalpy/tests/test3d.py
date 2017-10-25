@@ -22,7 +22,7 @@ data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 #data_dir = '/Users/sedona/data/kmos3d/dysmalpy_tests/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/3D_tests/GS4_43501/quick_test/'
+out_dir = '/data/dysmalpy/3D_tests/GS4_43501/first_test/'
 #out_dir = '/Users/sedona/data/kmos3d/dysmalpy_tests/3D_tests/quick_test/'
 
 # Function to tie the scale height to the effective radius

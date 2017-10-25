@@ -861,7 +861,7 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
-        logger.info( "Making path=", dir)
+        logger.info( "Making path="+dir)
         os.makedirs(dir)
     return None
 
