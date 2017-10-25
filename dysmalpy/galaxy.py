@@ -185,9 +185,10 @@ class Galaxy:
                                                   spec_step=spec_step,
                                                   nspec=nspec,
                                                   spec_start=spec_start,
+                                                  spec_unit=spec_unit,
                                                   line_center=line_center,
                                                   oversample=oversample)
-
+        print(sim_cube[:, 22, 22])
         # Correct for any oversampling
         if oversample > 1:
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky, nx_sky))
@@ -209,8 +210,8 @@ class Galaxy:
 
         if ndim_final == 3:
             sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
-            data_cube_flat = np.sum(self.data.data.unmasked_data*self.data.mask, axis=0)
-            errsq_cube_flat = np.sum( ( self.data.error.unmasked_data**2 )*self.data.mask, axis=0)
+            data_cube_flat = np.sum(self.data.data.unmasked_data[:].value*self.data.mask, axis=0)
+            errsq_cube_flat = np.sum( ( self.data.error.unmasked_data[:].value**2 )*self.data.mask, axis=0)
 
             scale = np.sum( data_cube_flat*sim_cube_flat / errsq_cube_flat )/\
                         np.sum( sim_cube_flat**2 / errsq_cube_flat )

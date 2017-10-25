@@ -625,9 +625,9 @@ def log_prob(theta, gal,
 def log_like(gal, fitdispersion=True):
 
     if gal.data.ndim == 3:
-        dat = gal.data.data.unmasked_data
-        mod = gal.model_data.data.unmasked_data
-        err = gal.data.error.unmasked_data
+        dat = gal.data.data.unmasked_data[:].value
+        mod = gal.model_data.data.unmasked_data[:].value
+        err = gal.data.error.unmasked_data[:].value
         msk = gal.data.mask
         chisq_arr_raw = msk * (((dat - mod)/err)**2 + np.log(2.*np.pi*err**2))
         llike = -0.5*chisq_arr_raw.sum()

@@ -1,7 +1,10 @@
-# Script to test 1D fitting on data from KMOS3D object GS4_43501
+# Script to test 3D fitting on data from KMOS3D object GS4_43501
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+
+import sys
+sys.path.append('..')
 
 from .. import galaxy
 from .. import models
@@ -18,16 +21,7 @@ import astropy.io.fits as fits
 data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
-
-# Function to tie the scale height to the effective radius
-def tie_sigz_reff(model_set):
- 
-    reff = model_set.components['disk+bulge'].r_eff_disk.value
-    invq = model_set.components['disk+bulge'].invq_disk
-    sigz = 2.0*reff/invq/2.35482
-
-    return sigz
+out_dir = '/data/dysmalpy/3D_tests/GS4_43501/quick_test/'
 
 # Initialize the Galaxy, Instrument, and Model Set
 gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
@@ -84,7 +78,6 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
-halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
 sigma0 = 39.   # km/s
@@ -96,22 +89,21 @@ disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
 
 # z-height profile
 sigmaz = 0.9   # kpc
-zheight_fixed = {'sigmaz': False}
+zheight_fixed = {'sigmaz': True}
 
 zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
                                    fixed=zheight_fixed)
-zheight_prof.sigmaz.tied = tie_sigz_reff
 
 # Geometry
 inc = 62.     # degrees
 pa = 142.     # degrees, blue-shifted side CCW from north
-xshift = 0    # pixels from center
-yshift = 0    # pixels from center
+xshift = 2    # pixels from center
+yshift = -6    # pixels from center
 
 geom_fixed = {'inc': False,
-              'pa': True,
-              'xshift': True,
-              'yshift': True}
+              'pa': False,
+              'xshift': False,
+              'yshift': False}
 
 geom_bounds = {'inc': (0, 90),
                'pa': (90, 180),
@@ -141,7 +133,7 @@ mod_set.line_center = 6550.
 
 # Set up the instrument
 pixscale = 0.125*u.arcsec                # arcsec/pixel
-fov = [33, 33]                           # (nx, ny) pixels
+fov = [41, 41]                           # (nx, ny) pixels
 beamsize = 0.55*u.arcsec                 # FWHM of beam
 wave_start = 6528.15155*u.Angstrom       # Starting wavelength of spectrum
 wave_step = 0.655*u.Angstrom             # Spectral step
@@ -152,7 +144,7 @@ beam = instrument.Beam(major=beamsize)
 lsf = instrument.LSF(sig_inst)
 
 inst.beam = beam
-#inst.lsf = lsf
+inst.lsf = lsf
 inst.pixscale = pixscale
 inst.fov = fov
 inst.wave_step = wave_step
@@ -161,47 +153,45 @@ inst.nwave = nwave
 
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
-#inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
+
 
 # Add the model set and instrument to the Galaxy
 gal.model = mod_set
 gal.instrument = inst
 
 # Upload the data set to be fit
-dat_arr = np.loadtxt(data_dir+'GS4_43501.obs_prof.txt')
-gs4_r = dat_arr[:,0]
-gs4_vel = dat_arr[:,1]
-gs4_disp = dat_arr[:,3]
-err_vel = dat_arr[:,2]
-err_disp = dat_arr[:,4]
+cube = fits.getdata(data_dir+'GS4-43501-combo-22h-mccc-s2-v2.175.fits')
+header = fits.getheader(data_dir+'GS4-43501-combo-22h-mccc-s2-v2.175.fits')
+mask = fits.getdata(data_dir+'GS4_43501-mask1.fits')
+err_cube = np.ones(cube.shape)*0.1067
+spec_arr = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3']
+pscale = 0.125
+inst.set_lsf_kernel(spec_type='velocity', spec_step=header['CDELT3']*u.km/u.s)
 
-test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
-                                  vel_disp=gs4_disp, vel_err=err_vel,
-                                  vel_disp_err=err_disp, slit_width=0.22,
-								  slit_pa=-37.)
+test_data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', spec_arr=spec_arr,
+                                  err_cube=err_cube, mask_sky=mask, mask_spec=None,
+                                  estimate_err=False, spec_unit=u.km/u.s)
 
-gal.data = test_data1d
+gal.data = test_data3d
 
 # Parameters for the MCMC fitting
-nwalkers = 500
+nwalkers = 20
 ncpus = 8
 scale_param_a = 2
-nburn = 200
-nsteps = 1000
+nburn = 10
+nsteps = 10
 minaf = None
 maxaf = None
 neff = 10
 do_plotting = True
 oversample = 1
-fitdispersion = False
 
-def run_1d_test():
+def run3d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
                                scale_param_a=scale_param_a, nBurn=nburn,
                                nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                nEff=neff, do_plotting=do_plotting,
-                               oversample=oversample, out_dir=out_dir,
-							   fitdispersion=fitdispersion)
+                               oversample=oversample, out_dir=out_dir)
 
 if __name__ == "__main__":
-		run_1d_test()
+    run_3d_test()
