@@ -177,6 +177,11 @@ cube = fits.getdata(data_dir+'GS4-43501-combo-22h-mccc-s2-v2.175.fits')
 header = fits.getheader(data_dir+'GS4-43501-combo-22h-mccc-s2-v2.175.fits')
 mask = fits.getdata(data_dir+'GS4_43501-mask1.fits')
 err_cube = np.ones(cube.shape)*0.1067
+
+# # SHP test: messy / missing errors in masked parts:
+# mask_3d = np.tile(mask, (err_cube.shape[0], 1, 1))
+# err_cube[mask_3d==0] = 0.
+
 spec_arr = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3']
 pscale = 0.125
 inst.set_lsf_kernel(spec_type='velocity', spec_step=header['CDELT3']*u.km/u.s)
