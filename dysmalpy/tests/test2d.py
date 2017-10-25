@@ -167,6 +167,9 @@ mask = np.ones(gs4_vel.shape)
 mask[(gs4_disp < 0)] = 0
 err_vel = np.ones(gs4_vel.shape)*15.
 err_disp = np.ones(gs4_vel.shape)*15.
+# # SHP test: messy / missing errors in masked parts:
+# err_vel[mask==0] = 0.
+# err_disp[mask==0] = 0.
 
 test_data2d = data_classes.Data2D(pixscale=0.125, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
