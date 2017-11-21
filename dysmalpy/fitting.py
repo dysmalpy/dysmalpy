@@ -131,7 +131,7 @@ def fit(gal, nWalkers=10,
     kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
-                a = scale_param_a, threads = nCPUs, live_dangerously=True)
+                a = scale_param_a, threads = nCPUs)
 
     # --------------------------------
     # Output some fitting info to logger:
