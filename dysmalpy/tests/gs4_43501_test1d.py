@@ -6,6 +6,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 sys.path.append('.')
+sys.path.append('/Users/ttshimiz/Github/dysmalpy/')
 
 from dysmalpy import galaxy
 from dysmalpy import models
@@ -20,13 +21,13 @@ import astropy.io.fits as fits
 
 from gs4_43501_test_base import setup_dysmalpy_fitting
 
-basedir = os.getenv("HOME")+'/data/mpe_ir/gs4_43501_dysmalpy_fitting/'
+basedir = os.getenv("HOME")+'/Dropbox/Research/LLAMA/dysmal/'
 
 # Directory where the data lives
-data_dir = basedir+'GS4_43501_H250/'
+data_dir = basedir+'input/obs_prof/'
 
 # Directory where to save output files
-out_dir = basedir+'fitting_output/1D/'
+out_dir = basedir+'test_dysmalpy_GS4_43501/'
 
 
 # Data files:
