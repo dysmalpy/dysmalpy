@@ -955,7 +955,12 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
         r = np.sqrt(x**2 + y**2 + z**2)
         theta = np.arccos(np.abs(z)/r)*180./np.pi
-        amp = vmax/rturn**n
+
+        if rturn != 0:
+            amp = vmax/rturn**n
+
+        else:
+            amp = vmax/np.nanmax(r)
 
         vel = amp*r**n
 
