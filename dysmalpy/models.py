@@ -26,7 +26,7 @@ from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-from dysmalpy.parameters import DysmalParameter
+from parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
            'DispersionConst', 'Geometry']
@@ -784,7 +784,6 @@ class _DysmalFittable3DModel(_DysmalModel):
     fittable = True
 
     inputs = ('x', 'y', 'z')
-    outputs = ('xp', 'yp', 'zp')
 
     @property
     def prior(self):
@@ -804,6 +803,7 @@ class Geometry(_DysmalFittable3DModel):
     yshift = DysmalParameter(default=0.0)
 
     _type = 'geometry'
+    outputs = ('xp', 'yp', 'zp')
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift):
@@ -934,6 +934,47 @@ class KinematicOptions:
             vel = np.sqrt(vel_squared)
 
         return vel
+
+
+class BiconicalOutflow(_DysmalFittable3DModel):
+    """Model for a biconical outflow. Assumption is symmetry above and below
+       the vertex and around the outflow axis."""
+
+    n = DysmalParameter(default=0.5, fixed=True)
+    vmax = DysmalParameter(min=0)
+    rturn = DysmalParameter(default=0.5, min=0)
+    thetain = DysmalParameter(bounds=(0, 90))
+    thetaout = DysmalParameter(bounds=(0, 90))
+
+    _type = 'outflow'
+    outputs = ('vout',)
+
+    @staticmethod
+    def evaluate(x, y, z, n, vmax, rturn, thetain, thetaout):
+        """Evaluate the outflow velocity as a function of position x, y, z"""
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+        theta = np.arccos(np.abs(z)/r)*180./np.pi
+        amp = vmax/rturn**n
+
+        vel = amp*r**n
+
+        indr = r >= rturn
+        vel[indr] = vmax - amp*(r[indr]**n - rturn**n)
+
+        indtheta = (theta < thetain) | (theta > thetaout)
+        vel[indtheta] = 0.
+
+        indv = vel < 0.
+        vel[indv] = 0
+
+        return vel
+
+    def light_profile(self, x, y, z, tau, norm, rend):
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+
+        return norm*np.exp(-tau*(r/rend))
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
