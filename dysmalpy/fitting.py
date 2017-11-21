@@ -20,6 +20,7 @@ import numpy as np
 from collections import OrderedDict
 from astropy.extern import six
 import dill as _pickle
+import copy
 
 import emcee
 import psutil
@@ -84,6 +85,11 @@ def fit(gal, nWalkers=10,
     """
     # --------------------------------
     # Basic setup:
+    
+    # For compatibility with Python 2.7:
+    mod_in = copy.deepcopy(gal.model)
+    gal.model = mod_in
+    
     #if nCPUs is None:
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
