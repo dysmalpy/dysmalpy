@@ -175,7 +175,7 @@ def fit(gal, nWalkers=10,
                     '******************\n'
                     ''+nthingsmsg+'\n'
                     ''+scaleparammsg+'\n'
-                    ''+timemsg+''
+                    ''+timemsg+'\n'
                     ''+macfracmsg+'\n'
                     "Ideal acceptance frac: 0.2 - 0.5\n"
                     ''+acortimemsg+'\n'
