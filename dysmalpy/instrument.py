@@ -31,13 +31,24 @@ logger = logging.getLogger('DysmalPy')
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
-    def __init__(self, beam=None, lsf=None, pixscale=None,
+    def __init__(self, beam=None, empirical_beam=None, lsf=None, pixscale=None,
                  wave_start=None, wave_step=None, nwave=None,
                  fov=None, name='Instrument'):
 
         self.name = name
         self.pixscale = pixscale
-        self.beam = beam
+        
+        # Case of two beams: analytic and empirical:
+        if beam is not None:
+            self.beam = beam
+            self.beam_type = 'analytic'
+        elif empirical_beam is not None:
+            self.beam = empirical_beam
+            self.beam_type = 'empirical'
+        else:
+            self.beam = beam
+            self.beam_type = None
+            
         self._beam_kernel = None
         self.lsf = lsf
         self._lsf_kernel = None
@@ -106,9 +117,13 @@ class Instrument:
         return cube
 
     def set_beam_kernel(self):
-
-        kernel = self.beam.as_kernel(self.pixscale)
-        kern2D = kernel.array
+        if self.beam_type == 'analytic':
+            kernel = self.beam.as_kernel(self.pixscale)
+            kern2D = kernel.array
+        elif self.beam_type == 'empirical':
+            if len(self.beam.shape) == 1:
+                raise ValueError("1D beam/PSF not currentloy supported")
+            kern2D = self.beam
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
 
