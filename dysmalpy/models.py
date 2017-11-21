@@ -396,13 +396,23 @@ class ModelSet:
         log_prior_model = 0.
         pfree_dict = self.get_free_parameter_keys()
         comps_names = pfree_dict.keys()
+        outstr = ""
+        outstrp = ""
+        outth = ""
         for compn in comps_names:
             comp = self.components.__getitem__(compn)
             params_names = pfree_dict[compn].keys()
             for paramn in params_names:
                 if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: add to total prior
+                    outth += "{}, ".format(self.parameters[self._param_keys[compn][paramn]])
+                    outstrp += "{}-{}, ".format(compn, paramn)
+                    outstr += "{}, ".format(comp.prior[paramn].log_prior(comp.__getattribute__(paramn)))
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
+        print("params= {}".format(outstrp))
+        print("theta= {}".format(outth))
+        print("indiv lprior= {}".format(outstr))
+        print("get_free_parameters={}".format(self._get_free_parameters()))
         return log_prior_model
 
     def velocity_profile(self, r):

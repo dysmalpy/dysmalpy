@@ -7,7 +7,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-# Standard library
+    ## Standard library
 import logging
 
 # DYSMALPY code
@@ -119,13 +119,23 @@ def fit(gal, nWalkers=10,
             raise ValueError("Must set input_sampler if you will restart the sampler.")
         initial_pos = input_sampler['chain'][:,-1,:]
 
+    # lprob_init = []
+    # for ipos in initial_pos:
+    #     lprobtmp = log_prob(ipos, gal, oversample=oversample, fitdispersion=fitdispersion)
+    #     lprob_init.append(lprobtmp)
+
+    # print("initial_pos of walkers=")
+    # print("{}".format(initial_pos))
+
+    # print("initial_lprob={}".format(lprob_init))
+    #raise ValueError
 
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
-                a = scale_param_a, threads = nCPUs)
+                a = scale_param_a, threads = nCPUs, live_dangerously=True)
 
     # --------------------------------
     # Output some fitting info to logger:
@@ -148,6 +158,9 @@ def fit(gal, nWalkers=10,
             logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                 rstate0=state)
+            print("prob={}".format(prob))
+            print("pos={}".format(pos))
+            raise ValueError
         #####
         ## This would run in one go:
         #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
@@ -603,6 +616,9 @@ def log_prob(theta, gal,
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()
 
+    print("theta={}".format(theta))
+    print("lprior={}".format(lprior))
+
     # First check to see if log prior is finite
     if not np.isfinite(lprior):
         return -np.inf
@@ -613,6 +629,9 @@ def log_prob(theta, gal,
 
         # Evaluate likelihood prob of theta
         llike = log_like(gal, fitdispersion=fitdispersion)
+        
+        print("llike={}".format(llike))
+        
         lprob = lprior + llike
 
         if not np.isfinite(lprob):
@@ -639,12 +658,22 @@ def log_like(gal, fitdispersion=True):
         vel_mod = gal.model_data.data['velocity']
         vel_err = gal.data.error['velocity']
 
+        print("vel_dat={}".format(vel_dat))
+        print("vel_mod={}".format(vel_mod))
+        print("vel_err={}".format(vel_err))
+
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
 
+        print("disp_dat={}".format(disp_dat))
+        print("disp_mod={}".format(disp_mod))
+        print("disp_err={}".format(disp_err))
+
         msk = gal.data.mask
         
+        print("msk={}".format(msk))
+
         # Artificially mask zero errors which are masked:
         vel_err[((vel_err==0) & (msk==0))] = 99.
         disp_err[((disp_err==0) & (msk==0))] = 99.
