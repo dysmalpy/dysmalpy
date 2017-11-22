@@ -19,6 +19,7 @@ import os
 import numpy as np
 from collections import OrderedDict
 from astropy.extern import six
+import astropy.units as u
 import dill as _pickle
 import copy
 
@@ -646,7 +647,7 @@ def log_like(gal, fitdispersion=True):
         
         # Correct model for instrument dispersion if the data is instrument corrected:
         if gal.data.data['inst_corr']:
-            disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion**2 )
+            disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
         
         msk = gal.data.mask
         
