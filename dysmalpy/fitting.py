@@ -235,53 +235,48 @@ def fit(gal, nWalkers=10,
                 'Start: {}'.format(datetime.datetime.now()))
     start = time.time()
 
+
     # --------------------------------
-    # Case: test for convergence and truncate early:
-    if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        for ii in six.moves.xrange(nSteps):
-            pos_cur = pos.copy()    # copy just in case things are set strangely
+    # Run sampler: output info at each step
+    for ii in six.moves.xrange(nSteps):
+        pos_cur = pos.copy()    # copy just in case things are set strangely
 
-            # --------------------------------
-            # 1: only do one step at a time.
-            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
-            # --------------------------------
+        # --------------------------------
+        # 1: only do one step at a time.
+        pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+        # --------------------------------
 
-            # --------------------------------
-            # Test for convergence
-            nowtime = str(datetime.datetime.now())
-            stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
-            logger.info( " time.time()={}".format(nowtime)+'\n'
-                         ''+stepinfomsg+'')
+        # --------------------------------
+        # Give output info about this step:
+        nowtime = str(datetime.datetime.now())
+        stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
+        timemsg = " time.time()={}".format(nowtime)
+        logger.info( stepinfomsg+timemsg )
+        try:
+            acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+            logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+        except RuntimeError:
+            logger.info(" {}: Chain too short for acor to run".format(ii) )
+            acor_time = None
+            
+                     
+        # --------------------------------
+        # Case: test for convergence and truncate early:
+        if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
             if(minAF < np.mean(sampler.acceptance_fraction) < maxAF):
-                try:
-                    acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
-
-                    logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+                if acor_time is not None:
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
                             logger.info(" Enforced min step limit: {}.".format(ii+1))
-                        if ii >= 49:
+                        if ii >= acor_force_min:
                             logger.info(" Breaking chain at step {}.".format(ii+1))
                             break
-                except RuntimeError:
-                    # acor raises exception if the chain isn't long
-                    # enough to compute the acor time. However, could also be other
-                    #   runtime errors..... need to be careful!
-                    logger.info( " {}: Chain is too short for acor to run".format(ii) )
-                    pass
-
-        # --------------------------------
-        # Check if it failed to converge before the max number of steps
-        finishedSteps= ii+1
-        if (finishedSteps  == nSteps):
-            logger.info(" Warning: chain did not converge after nSteps.")
-
 
     # --------------------------------
-    # Case: don't do convergence testing with early truncation: just run max number of steps
-    else:
-        sampler.run_mcmc(pos, nSteps)
-        finishedSteps = nSteps
+    # Check if it failed to converge before the max number of steps, if doing convergence testing
+    finishedSteps= ii+1
+    if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
+        logger.info(" Warning: chain did not converge after nSteps.")
 
     # --------------------------------
     # Finishing info for fitting:
