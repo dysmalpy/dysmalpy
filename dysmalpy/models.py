@@ -418,8 +418,8 @@ class ModelSet:
                                  "can't be calculated.")
         else:
 
-            vdm = np.zeros(len(r))
-            vbaryon = np.zeros(len(r))
+            vdm = np.zeros(r.shape)
+            vbaryon = np.zeros(r.shape)
 
             for cmp in self.mass_components:
 
