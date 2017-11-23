@@ -26,10 +26,11 @@ from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-from parameters import DysmalParameter
+from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
-           'DispersionConst', 'Geometry']
+__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW',
+           'DispersionConst', 'Geometry', 'BiconicalOutflow',
+           'KinematicOptions', 'ZHeightGauss', 'DiskBulge']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -203,6 +204,8 @@ class ModelSet:
         self.geometry = None
         self.dispersion_profile = None
         self.zprofile = None
+        self.outflow = None
+        self.outflow_geometry = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -214,7 +217,7 @@ class ModelSet:
         self.kinematic_options = KinematicOptions()
         self.line_center = None
 
-    def add_component(self, model, name=None, light=False):
+    def add_component(self, model, name=None, light=False, geom_type='galaxy'):
         """Add a model component to the set"""
 
         # Check to make sure its the correct class
@@ -236,18 +239,22 @@ class ModelSet:
                 else:
                     self.mass_components[model.name] = True
 
-                # Only mass components can also be a light component
-                # TODO: When I add in outflow components I'll need to change this
-                if light:
-                    self.light_components[model.name] = True
-                else:
-                    self.light_components[model.name] = False
-
             elif model._type == 'geometry':
-                if self.geometry is not None:
-                    logger.warning('Current Geometry model is being '
-                                   'overwritten!')
-                self.geometry = model
+
+                if geom_type == 'galaxy':
+                    if (self.geometry is not None):
+                        logger.warning('Current Geometry model is being '
+                                    'overwritten!')
+                    self.geometry = model
+
+                elif geom_type == 'outflow':
+
+                    self.outflow_geometry = model
+
+                else:
+                    logger.error("geom_type can only be either 'galaxy' or "
+                                 "'outflow'.")
+
                 self.mass_components[model.name] = False
 
             elif model._type == 'dispersion':
@@ -264,9 +271,22 @@ class ModelSet:
                 self.zprofile = model
                 self.mass_components[model.name] = False
 
+            elif model._type == 'outflow':
+                if self.outflow is not None:
+                    logger.warning('Current outflow model is being '
+                                   'overwritten!')
+                self.outflow = model
+                self.mass_components[model.name] = False
+
             else:
                 raise TypeError("This model type is not known. Must be one of"
-                                "'mass', 'geometry', or 'dispersion.'")
+                                "'mass', 'geometry', 'dispersion', 'zheight',"
+                                " or 'outflow'.")
+
+            if light:
+                self.light_components[model.name] = True
+            else:
+                self.light_components[model.name] = False
 
             self._add_comp(model)
 
