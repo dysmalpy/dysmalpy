@@ -55,7 +55,7 @@ def plot_trace(mcmcResults, fileout=None):
     # Define random color inds for tracking some walkers:
     nTraceWalkers = 5
     cmap = cm.viridis
-    alphaTrace = 0.5
+    alphaTrace = 0.8
     lwTrace = 1.5
     trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
     trace_colors = []
@@ -120,12 +120,21 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
                             title_kwargs=title_kwargs)
                             
     axes = fig.axes
-    xy = (0.95, 0.95)
-    va='top'
-    ha='right'
-    for i, ax in enumerate(axes):
-        ax.annotate('{}'.format(i), xy=xy, va=va, ha=ha, 
-                xycoords='axes fraction', fontsize=10, color='red')
+    nFreeParam = len(mcmcResults.bestfit_parameters)
+    for i in six.moves.xrange(nFreeParam):
+        ax = axes[i*nFreeParam + i]
+        # Format the quantile display.
+        best = mcmcResults.bestfit_parameters[i]
+        q_m = mcmcResults.bestfit_parameters_l68_err[i]
+        q_p = mcmcResults.bestfit_parameters_u68_err[i]
+        fmt = "{{0:{0}}}".format(title_fmt).format
+        title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+        title = title.format(fmt(best), fmt(q_m), fmt(q_p))
+        
+        # Add in the column name if it's given.
+        if labels is not None:
+            title = "{0} = {1}".format(names[i], title)
+        ax.set_title(title, **title_kwargs, color='red')
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
