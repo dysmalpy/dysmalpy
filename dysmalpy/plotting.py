@@ -43,20 +43,41 @@ def plot_trace(mcmcResults, fileout=None):
     # Setup plot:
     f = plt.figure()
     scale = 1.75
-    n_rows = len(names)
-    f.set_size_inches(4.*scale, n_rows*scale)
-    gs = gridspec.GridSpec(n_rows, 1, hspace=0.2)
+    nRows = len(names)
+    nWalkers = mcmcResults.sampler['nWalkers']
+    
+    f.set_size_inches(4.*scale, nRows*scale)
+    gs = gridspec.GridSpec(nRows, 1, hspace=0.2)
 
     axes = []
-    alpha = max(0.01, 1./mcmcResults.sampler['nWalkers'])
+    alpha = max(0.01, 1./nWalkers)
+    
+    # Define random color inds for tracking some walkers:
+    nTraceWalkers = 5
+    cmap = cm.viridis
+    alphaTrace = 0.5
+    lwTrace = 1.5
+    trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
+    trace_colors = []
+    for i in six.moves.xrange(nRows):
+        trace_colors.append(cmap(1./np.float(nTraceWalkers)*i))
+    
+    norm_inds = np.setdiff1D(range(nWalkers), rand_inds)
+    
 
-    for k in six.moves.xrange(n_rows):
+    for k in six.moves.xrange(nRows):
         axes.append(plt.subplot(gs[k,0]))
-
-        axes[k].plot(mcmcResults.sampler['chain'][:,:,k].T, '-', color='black', alpha=alpha)
+        
+        axes[k].plot(mcmcResults.sampler['chain'][norm_inds,:,k].T, '-', color='black', alpha=alpha)
+        
+        for j in six.moves.xrange(nTraceWalkers):
+            axes[k].plot(mcmcResults.sampler['chain'][trace_inds[j],:,k].T, '-', 
+                    color=trace_colors[j], lw=lwTrace, alpha=alphaTrace)
+            
+            
         axes[k].set_ylabel(names[k])
 
-        if k == n_rows-1:
+        if k == nRows-1:
             axes[k].set_xlabel('Step number')
         else:
             axes[k].set_xticks([])
