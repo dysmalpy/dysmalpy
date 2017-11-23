@@ -839,6 +839,12 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     Input:
         (example structure)
         
+        To analyze all parameters together:
+        linked_posterior_names = 'all'
+        
+        
+        Alternative: only link some parameters:
+        
         linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
         with 
         join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
@@ -855,26 +861,31 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
             output = [ [ind1, ind2], [ind3, ind4] ]
         
     """
-    free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
-
-    linked_posterior_ind_arr = []
-    for k in six.moves.xrange(len(linked_posterior_names)):
-        # Loop over *sets* of linked posteriors:
-        # This is an array of len-2 arrays/tuples with cmp, param names
-        linked_post_inds = []
-        for j in six.moves.xrange(len(linked_posterior_names[k])):
-            cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
-                        linked_posterior_names[k][j][1].strip().lower()
-            try:
-                whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
-                linked_post_inds.append(whmatch)
-            except:
-                raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
-
-        # SORT THIS TO GET ACENDING ORDER
-        linked_post_inds = sorted(linked_post_inds)
     
-        linked_posterior_ind_arr.append(linked_post_inds)
+    if linked_posterior_names.strip().lower() != 'all':
+    
+        free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
+
+        linked_posterior_ind_arr = []
+        for k in six.moves.xrange(len(linked_posterior_names)):
+            # Loop over *sets* of linked posteriors:
+            # This is an array of len-2 arrays/tuples with cmp, param names
+            linked_post_inds = []
+            for j in six.moves.xrange(len(linked_posterior_names[k])):
+                cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
+                            linked_posterior_names[k][j][1].strip().lower()
+                try:
+                    whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
+                    linked_post_inds.append(whmatch)
+                except:
+                    raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
+
+            # SORT THIS TO GET ACENDING ORDER
+            linked_post_inds = sorted(linked_post_inds)
+    
+            linked_posterior_ind_arr.append(linked_post_inds)
+    else:
+        linked_posterior_ind_arr = [range(len(mcmcResults.free_param_names))]
         
     return linked_posterior_ind_arr
 
