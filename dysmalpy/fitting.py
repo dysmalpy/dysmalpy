@@ -522,6 +522,7 @@ class MCMCResults(object):
                             linked_posterior_names=linked_posterior_names)
 
             bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
+                            guess=mcmc_param_bestfit, 
                             linked_posterior_ind_arr=linked_posterior_ind_arr,
                             nPostBins=nPostBins)
 
@@ -747,9 +748,36 @@ def getPeakKDE(flatchain, guess):
             kern=gaussian_kde(flatchain[:,ii])
             peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
         return peakKDE
+        
+def getPeakKDEmultiD(flatchain, inds, guess):
+    """
+    Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
+    From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
+    """
+    nPars = len(inds)
+    
+    kern = gaussian_kde(flatchain[:,inds].T)
+    peakKDE = fmin(lambda x: -kern(x), guess, disp=False)
+    
+    return peakKDE
+    
+    
+    if(len(flatchain.shape)==1):
+        nPars=1
+        kern=gaussian_kde(flatchain)
+        peakKDE=fmin(lambda x: -kern(x), guess,disp=False)
+        return peakKDE
+    else:
+        nPars=flatchain.shape[1]
+        peakKDE=np.zeros(nPars)
+        for ii in range(nPars):
+            kern=gaussian_kde(flatchain[:,ii])
+            peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
+        return peakKDE
 
 
 def get_linked_posterior_peak_values(flatchain,
+                guess = None, 
                 linked_posterior_ind_arr=None,
                 nPostBins=50):
     """
@@ -770,25 +798,30 @@ def get_linked_posterior_peak_values(flatchain,
                                     eg:
                                     bestfit_theta_linked = [ [best1, best2], [best3, best4] ]
     """
-    if nPostBins % 2 == 0:
-        nPostBinsOdd = nPostBins+1
-    else:
-        nPostBinsOdd = nPostBins
+    # if nPostBins % 2 == 0:
+    #     nPostBinsOdd = nPostBins+1
+    # else:
+    #     nPostBinsOdd = nPostBins
+    # 
+    # bestfit_theta_linked = np.array([])
+    # 
+    # for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+    #     H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
+    #     wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
+    # 
+    #     bestfit_thetas = np.array([])
+    #     for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
+    #         bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
+    #                                                         edges[j][wh_H_peak[j]+1]]))
+    #     if len(bestfit_theta_linked) >= 1:
+    #         bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
+    #     else:
+    #         bestfit_theta_linked = np.array([bestfit_thetas])
 
-    bestfit_theta_linked = np.array([])
+    # Use KDE to get bestfit linked:
+    bestfit_theta_linked = getPeakKDEmultiD(flatchain, linked_posterior_ind_arr, 
+                guess[linked_posterior_ind_arr])
 
-    for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-        H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
-        wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
-
-        bestfit_thetas = np.array([])
-        for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
-            bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
-                                                            edges[j][wh_H_peak[j]+1]]))
-        if len(bestfit_theta_linked) >= 1:
-            bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
-        else:
-            bestfit_theta_linked = np.array([bestfit_thetas])
 
     return bestfit_theta_linked
 
