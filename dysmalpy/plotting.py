@@ -132,6 +132,13 @@ def plot_data_model_comparison_1D(gal,
         data = gal.data
         model_data = gal.model_data
     
+    # Correct model for instrument dispersion if the data is instrument corrected:
+    if 'inst_corr' in data.data.keys():
+        if (data.data['inst_corr']):
+            model_data.data['dispersion'] = \
+                np.sqrt( model_data.data['dispersion']**2 - \
+                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+    
     
     ######################################
     # Setup plot:
@@ -166,6 +173,8 @@ def plot_data_model_comparison_1D(gal,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
         axes[k].scatter( data.rarr, data.data[keyyarr[j]],
             c='black', marker='o', s=25, lw=1, label=None)
+            
+            
         axes[k].scatter( data.rarr, model_data.data[keyyarr[j]],
             c='red', marker='s', s=25, lw=1, label=None)
         axes[k].set_xlabel(keyxtitle)
