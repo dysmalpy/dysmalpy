@@ -121,7 +121,8 @@ class Data2D(Data):
 
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, estimate_err=False,
-                 error_frac=0.2, ra=None, dec=None, ref_pixel=None):
+                 error_frac=0.2, ra=None, dec=None, ref_pixel=None,
+                 inst_corr=False):
 
         if mask is not None:
             if mask.shape != velocity.shape:
@@ -131,6 +132,9 @@ class Data2D(Data):
             mask = np.ones(velocity.shape)
 
         data = {'velocity': velocity}
+        
+        # Information about *dispersion* instrument correction
+        data['inst_corr'] = inst_corr
 
         if vel_disp is None:
 

@@ -646,8 +646,9 @@ def log_like(gal, fitdispersion=True):
         disp_err = gal.data.error['dispersion']
         
         # Correct model for instrument dispersion if the data is instrument corrected:
-        if gal.data.data['inst_corr']:
-            disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
         
         msk = gal.data.mask
         
