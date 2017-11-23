@@ -595,8 +595,8 @@ class MCMCResults(object):
     def plot_trace(self, fileout=None):
         """Plot/replot the trace for the MCMC fitting"""
         if fileout is None:
-            fileout = self.f_plot_trace_burnin
-        plotting.plot_trace(self, fileout=f_plot_trace_burnin)
+            fileout = self.f_plot_trace
+        plotting.plot_trace(self, fileout=fileout)
 
 
 def log_prob(theta, gal,
