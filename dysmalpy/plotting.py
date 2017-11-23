@@ -133,7 +133,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
         title = title.format(fmt(best), fmt(q_m), fmt(q_p))
         
         # Add in the column name if it's given.
-        if labels is not None:
+        if names is not None:
             title = "{0} = {1}".format(names[i], title)
         ax.set_title(title, color='red', **title_kwargs)
 
