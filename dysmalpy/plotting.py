@@ -127,6 +127,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
         best = mcmcResults.bestfit_parameters[i]
         q_m = mcmcResults.bestfit_parameters_l68_err[i]
         q_p = mcmcResults.bestfit_parameters_u68_err[i]
+        title_fmt=".2f"
         fmt = "{{0:{0}}}".format(title_fmt).format
         title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
         title = title.format(fmt(best), fmt(q_m), fmt(q_p))
