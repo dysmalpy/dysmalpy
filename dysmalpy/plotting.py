@@ -62,7 +62,7 @@ def plot_trace(mcmcResults, fileout=None):
     for i in six.moves.xrange(nRows):
         trace_colors.append(cmap(1./np.float(nTraceWalkers)*i))
     
-    norm_inds = np.setdiff1D(range(nWalkers), rand_inds)
+    norm_inds = np.setdiff1d(range(nWalkers), rand_inds)
     
 
     for k in six.moves.xrange(nRows):
@@ -118,6 +118,14 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
                             plot_contours=True,
                             verbose=False,
                             title_kwargs=title_kwargs)
+                            
+    axes = fig.axes
+    xy = (0.95, 0.95)
+    va='top'
+    ha='right'
+    for i, ax in enumerate(axes):
+        ax.annotate('{}'.format(i), xy=xy, va=va, ha=ha, 
+                xycoords='axes fraction', fontsize=10, color='red')
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
