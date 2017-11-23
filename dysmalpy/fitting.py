@@ -832,7 +832,10 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
                 raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
 
         linked_posterior_ind_arr.append(linked_post_inds)
-
+        
+    # SORT THIS TO GET ACENDING ORDER
+    linked_posterior_ind_arr = sorted(linked_posterior_ind_arr)
+    
     return linked_posterior_ind_arr
 
 def make_arr_cmp_params(mcmcResults):
