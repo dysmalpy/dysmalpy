@@ -853,11 +853,15 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
             output = [ [ind1, ind2], [ind3, ind4] ]
         
     """
-    
-    if linked_posterior_names.strip().lower() != 'all':
-    
+    linked_posterior_ind_arr = None
+    try:
+        if linked_posterior_names.strip().lower() == 'all':
+            linked_posterior_ind_arr = [range(len(mcmcResults.free_param_names))]
+    except:
+        pass
+    if linked_posterior_ind_arr is None:
         free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
-
+        
         linked_posterior_ind_arr = []
         for k in six.moves.xrange(len(linked_posterior_names)):
             # Loop over *sets* of linked posteriors:
@@ -872,12 +876,11 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
                 except:
                     raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
 
-            # SORT THIS TO GET ACENDING ORDER
-            linked_post_inds = sorted(linked_post_inds)
+            # # SORT THIS TO GET ACENDING ORDER
+            # linked_post_inds = sorted(linked_post_inds)
     
             linked_posterior_ind_arr.append(linked_post_inds)
-    else:
-        linked_posterior_ind_arr = [range(len(mcmcResults.free_param_names))]
+        
         
     return linked_posterior_ind_arr
 
