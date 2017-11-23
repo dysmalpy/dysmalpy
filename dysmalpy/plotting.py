@@ -135,7 +135,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
         # Add in the column name if it's given.
         if names is not None:
             title = "{0} = {1}".format(names[i], title)
-        ax.set_title(title, color='red', **title_kwargs)
+        ax.set_title(title, **title_kwargs)
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
