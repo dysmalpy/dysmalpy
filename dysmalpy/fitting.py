@@ -575,11 +575,12 @@ class MCMCResults(object):
         self.sampler = load_pickle(filename)
 
     def plot_results(self, gal, fitdispersion=True, oversample=1,
-                f_plot_param_corner=None, f_plot_bestfit=None):
+                f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(fileout=f_plot_param_corner)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, fileout=f_plot_bestfit)
+        self.plot_trace(fileout=f_plot_trace)
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
@@ -591,6 +592,11 @@ class MCMCResults(object):
             fileout = self.f_plot_bestfit
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
                     oversample=oversample, fileout=fileout)
+    def plot_trace(self, fileout=None):
+        """Plot/replot the trace for the MCMC fitting"""
+        if fileout is None:
+            fileout = self.f_plot_trace_burnin
+        plotting.plot_trace(self, fileout=f_plot_trace_burnin)
 
 
 def log_prob(theta, gal,
