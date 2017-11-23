@@ -761,20 +761,6 @@ def getPeakKDEmultiD(flatchain, inds, guess):
     
     return peakKDE
     
-    
-    if(len(flatchain.shape)==1):
-        nPars=1
-        kern=gaussian_kde(flatchain)
-        peakKDE=fmin(lambda x: -kern(x), guess,disp=False)
-        return peakKDE
-    else:
-        nPars=flatchain.shape[1]
-        peakKDE=np.zeros(nPars)
-        for ii in range(nPars):
-            kern=gaussian_kde(flatchain[:,ii])
-            peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
-        return peakKDE
-
 
 def get_linked_posterior_peak_values(flatchain,
                 guess = None, 
