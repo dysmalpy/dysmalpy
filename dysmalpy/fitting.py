@@ -819,8 +819,15 @@ def get_linked_posterior_peak_values(flatchain,
     #         bestfit_theta_linked = np.array([bestfit_thetas])
 
     # Use KDE to get bestfit linked:
-    bestfit_theta_linked = getPeakKDEmultiD(flatchain, linked_posterior_ind_arr, 
-                guess[linked_posterior_ind_arr])
+    bestfit_theta_linked = np.array([])
+
+    for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+        bestfit_thetas = getPeakKDEmultiD(flatchain, linked_posterior_ind_arr[k], 
+                guess[linked_posterior_ind_arr[k]])
+        if len(bestfit_theta_linked) >= 1:
+            bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
+        else:
+            bestfit_theta_linked = np.array([bestfit_thetas])
 
 
     return bestfit_theta_linked
@@ -864,11 +871,11 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
             except:
                 raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
 
+        # SORT THIS TO GET ACENDING ORDER
+        linked_post_inds = sorted(linked_post_inds)
+    
         linked_posterior_ind_arr.append(linked_post_inds)
         
-    # SORT THIS TO GET ACENDING ORDER
-    linked_posterior_ind_arr = sorted(linked_posterior_ind_arr)
-    
     return linked_posterior_ind_arr
 
 def make_arr_cmp_params(mcmcResults):
