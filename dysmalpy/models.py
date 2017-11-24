@@ -965,41 +965,68 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     rturn = DysmalParameter(default=0.5, min=0)
     thetain = DysmalParameter(bounds=(0, 90))
     thetaout = DysmalParameter(bounds=(0, 90))
+    rend = DysmalParameter(default=1.0, min=0)
 
     _type = 'outflow'
     outputs = ('vout',)
 
-    @staticmethod
-    def evaluate(x, y, z, n, vmax, rturn, thetain, thetaout):
+    def __init__(self, n, vmax, rturn, thetain, thetaout, rend,
+                 profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
+
+        valid_profiles = ['increase', 'decrease', 'both']
+
+        if profile_type in valid_profiles:
+            self.profile_type = profile_type
+        else:
+            logger.error("Invalid profile type. Must be one of 'increase',"
+                         "'decrease', or 'both.'")
+
+        self.tau_flux = tau_flux
+        self.norm_flux = norm_flux
+
+        super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
+                                               thetaout, rend, **kwargs)
+
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, thetaout, rend):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
         theta = np.arccos(np.abs(z)/r)*180./np.pi
+        theta[r == 0] = 0.
+        vel = np.zeros(r.shape)
 
-        if rturn != 0:
-            amp = vmax/rturn**n
+        if self.profile_type == 'increase':
 
-        else:
-            amp = vmax/np.nanmax(r)
+            amp = vmax/rend**n
+            vel[r <= rend] = amp*r[r <= rend]**n
 
-        vel = amp*r**n
+        elif self.profile_type == 'decrease':
 
-        indr = r >= rturn
-        vel[indr] = vmax - amp*(r[indr]**n - rturn**n)
+            amp = -vmax/rend**n
+            vel[r <= rend] = vmax + amp*r[r <= rend]** n
 
-        indtheta = (theta < thetain) | (theta > thetaout)
-        vel[indtheta] = 0.
+        elif self.profile_type == 'both':
 
-        indv = vel < 0.
-        vel[indv] = 0
+            vel[r <= rturn] = vmax*(r[r <= rturn]/rturn)**n
+            ind = (r > rturn) & (r <= 2*rturn)
+            vel[ind] = vmax*(2 - r[ind]/rturn)**n
+
+        ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
+        vel[ind_zero] = 0.
 
         return vel
 
-    def light_profile(self, x, y, z, tau, norm, rend):
+    def light_profile(self, x, y, z):
 
         r = np.sqrt(x**2 + y**2 + z**2)
+        theta = np.arccos(np.abs(z) / r) * 180. / np.pi
+        theta[r == 0] = 0.
+        flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
 
-        return norm*np.exp(-tau*(r/rend))
+        ind_zero = (theta < self.thetain) | (theta > self.thetaout)
+        flux[ind_zero] = 0.
+
+        return flux
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
