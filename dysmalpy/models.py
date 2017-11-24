@@ -206,6 +206,8 @@ class ModelSet:
         self.zprofile = None
         self.outflow = None
         self.outflow_geometry = None
+        self.outflow_dispersion = None
+        self.outflow_flux = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -217,7 +219,8 @@ class ModelSet:
         self.kinematic_options = KinematicOptions()
         self.line_center = None
 
-    def add_component(self, model, name=None, light=False, geom_type='galaxy'):
+    def add_component(self, model, name=None, light=False, geom_type='galaxy',
+                      disp_type='galaxy'):
         """Add a model component to the set"""
 
         # Check to make sure its the correct class
@@ -258,10 +261,17 @@ class ModelSet:
                 self.mass_components[model.name] = False
 
             elif model._type == 'dispersion':
-                if self.dispersion_profile is not None:
-                    logger.warning('Current Dispersion model is being '
-                                   'overwritten!')
-                self.dispersion_profile = model
+
+                if disp_type == 'galaxy':
+                    if self.dispersion_profile is not None:
+                        logger.warning('Current Dispersion model is being '
+                                       'overwritten!')
+                    self.dispersion_profile = model
+
+                elif disp_type == 'outflow':
+
+                    self.outflow_dispersion = model
+
                 self.mass_components[model.name] = False
 
             elif model._type == 'zheight':
@@ -487,54 +497,90 @@ class ModelSet:
         ysky = ysky - (ny_sky_samp - 1) / 2.
         xsky = xsky - (nx_sky_samp - 1) / 2.
 
-        # Apply the geometric transformation to get galactic coordinates
-        xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
-
-        # The circular velocity at each position only depends on the radius
-        # Convert to kpc
-        rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
-        vcirc = self.velocity_profile(rgal)
-
-        # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
-        # is the position angle in the plane of the disk
-        # cos(theta) is just xgal/rgal
-        vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
-                xgal / (rgal / rstep_samp * dscale))
-        vobs[rgal == 0] = 0.
-
-        # Calculate "flux" for each position
-        flux = np.zeros(vobs.shape)
-        for cmp in self.light_components:
-            if self.light_components[cmp]:
-                zscale = self.zprofile(zgal * rstep_samp / dscale)
-                flux += self.components[cmp].mass_to_light(rgal) * zscale
-
-        # Begin constructing the IFU cube
+        # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
         if spec_type == 'velocity':
-            vx = (spec*spec_unit).to(u.km/u.s).value
+            vx = (spec * spec_unit).to(u.km / u.s).value
         elif spec_type == 'wavelength':
             if line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            vx = (spec - line_center)/line_center*apy_con.c.to(u.km/u.s).value
+            vx = (spec - line_center) / line_center * apy_con.c.to(
+                u.km / u.s).value
 
         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
                           (1, ny_sky_samp, nx_sky_samp))
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
 
-        # The final spectrum will be a flux weighted sum of Gaussians at each
-        # velocity along the line of sight.
-        sigmar = self.dispersion_profile(rgal)
-        for zz in range(nz_sky_samp):
-            f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
-            vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-            sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
-            tmp_cube = np.exp(
-                -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-            cube_sum = np.nansum(tmp_cube, 0)
-            cube_sum[cube_sum == 0] = 1
-            cube_final += tmp_cube / cube_sum * 100. * f_cube
+        # First construct the cube based on mass components
+        if sum(self.mass_components.values()) > 0:
+
+            # Apply the geometric transformation to get galactic coordinates
+            xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
+
+            # The circular velocity at each position only depends on the radius
+            # Convert to kpc
+            rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
+            vcirc = self.velocity_profile(rgal)
+
+            # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
+            # is the position angle in the plane of the disk
+            # cos(theta) is just xgal/rgal
+            vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+                    xgal / (rgal / rstep_samp * dscale))
+            vobs[rgal == 0] = 0.
+
+            # Calculate "flux" for each position
+            flux = np.zeros(vobs.shape)
+            for cmp in self.light_components:
+                if self.light_components[cmp]:
+                    zscale = self.zprofile(zgal * rstep_samp / dscale)
+                    flux += self.components[cmp].mass_to_light(rgal) * zscale
+
+            # The final spectrum will be a flux weighted sum of Gaussians at each
+            # velocity along the line of sight.
+            sigmar = self.dispersion_profile(rgal)
+            for zz in range(nz_sky_samp):
+                f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
+                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
+                tmp_cube = np.exp(
+                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                cube_sum = np.nansum(tmp_cube, 0)
+                cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * 100. * f_cube
+
+        if self.outflow is not None:
+
+            # Apply the geometric transformation to get outflow coordinates
+            xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
+
+            # Convert to kpc
+            xout_kpc = xout * rstep_samp / dscale
+            yout_kpc = yout * rstep_samp / dscale
+            zout_kpc = zout * rstep_samp / dscale
+
+            rout = np.sqrt(xout_kpc** + yout_kpc**2 + zout_kpc**2)
+            vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
+            fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+
+            # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+            # TODO: I really need to check this!!
+            rsky = np.sqrt(xsky**2 + ysky**2 + zsky**2)
+            vobs = -vout * zsky/rsky
+            vobs[rsky == 0] = vout[rsky == 0]
+
+            sigma_out = self.outflow_dispersion(rout)
+            for zz in range(nz_sky_samp):
+                f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
+                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
+                tmp_cube = np.exp(
+                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                cube_sum = np.nansum(tmp_cube, 0)
+                cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * 100. * f_cube
+
 
         return cube_final, spec
 
