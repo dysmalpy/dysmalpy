@@ -19,7 +19,8 @@ from astropy.modeling import Parameter
 from astropy.units import Quantity
 from astropy.extern import six
 
-__all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior']
+__all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior',
+           'BoundedGaussianPrior']
 
 def _binary_comparison_operation(op):
     @functools.wraps(op)
@@ -112,6 +113,54 @@ class GaussianPrior(Prior):
                     scale=self.stddev, size=N)
         
 
+class BoundedGaussianPrior(Prior):
+
+    def __init__(self, center=0, stddev=1.0):
+
+        self.center = center
+        self.stddev = stddev
+
+
+    def log_prior(self, param):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (param.value >= pmin) & (param.value <= pmax):
+            return norm.pdf(param.value, loc=self.center, scale=self.stddev)
+        else:
+            return -np.inf
+
+
+    def sample_prior(self, param, N=1):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        rvs = []
+        while len(rvs) < N:
+
+            test_v = np.random.normal(loc=self.center, scale=self.stddev,
+                                      size=1)[0]
+            if (test_v >= pmin) & (test_v <= pmax):
+
+                rvs.append(test_v)
+
+        return rvs
 
 
 class DysmalParameter(Parameter):
