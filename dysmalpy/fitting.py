@@ -258,7 +258,7 @@ def fit(gal, nWalkers=10,
             acor_time = sampler.acor
             #acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
-        except RuntimeError:
+        except:
             logger.info(" {}: Chain too short for acor to run".format(ii) )
             acor_time = None
             
