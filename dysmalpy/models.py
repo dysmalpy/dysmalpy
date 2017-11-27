@@ -26,10 +26,11 @@ from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 
 # Local imports
-from dysmalpy.parameters import DysmalParameter
+from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'HaloMo98',
-           'DispersionConst', 'Geometry']
+__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW',
+           'DispersionConst', 'Geometry', 'BiconicalOutflow',
+           'KinematicOptions', 'ZHeightGauss', 'DiskBulge']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -203,6 +204,10 @@ class ModelSet:
         self.geometry = None
         self.dispersion_profile = None
         self.zprofile = None
+        self.outflow = None
+        self.outflow_geometry = None
+        self.outflow_dispersion = None
+        self.outflow_flux = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -214,7 +219,8 @@ class ModelSet:
         self.kinematic_options = KinematicOptions()
         self.line_center = None
 
-    def add_component(self, model, name=None, light=False):
+    def add_component(self, model, name=None, light=False, geom_type='galaxy',
+                      disp_type='galaxy'):
         """Add a model component to the set"""
 
         # Check to make sure its the correct class
@@ -236,25 +242,36 @@ class ModelSet:
                 else:
                     self.mass_components[model.name] = True
 
-                # Only mass components can also be a light component
-                # TODO: When I add in outflow components I'll need to change this
-                if light:
-                    self.light_components[model.name] = True
-                else:
-                    self.light_components[model.name] = False
-
             elif model._type == 'geometry':
-                if self.geometry is not None:
-                    logger.warning('Current Geometry model is being '
-                                   'overwritten!')
-                self.geometry = model
+
+                if geom_type == 'galaxy':
+                    if (self.geometry is not None):
+                        logger.warning('Current Geometry model is being '
+                                    'overwritten!')
+                    self.geometry = model
+
+                elif geom_type == 'outflow':
+
+                    self.outflow_geometry = model
+
+                else:
+                    logger.error("geom_type can only be either 'galaxy' or "
+                                 "'outflow'.")
+
                 self.mass_components[model.name] = False
 
             elif model._type == 'dispersion':
-                if self.dispersion_profile is not None:
-                    logger.warning('Current Dispersion model is being '
-                                   'overwritten!')
-                self.dispersion_profile = model
+
+                if disp_type == 'galaxy':
+                    if self.dispersion_profile is not None:
+                        logger.warning('Current Dispersion model is being '
+                                       'overwritten!')
+                    self.dispersion_profile = model
+
+                elif disp_type == 'outflow':
+
+                    self.outflow_dispersion = model
+
                 self.mass_components[model.name] = False
 
             elif model._type == 'zheight':
@@ -264,9 +281,22 @@ class ModelSet:
                 self.zprofile = model
                 self.mass_components[model.name] = False
 
+            elif model._type == 'outflow':
+                if self.outflow is not None:
+                    logger.warning('Current outflow model is being '
+                                   'overwritten!')
+                self.outflow = model
+                self.mass_components[model.name] = False
+
             else:
                 raise TypeError("This model type is not known. Must be one of"
-                                "'mass', 'geometry', or 'dispersion.'")
+                                "'mass', 'geometry', 'dispersion', 'zheight',"
+                                " or 'outflow'.")
+
+            if light:
+                self.light_components[model.name] = True
+            else:
+                self.light_components[model.name] = False
 
             self._add_comp(model)
 
@@ -467,54 +497,90 @@ class ModelSet:
         ysky = ysky - (ny_sky_samp - 1) / 2.
         xsky = xsky - (nx_sky_samp - 1) / 2.
 
-        # Apply the geometric transformation to get galactic coordinates
-        xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
-
-        # The circular velocity at each position only depends on the radius
-        # Convert to kpc
-        rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
-        vcirc = self.velocity_profile(rgal)
-
-        # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
-        # is the position angle in the plane of the disk
-        # cos(theta) is just xgal/rgal
-        vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
-                xgal / (rgal / rstep_samp * dscale))
-        vobs[rgal == 0] = 0.
-
-        # Calculate "flux" for each position
-        flux = np.zeros(vobs.shape)
-        for cmp in self.light_components:
-            if self.light_components[cmp]:
-                zscale = self.zprofile(zgal * rstep_samp / dscale)
-                flux += self.components[cmp].mass_to_light(rgal) * zscale
-
-        # Begin constructing the IFU cube
+        # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
         if spec_type == 'velocity':
-            vx = (spec*spec_unit).to(u.km/u.s).value
+            vx = (spec * spec_unit).to(u.km / u.s).value
         elif spec_type == 'wavelength':
             if line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            vx = (spec - line_center)/line_center*apy_con.c.to(u.km/u.s).value
+            vx = (spec - line_center) / line_center * apy_con.c.to(
+                u.km / u.s).value
 
         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
                           (1, ny_sky_samp, nx_sky_samp))
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
 
-        # The final spectrum will be a flux weighted sum of Gaussians at each
-        # velocity along the line of sight.
-        sigmar = self.dispersion_profile(rgal)
-        for zz in range(nz_sky_samp):
-            f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
-            vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-            sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
-            tmp_cube = np.exp(
-                -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-            cube_sum = np.nansum(tmp_cube, 0)
-            cube_sum[cube_sum == 0] = 1
-            cube_final += tmp_cube / cube_sum * 100. * f_cube
+        # First construct the cube based on mass components
+        if sum(self.mass_components.values()) > 0:
+
+            # Apply the geometric transformation to get galactic coordinates
+            xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
+
+            # The circular velocity at each position only depends on the radius
+            # Convert to kpc
+            rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
+            vcirc = self.velocity_profile(rgal)
+
+            # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
+            # is the position angle in the plane of the disk
+            # cos(theta) is just xgal/rgal
+            vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+                    xgal / (rgal / rstep_samp * dscale))
+            vobs[rgal == 0] = 0.
+
+            # Calculate "flux" for each position
+            flux = np.zeros(vobs.shape)
+            for cmp in self.light_components:
+                if self.light_components[cmp]:
+                    zscale = self.zprofile(zgal * rstep_samp / dscale)
+                    flux += self.components[cmp].mass_to_light(rgal) * zscale
+
+            # The final spectrum will be a flux weighted sum of Gaussians at each
+            # velocity along the line of sight.
+            sigmar = self.dispersion_profile(rgal)
+            for zz in range(nz_sky_samp):
+                f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
+                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
+                tmp_cube = np.exp(
+                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                cube_sum = np.nansum(tmp_cube, 0)
+                cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * 100. * f_cube
+
+        if self.outflow is not None:
+
+            # Apply the geometric transformation to get outflow coordinates
+            xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
+
+            # Convert to kpc
+            xout_kpc = xout * rstep_samp / dscale
+            yout_kpc = yout * rstep_samp / dscale
+            zout_kpc = zout * rstep_samp / dscale
+
+            rout = np.sqrt(xout_kpc** + yout_kpc**2 + zout_kpc**2)
+            vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
+            fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+
+            # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+            # TODO: I really need to check this!!
+            rsky = np.sqrt(xsky**2 + ysky**2 + zsky**2)
+            vobs = -vout * zsky/rsky
+            vobs[rsky == 0] = vout[rsky == 0]
+
+            sigma_out = self.outflow_dispersion(rout)
+            for zz in range(nz_sky_samp):
+                f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
+                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
+                tmp_cube = np.exp(
+                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                cube_sum = np.nansum(tmp_cube, 0)
+                cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * 100. * f_cube
+
 
         return cube_final, spec
 
@@ -784,7 +850,6 @@ class _DysmalFittable3DModel(_DysmalModel):
     fittable = True
 
     inputs = ('x', 'y', 'z')
-    outputs = ('xp', 'yp', 'zp')
 
     @property
     def prior(self):
@@ -804,6 +869,7 @@ class Geometry(_DysmalFittable3DModel):
     yshift = DysmalParameter(default=0.0)
 
     _type = 'geometry'
+    outputs = ('xp', 'yp', 'zp')
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift):
@@ -934,6 +1000,79 @@ class KinematicOptions:
             vel = np.sqrt(vel_squared)
 
         return vel
+
+
+class BiconicalOutflow(_DysmalFittable3DModel):
+    """Model for a biconical outflow. Assumption is symmetry above and below
+       the vertex and around the outflow axis."""
+
+    n = DysmalParameter(default=0.5, fixed=True)
+    vmax = DysmalParameter(min=0)
+    rturn = DysmalParameter(default=0.5, min=0)
+    thetain = DysmalParameter(bounds=(0, 90))
+    thetaout = DysmalParameter(bounds=(0, 90))
+    rend = DysmalParameter(default=1.0, min=0)
+
+    _type = 'outflow'
+    outputs = ('vout',)
+
+    def __init__(self, n, vmax, rturn, thetain, thetaout, rend,
+                 profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
+
+        valid_profiles = ['increase', 'decrease', 'both']
+
+        if profile_type in valid_profiles:
+            self.profile_type = profile_type
+        else:
+            logger.error("Invalid profile type. Must be one of 'increase',"
+                         "'decrease', or 'both.'")
+
+        self.tau_flux = tau_flux
+        self.norm_flux = norm_flux
+
+        super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
+                                               thetaout, rend, **kwargs)
+
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, thetaout, rend):
+        """Evaluate the outflow velocity as a function of position x, y, z"""
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+        theta = np.arccos(np.abs(z)/r)*180./np.pi
+        theta[r == 0] = 0.
+        vel = np.zeros(r.shape)
+
+        if self.profile_type == 'increase':
+
+            amp = vmax/rend**n
+            vel[r <= rend] = amp*r[r <= rend]**n
+
+        elif self.profile_type == 'decrease':
+
+            amp = -vmax/rend**n
+            vel[r <= rend] = vmax + amp*r[r <= rend]** n
+
+        elif self.profile_type == 'both':
+
+            vel[r <= rturn] = vmax*(r[r <= rturn]/rturn)**n
+            ind = (r > rturn) & (r <= 2*rturn)
+            vel[ind] = vmax*(2 - r[ind]/rturn)**n
+
+        ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
+        vel[ind_zero] = 0.
+
+        return vel
+
+    def light_profile(self, x, y, z):
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+        theta = np.arccos(np.abs(z) / r) * 180. / np.pi
+        theta[r == 0] = 0.
+        flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
+
+        ind_zero = (theta < self.thetain) | (theta > self.thetaout)
+        flux[ind_zero] = 0.
+
+        return flux
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
