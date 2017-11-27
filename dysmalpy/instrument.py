@@ -117,7 +117,7 @@ class Instrument:
             if len(self.beam.shape) == 1:
                 raise ValueError("1D beam/PSF not currentloy supported")
             kern2D = self.beam 
-            kern2D /= np.sum(kern2D[np.isfinite[kern2D]])  # need to normalize
+            kern2D /= np.sum(kern2D[np.isfinite(kern2D)])  # need to normalize
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
 
