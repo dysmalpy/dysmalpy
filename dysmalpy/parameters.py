@@ -19,7 +19,9 @@ from astropy.modeling import Parameter
 from astropy.units import Quantity
 from astropy.extern import six
 
-__all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior']
+__all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior',
+           'BoundedGaussianPrior']
+
 
 def _binary_comparison_operation(op):
     @functools.wraps(op)
@@ -55,7 +57,8 @@ class Prior:
         
     @abc.abstractmethod
     def sample_prior(self, *args, **kwargs):
-        """Every prior should have a method that returns random sample weighted by prior"""
+        """Every prior should have a method that returns random sample weighted
+           by prior"""
 
 
 class UniformPrior(Prior):
@@ -81,18 +84,17 @@ class UniformPrior(Prior):
     @staticmethod
     def sample_prior(param, N=1):
         if param.bounds[0] is None:
-            # pmin = -np.inf 
             pmin = -1.e5  # Need to default to a finite value for the rand dist.
         else:
             pmin = param.bounds[0]
 
         if param.bounds[1] is None:
-            #pmax = np.inf
-            pmax = 1.e5 # Need to default to a finite value for the rand dist.
+            pmax = 1.e5  # Need to default to a finite value for the rand dist.
         else:
             pmax = param.bounds[1]
             
         return np.random.rand(N)*(pmax-pmin) + pmin
+
 
 class GaussianPrior(Prior):
 
@@ -101,17 +103,61 @@ class GaussianPrior(Prior):
         self.center = center
         self.stddev = stddev
 
-
     def log_prior(self, param):
         return norm.pdf(param.value, loc=self.center,
                         scale=self.stddev)
-                        
-                        
+
     def sample_prior(self, param, N=1):
         return np.random.normal(loc=self.center, 
-                    scale=self.stddev, size=N)
+                                scale=self.stddev, size=N)
         
 
+class BoundedGaussianPrior(Prior):
+
+    def __init__(self, center=0, stddev=1.0):
+
+        self.center = center
+        self.stddev = stddev
+
+    def log_prior(self, param):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (param.value >= pmin) & (param.value <= pmax):
+            return norm.pdf(param.value, loc=self.center, scale=self.stddev)
+        else:
+            return -np.inf
+
+    def sample_prior(self, param, N=1):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        rvs = []
+        while len(rvs) < N:
+
+            test_v = np.random.normal(loc=self.center, scale=self.stddev,
+                                      size=1)[0]
+            if (test_v >= pmin) & (test_v <= pmax):
+
+                rvs.append(test_v)
+
+        return rvs
 
 
 class DysmalParameter(Parameter):
