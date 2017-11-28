@@ -25,7 +25,7 @@ import copy
 
 import emcee
 import psutil
-#import acor
+import acor
 
 import time, datetime
 
@@ -162,8 +162,8 @@ def fit(gal, nWalkers=10,
         elapsed = end-start
 
         try:
-            acor_time = sampler.acor
-            #acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+            #acor_time = sampler.acor
+            acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
         except:
             acor_time = "Undefined, chain did not converge"
 
@@ -255,8 +255,8 @@ def fit(gal, nWalkers=10,
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
         try:
-            acor_time = sampler.acor
-            #acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+            #acor_time = sampler.acor
+            acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
             logger.info(" {}: Chain too short for acor to run".format(ii) )
@@ -287,8 +287,8 @@ def fit(gal, nWalkers=10,
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
     try:
-        acor_time = sampler.acor
-        #acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
     except:
         acor_time = "Undefined, chain did not converge"
 
