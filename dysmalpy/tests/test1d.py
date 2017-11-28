@@ -18,7 +18,7 @@ import astropy.io.fits as fits
 data_dir = '/data/dysmalpy/test_data/GS4_43501/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reff/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
@@ -84,7 +84,7 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
-halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
+#halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
 sigma0 = 39.   # km/s
@@ -152,7 +152,7 @@ beam = instrument.Beam(major=beamsize)
 lsf = instrument.LSF(sig_inst)
 
 inst.beam = beam
-#inst.lsf = lsf
+inst.lsf = lsf
 inst.pixscale = pixscale
 inst.fov = fov
 inst.wave_step = wave_step
@@ -161,7 +161,7 @@ inst.nwave = nwave
 
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
-#inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
+inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
 
 # Add the model set and instrument to the Galaxy
 gal.model = mod_set
@@ -171,7 +171,7 @@ gal.instrument = inst
 dat_arr = np.loadtxt(data_dir+'GS4_43501.obs_prof.txt')
 gs4_r = dat_arr[:,0]
 gs4_vel = dat_arr[:,1]
-gs4_disp = dat_arr[:,3]
+gs4_disp = np.sqrt(dat_arr[:,3]**2 + sig_inst.value**2)
 err_vel = dat_arr[:,2]
 err_disp = dat_arr[:,4]
 
@@ -186,14 +186,14 @@ gal.data = test_data1d
 nwalkers = 500
 ncpus = 8
 scale_param_a = 2
-nburn = 200
+nburn = 300
 nsteps = 1000
 minaf = None
 maxaf = None
 neff = 10
 do_plotting = True
 oversample = 1
-fitdispersion = False
+fitdispersion = True
 
 def run_1d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,

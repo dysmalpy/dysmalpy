@@ -499,8 +499,8 @@ class ModelSet:
                                  "'wavelength.'")
             vx = (spec - line_center)/line_center*apy_con.c.to(u.km/u.s).value
 
-         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
-                          (1, ny_sky_samp, nx_sky_samp))
+        velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
+			  (1, ny_sky_samp, nx_sky_samp))
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
 
         # The final spectrum will be a flux weighted sum of Gaussians at each
