@@ -312,6 +312,7 @@ def plot_data_model_comparison_2D(gal,
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
             im = gal.data.data['velocity']
+            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
             im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
@@ -348,6 +349,7 @@ def plot_data_model_comparison_2D(gal,
         for ax, k in zip(grid_disp, keyxarr):
             if k == 'data':
                 im = gal.data.data['dispersion']
+                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
                 im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
