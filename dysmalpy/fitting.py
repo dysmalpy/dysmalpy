@@ -7,7 +7,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-# Standard library
+    ## Standard library
 import logging
 
 # DYSMALPY code
@@ -20,6 +20,7 @@ import numpy as np
 from collections import OrderedDict
 from astropy.extern import six
 import dill as _pickle
+import copy
 
 import emcee
 import psutil
@@ -84,6 +85,11 @@ def fit(gal, nWalkers=10,
     """
     # --------------------------------
     # Basic setup:
+    
+    # For compatibility with Python 2.7:
+    mod_in = copy.deepcopy(gal.model)
+    gal.model = mod_in
+    
     #if nCPUs is None:
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
@@ -118,7 +124,7 @@ def fit(gal, nWalkers=10,
         if input_sampler is None:
             raise ValueError("Must set input_sampler if you will restart the sampler.")
         initial_pos = input_sampler['chain'][:,-1,:]
-
+        
 
     # --------------------------------
     # Initialize emcee sampler
@@ -175,7 +181,7 @@ def fit(gal, nWalkers=10,
                     '******************\n'
                     ''+nthingsmsg+'\n'
                     ''+scaleparammsg+'\n'
-                    ''+timemsg+''
+                    ''+timemsg+'\n'
                     ''+macfracmsg+'\n'
                     "Ideal acceptance frac: 0.2 - 0.5\n"
                     ''+acortimemsg+'\n'
@@ -638,13 +644,14 @@ def log_like(gal, fitdispersion=True):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']
         vel_err = gal.data.error['velocity']
-
+        
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
-
+        
         msk = gal.data.mask
         
+
         # Artificially mask zero errors which are masked:
         vel_err[((vel_err==0) & (msk==0))] = 99.
         disp_err[((disp_err==0) & (msk==0))] = 99.

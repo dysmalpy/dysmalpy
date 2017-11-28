@@ -281,7 +281,6 @@ class Galaxy:
                                               fill_value='extrapolate')
             vel1d = vinterp(aper_centers)
             disp1d = disp_interp(aper_centers)
-            time4 = time.time()
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
