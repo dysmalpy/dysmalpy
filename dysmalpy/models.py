@@ -516,6 +516,9 @@ class ModelSet:
         if sum(self.mass_components.values()) > 0:
 
             # Apply the geometric transformation to get galactic coordinates
+            # Need to account for oversampling in the x and y shift parameters
+            self.geometry.xshift = self.geometry.xshift.value * oversample
+            self.geometry.yshift = self.geometry.yshift.value * oversample
             xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
 
             # The circular velocity at each position only depends on the radius
@@ -553,6 +556,9 @@ class ModelSet:
         if self.outflow is not None:
 
             # Apply the geometric transformation to get outflow coordinates
+            # Account for oversampling
+            self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
+            self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
             xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
 
             # Convert to kpc
