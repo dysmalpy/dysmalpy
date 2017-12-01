@@ -19,6 +19,7 @@ import os
 import numpy as np
 from collections import OrderedDict
 from astropy.extern import six
+import astropy.units as u
 import dill as _pickle
 import copy
 
@@ -161,6 +162,7 @@ def fit(gal, nWalkers=10,
         elapsed = end-start
 
         try:
+            #acor_time = sampler.acor
             acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
         except:
             acor_time = "Undefined, chain did not converge"
@@ -235,53 +237,49 @@ def fit(gal, nWalkers=10,
                 'Start: {}'.format(datetime.datetime.now()))
     start = time.time()
 
+
     # --------------------------------
-    # Case: test for convergence and truncate early:
-    if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        for ii in six.moves.xrange(nSteps):
-            pos_cur = pos.copy()    # copy just in case things are set strangely
+    # Run sampler: output info at each step
+    for ii in six.moves.xrange(nSteps):
+        pos_cur = pos.copy()    # copy just in case things are set strangely
 
-            # --------------------------------
-            # 1: only do one step at a time.
-            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
-            # --------------------------------
+        # --------------------------------
+        # 1: only do one step at a time.
+        pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+        # --------------------------------
 
-            # --------------------------------
-            # Test for convergence
-            nowtime = str(datetime.datetime.now())
-            stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
-            logger.info( " time.time()={}".format(nowtime)+'\n'
-                         ''+stepinfomsg+'')
+        # --------------------------------
+        # Give output info about this step:
+        nowtime = str(datetime.datetime.now())
+        stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
+        timemsg = " time.time()={}".format(nowtime)
+        logger.info( stepinfomsg+timemsg )
+        try:
+            #acor_time = sampler.acor
+            acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+            logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+        except:
+            logger.info(" {}: Chain too short for acor to run".format(ii) )
+            acor_time = None
+            
+                     
+        # --------------------------------
+        # Case: test for convergence and truncate early:
+        if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
             if(minAF < np.mean(sampler.acceptance_fraction) < maxAF):
-                try:
-                    acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
-
-                    logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+                if acor_time is not None:
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
                             logger.info(" Enforced min step limit: {}.".format(ii+1))
-                        if ii >= 49:
+                        if ii >= acor_force_min:
                             logger.info(" Breaking chain at step {}.".format(ii+1))
                             break
-                except RuntimeError:
-                    # acor raises exception if the chain isn't long
-                    # enough to compute the acor time. However, could also be other
-                    #   runtime errors..... need to be careful!
-                    logger.info( " {}: Chain is too short for acor to run".format(ii) )
-                    pass
-
-        # --------------------------------
-        # Check if it failed to converge before the max number of steps
-        finishedSteps= ii+1
-        if (finishedSteps  == nSteps):
-            logger.info(" Warning: chain did not converge after nSteps.")
-
 
     # --------------------------------
-    # Case: don't do convergence testing with early truncation: just run max number of steps
-    else:
-        sampler.run_mcmc(pos, nSteps)
-        finishedSteps = nSteps
+    # Check if it failed to converge before the max number of steps, if doing convergence testing
+    finishedSteps= ii+1
+    if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
+        logger.info(" Warning: chain did not converge after nSteps.")
 
     # --------------------------------
     # Finishing info for fitting:
@@ -289,6 +287,7 @@ def fit(gal, nWalkers=10,
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
     try:
+        #acor_time = sampler.acor
         acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
     except:
         acor_time = "Undefined, chain did not converge"
@@ -526,6 +525,7 @@ class MCMCResults(object):
                             linked_posterior_names=linked_posterior_names)
 
             bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
+                            guess=mcmc_param_bestfit, 
                             linked_posterior_ind_arr=linked_posterior_ind_arr,
                             nPostBins=nPostBins)
 
@@ -578,11 +578,12 @@ class MCMCResults(object):
         self.sampler = load_pickle(filename)
 
     def plot_results(self, gal, fitdispersion=True, oversample=1,
-                f_plot_param_corner=None, f_plot_bestfit=None):
+                f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(fileout=f_plot_param_corner)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, fileout=f_plot_bestfit)
+        self.plot_trace(fileout=f_plot_trace)
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
@@ -594,6 +595,11 @@ class MCMCResults(object):
             fileout = self.f_plot_bestfit
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
                     oversample=oversample, fileout=fileout)
+    def plot_trace(self, fileout=None):
+        """Plot/replot the trace for the MCMC fitting"""
+        if fileout is None:
+            fileout = self.f_plot_trace
+        plotting.plot_trace(self, fileout=fileout)
 
 
 def log_prob(theta, gal,
@@ -648,6 +654,11 @@ def log_like(gal, fitdispersion=True):
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
+        
+        # Correct model for instrument dispersion if the data is instrument corrected:
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
         
         msk = gal.data.mask
         
@@ -746,9 +757,22 @@ def getPeakKDE(flatchain, guess):
             kern=gaussian_kde(flatchain[:,ii])
             peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
         return peakKDE
-
+        
+def getPeakKDEmultiD(flatchain, inds, guess):
+    """
+    Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
+    From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
+    """
+    nPars = len(inds)
+    
+    kern = gaussian_kde(flatchain[:,inds].T)
+    peakKDE = fmin(lambda x: -kern(x), guess, disp=False)
+    
+    return peakKDE
+    
 
 def get_linked_posterior_peak_values(flatchain,
+                guess = None, 
                 linked_posterior_ind_arr=None,
                 nPostBins=50):
     """
@@ -769,25 +793,37 @@ def get_linked_posterior_peak_values(flatchain,
                                     eg:
                                     bestfit_theta_linked = [ [best1, best2], [best3, best4] ]
     """
-    if nPostBins % 2 == 0:
-        nPostBinsOdd = nPostBins+1
-    else:
-        nPostBinsOdd = nPostBins
+    # if nPostBins % 2 == 0:
+    #     nPostBinsOdd = nPostBins+1
+    # else:
+    #     nPostBinsOdd = nPostBins
+    # 
+    # bestfit_theta_linked = np.array([])
+    # 
+    # for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+    #     H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
+    #     wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
+    # 
+    #     bestfit_thetas = np.array([])
+    #     for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
+    #         bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
+    #                                                         edges[j][wh_H_peak[j]+1]]))
+    #     if len(bestfit_theta_linked) >= 1:
+    #         bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
+    #     else:
+    #         bestfit_theta_linked = np.array([bestfit_thetas])
 
+    # Use KDE to get bestfit linked:
     bestfit_theta_linked = np.array([])
 
     for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-        H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
-        wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
-
-        bestfit_thetas = np.array([])
-        for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
-            bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
-                                                            edges[j][wh_H_peak[j]+1]]))
+        bestfit_thetas = getPeakKDEmultiD(flatchain, linked_posterior_ind_arr[k], 
+                guess[linked_posterior_ind_arr[k]])
         if len(bestfit_theta_linked) >= 1:
             bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
         else:
             bestfit_theta_linked = np.array([bestfit_thetas])
+
 
     return bestfit_theta_linked
 
@@ -797,6 +833,12 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     
     Input:
         (example structure)
+        
+        To analyze all parameters together:
+        linked_posterior_names = 'all'
+        
+        
+        Alternative: only link some parameters:
         
         linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
         with 
@@ -814,24 +856,35 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
             output = [ [ind1, ind2], [ind3, ind4] ]
         
     """
-    free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
+    linked_posterior_ind_arr = None
+    try:
+        if linked_posterior_names.strip().lower() == 'all':
+            linked_posterior_ind_arr = [range(len(mcmcResults.free_param_names))]
+    except:
+        pass
+    if linked_posterior_ind_arr is None:
+        free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
+        
+        linked_posterior_ind_arr = []
+        for k in six.moves.xrange(len(linked_posterior_names)):
+            # Loop over *sets* of linked posteriors:
+            # This is an array of len-2 arrays/tuples with cmp, param names
+            linked_post_inds = []
+            for j in six.moves.xrange(len(linked_posterior_names[k])):
+                cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
+                            linked_posterior_names[k][j][1].strip().lower()
+                try:
+                    whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
+                    linked_post_inds.append(whmatch)
+                except:
+                    raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
 
-    linked_posterior_ind_arr = []
-    for k in six.moves.xrange(len(linked_posterior_names)):
-        # Loop over *sets* of linked posteriors:
-        # This is an array of len-2 arrays/tuples with cmp, param names
-        linked_post_inds = []
-        for j in six.moves.xrange(len(linked_posterior_names[k])):
-            cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
-                        linked_posterior_names[k][j][1].strip().lower()
-            try:
-                whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
-                linked_post_inds.append(whmatch)
-            except:
-                raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
-
-        linked_posterior_ind_arr.append(linked_post_inds)
-
+            # # SORT THIS TO GET ACENDING ORDER
+            # linked_post_inds = sorted(linked_post_inds)
+    
+            linked_posterior_ind_arr.append(linked_post_inds)
+        
+        
     return linked_posterior_ind_arr
 
 def make_arr_cmp_params(mcmcResults):
