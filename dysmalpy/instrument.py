@@ -115,7 +115,7 @@ class Instrument:
             kern2D = kernel.array
         elif self.beam_type == 'empirical':
             if len(self.beam.shape) == 1:
-                raise ValueError("1D beam/PSF not currentloy supported")
+                raise ValueError("1D beam/PSF not currently supported")
             kern2D = self.beam.copy()
             # Replace NaNs/non-finite with zero:
             kern2D[~np.isfinite(kern2D)] = 0.
