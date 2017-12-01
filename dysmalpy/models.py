@@ -551,7 +551,7 @@ class ModelSet:
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
                 cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * 100. * f_cube
+                cube_final += tmp_cube / cube_sum * f_cube
 
         if self.outflow is not None:
 
@@ -566,7 +566,7 @@ class ModelSet:
             yout_kpc = yout * rstep_samp / dscale
             zout_kpc = zout * rstep_samp / dscale
 
-            rout = np.sqrt(xout_kpc** + yout_kpc**2 + zout_kpc**2)
+            rout = np.sqrt(xout_kpc**2 + yout_kpc**2 + zout_kpc**2)
             vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
             fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
@@ -585,7 +585,7 @@ class ModelSet:
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
                 cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * 100. * f_cube
+                cube_final += tmp_cube / cube_sum * f_cube
 
 
         return cube_final, spec
