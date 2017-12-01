@@ -1075,7 +1075,8 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
 
-        ind_zero = (theta < self.thetain) | (theta > self.thetaout)
+        ind_zero = ((theta < self.thetain) | (theta > self.thetaout) |
+                    (r > self.rend))
         flux[ind_zero] = 0.
 
         return flux
