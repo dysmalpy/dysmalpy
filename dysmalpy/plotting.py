@@ -59,7 +59,7 @@ def plot_trace(mcmcResults, fileout=None):
     lwTrace = 1.5
     trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
     trace_colors = []
-    for i in six.moves.xrange(nRows):
+    for i in six.moves.xrange(nTraceWalkers):
         trace_colors.append(cmap(1./np.float(nTraceWalkers)*i))
     
     norm_inds = np.setdiff1d(range(nWalkers), trace_inds)
