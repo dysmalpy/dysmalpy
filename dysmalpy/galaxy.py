@@ -189,7 +189,7 @@ class Galaxy:
                                                   line_center=line_center,
                                                   oversample=oversample)
                                                   
-        logger.info("sim_cube.max={}, spec_unit={}, line_center={}, spec_start={}, spec_step={}".format(sim_cube, 
+        logger.info("sim_cube.max={}, spec_unit={}, line_center={}, spec_start={}, spec_step={}".format(sim_cube.max(), 
                     spec_unit, line_center, spec_start, spec_step))
         # Correct for any oversampling
         if oversample > 1:
@@ -205,7 +205,8 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
-
+        logger.info("sim_cube_nooversamp.max={}, sim_cube_obs.max={}".format(sim_cube_nooversamp.max(), 
+                    sim_cube_obs.max()))
         self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
