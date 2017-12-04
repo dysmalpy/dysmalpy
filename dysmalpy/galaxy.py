@@ -222,7 +222,7 @@ class Galaxy:
             
             scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
                         np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
-            print("scale of 3d model to data={}".format(scale) )
+            logger.info("scale of 3d model to data={}".format(scale) )
             sim_cube_obs *= scale
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
@@ -240,7 +240,7 @@ class Galaxy:
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km/u.s, velocity_convention='optical',
-                    rest_value=line_center*spec_unit)
+                    rest_value=line_center)
 
                 vel = cube_with_vel.moment1().value
                 disp = cube_with_vel.linewidth_sigma().value
@@ -259,7 +259,7 @@ class Galaxy:
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km / u.s, velocity_convention='optical',
-                    rest_value=line_center * spec_unit)
+                    rest_value=line_center)
 
                 cube_data = cube_with_vel.unmasked_data[:]
                 vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
