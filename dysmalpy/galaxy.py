@@ -189,6 +189,8 @@ class Galaxy:
                                                   line_center=line_center,
                                                   oversample=oversample)
                                                   
+        logger.info("sim_cube.max={}, spec_unit={}, line_center={}, spec_start={}, spec_step={}".format(sim_cube, 
+                    spec_unit, line_center, spec_start, spec_step))
         # Correct for any oversampling
         if oversample > 1:
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky, nx_sky))
