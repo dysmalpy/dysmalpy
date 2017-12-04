@@ -222,6 +222,7 @@ class Galaxy:
             
             scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
                         np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
+            print("scale of 3d model to data={}".format(scale) )
             sim_cube_obs *= scale
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
