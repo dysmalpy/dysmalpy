@@ -156,6 +156,7 @@ def fit(gal, nWalkers=10,
             # Temp for debugging:
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
+            logger.info(" full acceptance_frac={}".format( sampler.acceptance_fraction ) )
             ###
             pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                 rstate0=state)
