@@ -505,7 +505,7 @@ class ModelSet:
             if line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            line_center_conv = line_center.to(spec_unit)
+            line_center_conv = line_center.to(spec_unit).value
             vx = (spec - line_center_conv) / line_center_conv * apy_con.c.to(
                 u.km / u.s).value
 
