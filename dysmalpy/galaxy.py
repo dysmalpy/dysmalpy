@@ -189,8 +189,6 @@ class Galaxy:
                                                   line_center=line_center,
                                                   oversample=oversample)
                                                   
-        logger.info("sim_cube.max={}, spec_unit={}, line_center={}, spec_start={}, spec_step={}".format(sim_cube.max(), 
-                    spec_unit, line_center, spec_start, spec_step))
         # Correct for any oversampling
         if oversample > 1:
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky, nx_sky))
@@ -205,8 +203,7 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
-        logger.info("sim_cube_nooversamp.max={}, sim_cube_obs.max={}".format(sim_cube_nooversamp.max(), 
-                    sim_cube_obs.max()))
+            
         self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
@@ -225,7 +222,6 @@ class Galaxy:
             
             scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
                         np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
-            logger.info("scale of 3d model to data={}".format(scale) )
             sim_cube_obs *= scale
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
