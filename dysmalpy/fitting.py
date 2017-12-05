@@ -645,11 +645,11 @@ def log_like(gal, fitdispersion=True):
         mod = gal.model_data.data.unmasked_data[:].value
         err = gal.data.error.unmasked_data[:].value
         msk = gal.data.mask
-        # Artificially mask zero errors which are masked:
+        # Artificially mask zero errors which are masked
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
         llike = -0.5*chisq_arr_raw.sum()
-
+        
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']
