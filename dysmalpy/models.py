@@ -566,15 +566,14 @@ class ModelSet:
             yout_kpc = yout * rstep_samp / dscale
             zout_kpc = zout * rstep_samp / dscale
 
-            rout = np.sqrt(xout_kpc**2 + yout_kpc**2 + zout_kpc**2)
+            rout = np.sqrt(xout**2 + yout**2 + zout**2)
             vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
             fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
             # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
             # TODO: I really need to check this!!
-            rsky = np.sqrt(xsky**2 + ysky**2 + zsky**2)
-            vobs = -vout * zsky/rsky
-            vobs[rsky == 0] = vout[rsky == 0]
+            vobs = -vout * zsky/rout
+            vobs[rout == 0] = vout[rout == 0]
 
             sigma_out = self.outflow_dispersion(rout)
             for zz in range(nz_sky_samp):
