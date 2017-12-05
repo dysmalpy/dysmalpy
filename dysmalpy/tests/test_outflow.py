@@ -114,16 +114,16 @@ geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
 # Outflow component
 inner_angle = 0.           # Inner opening angle in degrees
 outer_angle = 90.          # Outer opening angle in degrees
-index = 0                # Power-law index that controls the radial dependence of
+index = 1.0                # Power-law index that controls the radial dependence of
                            # the outflow velocity
 vmax = 2000.               # Maximum velocity in km/s
 rend = 1.0                 # The radial extent of the outflow in kpc
-profile_type = 'decrease'  # The velocity radial profile type.
+profile_type = 'increase'  # The velocity radial profile type.
                            # Can be 'increase', 'decrease', or 'both'.
 rturn = 0.5                # The turnover radius in kpc for the 'both' profile
 norm_flux = 0.5            # Normalization for the flux profile which follows
                            # an exponential
-tau = 0                  # How fast the flux falls off with radius
+tau = 0.5                  # How fast the flux falls off with radius
 
 outflow_fixed = {'thetain': True,
                  'thetaout': True,
@@ -168,11 +168,11 @@ outflow_geom = models.Geometry(inc=out_inc, pa=out_pa,
                                name='outflow_geom')
 
 # Outflow dispersion
-out_sigma0 = 10.     # Intrinsic dispersion at each radius in km/s
+out_sigma0 = 200.     # Intrinsic dispersion at each radius in km/s
 out_disp_fixed = {'sigma0': True}
 out_disp_bounds = {'sigma0': (0, 100)}
 
-out_disp_prof = models.DispersionConst(sigma0=sigma0, fixed=out_disp_fixed,
+out_disp_prof = models.DispersionConst(sigma0=out_sigma0, fixed=out_disp_fixed,
                                        bounds=out_disp_bounds, name='out_dispprof')
 
 # Add all of the model components to the ModelSet
