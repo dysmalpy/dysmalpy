@@ -6,7 +6,15 @@ Dynamical Simulation and Modeling Algorithm
     :alt: Powered by Astropy Badge
 
 
-
+Dependencies
+------------
+* numpy/scipy/matplotlib
+* astropy
+* radio-beam
+* spectral-cube
+* emcee
+* acor
+* corner
 
 License
 -------

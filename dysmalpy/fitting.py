@@ -9,10 +9,10 @@ from __future__ import (absolute_import, division, print_function,
 
     ## Standard library
 import logging
+from multiprocessing import cpu_count
 
 # DYSMALPY code
 from dysmalpy import plotting
-
 
 # Third party imports
 import os
@@ -24,7 +24,6 @@ import dill as _pickle
 import copy
 
 import emcee
-import psutil
 import acor
 
 import time, datetime
@@ -93,7 +92,7 @@ def fit(gal, nWalkers=10,
     
     #if nCPUs is None:
     if cpuFrac is not None:
-        nCPUs = np.int(np.floor(psutil.cpu_count()*cpuFrac))
+        nCPUs = np.int(np.floor(cpu_count()*cpuFrac))
 
     nDim = gal.model.nparams_free
     #len(model.get_free_parameters_values())
