@@ -31,13 +31,17 @@ logger = logging.getLogger('DysmalPy')
 class Instrument:
     """Base Class to define an instrument to observe a model galaxy with."""
 
-    def __init__(self, beam=None, lsf=None, pixscale=None,
+    def __init__(self, beam=None, beam_type=None, lsf=None, pixscale=None,
                  wave_start=None, wave_step=None, nwave=None,
                  fov=None, name='Instrument'):
 
         self.name = name
         self.pixscale = pixscale
+        
+        # Case of two beams: analytic and empirical: if beam_type==None, assume analytic
         self.beam = beam
+        self.beam_type = beam_type
+            
         self._beam_kernel = None
         self.lsf = lsf
         self._lsf_kernel = None
@@ -106,9 +110,18 @@ class Instrument:
         return cube
 
     def set_beam_kernel(self):
-
-        kernel = self.beam.as_kernel(self.pixscale)
-        kern2D = kernel.array
+        if (self.beam_type == 'analytic') | (self.beam_type == None):
+            kernel = self.beam.as_kernel(self.pixscale)
+            kern2D = kernel.array
+        elif self.beam_type == 'empirical':
+            if len(self.beam.shape) == 1:
+                raise ValueError("1D beam/PSF not currently supported")
+            kern2D = self.beam.copy()
+            # Replace NaNs/non-finite with zero:
+            kern2D[~np.isfinite(kern2D)] = 0.
+            # Replace < 0 with zero:
+            kern2D[kern2D<0.] = 0.
+            kern2D /= np.sum(kern2D[np.isfinite(kern2D)])  # need to normalize
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
 
