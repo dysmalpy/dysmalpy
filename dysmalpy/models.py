@@ -448,8 +448,8 @@ class ModelSet:
                                  "can't be calculated.")
         else:
 
-            vdm = np.zeros(len(r))
-            vbaryon = np.zeros(len(r))
+            vdm = np.zeros(r.shape)
+            vbaryon = np.zeros(r.shape)
 
             for cmp in self.mass_components:
 
@@ -516,6 +516,9 @@ class ModelSet:
         if sum(self.mass_components.values()) > 0:
 
             # Apply the geometric transformation to get galactic coordinates
+            # Need to account for oversampling in the x and y shift parameters
+            self.geometry.xshift = self.geometry.xshift.value * oversample
+            self.geometry.yshift = self.geometry.yshift.value * oversample
             xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
 
             # The circular velocity at each position only depends on the radius
@@ -548,11 +551,14 @@ class ModelSet:
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
                 cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * 100. * f_cube
+                cube_final += tmp_cube / cube_sum * f_cube
 
         if self.outflow is not None:
 
             # Apply the geometric transformation to get outflow coordinates
+            # Account for oversampling
+            self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
+            self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
             xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
 
             # Convert to kpc
@@ -560,15 +566,14 @@ class ModelSet:
             yout_kpc = yout * rstep_samp / dscale
             zout_kpc = zout * rstep_samp / dscale
 
-            rout = np.sqrt(xout_kpc** + yout_kpc**2 + zout_kpc**2)
+            rout = np.sqrt(xout**2 + yout**2 + zout**2)
             vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
             fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
             # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
             # TODO: I really need to check this!!
-            rsky = np.sqrt(xsky**2 + ysky**2 + zsky**2)
-            vobs = -vout * zsky/rsky
-            vobs[rsky == 0] = vout[rsky == 0]
+            vobs = -vout * zsky/rout
+            vobs[rout == 0] = vout[rout == 0]
 
             sigma_out = self.outflow_dispersion(rout)
             for zz in range(nz_sky_samp):
@@ -579,7 +584,7 @@ class ModelSet:
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
                 cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * 100. * f_cube
+                cube_final += tmp_cube / cube_sum * f_cube
 
 
         return cube_final, spec
@@ -1069,7 +1074,8 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
 
-        ind_zero = (theta < self.thetain) | (theta > self.thetaout)
+        ind_zero = ((theta < self.thetain) | (theta > self.thetaout) |
+                    (r > self.rend))
         flux[ind_zero] = 0.
 
         return flux
