@@ -218,6 +218,9 @@ class ModelSet:
         self.nparams_tied = 0
         self.kinematic_options = KinematicOptions()
         self.line_center = None
+        
+        # Option for dealing with 3D data:
+        self.per_spaxel_norm_3D = False
 
     def add_component(self, model, name=None, light=False, geom_type='galaxy',
                       disp_type='galaxy'):
