@@ -151,7 +151,11 @@ def fit(gal, nWalkers=10,
         prob = None
         state = None
         for k in six.moves.xrange(nBurn):
-            logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
+            #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
+            # Temp for debugging:
+            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+                        np.mean(sampler.acceptance_fraction)  ) )
+            ###
             pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                 rstate0=state)
         #####
@@ -176,7 +180,7 @@ def fit(gal, nWalkers=10,
         scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
         timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
                 (elapsed/60.-np.floor(elapsed/60.))*60. )
-        macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
+        macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
         logger.info('\nEnd: '+endtime+'\n'
                     '******************\n'
@@ -300,7 +304,7 @@ def fit(gal, nWalkers=10,
     scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
     timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
             (elapsed/60.-np.floor(elapsed/60.))*60. )
-    macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
+    macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
     logger.info('\nEnd: '+endtime+'\n'
                 '******************\n'
@@ -640,11 +644,11 @@ def log_like(gal, fitdispersion=True):
         mod = gal.model_data.data.unmasked_data[:].value
         err = gal.data.error.unmasked_data[:].value
         msk = gal.data.mask
-        # Artificially mask zero errors which are masked:
+        # Artificially mask zero errors which are masked
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
         llike = -0.5*chisq_arr_raw.sum()
-
+        
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']

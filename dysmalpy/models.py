@@ -505,7 +505,8 @@ class ModelSet:
             if line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            vx = (spec - line_center) / line_center * apy_con.c.to(
+            line_center_conv = line_center.to(spec_unit).value
+            vx = (spec - line_center_conv) / line_center_conv * apy_con.c.to(
                 u.km / u.s).value
 
         velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
