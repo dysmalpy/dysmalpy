@@ -203,7 +203,7 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
-
+            
         self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
@@ -239,7 +239,7 @@ class Galaxy:
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km/u.s, velocity_convention='optical',
-                    rest_value=line_center*spec_unit)
+                    rest_value=line_center)
 
                 vel = cube_with_vel.moment1().value
                 disp = cube_with_vel.linewidth_sigma().value
@@ -258,7 +258,7 @@ class Galaxy:
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km / u.s, velocity_convention='optical',
-                    rest_value=line_center * spec_unit)
+                    rest_value=line_center)
 
                 cube_data = cube_with_vel.unmasked_data[:]
                 vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
