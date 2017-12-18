@@ -176,20 +176,22 @@ gs4_vel = dat_arr[:,1]
 gs4_disp = dat_arr[:,3]
 err_vel = dat_arr[:,2]
 err_disp = dat_arr[:,4]
+inst_corr = True                  # Flag for if the measured dispersion has been
+                                  # corrected for instrumental resolution
 
 test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
                                   vel_disp_err=err_disp, slit_width=0.22,
-								  slit_pa=-37.)
+                                  slit_pa=-37., inst_corr=inst_corr)
 
 gal.data = test_data1d
 
 # Parameters for the MCMC fitting
-nwalkers = 500
+nwalkers = 20
 ncpus = 8
 scale_param_a = 2
-nburn = 200
-nsteps = 1000
+nburn = 10
+nsteps = 10
 minaf = None
 maxaf = None
 neff = 10
@@ -197,13 +199,15 @@ do_plotting = True
 oversample = 1
 fitdispersion = False
 
+
 def run_1d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
                                scale_param_a=scale_param_a, nBurn=nburn,
                                nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                nEff=neff, do_plotting=do_plotting,
                                oversample=oversample, out_dir=out_dir,
-							   fitdispersion=fitdispersion)
+                               fitdispersion=fitdispersion)
+
 
 if __name__ == "__main__":
-		run_1d_test()
+    run_1d_test()
