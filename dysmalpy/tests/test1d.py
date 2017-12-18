@@ -55,7 +55,7 @@ bary_fixed = {'total_mass': False,
 
 # Set bounds
 bary_bounds = {'total_mass': (10, 13),
-               'r_eff_disk': (0.5, 50.0),
+               'r_eff_disk': (1.0, 30.0),
                'n_disk': (1, 8),
                'r_eff_bulge': (1, 5),
                'n_bulge': (1, 8),
@@ -70,7 +70,7 @@ bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                         name='disk+bulge',
                         fixed=bary_fixed, bounds=bary_bounds)
 
-bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
+bary.r_eff_disk.prior = parameters.BoundedGaussianPrior(center=5.0, stddev=1.0)
 
 # Halo component
 mvirial = 12.0
@@ -84,7 +84,7 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
-halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
+halo.mvirial.prior = parameters.BoundedGaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
 sigma0 = 39.   # km/s
@@ -188,7 +188,7 @@ gal.data = test_data1d
 
 # Parameters for the MCMC fitting
 nwalkers = 20
-ncpus = 8
+ncpus = 4
 scale_param_a = 2
 nburn = 10
 nsteps = 10
@@ -197,7 +197,7 @@ maxaf = None
 neff = 10
 do_plotting = True
 oversample = 1
-fitdispersion = False
+fitdispersion = True
 
 
 def run_1d_test():
