@@ -126,22 +126,22 @@ class Galaxy:
                 ny_sky = self.data.data['velocity'].shape[0]
                 rstep = self.data.pixscale
                 if from_instrument:
-                    spec_type = 'wavelength'
-                    spec_start = self.instrument.wave_start.value
-                    spec_step = self.instrument.wave_step.value
-                    spec_unit = self.instrument.wave_start.unit
-                    nspec = self.instrument.nwave
+                    spec_type = self.instrument.spec_type
+                    spec_start = self.instrument.spec_start.value
+                    spec_step = self.instrument.spec_step.value
+                    spec_unit = self.instrument.spec_start.unit
+                    nspec = self.instrument.nspec
 
             elif ndim_final == 1:
 
                 if from_instrument:
                     nx_sky = self.instrument.fov[0]
                     ny_sky = self.instrument.fov[1]
-                    spec_type = 'wavelength'
-                    spec_start = self.instrument.wave_start.value
-                    spec_step = self.instrument.wave_step.value
-                    spec_unit = self.instrument.wave_start.unit
-                    nspec = self.instrument.nwave
+                    spec_type = self.instrument.spec_type
+                    spec_start = self.instrument.spec_start.value
+                    spec_step = self.instrument.spec_step.value
+                    spec_unit = self.instrument.spec_start.unit
+                    nspec = self.instrument.nspec
                     rstep = self.instrument.pixscale.value
                 else:
 
@@ -163,11 +163,11 @@ class Galaxy:
 
             nx_sky = self.instrument.fov[0]
             ny_sky = self.instrument.fov[1]
-            spec_type = 'wavelength'
-            spec_start = self.instrument.wave_start.value
-            spec_step = self.instrument.wave_step.value
-            spec_unit = self.instrument.wave_start.unit
-            nspec = self.instrument.nwave
+            spec_type = self.instrument.spec_type
+            spec_start = self.instrument.spec_start.value
+            spec_step = self.instrument.spec_step.value
+            spec_unit = self.instrument.spec_start.unit
+            nspec = self.instrument.nspec
             rstep = self.instrument.pixscale.value
 
         else:
@@ -198,8 +198,6 @@ class Galaxy:
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
             sim_cube_obs = self.instrument.convolve(cube=sim_cube_nooversamp,
-                                                    spec_type=spec_type,
-                                                    spec_step=spec_step,
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
