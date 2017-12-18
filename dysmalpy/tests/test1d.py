@@ -15,10 +15,10 @@ import astropy.units as u
 import astropy.io.fits as fits
 
 # Directory where the data lives
-data_dir = '/data/dysmalpy/test_data/GS4_43501/'
+data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
@@ -137,31 +137,33 @@ mod_set.kinematic_options.pressure_support = pressure_support
 
 
 # Set the line central wavelength that is being modeled
-mod_set.line_center = 6550.
+#mod_set.line_center = 6550.
 
 # Set up the instrument
 pixscale = 0.125*u.arcsec                # arcsec/pixel
 fov = [33, 33]                           # (nx, ny) pixels
 beamsize = 0.55*u.arcsec                 # FWHM of beam
-wave_start = 6528.15155*u.Angstrom       # Starting wavelength of spectrum
-wave_step = 0.655*u.Angstrom             # Spectral step
-nwave = 67                               # Number of spectral pixels
+spec_type = 'velocity'                   # 'velocity' or 'wavelength'
+spec_start = -1000*u.km/u.s              # Starting value of spectrum
+spec_step = 10*u.km/u.s                  # Spectral step
+nspec = 201                              # Number of spectral pixels
 sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
 
 beam = instrument.Beam(major=beamsize)
 lsf = instrument.LSF(sig_inst)
 
 inst.beam = beam
-#inst.lsf = lsf
+inst.lsf = lsf
 inst.pixscale = pixscale
 inst.fov = fov
-inst.wave_step = wave_step
-inst.wave_start = wave_start
-inst.nwave = nwave
+inst.spec_type = spec_type
+inst.spec_step = spec_step
+inst.spec_start = spec_start
+inst.nspec = nspec
 
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
-#inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
+inst.set_lsf_kernel()
 
 # Add the model set and instrument to the Galaxy
 gal.model = mod_set
