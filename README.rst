@@ -9,12 +9,13 @@ Dynamical Simulation and Modeling Algorithm
 Dependencies
 ------------
 * numpy/scipy/matplotlib
-* astropy
+* astropy (version >= 2.0.0)
 * radio-beam
 * spectral-cube
 * emcee
 * acor
 * corner
+* dill
 
 License
 -------
