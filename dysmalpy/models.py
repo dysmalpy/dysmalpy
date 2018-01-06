@@ -218,6 +218,9 @@ class ModelSet:
         self.nparams_tied = 0
         self.kinematic_options = KinematicOptions()
         self.line_center = None
+        
+        # Option for dealing with 3D data:
+        self.per_spaxel_norm_3D = False
 
     def add_component(self, model, name=None, light=False, geom_type='galaxy',
                       disp_type='galaxy'):
@@ -434,8 +437,24 @@ class ModelSet:
                     # Free parameter: add to total prior
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
         return log_prior_model
+        
+    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=None):
+        # RE needs to be in kpc
+        comp = self.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        
+        # Get DM frac:
+        nstep = np.floor_divide(r_eff,rstep) 
+        rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
+        rgal = np.append(rgal, r_eff)
+        
+        vel, vdm = self.velocity_profile(rgal, compute_dm=True)
+        dm_frac = vdm[-1]**2/vel[-1]**2
+        
+        return dm_frac
 
-    def velocity_profile(self, r):
+    def velocity_profile(self, r, compute_dm=False):
         """
         Method to calculate the 1D velocity profile
         as a function of radius
@@ -469,12 +488,18 @@ class ModelSet:
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-
-            vel = self.kinematic_options.apply_adiabatic_contract(r,
-                                                                  vbaryon, vdm)
+            vels = self.kinematic_options.apply_adiabatic_contract(r,
+                                            vbaryon, vdm,compute_dm=compute_dm)
+            vel = vels[0]
+            if compute_dm:
+                vdm = vels[1]
+                                                                  
             vel = self.kinematic_options.apply_pressure_support(r, self, vel)
-
-            return vel
+            
+            if compute_dm:
+                return vel, vdm
+            else:
+                return vel
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
@@ -947,7 +972,7 @@ class KinematicOptions:
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
 
-    def apply_adiabatic_contract(self, r, vbaryon, vhalo):
+    def apply_adiabatic_contract(self, r, vbaryon, vhalo, compute_dm=False):
 
         if self.adiabatic_contract:
             logger.info("Applying adiabatic contraction.")
@@ -965,8 +990,14 @@ class KinematicOptions:
         else:
 
             vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
-
-        return vel
+            
+        if compute_dm:
+            if self.adiabatic_contract:
+                return vel, vhalo_adi
+            else:
+                return vel, vhalo
+        else:
+            return vel
 
     def apply_pressure_support(self, r, model, vel):
 
