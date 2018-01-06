@@ -54,6 +54,8 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            fitdispersion = True,
+           compute_dm = False, 
+           model_key_re = ['disk+bulge','r_eff_disk'],  
            do_plotting = True,
            save_burn = False,
            out_dir = 'mcmc_fit_results/',
@@ -128,7 +130,8 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
+    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion, 
+                    'compute_dm':compute_dm, 'model_key_re':model_key_re }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -150,14 +153,19 @@ def fit(gal, nWalkers=10,
         pos = initial_pos
         prob = None
         state = None
+        dm_frac = None
         for k in six.moves.xrange(nBurn):
             #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             # Temp for debugging:
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
-            pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                rstate0=state)
+            if compute_dm:
+                pos, prob, state, dm_frac = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                    rstate0=state, blobs0=dm_frac)
+            else:
+                pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                    rstate0=state)
         #####
         ## This would run in one go:
         #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
@@ -222,6 +230,8 @@ def fit(gal, nWalkers=10,
 
         # Reset sampler after burn-in:
         sampler.reset()
+        if compute_dm:
+             sampler.clear_blobs()
 
     else:
         # --------------------------------
@@ -229,6 +239,7 @@ def fit(gal, nWalkers=10,
         pos = np.array(initial_pos)
         prob = None
         state = None
+        dm_frac = None
 
 
 
@@ -248,7 +259,11 @@ def fit(gal, nWalkers=10,
 
         # --------------------------------
         # 1: only do one step at a time.
-        pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+        if compute_dm:
+            pos, prob, state, dm_frac = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state, blobs0 = dm_frac)
+        else:
+            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
         # --------------------------------
 
         # --------------------------------
@@ -607,7 +622,9 @@ class MCMCResults(object):
 
 def log_prob(theta, gal,
             oversample=1,
-            fitdispersion=True):
+            fitdispersion=True,
+            compute_dm=False, 
+            model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -620,24 +637,31 @@ def log_prob(theta, gal,
 
     # First check to see if log prior is finite
     if not np.isfinite(lprior):
-        return -np.inf
+        if compute_dm:
+            return -np.inf, -np.inf
+        else:
+            return -np.inf
     else:
         # Update the model data
         gal.create_model_data(oversample=oversample,
                               line_center=gal.model.line_center)
-
+                              
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, fitdispersion=fitdispersion)
-        lprob = lprior + llike
+        llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
+        lprob = lprior + llike[0]
 
         if not np.isfinite(lprob):
             # Make sure the non-finite ln_prob is -Inf,
             #    as this can be escaped in the next step
             lprob = -np.inf
-        return lprob
+            
+        if compute_dm:
+            return lprob, llike[1]
+        else:
+            return lprob
 
 
-def log_like(gal, fitdispersion=True):
+def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
@@ -682,8 +706,11 @@ def log_like(gal, fitdispersion=True):
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
-
-    return llike
+    if compute_dm:
+        dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        return llike, dm_frac
+    else:
+        return llike
 
 def initialize_walkers(model, nWalkers=None):
     """
@@ -918,6 +945,10 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nParam': sampler.dim,
            'nCPU': sampler.threads,
            'nWalkers': len(sampler.chain) }
+    try:
+        df['blobs'] = sampler.blobs
+    except:
+        pass
 
     return df
 
