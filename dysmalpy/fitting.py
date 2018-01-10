@@ -69,7 +69,8 @@ def fit(gal, nWalkers=10,
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
-           f_mcmc_results = None ):
+           f_mcmc_results = None,
+           f_chain_ascii = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
 
@@ -115,6 +116,7 @@ def fit(gal, nWalkers=10,
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
+    if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
 
 
     if not continue_steps:
@@ -358,16 +360,19 @@ def fit(gal, nWalkers=10,
                 f_sampler = f_sampler,
                 f_plot_param_corner = f_plot_param_corner,
                 f_plot_bestfit = f_plot_bestfit,
-                f_mcmc_results = f_mcmc_results)
+                f_mcmc_results = f_mcmc_results,
+                f_chain_ascii = f_chain_ascii)
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
 
     if f_mcmc_results is not None:
-        dump_pickle(mcmcResults, filename=f_mcmc_results) # Save mcmcResults class
-    #
-
+        mcmcResults.save_results(filename=f_mcmc_results)
+        
+    if f_chain_ascii is not None:
+        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        
     # --------------------------------
     # Plot trace, if output file set
     if (do_plotting) & (f_plot_trace is not None) :
@@ -390,7 +395,15 @@ def fit(gal, nWalkers=10,
 
 class MCMCResults(object):
     """
-    Class to hold results of MCMC fitting to DYSMALPY models
+    Class to hold results of MCMC fitting to DYSMALPY models.
+    
+    Note: emcee sampler object is ported to a dictionary in 
+            mcmcResults.sampler
+        
+        The name of the free parameters in the chain are accessed through:
+            mcmcResults.chain_param_names, 
+                or more generally (separate model + parameter names) through
+                mcmcResults.free_param_names
     """
     def __init__(self, model=None,
             sampler=None,
@@ -401,8 +414,8 @@ class MCMCResults(object):
             f_plot_param_corner = None,
             f_plot_bestfit = None,
             f_mcmc_results = None,
-            linked_posterior_names=None,
-            reload_mcmc_results_file=None):
+            f_chain_ascii = None, 
+            linked_posterior_names=None):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
@@ -426,6 +439,7 @@ class MCMCResults(object):
             self.free_param_names = OrderedDict()
             self._free_param_keys = OrderedDict()
             self.nparams_free = None
+            self.chain_param_names = None
 
 
         # Save what the filenames are for reference - eg, if they were defined by default.
@@ -436,6 +450,7 @@ class MCMCResults(object):
         self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
         self.f_mcmc_results = f_mcmc_results
+        self.f_chain_ascii = f_chain_ascii
 
 
 
@@ -447,6 +462,7 @@ class MCMCResults(object):
 
         self.free_param_names = OrderedDict()
         self._free_param_keys = OrderedDict()
+        self.chain_param_names = None
 
         self.nparams_free = model.nparams_free
         self.init_free_param_info(model)
@@ -475,6 +491,11 @@ class MCMCResults(object):
 
         self.free_param_names = dictfreenames
         self._free_param_keys = dictfreecomp
+        
+        
+        self.chain_param_names = make_arr_cmp_params(self)
+        
+        
 
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
@@ -577,7 +598,38 @@ class MCMCResults(object):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
-
+        
+    def save_results(self, filename=None):
+        if filename is not None:
+            dump_pickle(self, filename=filename) # Save mcmcResults class
+            
+    def save_chain_ascii(self, filename=None):
+        if filename is not None:
+            try:
+                blobs = self.sampler['blobs']
+                blobset = True
+            except:
+                blobset = False
+            
+            if ('flatblobs' not in self.sampler.keys()) & (blobset):
+                self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+            
+            with open(filename, 'w') as f:
+                namestr = '#'
+                namestr += '  '.join(map(str, self.chain_param_names))
+                if blobset:
+                    # Currently assuming blob only returns DM fraction
+                    namestr += '  f_DM'
+                f.write(namestr+'\n')
+                
+                # flatchain shape: (flat)step, params
+                for i in six.moves.xrange(self.sampler['flatchain'].shape[0]):
+                    datstr = '  '.join(map(str, self.sampler['flatchain'][i,:]))
+                    if blobset:
+                        datstr += '  {}'.format(self.sampler['flatblobs'][i])
+                    f.write(datstr+'\n')
+                    
+            
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
         if filename is None:
@@ -947,6 +999,7 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nWalkers': len(sampler.chain) }
     try:
         df['blobs'] = sampler.blobs
+        df['flatblobs'] = np.hstack(np.stack(sampler.blobs, axis=1))
     except:
         pass
 
