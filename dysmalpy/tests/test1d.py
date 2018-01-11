@@ -208,6 +208,53 @@ def run_1d_test():
                                oversample=oversample, out_dir=out_dir,
                                fitdispersion=fitdispersion)
 
+def reload_1d_test():
+    
+    # For compatibility with Python 2.7:
+    mod_in = copy.deepcopy(gal.model)
+    gal.model = mod_in
+    
+    # Initialize a basic dummy results class
+    mcmc_results = fitting.MCMCResults(model=gal.model)
+    # Set what the names are for reloading
+    fsampler = out_dir+'mcmc_sampler.pickle'
+    fresults = out_dir+'mcmc_results.pickle'
+
+    mcmc_results.reload_mcmc_results(filename=fresults)
+    mcmc_results.reload_sampler(filename=fsampler)
+    
+    return mcmc_results
+    
+def reanalyze_chain_1d_test():
+    mcmc_results = reload_1d_test()
+    
+    # Reanalyze chain, with possible linked parameters if desired:
+    lpostname = None
+    mcmc_results.analyze_posterior_dist(linked_posterior_names=lpostname)
+    
+    # Resave results to file
+    # Set what the names are for resaving
+    fresults = out_dir+'mcmc_results.pickle'
+    mcmc_results.save_results(filename=fresults)
+    
+    # ### NOTE: ###
+    # Name of parameters in chain are in :
+    # mcmc_results.chain_param_names
+    # matching: mcmc_results.sampler['flatchain']
+    
+    # Sav the ascii file, in case it didn't exist already.
+    fchainascii = out_dir+'mcmc_chain_blobs.dat'
+    mcmc_results.save_chain_ascii(filename=fchainascii)
+    
+    # Need to initialize the model for plotting 
+    gal.create_model_data(oversample=1,
+                          line_center=gal.model.line_center)
+    mcmc_results.plot_results(gal)
+    
+    
+    
+    
+
 
 if __name__ == "__main__":
     run_1d_test()
