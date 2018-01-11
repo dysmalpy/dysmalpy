@@ -218,9 +218,22 @@ class Galaxy:
             mask_flat[mask_flat != 0] = 1.
             errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
             
-            scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
-                        np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
-            sim_cube_obs *= scale
+            if self.model.per_spaxel_norm_3D:
+                # Do normalization on a per-spaxel basis -- eg, don't care about preserving 
+                #   M/L ratio information from model.
+                # collapse in spectral dimension only: axis 0
+                num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*\
+                            sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                den = np.sum(self.data.mask*\
+                          (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                scale = num/den
+                scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
+                scale3D[0, :, :] = scale
+                sim_cube_obs *= scale3D
+            else:
+                scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
+                            np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
+                sim_cube_obs *= scale
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
