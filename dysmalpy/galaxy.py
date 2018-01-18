@@ -276,7 +276,7 @@ class Galaxy:
 
             elif spec_type == 'velocity':
 
-                cube_data = sim_cube
+                cube_data = sim_cube_obs
                 vel_arr = spec
 
             else:
