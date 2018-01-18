@@ -490,10 +490,15 @@ class ModelSet:
                                         mcomp._subtype, cmp))
             vels = self.kinematic_options.apply_adiabatic_contract(r,
                                             vbaryon, vdm,compute_dm=compute_dm)
-            vel = vels[0]
+
             if compute_dm:
+                vel = vels[0]
                 vdm = vels[1]
-                                                                  
+
+            else:
+
+                vel = vels
+
             vel = self.kinematic_options.apply_pressure_support(r, self, vel)
             
             if compute_dm:
