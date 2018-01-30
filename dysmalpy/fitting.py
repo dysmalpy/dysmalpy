@@ -15,6 +15,8 @@ from multiprocessing import cpu_count
 from dysmalpy import plotting
 
 # Third party imports
+import sys
+sys.path.append('./extern')
 import os
 import numpy as np
 from collections import OrderedDict
@@ -22,7 +24,7 @@ from astropy.extern import six
 import astropy.units as u
 import dill as _pickle
 import copy
-
+from cap_mpfit import mpfit
 import emcee
 import acor
 
