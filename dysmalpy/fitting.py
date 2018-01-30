@@ -753,23 +753,23 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
         llike = -0.5*chisq_arr_raw.sum()
-        
+
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']
         vel_err = gal.data.error['velocity']
-        
+
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
-        
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
                 disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
-        
+
         msk = gal.data.mask
-        
+
 
         # Artificially mask zero errors which are masked:
         vel_err[((vel_err==0) & (msk==0))] = 99.
