@@ -393,6 +393,33 @@ def fit(gal, nWalkers=10,
 
 
 
+def fit_mpfit(gal, fit_dispersion=True):
+    """
+    A real simple function for fitting with least squares instead of MCMC.
+    Right now being used for testing.
+    """
+
+    p_initial = gal.model.get_free_parameters_values()
+    pkeys = gal.model.get_free_parameter_keys()
+    nparam = len(p_initial)
+    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0} for i in
+               range(nparam)]
+
+    for cmp in pkeys:
+        for param_name in pkeys[cmp]:
+
+            if pkeys[cmp][param_name] != -99:
+
+                bounds = gal.model.components[cmp].bounds[param_name]
+                k = pkeys[cmp][param_name]
+                parinfo[k]['limits'][0] = bounds[0]
+                parinfo[k]['limits'][1] = bounds[1]
+                parinfo[k]['value'] = p_initial[k]
+
+    fa = {'gal':gal, 'fitdispersion':fit_dispersion}
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
+
+    return m
 
 
 class MCMCResults(object):
