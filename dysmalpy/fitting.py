@@ -700,7 +700,7 @@ def log_prob(theta, gal,
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
-        
+
         if compute_dm:
             lprob = lprior + llike[0]
         else:
