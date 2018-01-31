@@ -243,8 +243,8 @@ class Galaxy:
 
             if spec_type == "velocity":
 
-                vel = self.model_cube.data.moment1().value
-                disp = self.model_cube.data.linewidth_sigma().value
+                vel = self.model_cube.data.moment1().to(u.km/u.s).value
+                disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
 
             elif spec_type == "wavelength":
 
