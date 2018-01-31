@@ -22,7 +22,7 @@ from astropy.extern import six
 import astropy.units as u
 import dill as _pickle
 import copy
-
+from dysmalpy.extern.cap_mpfit import mpfit
 import emcee
 import acor
 
@@ -391,6 +391,33 @@ def fit(gal, nWalkers=10,
 
 
 
+def fit_mpfit(gal, fit_dispersion=True):
+    """
+    A real simple function for fitting with least squares instead of MCMC.
+    Right now being used for testing.
+    """
+
+    p_initial = gal.model.get_free_parameters_values()
+    pkeys = gal.model.get_free_parameter_keys()
+    nparam = len(p_initial)
+    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0} for i in
+               range(nparam)]
+
+    for cmp in pkeys:
+        for param_name in pkeys[cmp]:
+
+            if pkeys[cmp][param_name] != -99:
+
+                bounds = gal.model.components[cmp].bounds[param_name]
+                k = pkeys[cmp][param_name]
+                parinfo[k]['limits'][0] = bounds[0]
+                parinfo[k]['limits'][1] = bounds[1]
+                parinfo[k]['value'] = p_initial[k]
+
+    fa = {'gal':gal, 'fitdispersion':fit_dispersion}
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
+
+    return m
 
 
 class MCMCResults(object):
@@ -728,23 +755,23 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
         llike = -0.5*chisq_arr_raw.sum()
-        
+
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']
         vel_err = gal.data.error['velocity']
-        
+
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
-        
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
                 disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
-        
+
         msk = gal.data.mask
-        
+
 
         # Artificially mask zero errors which are masked:
         vel_err[((vel_err==0) & (msk==0))] = 99.
@@ -767,6 +794,61 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         return llike, dm_frac
     else:
         return llike
+
+
+def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
+
+    gal.model.update_parameters(theta)
+    gal.create_model_data()
+
+    if gal.data.ndim == 3:
+        dat = gal.data.data.unmasked_data[:].value
+        mod = gal.model_data.data.unmasked_data[:].value
+        err = gal.data.error.unmasked_data[:].value
+        msk = gal.data.mask
+        # Artificially mask zero errors which are masked
+        err[((err == 0) & (msk == 0))] = 99.
+        chisq_arr_raw = msk * (
+        ((dat - mod) / err))
+        chisq_arr_raw = chisq_arr_raw.flatten()
+
+    elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
+        vel_dat = gal.data.data['velocity']
+        vel_mod = gal.model_data.data['velocity']
+        vel_err = gal.data.error['velocity']
+
+        disp_dat = gal.data.data['dispersion']
+        disp_mod = gal.model_data.data['dispersion']
+        disp_err = gal.data.error['dispersion']
+
+        # Correct model for instrument dispersion if the data is instrument corrected:
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt(
+                    disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
+                        u.km / u.s).value ** 2)
+
+        msk = gal.data.mask
+
+        # Artificially mask zero errors which are masked:
+        vel_err[((vel_err == 0) & (msk == 0))] = 99.
+        disp_err[((disp_err == 0) & (msk == 0))] = 99.
+
+        chisq_arr_raw_vel = msk * ((vel_dat - vel_mod) / vel_err)
+        if fitdispersion:
+            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
+                                       chisq_arr_raw_disp.flatten()])
+        else:
+            chisq_arr_raw = chisq_arr_raw_vel.flatten()
+    else:
+        logger.warning("ndim={} not supported!".format(gal.data.ndim))
+        raise ValueError
+
+    status = 0
+
+    return [status, chisq_arr_raw]
+
 
 def initialize_walkers(model, nWalkers=None):
     """
