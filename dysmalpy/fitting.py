@@ -700,7 +700,11 @@ def log_prob(theta, gal,
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
-        lprob = lprior + llike[0]
+        
+        if compute_dm:
+            lprob = lprior + llike[0]
+        else:
+            lprob = lprior + llike
 
         if not np.isfinite(lprob):
             # Make sure the non-finite ln_prob is -Inf,
