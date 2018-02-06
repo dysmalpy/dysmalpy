@@ -48,6 +48,7 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+np.warnings.filterwarnings('ignore')
 
 # TODO: Tied parameters are NOT automatically updated when variables change!!
 # TODO: Need to keep track during the fitting!
