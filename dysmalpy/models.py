@@ -1052,13 +1052,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     vmax = DysmalParameter(min=0)
     rturn = DysmalParameter(default=0.5, min=0)
     thetain = DysmalParameter(bounds=(0, 90))
-    thetaout = DysmalParameter(bounds=(0, 90))
+    dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
 
     _type = 'outflow'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, thetaout, rend,
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
                  profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both']
@@ -1073,9 +1073,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               thetaout, rend, **kwargs)
+                                               dtheta, rend, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, thetaout, rend):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1099,7 +1099,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
 
-        ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
+        ind_zero = (theta < thetain) | (theta > (dtheta+thetain)) | (vel < 0)
         vel[ind_zero] = 0.
 
         return vel
@@ -1111,7 +1111,8 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
 
-        ind_zero = ((theta < self.thetain) | (theta > self.thetaout) |
+        ind_zero = ((theta < self.thetain) |
+                    (theta > (self.dtheta + self.thetain)) |
                     (r > self.rend))
         flux[ind_zero] = 0.
 
