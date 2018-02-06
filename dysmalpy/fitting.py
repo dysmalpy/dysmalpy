@@ -1083,18 +1083,17 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nParam': sampler.dim,
            'nCPU': sampler.threads,
            'nWalkers': len(sampler.chain) }
-    try:
+
+    if len(sampler.blobs) > 0:
         df['blobs'] = sampler.blobs
         df['flatblobs'] = np.hstack(np.stack(sampler.blobs, axis=1))
-    except:
-        pass
 
     return df
 
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
-        logger.info( "Making path=", dir)
+        logger.info( "Making path="+dir)
         os.makedirs(dir)
     return None
 
