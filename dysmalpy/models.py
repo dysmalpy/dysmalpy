@@ -1100,7 +1100,8 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
 
-        ind_zero = (theta < thetain) | (theta > (dtheta+thetain)) | (vel < 0)
+        thetaout = np.min([thetain+dtheta, 90.])
+        ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
         vel[ind_zero] = 0.
 
         return vel
@@ -1111,9 +1112,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
-
+        thetaout = np.min([self.thetain + self.dtheta, 90.])
         ind_zero = ((theta < self.thetain) |
-                    (theta > (self.dtheta + self.thetain)) |
+                    (theta > thetaout) |
                     (r > self.rend))
         flux[ind_zero] = 0.
 
