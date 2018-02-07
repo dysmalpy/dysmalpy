@@ -249,13 +249,13 @@ def plot_data_model_comparison_2D(gal,
     #
     ######################################
     # Setup plot:
-    f = plt.figure()
+    f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
     if fitdispersion:
         grid_vel = ImageGrid(f, 211,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
@@ -304,21 +304,19 @@ def plot_data_model_comparison_2D(gal,
     origin = 'lower'
     cmap =  cm.spectral
 
-    vel_vmin = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].min()
-    vel_vmax = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].max()
+    vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+    vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
 
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
-            im = gal.data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im = gal.data.data['velocity'].copy()
+            im[~gal.data.mask] = np.nan
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         elif k == 'residual':
             im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         else:
             raise ValueError("key not supported.")
 
@@ -341,21 +339,19 @@ def plot_data_model_comparison_2D(gal,
 
     if fitdispersion:
 
-        disp_vmin = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].min()
-        disp_vmax = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].max()
+        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
 
         for ax, k in zip(grid_disp, keyxarr):
             if k == 'data':
-                im = gal.data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im = gal.data.data['dispersion'].copy()
+                im[~gal.data.mask] = np.nan
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im[~gal.data.mask] = np.nan
             elif k == 'residual':
                 im = gal.data.data['dispersion'] - gal.model_data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im[~gal.data.mask] = np.nan
             else:
                 raise ValueError("key not supported.")
 
