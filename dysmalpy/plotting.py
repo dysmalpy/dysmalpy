@@ -260,21 +260,21 @@ def plot_data_model_comparison_2D(gal,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
         grid_disp = ImageGrid(f, 212,
                               nrows_ncols=(1, 3),
                               direction="row",
-                              axes_pad=0.05,
+                              axes_pad=0.5,
                               add_all=True,
                               label_mode="1",
                               share_all=True,
                               cbar_location="right",
-                              cbar_mode="single",
-                              cbar_size="7%",
+                              cbar_mode="each",
+                              cbar_size="5%",
                               cbar_pad="1%",
                               )
 
@@ -282,13 +282,13 @@ def plot_data_model_comparison_2D(gal,
         grid_vel = ImageGrid(f, 111,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
@@ -303,6 +303,7 @@ def plot_data_model_comparison_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap =  cm.spectral
+    cmap.set_bad(color='k')
 
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
@@ -335,7 +336,8 @@ def plot_data_model_comparison_2D(gal,
 
         ax.set_title(xt)
 
-    ax.cax.colorbar(imax)
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
 
     if fitdispersion:
 
@@ -355,8 +357,12 @@ def plot_data_model_comparison_2D(gal,
             else:
                 raise ValueError("key not supported.")
 
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            if k != 'residual':
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            else:
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 origin=origin)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
@@ -368,7 +374,8 @@ def plot_data_model_comparison_2D(gal,
             else:
                 ax.set_axis_off()
 
-        ax.cax.colorbar(imax)
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
 
     #############################################################
     # Save to file:
