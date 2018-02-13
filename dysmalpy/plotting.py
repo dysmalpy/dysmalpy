@@ -146,7 +146,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
     return None
     
 def plot_data_model_comparison_1D(gal, 
-            data_kwarg = None,
+            data = None,
             theta = None, 
             oversample=1, 
             fitdispersion=True, 
@@ -154,19 +154,15 @@ def plot_data_model_comparison_1D(gal,
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-    if (data_kwarg is not None) & (data_kwarg != 'data'):
-        data = gal.__dict__[data_kwarg]
-        
+    if data is not None:
+
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
         galnew.create_model_data(oversample=oversample,
                               line_center=galnew.model.line_center)
         model_data = galnew.model_data
-        
-        if fileout is not None:
-            fileoutsplt = fileout.split('.')
-            fileout = '.'.join(fileoutsplt[:-1]+'_1d.pdf')
+
     else:
         # Default: fit in 1D, compare to 1D data:
         data = gal.data
