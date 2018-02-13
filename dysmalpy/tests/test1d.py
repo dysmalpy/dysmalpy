@@ -15,10 +15,10 @@ import astropy.units as u
 import astropy.io.fits as fits
 
 # Directory where the data lives
-data_dir = '/data/dysmalpy/test_data/GS4_43501/'
+data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
 
 # Directory where to save output files
-out_dir = '/data/dysmalpy/1D_tests/GS4_43501/fix_conc5_gaussian_prior_reff/'
+out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
@@ -55,7 +55,7 @@ bary_fixed = {'total_mass': False,
 
 # Set bounds
 bary_bounds = {'total_mass': (10, 13),
-               'r_eff_disk': (0.5, 50.0),
+               'r_eff_disk': (1.0, 30.0),
                'n_disk': (1, 8),
                'r_eff_bulge': (1, 5),
                'n_bulge': (1, 8),
@@ -70,7 +70,7 @@ bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                         name='disk+bulge',
                         fixed=bary_fixed, bounds=bary_bounds)
 
-bary.r_eff_disk.prior = parameters.GaussianPrior(center=5.0, stddev=1.0)
+bary.r_eff_disk.prior = parameters.BoundedGaussianPrior(center=5.0, stddev=1.0)
 
 # Halo component
 mvirial = 12.0
@@ -84,7 +84,8 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
-#halo.mvirial.prior = parameters.GaussianPrior(center=11.5, stddev=0.5)
+
+halo.mvirial.prior = parameters.BoundedGaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
 sigma0 = 39.   # km/s
@@ -137,15 +138,16 @@ mod_set.kinematic_options.pressure_support = pressure_support
 
 
 # Set the line central wavelength that is being modeled
-mod_set.line_center = 6550.
+#mod_set.line_center = 6550.
 
 # Set up the instrument
 pixscale = 0.125*u.arcsec                # arcsec/pixel
 fov = [33, 33]                           # (nx, ny) pixels
 beamsize = 0.55*u.arcsec                 # FWHM of beam
-wave_start = 6528.15155*u.Angstrom       # Starting wavelength of spectrum
-wave_step = 0.655*u.Angstrom             # Spectral step
-nwave = 67                               # Number of spectral pixels
+spec_type = 'velocity'                   # 'velocity' or 'wavelength'
+spec_start = -1000*u.km/u.s              # Starting value of spectrum
+spec_step = 10*u.km/u.s                  # Spectral step
+nspec = 201                              # Number of spectral pixels
 sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
 
 beam = instrument.Beam(major=beamsize)
@@ -155,13 +157,14 @@ inst.beam = beam
 inst.lsf = lsf
 inst.pixscale = pixscale
 inst.fov = fov
-inst.wave_step = wave_step
-inst.wave_start = wave_start
-inst.nwave = nwave
+inst.spec_type = spec_type
+inst.spec_step = spec_step
+inst.spec_start = spec_start
+inst.nspec = nspec
 
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
-inst.set_lsf_kernel(spec_type='wavelength', spec_center=mod_set.line_center*u.Angstrom)
+inst.set_lsf_kernel()
 
 # Add the model set and instrument to the Galaxy
 gal.model = mod_set
@@ -174,20 +177,20 @@ gs4_vel = dat_arr[:,1]
 gs4_disp = np.sqrt(dat_arr[:,3]**2 + sig_inst.value**2)
 err_vel = dat_arr[:,2]
 err_disp = dat_arr[:,4]
+inst_corr = True                  # Flag for if the measured dispersion has been
+                                  # corrected for instrumental resolution
 
 test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
                                   vel_disp_err=err_disp, slit_width=0.22,
-								  slit_pa=-37.)
+                                  slit_pa=-37., inst_corr=inst_corr)
 
 gal.data = test_data1d
 
 # Parameters for the MCMC fitting
-nwalkers = 500
-ncpus = 8
+nwalkers = 20
+ncpus = 4
 scale_param_a = 2
-nburn = 300
-nsteps = 1000
 minaf = None
 maxaf = None
 neff = 10
@@ -201,7 +204,55 @@ def run_1d_test():
                                nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                nEff=neff, do_plotting=do_plotting,
                                oversample=oversample, out_dir=out_dir,
-							   fitdispersion=fitdispersion)
+                               fitdispersion=fitdispersion)
+
+def reload_1d_test():
+    
+    # For compatibility with Python 2.7:
+    mod_in = copy.deepcopy(gal.model)
+    gal.model = mod_in
+    
+    # Initialize a basic dummy results class
+    mcmc_results = fitting.MCMCResults(model=gal.model)
+    # Set what the names are for reloading
+    fsampler = out_dir+'mcmc_sampler.pickle'
+    fresults = out_dir+'mcmc_results.pickle'
+
+    mcmc_results.reload_mcmc_results(filename=fresults)
+    mcmc_results.reload_sampler(filename=fsampler)
+    
+    return mcmc_results
+    
+def reanalyze_chain_1d_test():
+    mcmc_results = reload_1d_test()
+    
+    # Reanalyze chain, with possible linked parameters if desired:
+    lpostname = None
+    mcmc_results.analyze_posterior_dist(linked_posterior_names=lpostname)
+    
+    # Resave results to file
+    # Set what the names are for resaving
+    fresults = out_dir+'mcmc_results.pickle'
+    mcmc_results.save_results(filename=fresults)
+    
+    # ### NOTE: ###
+    # Name of parameters in chain are in :
+    # mcmc_results.chain_param_names
+    # matching: mcmc_results.sampler['flatchain']
+    
+    # Sav the ascii file, in case it didn't exist already.
+    fchainascii = out_dir+'mcmc_chain_blobs.dat'
+    mcmc_results.save_chain_ascii(filename=fchainascii)
+    
+    # Need to initialize the model for plotting 
+    gal.create_model_data(oversample=1,
+                          line_center=gal.model.line_center)
+    mcmc_results.plot_results(gal)
+    
+    
+    
+    
+
 
 if __name__ == "__main__":
-		run_1d_test()
+    run_1d_test()

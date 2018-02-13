@@ -126,22 +126,22 @@ class Galaxy:
                 ny_sky = self.data.data['velocity'].shape[0]
                 rstep = self.data.pixscale
                 if from_instrument:
-                    spec_type = 'wavelength'
-                    spec_start = self.instrument.wave_start.value
-                    spec_step = self.instrument.wave_step.value
-                    spec_unit = self.instrument.wave_start.unit
-                    nspec = self.instrument.nwave
+                    spec_type = self.instrument.spec_type
+                    spec_start = self.instrument.spec_start.value
+                    spec_step = self.instrument.spec_step.value
+                    spec_unit = self.instrument.spec_start.unit
+                    nspec = self.instrument.nspec
 
             elif ndim_final == 1:
 
                 if from_instrument:
                     nx_sky = self.instrument.fov[0]
                     ny_sky = self.instrument.fov[1]
-                    spec_type = 'wavelength'
-                    spec_start = self.instrument.wave_start.value
-                    spec_step = self.instrument.wave_step.value
-                    spec_unit = self.instrument.wave_start.unit
-                    nspec = self.instrument.nwave
+                    spec_type = self.instrument.spec_type
+                    spec_start = self.instrument.spec_start.value
+                    spec_step = self.instrument.spec_step.value
+                    spec_unit = self.instrument.spec_start.unit
+                    nspec = self.instrument.nspec
                     rstep = self.instrument.pixscale.value
                 else:
 
@@ -163,11 +163,11 @@ class Galaxy:
 
             nx_sky = self.instrument.fov[0]
             ny_sky = self.instrument.fov[1]
-            spec_type = 'wavelength'
-            spec_start = self.instrument.wave_start.value
-            spec_step = self.instrument.wave_step.value
-            spec_unit = self.instrument.wave_start.unit
-            nspec = self.instrument.nwave
+            spec_type = self.instrument.spec_type
+            spec_start = self.instrument.spec_start.value
+            spec_step = self.instrument.spec_step.value
+            spec_unit = self.instrument.spec_start.unit
+            nspec = self.instrument.nspec
             rstep = self.instrument.pixscale.value
 
         else:
@@ -198,12 +198,10 @@ class Galaxy:
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
             sim_cube_obs = self.instrument.convolve(cube=sim_cube_nooversamp,
-                                                    spec_type=spec_type,
-                                                    spec_step=spec_step,
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
-
+            
         self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
@@ -220,9 +218,22 @@ class Galaxy:
             mask_flat[mask_flat != 0] = 1.
             errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
             
-            scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
-                        np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
-            sim_cube_obs *= scale
+            if self.model.per_spaxel_norm_3D:
+                # Do normalization on a per-spaxel basis -- eg, don't care about preserving 
+                #   M/L ratio information from model.
+                # collapse in spectral dimension only: axis 0
+                num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*\
+                            sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                den = np.sum(self.data.mask*\
+                          (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                scale = num/den
+                scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
+                scale3D[0, :, :] = scale
+                sim_cube_obs *= scale3D
+            else:
+                scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
+                            np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
+                sim_cube_obs *= scale
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
@@ -232,14 +243,14 @@ class Galaxy:
 
             if spec_type == "velocity":
 
-                vel = self.model_cube.data.moment1().value
-                disp = self.model_cube.data.linewidth_sigma().value
+                vel = self.model_cube.data.moment1().to(u.km/u.s).value
+                disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
 
             elif spec_type == "wavelength":
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km/u.s, velocity_convention='optical',
-                    rest_value=line_center*spec_unit)
+                    rest_value=line_center)
 
                 vel = cube_with_vel.moment1().value
                 disp = cube_with_vel.linewidth_sigma().value
@@ -258,14 +269,14 @@ class Galaxy:
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km / u.s, velocity_convention='optical',
-                    rest_value=line_center * spec_unit)
+                    rest_value=line_center)
 
                 cube_data = cube_with_vel.unmasked_data[:]
                 vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
 
             elif spec_type == 'velocity':
 
-                cube_data = sim_cube
+                cube_data = sim_cube_obs
                 vel_arr = spec
 
             else:
