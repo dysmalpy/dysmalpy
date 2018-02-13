@@ -347,9 +347,27 @@ def plot_data_model_comparison_2D(gal,
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
                 im[~gal.data.mask] = np.nan
+
+                # Correct model for instrument dispersion
+                # if the data is instrument corrected:
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                     u.km / u.s).value ** 2)
+
             elif k == 'residual':
-                im = gal.data.data['dispersion'] - gal.model_data.data['dispersion']
+
+                im_model = gal.model_data.data['dispersion'].copy()
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im_model = np.sqrt(im_model ** 2 -
+                                           gal.instrument.lsf.dispersion.to(
+                                           u.km / u.s).value ** 2)
+
+
+                im = gal.data.data['dispersion'] - im_model
                 im[~gal.data.mask] = np.nan
+
             else:
                 raise ValueError("key not supported.")
 
