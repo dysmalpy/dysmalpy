@@ -22,7 +22,7 @@ from astropy.extern import six
 import astropy.units as u
 import dill as _pickle
 import copy
-
+from dysmalpy.extern.cap_mpfit import mpfit
 import emcee
 import acor
 
@@ -54,6 +54,8 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            fitdispersion = True,
+           compute_dm = False, 
+           model_key_re = ['disk+bulge','r_eff_disk'],  
            do_plotting = True,
            save_burn = False,
            out_dir = 'mcmc_fit_results/',
@@ -67,7 +69,8 @@ def fit(gal, nWalkers=10,
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
-           f_mcmc_results = None ):
+           f_mcmc_results = None,
+           f_chain_ascii = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
 
@@ -113,6 +116,7 @@ def fit(gal, nWalkers=10,
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
+    if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
 
 
     if not continue_steps:
@@ -128,7 +132,8 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion}
+    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion, 
+                    'compute_dm':compute_dm, 'model_key_re':model_key_re }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -150,10 +155,19 @@ def fit(gal, nWalkers=10,
         pos = initial_pos
         prob = None
         state = None
+        dm_frac = None
         for k in six.moves.xrange(nBurn):
-            logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
-            pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                rstate0=state)
+            #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
+            # Temp for debugging:
+            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+                        np.mean(sampler.acceptance_fraction)  ) )
+            ###
+            if compute_dm:
+                pos, prob, state, dm_frac = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                    rstate0=state, blobs0=dm_frac)
+            else:
+                pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                    rstate0=state)
         #####
         ## This would run in one go:
         #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
@@ -176,7 +190,7 @@ def fit(gal, nWalkers=10,
         scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
         timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
                 (elapsed/60.-np.floor(elapsed/60.))*60. )
-        macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
+        macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
         logger.info('\nEnd: '+endtime+'\n'
                     '******************\n'
@@ -218,6 +232,8 @@ def fit(gal, nWalkers=10,
 
         # Reset sampler after burn-in:
         sampler.reset()
+        if compute_dm:
+             sampler.clear_blobs()
 
     else:
         # --------------------------------
@@ -225,6 +241,7 @@ def fit(gal, nWalkers=10,
         pos = np.array(initial_pos)
         prob = None
         state = None
+        dm_frac = None
 
 
 
@@ -244,7 +261,11 @@ def fit(gal, nWalkers=10,
 
         # --------------------------------
         # 1: only do one step at a time.
-        pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+        if compute_dm:
+            pos, prob, state, dm_frac = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state, blobs0 = dm_frac)
+        else:
+            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
         # --------------------------------
 
         # --------------------------------
@@ -300,7 +321,7 @@ def fit(gal, nWalkers=10,
     scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
     timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
             (elapsed/60.-np.floor(elapsed/60.))*60. )
-    macfracmsg = "Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction))
+    macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
     logger.info('\nEnd: '+endtime+'\n'
                 '******************\n'
@@ -339,16 +360,19 @@ def fit(gal, nWalkers=10,
                 f_sampler = f_sampler,
                 f_plot_param_corner = f_plot_param_corner,
                 f_plot_bestfit = f_plot_bestfit,
-                f_mcmc_results = f_mcmc_results)
+                f_mcmc_results = f_mcmc_results,
+                f_chain_ascii = f_chain_ascii)
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
 
     if f_mcmc_results is not None:
-        dump_pickle(mcmcResults, filename=f_mcmc_results) # Save mcmcResults class
-    #
-
+        mcmcResults.save_results(filename=f_mcmc_results)
+        
+    if f_chain_ascii is not None:
+        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        
     # --------------------------------
     # Plot trace, if output file set
     if (do_plotting) & (f_plot_trace is not None) :
@@ -367,11 +391,46 @@ def fit(gal, nWalkers=10,
 
 
 
+def fit_mpfit(gal, fit_dispersion=True):
+    """
+    A real simple function for fitting with least squares instead of MCMC.
+    Right now being used for testing.
+    """
+
+    p_initial = gal.model.get_free_parameters_values()
+    pkeys = gal.model.get_free_parameter_keys()
+    nparam = len(p_initial)
+    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0} for i in
+               range(nparam)]
+
+    for cmp in pkeys:
+        for param_name in pkeys[cmp]:
+
+            if pkeys[cmp][param_name] != -99:
+
+                bounds = gal.model.components[cmp].bounds[param_name]
+                k = pkeys[cmp][param_name]
+                parinfo[k]['limits'][0] = bounds[0]
+                parinfo[k]['limits'][1] = bounds[1]
+                parinfo[k]['value'] = p_initial[k]
+
+    fa = {'gal':gal, 'fitdispersion':fit_dispersion}
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
+
+    return m
 
 
 class MCMCResults(object):
     """
-    Class to hold results of MCMC fitting to DYSMALPY models
+    Class to hold results of MCMC fitting to DYSMALPY models.
+    
+    Note: emcee sampler object is ported to a dictionary in 
+            mcmcResults.sampler
+        
+        The name of the free parameters in the chain are accessed through:
+            mcmcResults.chain_param_names, 
+                or more generally (separate model + parameter names) through
+                mcmcResults.free_param_names
     """
     def __init__(self, model=None,
             sampler=None,
@@ -382,8 +441,8 @@ class MCMCResults(object):
             f_plot_param_corner = None,
             f_plot_bestfit = None,
             f_mcmc_results = None,
-            linked_posterior_names=None,
-            reload_mcmc_results_file=None):
+            f_chain_ascii = None, 
+            linked_posterior_names=None):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
@@ -407,6 +466,7 @@ class MCMCResults(object):
             self.free_param_names = OrderedDict()
             self._free_param_keys = OrderedDict()
             self.nparams_free = None
+            self.chain_param_names = None
 
 
         # Save what the filenames are for reference - eg, if they were defined by default.
@@ -417,6 +477,7 @@ class MCMCResults(object):
         self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
         self.f_mcmc_results = f_mcmc_results
+        self.f_chain_ascii = f_chain_ascii
 
 
 
@@ -428,6 +489,7 @@ class MCMCResults(object):
 
         self.free_param_names = OrderedDict()
         self._free_param_keys = OrderedDict()
+        self.chain_param_names = None
 
         self.nparams_free = model.nparams_free
         self.init_free_param_info(model)
@@ -456,6 +518,11 @@ class MCMCResults(object):
 
         self.free_param_names = dictfreenames
         self._free_param_keys = dictfreecomp
+        
+        
+        self.chain_param_names = make_arr_cmp_params(self)
+        
+        
 
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
@@ -558,7 +625,38 @@ class MCMCResults(object):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
-
+        
+    def save_results(self, filename=None):
+        if filename is not None:
+            dump_pickle(self, filename=filename) # Save mcmcResults class
+            
+    def save_chain_ascii(self, filename=None):
+        if filename is not None:
+            try:
+                blobs = self.sampler['blobs']
+                blobset = True
+            except:
+                blobset = False
+            
+            if ('flatblobs' not in self.sampler.keys()) & (blobset):
+                self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+            
+            with open(filename, 'w') as f:
+                namestr = '#'
+                namestr += '  '.join(map(str, self.chain_param_names))
+                if blobset:
+                    # Currently assuming blob only returns DM fraction
+                    namestr += '  f_DM'
+                f.write(namestr+'\n')
+                
+                # flatchain shape: (flat)step, params
+                for i in six.moves.xrange(self.sampler['flatchain'].shape[0]):
+                    datstr = '  '.join(map(str, self.sampler['flatchain'][i,:]))
+                    if blobset:
+                        datstr += '  {}'.format(self.sampler['flatblobs'][i])
+                    f.write(datstr+'\n')
+                    
+            
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
         if filename is None:
@@ -603,7 +701,9 @@ class MCMCResults(object):
 
 def log_prob(theta, gal,
             oversample=1,
-            fitdispersion=True):
+            fitdispersion=True,
+            compute_dm=False, 
+            model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -616,31 +716,42 @@ def log_prob(theta, gal,
 
     # First check to see if log prior is finite
     if not np.isfinite(lprior):
-        return -np.inf
+        if compute_dm:
+            return -np.inf, -np.inf
+        else:
+            return -np.inf
     else:
         # Update the model data
         gal.create_model_data(oversample=oversample,
                               line_center=gal.model.line_center)
-
+                              
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, fitdispersion=fitdispersion)
-        lprob = lprior + llike
+        llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
+
+        if compute_dm:
+            lprob = lprior + llike[0]
+        else:
+            lprob = lprior + llike
 
         if not np.isfinite(lprob):
             # Make sure the non-finite ln_prob is -Inf,
             #    as this can be escaped in the next step
             lprob = -np.inf
-        return lprob
+            
+        if compute_dm:
+            return lprob, llike[1]
+        else:
+            return lprob
 
 
-def log_like(gal, fitdispersion=True):
+def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
         mod = gal.model_data.data.unmasked_data[:].value
         err = gal.data.error.unmasked_data[:].value
         msk = gal.data.mask
-        # Artificially mask zero errors which are masked:
+        # Artificially mask zero errors which are masked
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
         llike = -0.5*chisq_arr_raw.sum()
@@ -649,18 +760,18 @@ def log_like(gal, fitdispersion=True):
         vel_dat = gal.data.data['velocity']
         vel_mod = gal.model_data.data['velocity']
         vel_err = gal.data.error['velocity']
-        
+
         disp_dat = gal.data.data['dispersion']
         disp_mod = gal.model_data.data['dispersion']
         disp_err = gal.data.error['dispersion']
-        
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
                 disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
-        
+
         msk = gal.data.mask
-        
+
 
         # Artificially mask zero errors which are masked:
         vel_err[((vel_err==0) & (msk==0))] = 99.
@@ -678,8 +789,66 @@ def log_like(gal, fitdispersion=True):
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
+    if compute_dm:
+        dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        return llike, dm_frac
+    else:
+        return llike
 
-    return llike
+
+def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
+
+    gal.model.update_parameters(theta)
+    gal.create_model_data()
+
+    if gal.data.ndim == 3:
+        dat = gal.data.data.unmasked_data[:].value
+        mod = gal.model_data.data.unmasked_data[:].value
+        err = gal.data.error.unmasked_data[:].value
+        msk = gal.data.mask
+        # Artificially mask zero errors which are masked
+        err[((err == 0) & (msk == 0))] = 99.
+        chisq_arr_raw = msk * (
+        ((dat - mod) / err))
+        chisq_arr_raw = chisq_arr_raw.flatten()
+
+    elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
+        vel_dat = gal.data.data['velocity']
+        vel_mod = gal.model_data.data['velocity']
+        vel_err = gal.data.error['velocity']
+
+        disp_dat = gal.data.data['dispersion']
+        disp_mod = gal.model_data.data['dispersion']
+        disp_err = gal.data.error['dispersion']
+
+        # Correct model for instrument dispersion if the data is instrument corrected:
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt(
+                    disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
+                        u.km / u.s).value ** 2)
+
+        msk = gal.data.mask
+
+        # Artificially mask zero errors which are masked:
+        vel_err[((vel_err == 0) & (msk == 0))] = 99.
+        disp_err[((disp_err == 0) & (msk == 0))] = 99.
+
+        chisq_arr_raw_vel = msk * ((vel_dat - vel_mod) / vel_err)
+        if fitdispersion:
+            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
+                                       chisq_arr_raw_disp.flatten()])
+        else:
+            chisq_arr_raw = chisq_arr_raw_vel.flatten()
+    else:
+        logger.warning("ndim={} not supported!".format(gal.data.ndim))
+        raise ValueError
+
+    status = 0
+
+    return [status, chisq_arr_raw]
+
 
 def initialize_walkers(model, nWalkers=None):
     """
@@ -914,6 +1083,10 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nParam': sampler.dim,
            'nCPU': sampler.threads,
            'nWalkers': len(sampler.chain) }
+
+    if len(sampler.blobs) > 0:
+        df['blobs'] = sampler.blobs
+        df['flatblobs'] = np.hstack(np.stack(sampler.blobs, axis=1))
 
     return df
 
