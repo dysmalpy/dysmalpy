@@ -454,6 +454,51 @@ class ModelSet:
         
         return dm_frac
 
+    def enclosed_mass(self, r):
+        """
+        Method to calculate the total enclosed mass for the whole model
+        as a function of radius
+        :param r: Radius in kpc
+        :return: Mass enclosed within each radius in Msun
+        """
+
+        # First check to make sure there is at least one mass component in the
+        # model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so an enclosed "
+                                 "mass can't be calculated.")
+        else:
+
+            enc_mass = r*0.
+            enc_dm = r*0.
+            enc_bary = r*0.
+
+            for cmp in self.mass_components:
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    enc_mass_cmp = mcomp.enclosed_mass(r)
+                    enc_mass += enc_mass_cmp
+
+                    if mcomp._subtype == 'dark_matter':
+
+                        enc_dm += enc_mass_cmp
+
+                    elif mcomp._subtype == 'baryonic':
+
+                        enc_bary += enc_mass_cmp
+
+            if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
+
+                vcirc, vhalo_adi = self.velocity_profile(r, compute_dm=True)
+                enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
+                              (G.cgs.value * Msun.cgs.value))
+                enc_mass = enc_mass - enc_dm + enc_dm_adi
+                enc_dm = enc_dm_adi
+
+        return enc_mass, enc_bary, enc_dm
+
+
+
     def velocity_profile(self, r, compute_dm=False):
         """
         Method to calculate the 1D velocity profile
@@ -467,8 +512,8 @@ class ModelSet:
                                  "can't be calculated.")
         else:
 
-            vdm = np.zeros(r.shape)
-            vbaryon = np.zeros(r.shape)
+            vdm = r*0.
+            vbaryon = r*0.
 
             for cmp in self.mass_components:
 
