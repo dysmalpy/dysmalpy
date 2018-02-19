@@ -48,6 +48,7 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+np.warnings.filterwarnings('ignore')
 
 # TODO: Tied parameters are NOT automatically updated when variables change!!
 # TODO: Need to keep track during the fitting!
@@ -560,17 +561,11 @@ class ModelSet:
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
+
         nx_sky_samp = nx_sky*oversample
         ny_sky_samp = ny_sky*oversample
         rstep_samp = rstep/oversample
-        nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
-
-        # Create 3D arrays of the sky pixel coordinates
-        sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-        zsky, ysky, xsky = np.indices(sh)
-        zsky = zsky - (nz_sky_samp - 1) / 2.
-        ysky = ysky - (ny_sky_samp - 1) / 2.
-        xsky = xsky - (nx_sky_samp - 1) / 2.
+        # nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
@@ -590,6 +585,21 @@ class ModelSet:
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
+
+            # Create 3D arrays of the sky pixel coordinates
+            cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+            maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
+            maxr_y = np.max(np.array([maxr*1.5, np.min(
+                np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            if np.mod(nz_sky_samp, 2) < 0.5:
+                nz_sky_samp += 1
+
+            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+            zsky, ysky, xsky = np.indices(sh)
+            zsky = zsky - (nz_sky_samp - 1) / 2.
+            ysky = ysky - (ny_sky_samp - 1) / 2.
+            xsky = xsky - (nx_sky_samp - 1) / 2.
 
             # Apply the geometric transformation to get galactic coordinates
             # Need to account for oversampling in the x and y shift parameters
@@ -626,10 +636,27 @@ class ModelSet:
                 tmp_cube = np.exp(
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
-                cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * f_cube
+                #cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * f_cube * 100.
+
+            cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
+
+            # Create 3D arrays of the sky pixel coordinates
+            cos_inc = np.cos(self.outflow_geometry.inc * np.pi / 180.)
+            maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
+            maxr_y = np.max(np.array([maxr * 1.5, np.min(
+                np.hstack([maxr * 1.5 / cos_inc, maxr * 5.]))]))
+            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            if np.mod(nz_sky_samp, 2) < 0.5:
+                nz_sky_samp += 1
+
+            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+            zsky, ysky, xsky = np.indices(sh)
+            zsky = zsky - (nz_sky_samp - 1) / 2.
+            ysky = ysky - (ny_sky_samp - 1) / 2.
+            xsky = xsky - (nx_sky_samp - 1) / 2.
 
             # Apply the geometric transformation to get outflow coordinates
             # Account for oversampling
@@ -1097,13 +1124,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     vmax = DysmalParameter(min=0)
     rturn = DysmalParameter(default=0.5, min=0)
     thetain = DysmalParameter(bounds=(0, 90))
-    thetaout = DysmalParameter(bounds=(0, 90))
+    dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
 
     _type = 'outflow'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, thetaout, rend,
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
                  profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both']
@@ -1118,9 +1145,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               thetaout, rend, **kwargs)
+                                               dtheta, rend, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, thetaout, rend):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1144,6 +1171,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
 
+        thetaout = np.min([thetain+dtheta, 90.])
         ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
         vel[ind_zero] = 0.
 
@@ -1155,8 +1183,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
-
-        ind_zero = ((theta < self.thetain) | (theta > self.thetaout) |
+        thetaout = np.min([self.thetain + self.dtheta, 90.])
+        ind_zero = ((theta < self.thetain) |
+                    (theta > thetaout) |
                     (r > self.rend))
         flux[ind_zero] = 0.
 

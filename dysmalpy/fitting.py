@@ -757,31 +757,27 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         llike = -0.5*chisq_arr_raw.sum()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-        vel_dat = gal.data.data['velocity']
-        vel_mod = gal.model_data.data['velocity']
-        vel_err = gal.data.error['velocity']
 
-        disp_dat = gal.data.data['dispersion']
-        disp_mod = gal.model_data.data['dispersion']
-        disp_err = gal.data.error['dispersion']
+        msk = gal.data.mask
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
 
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
-                disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                disp_mod = np.sqrt(disp_mod**2 -
+                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
 
-        msk = gal.data.mask
-
-
-        # Artificially mask zero errors which are masked:
-        vel_err[((vel_err==0) & (msk==0))] = 99.
-        disp_err[((disp_err==0) & (msk==0))] = 99.
-
-        chisq_arr_raw_vel = msk * (((vel_dat - vel_mod)/vel_err)**2 +
-                                   np.log(2.*np.pi*vel_err**2))
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
+                               np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
-            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod)/disp_err)**2 +
-                                          np.log(2.*np.pi*disp_err**2))
+            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2 +
+                                    np.log(2.*np.pi*disp_err**2))
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
@@ -813,13 +809,15 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
         chisq_arr_raw = chisq_arr_raw.flatten()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
-        vel_dat = gal.data.data['velocity']
-        vel_mod = gal.model_data.data['velocity']
-        vel_err = gal.data.error['velocity']
 
-        disp_dat = gal.data.data['dispersion']
-        disp_mod = gal.model_data.data['dispersion']
-        disp_err = gal.data.error['dispersion']
+        msk = gal.data.mask
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
 
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
@@ -828,15 +826,9 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
                     disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
                         u.km / u.s).value ** 2)
 
-        msk = gal.data.mask
-
-        # Artificially mask zero errors which are masked:
-        vel_err[((vel_err == 0) & (msk == 0))] = 99.
-        disp_err[((disp_err == 0) & (msk == 0))] = 99.
-
-        chisq_arr_raw_vel = msk * ((vel_dat - vel_mod) / vel_err)
+        chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err)
         if fitdispersion:
-            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw_disp = (((disp_dat - disp_mod) / disp_err))
             chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
                                        chisq_arr_raw_disp.flatten()])
         else:

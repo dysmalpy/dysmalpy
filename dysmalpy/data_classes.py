@@ -34,7 +34,7 @@ class Data(object):
         self.error = error
         self.ndim = ndim
         self.shape = shape
-        self.mask = mask
+        self.mask = np.array(mask, dtype=np.bool)
 
 
 class Data1D(Data):

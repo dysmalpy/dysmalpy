@@ -146,7 +146,7 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
     return None
     
 def plot_data_model_comparison_1D(gal, 
-            data_kwarg = None,
+            data = None,
             theta = None, 
             oversample=1, 
             fitdispersion=True, 
@@ -154,19 +154,15 @@ def plot_data_model_comparison_1D(gal,
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-    if (data_kwarg is not None) & (data_kwarg != 'data'):
-        data = gal.__dict__[data_kwarg]
-        
+    if data is not None:
+
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
         galnew.create_model_data(oversample=oversample,
                               line_center=galnew.model.line_center)
         model_data = galnew.model_data
-        
-        if fileout is not None:
-            fileoutsplt = fileout.split('.')
-            fileout = '.'.join(fileoutsplt[:-1]+'_1d.pdf')
+
     else:
         # Default: fit in 1D, compare to 1D data:
         data = gal.data
@@ -249,32 +245,32 @@ def plot_data_model_comparison_2D(gal,
     #
     ######################################
     # Setup plot:
-    f = plt.figure()
+    f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
     if fitdispersion:
         grid_vel = ImageGrid(f, 211,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
         grid_disp = ImageGrid(f, 212,
                               nrows_ncols=(1, 3),
                               direction="row",
-                              axes_pad=0.05,
+                              axes_pad=0.5,
                               add_all=True,
                               label_mode="1",
                               share_all=True,
                               cbar_location="right",
-                              cbar_mode="single",
-                              cbar_size="7%",
+                              cbar_mode="each",
+                              cbar_size="5%",
                               cbar_pad="1%",
                               )
 
@@ -282,13 +278,13 @@ def plot_data_model_comparison_2D(gal,
         grid_vel = ImageGrid(f, 111,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
@@ -303,22 +299,21 @@ def plot_data_model_comparison_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap =  cm.spectral
+    cmap.set_bad(color='k')
 
-    vel_vmin = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].min()
-    vel_vmax = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].max()
+    vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+    vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
 
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
-            im = gal.data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im = gal.data.data['velocity'].copy()
+            im[~gal.data.mask] = np.nan
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         elif k == 'residual':
             im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         else:
             raise ValueError("key not supported.")
 
@@ -337,30 +332,51 @@ def plot_data_model_comparison_2D(gal,
 
         ax.set_title(xt)
 
-    ax.cax.colorbar(imax)
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
 
     if fitdispersion:
 
-        disp_vmin = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].min()
-        disp_vmax = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].max()
+        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
 
         for ax, k in zip(grid_disp, keyxarr):
             if k == 'data':
-                im = gal.data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im = gal.data.data['dispersion'].copy()
+                im[~gal.data.mask] = np.nan
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im[~gal.data.mask] = np.nan
+
+                # Correct model for instrument dispersion
+                # if the data is instrument corrected:
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                     u.km / u.s).value ** 2)
+
             elif k == 'residual':
-                im = gal.data.data['dispersion'] - gal.model_data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+
+                im_model = gal.model_data.data['dispersion'].copy()
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im_model = np.sqrt(im_model ** 2 -
+                                           gal.instrument.lsf.dispersion.to(
+                                           u.km / u.s).value ** 2)
+
+
+                im = gal.data.data['dispersion'] - im_model
+                im[~gal.data.mask] = np.nan
+
             else:
                 raise ValueError("key not supported.")
 
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            if k != 'residual':
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            else:
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 origin=origin)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
@@ -372,7 +388,8 @@ def plot_data_model_comparison_2D(gal,
             else:
                 ax.set_axis_off()
 
-        ax.cax.colorbar(imax)
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
 
     #############################################################
     # Save to file:
