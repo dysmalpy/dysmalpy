@@ -457,7 +457,7 @@ class ModelSet:
         
         if self.kinematic_options.pressure_support:
             # Correct for pressure support to get circular velocity:
-            vc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
+            vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
         else:
             vc = vel.copy()
         
