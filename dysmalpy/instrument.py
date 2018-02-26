@@ -18,7 +18,7 @@ import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam
 
-__all__ = ["Instrument", "Beam", "LSF"]
+__all__ = ["Instrument", "Beam", "LSF", "DoubleBeam"]
 
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
@@ -106,18 +106,28 @@ class Instrument:
         return cube
 
     def set_beam_kernel(self):
+
         if (self.beam_type == 'analytic') | (self.beam_type == None):
             kernel = self.beam.as_kernel(self.pixscale)
-            kern2D = kernel.array
+
+            if isinstance(self.beam, Beam):
+                kern2D = kernel.array
+            elif isinstance(self.beam, DoubleBeam):
+                kern2D = kernel
+
         elif self.beam_type == 'empirical':
             if len(self.beam.shape) == 1:
                 raise ValueError("1D beam/PSF not currently supported")
+
             kern2D = self.beam.copy()
+
             # Replace NaNs/non-finite with zero:
             kern2D[~np.isfinite(kern2D)] = 0.
+
             # Replace < 0 with zero:
             kern2D[kern2D<0.] = 0.
             kern2D /= np.sum(kern2D[np.isfinite(kern2D)])  # need to normalize
+
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
 
@@ -301,3 +311,60 @@ class LSF(u.Quantity):
         sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
 
         return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+
+class DoubleBeam:
+
+    def __init__(self, major1=None, minor1=None, pa1=None, scale1=None,
+                 major2=None, minor2=None, pa2=None, scale2=None):
+
+
+        if (major1 is None) or (major2 is None):
+            raise ValueError('Need to specify at least the major axis FWHM of each beam component.')
+
+        if minor1 is None:
+            minor1 = major1
+
+        if minor2 is None:
+            minor2 = major2
+
+        if pa1 is None:
+            pa1 = 0.*u.deg
+
+        if pa2 is None:
+            pa2 = 0.*u.deg
+
+        if scale1 is None:
+            scale1 = 1.0
+
+        if scale2 is None:
+            scale2 = scale1
+
+        self.beam1 = Beam(major=major1, minor=minor1, pa=pa1)
+        self.beam2 = Beam(major=major2, minor=minor2, pa=pa2)
+        self._scale1 = scale1
+        self._scale2 = scale2
+
+
+    def as_kernel(self, pixscale):
+
+        kernel1 = self.beam1.as_kernel(pixscale)
+        kernel2 = self.beam2.as_kernel(pixscale)
+
+        if kernel1.shape[0] > kernel2.shape[1]:
+
+            xsize = kernel1.shape[0]
+            ysize= kernel1.shape[1]
+            kernel2 = self.beam2.as_kernel(pixscale, x_size=xsize, y_size=ysize)
+
+        elif kernel1.shape[0] < kernel2.shape[1]:
+
+            xsize = kernel2.shape[0]
+            ysize = kernel2.shape[1]
+            kernel1 = self.beam1.as_kernel(pixscale, x_size=xsize, y_size=ysize)
+
+        # Combine the kernels
+        kernel_total = 10. * (kernel1.array * self._scale1 / np.sum(kernel1.array) +
+                              kernel2.array * self._scale2 / np.sum(kernel2.array))
+
+        return kernel_total
