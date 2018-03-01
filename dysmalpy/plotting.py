@@ -148,7 +148,8 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
 def plot_data_model_comparison_1D(gal, 
             data = None,
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     ######################################
@@ -159,7 +160,7 @@ def plot_data_model_comparison_1D(gal,
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
-        galnew.create_model_data(oversample=oversample,
+        galnew.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=galnew.model.line_center)
         model_data = galnew.model_data
 
@@ -239,7 +240,8 @@ def plot_data_model_comparison_1D(gal,
 
 def plot_data_model_comparison_2D(gal, 
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     #
@@ -403,7 +405,8 @@ def plot_data_model_comparison_2D(gal,
         
 def plot_data_model_comparison(gal, 
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     """
@@ -411,20 +414,22 @@ def plot_data_model_comparison(gal,
     """
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
-        gal.create_model_data(oversample=oversample,
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center)
 
     if gal.data.ndim == 1:
         plot_data_model_comparison_1D(gal, 
-                    data_kwarg = None,
+                    data = None,
                     theta = theta, 
-                    oversample=oversample, 
+                    oversample=oversample,
+                    oversize=oversize,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(gal, 
                     theta = theta, 
-                    oversample=oversample, 
+                    oversample=oversample,
+                    oversize=oversize,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 3:
@@ -437,13 +442,14 @@ def plot_data_model_comparison(gal,
 
 def plot_bestfit(mcmcResults, gal,
             oversample=1,
+            oversize=1,
             fitdispersion=True,
             fileout=None):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
-            oversample=oversample, fitdispersion=fitdispersion, fileout=fileout)
+            oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout)
                 
     return None
 

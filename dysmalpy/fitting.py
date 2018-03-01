@@ -53,6 +53,7 @@ def fit(gal, nWalkers=10,
            maxAF = 0.5,
            nEff = 10,
            oversample = 1,
+           oversize = 1,
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
@@ -132,7 +133,7 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion, 
+    kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
@@ -385,7 +386,7 @@ def fit(gal, nWalkers=10,
 
     if (do_plotting) & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mcmcResults, gal, fitdispersion=fitdispersion,
-                    oversample=oversample, fileout=f_plot_bestfit)
+                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
 
     return mcmcResults
 
@@ -674,24 +675,24 @@ class MCMCResults(object):
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
 
-    def plot_results(self, gal, fitdispersion=True, oversample=1,
-                f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
+    def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
+                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(fileout=f_plot_param_corner)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
-                oversample=oversample, fileout=f_plot_bestfit)
+                oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
         plotting.plot_corner(self, fileout=fileout)
-    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, fileout=None):
+    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
         """Plot/replot the bestfit for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_bestfit
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
-                    oversample=oversample, fileout=fileout)
+                              oversample=oversample, oversize=oversize, fileout=fileout)
     def plot_trace(self, fileout=None):
         """Plot/replot the trace for the MCMC fitting"""
         if fileout is None:
@@ -700,10 +701,11 @@ class MCMCResults(object):
 
 
 def log_prob(theta, gal,
-            oversample=1,
-            fitdispersion=True,
-            compute_dm=False, 
-            model_key_re=['disk+bulge','r_eff_disk']):
+             oversample=1,
+             oversize=1,
+             fitdispersion=True,
+             compute_dm=False,
+             model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -722,7 +724,7 @@ def log_prob(theta, gal,
             return -np.inf
     else:
         # Update the model data
-        gal.create_model_data(oversample=oversample,
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center)
                               
         # Evaluate likelihood prob of theta
