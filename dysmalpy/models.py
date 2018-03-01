@@ -566,7 +566,8 @@ class ModelSet:
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s, line_center=None, oversample=1):
+                      spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1):
+
         """Simulate an IFU cube of this model set"""
 
         # Start with a 3D array in the sky coordinate system
@@ -574,9 +575,17 @@ class ModelSet:
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
 
-        nx_sky_samp = nx_sky*oversample
-        ny_sky_samp = ny_sky*oversample
+        nx_sky_samp = nx_sky*oversample*oversize
+        ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
+
+        if (np.mod(nx_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
+            nx_sky_samp = nx_sky_samp + 1
+
+        if (np.mod(ny_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
+            ny_sky_samp = ny_sky_samp + 1
+
+        print(nx_sky_samp, ny_sky_samp)
         # nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
