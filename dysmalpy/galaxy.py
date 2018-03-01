@@ -94,7 +94,7 @@ class Galaxy:
                           spec_unit=(u.km/u.s), aper_centers=None,
                           slit_width=None, slit_pa=None,
                           from_instrument=True, from_data=True,
-                          oversample=1):
+                          oversample=1, oversize=1):
 
         """Simulate an IFU cube then optionally collapse it down to a 2D
         velocity/dispersion field or 1D velocity/dispersion profile."""
@@ -187,11 +187,12 @@ class Galaxy:
                                                   spec_start=spec_start,
                                                   spec_unit=spec_unit,
                                                   line_center=line_center,
-                                                  oversample=oversample)
+                                                  oversample=oversample,
+                                                  oversize=oversize)
                                                   
         # Correct for any oversampling
         if oversample > 1:
-            sim_cube_nooversamp = rebin(sim_cube, (ny_sky, nx_sky))
+            sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
         else:
             sim_cube_nooversamp = sim_cube
 
@@ -201,8 +202,20 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
+
+        # Re-size the cube back down
+        if oversize > 1:
+            nx_oversize = sim_cube_obs.shape[2]
+            ny_oversize = sim_cube_obs.shape[1]
+            sim_cube_final = sim_cube_obs[:,
+                np.int(ny_oversize/2 - ny_sky/2):np.int(ny_oversize/2+ny_sky/2),
+                np.int(nx_oversize/2 - nx_sky/2):np.int(nx_oversize/2+nx_sky/2)]
+
+        else:
+            sim_cube_final = sim_cube_obs
+
             
-        self.model_cube = Data3D(cube=sim_cube_obs, pixscale=rstep,
+        self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
 
