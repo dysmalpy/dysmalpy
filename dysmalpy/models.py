@@ -860,19 +860,64 @@ class DiskBulge(MassModel):
                                 self.r_eff_disk)
 
         return menc_disk+menc_bulge
+        
+    def enclosed_mass_disk(self, r):
+        mdisk_total = 10 ** self.total_mass * (1 - self.bt)
+        
+        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
+                                self.r_eff_disk)
+        return menc_disk
+        
+    def enclosed_mass_bulge(self, r):
+        mbulge_total = 10 ** self.total_mass * self.bt
+    
+        menc_bulge= sersic_menc(r, mbulge_total, self.n_bulge,
+                                 self.r_eff_bulge)
+        return menc_bulge
 
-    def circular_velocity(self, r):
-
-        mbulge_total = 10**self.total_mass*self.bt
-        mdisk_total = 10**self.total_mass*(1-self.bt)
-
+        
+    def circular_velocity_disk(self, r):
         if self.noord_flat:
-
-            vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                                     self.n_bulge, self.invq_bulge)
-            vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            mdisk_total = 10**self.total_mass*(1-self.bt)
+            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
                                      self.n_disk, self.invq_disk)
 
+        else:
+            mass_enc = self.enclosed_mass_disk(r)
+            vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+                            (r * 1000. * pc.cgs.value))
+            vcirc = vcirc/1e5
+
+        return vcirc
+        
+    def circular_velocity_bulge(self, r):
+        if self.noord_flat:
+            mbulge_total = 10**self.total_mass*self.bt
+            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+                                     self.n_bulge, self.invq_bulge)
+        else:
+            mass_enc = self.enclosed_mass_bulge(r)
+            vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+                            (r * 1000. * pc.cgs.value))
+            vcirc = vcirc/1e5
+
+        return vcirc
+        
+    def circular_velocity(self, r):
+
+        if self.noord_flat:
+            # mbulge_total = 10**self.total_mass*self.bt
+            # mdisk_total = 10**self.total_mass*(1-self.bt)
+            # 
+            # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #                          self.n_bulge, self.invq_bulge)
+            # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            #                          self.n_disk, self.invq_disk)
+            # 
+            
+            vbulge = self.circular_velocity_bulge(r)
+            vdisk = self.circular_velocity_disk(r)
+            
             vcirc = np.sqrt(vbulge**2 + vdisk**2)
 
         else:
@@ -880,6 +925,22 @@ class DiskBulge(MassModel):
             vcirc = super(DiskBulge, self).circular_velocity(r)
 
         return vcirc
+        
+    def velocity_profile(self, r, modelset):
+        vcirc = self.circular_velocity(r)
+        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_disk(self, r, modelset):
+        vcirc = self.circular_velocity_disk(r)
+        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_bulge(self, r, modelset):
+        vcirc = self.circular_velocity_bulge(r)
+        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
 
     def mass_to_light(self, r):
 
@@ -968,6 +1029,16 @@ class NFW(MassModel):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+        
+    def velocity_profile(self, r, model):
+        """
+        Calculate velocity profile, including any adiabtic contraction
+        """
+        
+        if model.kinematic_options.adiabatic_contract:
+            raise NotImplementedError("Adiabatic contraction not currently supported!")
+        else:
+            return self.circular_velocity(r)
 
 
 # ****** Geometric Model ********
