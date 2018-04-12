@@ -928,17 +928,17 @@ class DiskBulge(MassModel):
         
     def velocity_profile(self, r, modelset):
         vcirc = self.circular_velocity(r)
-        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
         
     def velocity_profile_disk(self, r, modelset):
         vcirc = self.circular_velocity_disk(r)
-        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
         
     def velocity_profile_bulge(self, r, modelset):
         vcirc = self.circular_velocity_bulge(r)
-        vrot = self.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
         
 
