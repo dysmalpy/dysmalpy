@@ -74,7 +74,23 @@ def sersic_menc(r, mass, n, r_eff):
     norm = mass
 
     return norm*integ
+    
+def v_circular(mass_enc, r):
+    """
+    Default method to evaluate the circular velocity
+    as a function of radius using the standard equation:
+    v(r) = SQRT(GM(r)/r)
+    """
+    vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+                    (r * 1000. * pc.cgs.value))
+    vcirc = vcirc/1e5
 
+    return vcirc
+
+def menc_from_vcirc(vcirc, r):
+    menc = ((vcirc*1e5)**2.*(r*1000.*pc.cgs.value) /
+                  (G.cgs.value * Msun.cgs.value))
+    return menc
 
 def apply_noord_flat(r, r_eff, mass, n, invq):
 
@@ -503,8 +519,9 @@ class ModelSet:
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
 
                 vcirc, vhalo_adi = self.velocity_profile(r, compute_dm=True)
-                enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
-                              (G.cgs.value * Msun.cgs.value))
+                # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
+                #               (G.cgs.value * Msun.cgs.value))
+                enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
                 enc_mass = enc_mass - enc_dm + enc_dm_adi
                 enc_dm = enc_dm_adi
 
@@ -563,6 +580,11 @@ class ModelSet:
                 return vel, vdm
             else:
                 return vel
+                
+    def circular_velocity(self, r):
+        vel = self.velocity_profile(r, compute_dm=False)
+        vcirc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
+        return vcirc
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
@@ -752,9 +774,11 @@ class MassModel(_DysmalFittable1DModel):
         """
 
         mass_enc = self.enclosed_mass(r)
-        vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
-                        (r * 1000. * pc.cgs.value))
-        vcirc = vcirc/1e5
+        # vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+        #                 (r * 1000. * pc.cgs.value))
+        # vcirc = vcirc/1e5
+        
+        vcirc = v_circular(mass_enc, r)
 
         return vcirc
 
@@ -884,9 +908,7 @@ class DiskBulge(MassModel):
 
         else:
             mass_enc = self.enclosed_mass_disk(r)
-            vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
-                            (r * 1000. * pc.cgs.value))
-            vcirc = vcirc/1e5
+            vcirc = v_circular(mass_enc, r)
 
         return vcirc
         
@@ -897,9 +919,7 @@ class DiskBulge(MassModel):
                                      self.n_bulge, self.invq_bulge)
         else:
             mass_enc = self.enclosed_mass_bulge(r)
-            vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
-                            (r * 1000. * pc.cgs.value))
-            vcirc = vcirc/1e5
+            vcirc = v_circular(mass_enc, r)
 
         return vcirc
         
