@@ -1274,6 +1274,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     rend = DysmalParameter(default=1.0, min=0)
 
     _type = 'outflow'
+    _spatial_type = 'resolved'
     outputs = ('vout',)
 
     def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
