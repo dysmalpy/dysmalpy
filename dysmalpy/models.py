@@ -685,52 +685,65 @@ class ModelSet:
 
         if self.outflow is not None:
 
-            # Create 3D arrays of the sky pixel coordinates
-            cos_inc = np.cos(self.outflow_geometry.inc * np.pi / 180.)
-            maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
-            maxr_y = np.max(np.array([maxr * 1.5, np.min(
-                np.hstack([maxr * 1.5 / cos_inc, maxr * 5.]))]))
-            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
-            if np.mod(nz_sky_samp, 2) < 0.5:
-                nz_sky_samp += 1
+            if self.outflow._spatial_type == 'resolved':
+                # Create 3D arrays of the sky pixel coordinates
+                cos_inc = np.cos(self.outflow_geometry.inc * np.pi / 180.)
+                maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
+                maxr_y = np.max(np.array([maxr * 1.5, np.min(
+                    np.hstack([maxr * 1.5 / cos_inc, maxr * 5.]))]))
+                nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+                if np.mod(nz_sky_samp, 2) < 0.5:
+                    nz_sky_samp += 1
 
-            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-            zsky, ysky, xsky = np.indices(sh)
-            zsky = zsky - (nz_sky_samp - 1) / 2.
-            ysky = ysky - (ny_sky_samp - 1) / 2.
-            xsky = xsky - (nx_sky_samp - 1) / 2.
+                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+                zsky, ysky, xsky = np.indices(sh)
+                zsky = zsky - (nz_sky_samp - 1) / 2.
+                ysky = ysky - (ny_sky_samp - 1) / 2.
+                xsky = xsky - (nx_sky_samp - 1) / 2.
 
-            # Apply the geometric transformation to get outflow coordinates
-            # Account for oversampling
-            self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
-            self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
-            xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
+                # Apply the geometric transformation to get outflow coordinates
+                # Account for oversampling
+                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
+                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
+                xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
 
-            # Convert to kpc
-            xout_kpc = xout * rstep_samp / dscale
-            yout_kpc = yout * rstep_samp / dscale
-            zout_kpc = zout * rstep_samp / dscale
+                # Convert to kpc
+                xout_kpc = xout * rstep_samp / dscale
+                yout_kpc = yout * rstep_samp / dscale
+                zout_kpc = zout * rstep_samp / dscale
 
-            rout = np.sqrt(xout**2 + yout**2 + zout**2)
-            vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
-            fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+                rout = np.sqrt(xout**2 + yout**2 + zout**2)
+                vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
+                fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
-            # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-            # TODO: I really need to check this!!
-            vobs = -vout * zsky/rout
-            vobs[rout == 0] = vout[rout == 0]
+                # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+                vobs = -vout * zsky/rout
+                vobs[rout == 0] = vout[rout == 0]
 
-            sigma_out = self.outflow_dispersion(rout)
-            for zz in range(nz_sky_samp):
-                f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
-                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-                sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
-                tmp_cube = np.exp(
-                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-                cube_sum = np.nansum(tmp_cube, 0)
-                cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * f_cube
+                sigma_out = self.outflow_dispersion(rout)
+                for zz in range(nz_sky_samp):
+                    f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
+                    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                    sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
+                    tmp_cube = np.exp(
+                        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                    cube_sum = np.nansum(tmp_cube, 0)
+                    cube_sum[cube_sum == 0] = 1
+                    cube_final += tmp_cube / cube_sum * f_cube
 
+            elif self.outflow._spatial_type == 'unresolved':
+
+                # Set where the unresolved will be located and account for oversampling
+                xshift = self.outflow_geometry.xshift.value * oversample
+                yshift = self.outflow_geometry.yshift.value * oversample
+
+                # The coordinates where the unresolved outflow is placed needs to be
+                # an integer pixel so for now we round to nearest integer.
+                xpix = np.int(np.round(xshift)) + nx_sky_samp/2
+                ypix = np.int(np.round(yshift)) + ny_sky_samp/2
+
+                voutflow = self.outflow(vx)
+                cube_final[:, ypix, xpix] += voutflow
 
         return cube_final, spec
 
