@@ -1338,6 +1338,25 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         return flux
 
 
+class UnresolvedOutflow(_DysmalFittable1DModel):
+    """
+    Model for an unresolved outflow component with a specific flux and width.
+    """
+
+    vcenter = DysmalParameter(default=0)
+    fwhm = DysmalParameter(default=1000.0, bounds=(0, None))
+    amplitude = DysmalParameter(default=1.0, bounds=(0, None))
+
+    _type = 'outflow'
+    _spatial_type = 'unresolved'
+    outputs = ('vout',)
+
+    @staticmethod
+    def evaluate(v, vcenter, fwhm, amplitude):
+
+        return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
+
+
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
 
     if rprime < 0.:
