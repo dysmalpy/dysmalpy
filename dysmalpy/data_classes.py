@@ -249,24 +249,29 @@ class Data3D(Data):
             spec_ctype = 'WAVE'
 
         if (ra is None) | (dec is None):
-            xref = 0
-            yref = 0
-            ra = 0.
-            dec = 0.
+            xref = 1
+            yref = 1
+            ra = -pixscale / 3600. * cube.shape[2]/2
+            dec = -pixscale / 3600. * cube.shape[2]/2
+            ctype1 = 'RA---CAR'
+            ctype2 = 'DEC--CAR'
+
         elif ref_pixel is not None:
             xref = ref_pixel[1]
             yref = ref_pixel[0]
+            ctype1 = 'RA---TAN'
+            ctype2 = 'DEC--TAN'
 
         else:
             xref = np.int(cube.shape[2] / 2.)
             yref = np.int(cube.shape[1] / 2.)
+            ctype1 = 'RA---TAN'
+            ctype2 = 'DEC--TAN'
 
         # Create a simple header for the cube
         w = WCS(naxis=3)
-        if (ra is None) | (dec is None):
-            w.wcs.ctype = ['RA---CAR', 'DEC--CAR', spec_ctype]
-        else:
-            w.wcs.ctype = ['RA---TAN', 'DEC--TAN', spec_ctype]
+
+        w.wcs.ctype = [ctype1, ctype2, spec_ctype]
         w.wcs.cdelt = [pixscale / 3600., pixscale / 3600., spec_step]
         w.wcs.crpix = [xref, yref, 1]
         w.wcs.cunit = ['deg', 'deg', spec_unit.to_string()]
