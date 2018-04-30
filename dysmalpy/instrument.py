@@ -87,9 +87,17 @@ class Instrument:
 
         if self._lsf_kernel is None:
             self.set_lsf_kernel(spec_center=spec_center)
-
+            
         cube = fftconvolve(cube, self._lsf_kernel, mode='same')
-
+        
+        # shp = self._lsf_kernel.shape
+        # if shp[0] % 2 == 1:
+        #     padf = (shp[0]-1)/2
+        # else:
+        #     padf = shp[0]/2
+        # cube = fftconvolve(cube, self._lsf_kernel, mode='full')
+        # cube = cube[padf:-padf, :, :]
+        
         return cube
 
     def convolve_with_beam(self, cube):
@@ -100,19 +108,33 @@ class Instrument:
 
         if self._beam_kernel is None:
             self.set_beam_kernel()
-
+            
         cube = fftconvolve(cube, self._beam_kernel, mode='same')
-
+        
+        # shp = self._beam_kernel.shape
+        # if shp[1] % 2 == 1:
+        #     padf = (shp[1]-1)/2
+        # else:
+        #     padf = shp[1]/2
+        # cube = fftconvolve(cube, self._beam_kernel, mode='full')
+        # cube = cube[:, padf:-padf, padf:-padf]
+        
         return cube
 
-    def set_beam_kernel(self):
+    def set_beam_kernel(self, support_scaling=8.):
 
         if (self.beam_type == 'analytic') | (self.beam_type == None):
-            kernel = self.beam.as_kernel(self.pixscale)
+            
 
             if isinstance(self.beam, Beam):
+                kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
                 kern2D = kernel.array
-            elif isinstance(self.beam, DoubleBeam):
+            else:
+                kernel = self.beam.as_kernel(self.pixscale)
+                
+            if isinstance(self.beam, DoubleBeam):
+                kern2D = kernel
+            elif isinstance(self.beam, Moffat):
                 kern2D = kernel
 
         elif self.beam_type == 'empirical':
@@ -368,3 +390,84 @@ class DoubleBeam:
                               kernel2.array * self._scale2 / np.sum(kernel2.array))
 
         return kernel_total
+        
+class Moffat(object):
+
+    def __init__(self, major_fwhm=None, minor_fwhm=None, pa=None, beta=None, padfac=16.):
+        
+        if (major_fwhm is None) | (beta is None):
+            raise ValueError('Need to specify at least the major axis FWHM + beta of beam.')
+        
+        if minor_fwhm is None:
+            minor_fwhm = major_fwhm
+        if (major_fwhm != minor_fwhm) & (pa is None):
+            raise ValueError("Need to specifiy 'pa' to have elliptical PSF!")
+            
+        
+        if pa is None:
+            pa = 0.*u.deg
+        
+        #
+        self.major_fwhm = major_fwhm
+        self.minor_fwhm = minor_fwhm
+        self.pa = pa
+        self.beta = beta
+        
+        self.alpha = self.major_fwhm/(2.*np.sqrt(np.power(2., 1./np.float(self.beta)) - 1 ))
+        
+        self.padfac = padfac
+
+    def as_kernel(self, pixscale):
+        
+        try:
+            pixscale = pixscale.to(self.major_fwhm.unit)
+            pixscale = pixscale.value
+            
+            major_fwhm = self.major_fwhm.value
+            minor_fwhm = self.minor_fwhm.value
+            pa = self.pa.value
+            
+            alpha = self.alpha.value/pixscale
+        except:
+            major_fwhm = self.major_fwhm
+            minor_fwhm = self.minor_fwhm
+            pa = self.pa
+            alpha = self.alpha/pixscale
+        
+        
+        #padfac = 16. #8. # from Beam
+        
+        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * self.padfac))
+        if npix % 2 == 0:
+            npix += 1
+        
+        
+        print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta, 
+                    major_fwhm, pixscale, npix))
+        
+        
+        # Arrays
+        y, x = np.indices((npix, npix), dtype=float)
+        x -= (npix-1)/2.
+        y -= (npix-1)/2.
+        
+        
+        
+        cost = np.cos(pa*np.pi/180.)
+        sint = np.sin(pa*np.pi/180.)
+        
+        xp = cost*x + sint*y
+        yp = -sint*x + cost*y
+        
+        # print("x={}, y={}".format(x,y))
+        # print("xp={}, yp={}".format(xp,yp))
+        
+        qtmp = minor_fwhm / major_fwhm
+        
+        
+        r = np.sqrt(xp**2 + (yp/qtmp)**2)
+        
+        kernel = (self.beta-1.)/(np.pi * alpha**2) * np.power( (1. + (r/alpha)**2 ), -1.*self.beta )
+        
+        return kernel
+    
