@@ -607,7 +607,7 @@ class ModelSet:
         if (np.mod(ny_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             ny_sky_samp = ny_sky_samp + 1
 
-        # nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
+        #nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
