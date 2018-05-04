@@ -17,8 +17,8 @@ from astropy.wcs import WCS
 from spectral_cube import SpectralCube, BooleanArrayMask
 
 # LOGGER SETTINGS
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('DysmalPy')
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger('DysmalPy')
 
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
@@ -28,13 +28,19 @@ __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 class Data(object):
 
     def __init__(self, data=None, error=None, ndim=None, mask=None,
-                 shape=None):
-
+                 shape=None, 
+                 filename_velocity=None, 
+                 filename_dispersion=None):
+                 
         self.data = data
         self.error = error
         self.ndim = ndim
         self.shape = shape
         self.mask = np.array(mask, dtype=np.bool)
+        
+        self.filename_velocity = filename_velocity
+        self.filename_dispersion = filename_dispersion
+        
 
 
 class Data1D(Data):

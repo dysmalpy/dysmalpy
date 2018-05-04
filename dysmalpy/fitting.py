@@ -40,8 +40,9 @@ acor_force_min = 49
 # Force it to run for at least 50 steps, otherwise acor times might be completely wrong.
 
 # LOGGER SETTINGS
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('DysmalPy')
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger('DysmalPy')
+
 
 def fit(gal, nWalkers=10,
            cpuFrac=None,
@@ -71,7 +72,8 @@ def fit(gal, nWalkers=10,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
            f_mcmc_results = None,
-           f_chain_ascii = None ):
+           f_chain_ascii = None,
+           f_log = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
 
@@ -118,7 +120,13 @@ def fit(gal, nWalkers=10,
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
-
+    
+    # Setup file redirect logging:
+    if f_log is not None:
+        logging.basicConfig(filename=f_log,level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.INFO)
+        
 
     if not continue_steps:
         # --------------------------------
@@ -141,14 +149,14 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Output some fitting info to logger:
-    logger.info(' nCPUs: {}'.format(nCPUs))
+    logging.info(' nCPUs: {}'.format(nCPUs))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
     # --------------------------------
     # Run burn-in
     if nBurn > 0:
-        logger.info('\nBurn-in:'+'\n'
+        logging.info('\nBurn-in:'+'\n'
                     'Start: {}'.format(datetime.datetime.now()))
         start = time.time()
 
@@ -160,7 +168,7 @@ def fit(gal, nWalkers=10,
         for k in six.moves.xrange(nBurn):
             #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             # Temp for debugging:
-            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+            logging.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
             if compute_dm:
@@ -193,7 +201,7 @@ def fit(gal, nWalkers=10,
                 (elapsed/60.-np.floor(elapsed/60.))*60. )
         macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
-        logger.info('\nEnd: '+endtime+'\n'
+        logging.info('\nEnd: '+endtime+'\n'
                     '******************\n'
                     ''+nthingsmsg+'\n'
                     ''+scaleparammsg+'\n'
@@ -207,12 +215,12 @@ def fit(gal, nWalkers=10,
         try:
             if nBurn < np.max(acor_time) * nBurn_nEff:
                 nburntimemsg = 'nBurn is less than {}*acorr time'.format(nBurn_nEff)
-                logger.info('\n#################\n'
+                logging.info('\n#################\n'
                             ''+nburntimemsg+'\n'
                             '#################\n')
                 # Give warning if the burn-in is less than say 2-3 times the autocorr time
         except:
-            logger.info('\n#################\n'
+            logging.info('\n#################\n'
                         "acorr time undefined -> can't check convergence\n"
                         '#################\n')
 
@@ -250,7 +258,7 @@ def fit(gal, nWalkers=10,
     # ****
     # --------------------------------
     # Run sampler: Get start time
-    logger.info('\nEnsemble sampling:\n'
+    logging.info('\nEnsemble sampling:\n'
                 'Start: {}'.format(datetime.datetime.now()))
     start = time.time()
 
@@ -274,13 +282,13 @@ def fit(gal, nWalkers=10,
         nowtime = str(datetime.datetime.now())
         stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
         timemsg = " time.time()={}".format(nowtime)
-        logger.info( stepinfomsg+timemsg )
+        logging.info( stepinfomsg+timemsg )
         try:
             #acor_time = sampler.acor
             acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
-            logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+            logging.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
-            logger.info(" {}: Chain too short for acor to run".format(ii) )
+            logging.info(" {}: Chain too short for acor to run".format(ii) )
             acor_time = None
             
                      
@@ -291,22 +299,22 @@ def fit(gal, nWalkers=10,
                 if acor_time is not None:
                     if ( ii > np.max(acor_time) * nEff ):
                         if ii == acor_force_min:
-                            logger.info(" Enforced min step limit: {}.".format(ii+1))
+                            logging.info(" Enforced min step limit: {}.".format(ii+1))
                         if ii >= acor_force_min:
-                            logger.info(" Breaking chain at step {}.".format(ii+1))
+                            logging.info(" Breaking chain at step {}.".format(ii+1))
                             break
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
     finishedSteps= ii+1
     if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        logger.info(" Warning: chain did not converge after nSteps.")
+        logging.info(" Warning: chain did not converge after nSteps.")
 
     # --------------------------------
     # Finishing info for fitting:
     end = time.time()
     elapsed = end-start
-    logger.info("Finished {} steps".format(finishedSteps)+"\n")
+    logging.info("Finished {} steps".format(finishedSteps)+"\n")
     try:
         #acor_time = sampler.acor
         acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
@@ -324,7 +332,7 @@ def fit(gal, nWalkers=10,
             (elapsed/60.-np.floor(elapsed/60.))*60. )
     macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
-    logger.info('\nEnd: '+endtime+'\n'
+    logging.info('\nEnd: '+endtime+'\n'
                 '******************\n'
                 ''+nthingsmsg+'\n'
                 ''+scaleparammsg+'\n'
@@ -784,7 +792,7 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
     else:
-        logger.warning("ndim={} not supported!".format(gal.data.ndim))
+        logging.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
     if compute_dm:
@@ -836,7 +844,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
         else:
             chisq_arr_raw = chisq_arr_raw_vel.flatten()
     else:
-        logger.warning("ndim={} not supported!".format(gal.data.ndim))
+        logging.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
     status = 0
@@ -1087,7 +1095,7 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
-        logger.info( "Making path="+dir)
+        logging.info( "Making path="+dir)
         os.makedirs(dir)
     return None
 
