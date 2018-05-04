@@ -32,8 +32,8 @@ __all__ = ['Galaxy']
 _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
 # LOGGER SETTINGS
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('DysmalPy')
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger('DysmalPy')
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):

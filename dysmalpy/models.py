@@ -46,8 +46,8 @@ pc = apy_con.pc
 _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
 # LOGGER SETTINGS
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('DysmalPy')
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger('DysmalPy')
 np.warnings.filterwarnings('ignore')
 
 # TODO: Tied parameters are NOT automatically updated when variables change!!
@@ -1176,7 +1176,7 @@ class KinematicOptions:
     def apply_adiabatic_contract(self, r, vbaryon, vhalo, compute_dm=False):
 
         if self.adiabatic_contract:
-            logger.info("Applying adiabatic contraction.")
+            logging.info("Applying adiabatic contraction.")
             rprime_all = np.zeros(len(r))
             for i in range(len(r)):
                 result = scp_opt.newton(_adiabatic, r[i] + 1.,
@@ -1217,7 +1217,7 @@ class KinematicOptions:
                             break
 
                 if pre is None:
-                    logger.warning("No baryonic mass component found. Using "
+                    logging.warning("No baryonic mass component found. Using "
                                    "1 kpc as the pressure support effective"
                                    " radius")
                     pre = 1.0
@@ -1229,7 +1229,7 @@ class KinematicOptions:
                 raise AttributeError("Can't apply pressure support without "
                                      "a dispersion profile!")
 
-            #logger.info("Applying pressure support with effective radius of {} "
+            #logging.info("Applying pressure support with effective radius of {} "
             #            "kpc.".format(pre))
             sigma = model.dispersion_profile(r)
             vel_squared = (
@@ -1254,7 +1254,7 @@ class KinematicOptions:
                             break
 
                 if pre is None:
-                    logger.warning("No baryonic mass component found. Using "
+                    logging.warning("No baryonic mass component found. Using "
                                    "1 kpc as the pressure support effective"
                                    " radius")
                     pre = 1.0
@@ -1266,7 +1266,7 @@ class KinematicOptions:
                 raise AttributeError("Can't apply pressure support without "
                                      "a dispersion profile!")
 
-            #logger.info("Correcting for pressure support with effective radius of {} "
+            #logging.info("Correcting for pressure support with effective radius of {} "
             #            "kpc.".format(pre))
             sigma = model.dispersion_profile(r)
             vel_squared = (
@@ -1298,7 +1298,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         if profile_type in valid_profiles:
             self.profile_type = profile_type
         else:
-            logger.error("Invalid profile type. Must be one of 'increase',"
+            logging.error("Invalid profile type. Must be one of 'increase',"
                          "'decrease', or 'both.'")
 
         self.tau_flux = tau_flux

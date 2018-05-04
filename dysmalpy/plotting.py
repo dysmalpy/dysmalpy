@@ -29,8 +29,8 @@ __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
 
 # LOGGER SETTINGS
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('DysmalPy')
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger('DysmalPy')
 
 
 def plot_trace(mcmcResults, fileout=None):
@@ -433,9 +433,9 @@ def plot_data_model_comparison(gal,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 3:
-        logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
+        logging.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
     else:
-        logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
+        logging.warning("nDim="+str(gal.data.ndim)+" not supported!")
         raise ValueError
     
     return None
