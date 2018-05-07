@@ -24,8 +24,8 @@ __all__ = ["Instrument", "Beam", "LSF", "DoubleBeam"]
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 
 # LOGGER SETTINGS
-#logging.basicConfig(level=logging.INFO)
-#logger = logging.getLogger('DysmalPy')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
 
 
 class Instrument:
@@ -62,7 +62,7 @@ class Instrument:
 
         if self.beam is None and self.lsf is None:
             # Nothing to do if a PSF and LSF aren't set for the instrument
-            logging.warning("No convolution being performed since PSF and LSF "
+            logger.warning("No convolution being performed since PSF and LSF "
                            "haven't been set!")
             return cube
 
@@ -171,7 +171,7 @@ class Instrument:
                                  "the instrument or call to convolve.")
 
             elif (spec_center is not None):
-                #logging.info("Overriding the instrument central wavelength "
+                #logger.info("Overriding the instrument central wavelength "
                 #            "with {}.".format(spec_center))
 
                 kernel = self.lsf.as_wave_kernel(self.spec_step, spec_center)
@@ -219,7 +219,7 @@ class Instrument:
         if value is None:
             self._pixscale = value
         elif not isinstance(value, u.Quantity):
-            logging.warning("No units on pixscale. Assuming arcseconds.")
+            logger.warning("No units on pixscale. Assuming arcseconds.")
             self._pixscale = value*u.arcsec
         else:
             if (u.arcsec).is_equivalent(value):
@@ -237,7 +237,7 @@ class Instrument:
         if value is None:
             self._spec_step = value
         elif not isinstance(value, u.Quantity):
-            logging.warning("No units on spec_step. Assuming km/s.")
+            logger.warning("No units on spec_step. Assuming km/s.")
             self._spec_step = value * u.km/u.s
         else:
             self._spec_step = value
@@ -276,7 +276,7 @@ class LSF(u.Quantity):
             if (u.km/u.s).is_equivalent(dispersion):
                 dispersion = dispersion
             else:
-                logging.warning("Assuming dispersion has been specified in "
+                logger.warning("Assuming dispersion has been specified in "
                                "km/s.")
                 dispersion = dispersion * default_unit
 

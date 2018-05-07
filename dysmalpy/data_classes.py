@@ -17,8 +17,8 @@ from astropy.wcs import WCS
 from spectral_cube import SpectralCube, BooleanArrayMask
 
 # LOGGER SETTINGS
-#logging.basicConfig(level=logging.INFO)
-#logger = logging.getLogger('DysmalPy')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
 
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
