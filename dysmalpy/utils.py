@@ -151,8 +151,8 @@ def calc_pix_position(r, pa, xcenter, ycenter):
     return xnew, ynew
 
 
-def measure_1d_profile_apertures(cube, rap, dr, center_pixel, pa, spec_arr, spec_mask=None,
-                                 estimate_err=False, nmc=100):
+def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=None,
+                                 ap_centers=None, spec_mask=None, estimate_err=False, nmc=100):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
     :param cube: Cube to measure the 1D profile on
@@ -177,8 +177,19 @@ def measure_1d_profile_apertures(cube, rap, dr, center_pixel, pa, spec_arr, spec
     ny = cube.shape[1]
     nx = cube.shape[2]
 
+    # Assume the default central pixel is the center of the cube
+    if center_pixel is None:
+        center_pixel = (np.int(nx / 2), np.int(ny / 2))
+
+    # Assume equal distance between successive apertures equal to diameter of aperture
+    if dr is None:
+        dr = 2*rap
+
     # First determine the centers of all the apertures that fit within the cube
-    xaps, yaps, centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
+    if ap_centers is None:
+        xaps, yaps, ap_centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
+    else:
+        xaps, yaps = calc_pix_position(ap_centers, -np.pi/180.*pa, center_pixel[0], center_pixel[1])
 
     # Setup up the arrays to hold the results
     naps = len(xaps)
@@ -241,7 +252,7 @@ def measure_1d_profile_apertures(cube, rap, dr, center_pixel, pa, spec_arr, spec
             disp_err[i] = np.nanstd(disp_mc)
 
     if estimate_err:
-        return centers, np.vstack([flux, flux_err]), np.vstack([mean, mean_err]), np.vstack([disp, disp_err])
+        return ap_centers, np.vstack([flux, flux_err]), np.vstack([mean, mean_err]), np.vstack([disp, disp_err])
 
     else:
-        return centers, flux, mean, disp
+        return ap_centers, flux, mean, disp
