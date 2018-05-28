@@ -189,7 +189,7 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
     if ap_centers is None:
         xaps, yaps, ap_centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
     else:
-        xaps, yaps = calc_pix_position(ap_centers, -np.pi/180.*pa, center_pixel[0], center_pixel[1])
+        xaps, yaps = calc_pix_position(ap_centers, pa, center_pixel[0], center_pixel[1])
 
     # Setup up the arrays to hold the results
     naps = len(xaps)
