@@ -29,6 +29,7 @@ import dill as _pickle
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
+from dysmalpy.utils import measure_1d_profile_apertures
 
 __all__ = ['Galaxy']
 
@@ -95,8 +96,8 @@ class Galaxy:
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,
                           spec_start=-1000., nspec=201, line_center=None,
-                          spec_unit=(u.km/u.s), aper_centers=None,
-                          slit_width=None, slit_pa=None,
+                          spec_unit=(u.km/u.s), aper_centers=None, aper_dist=None,
+                          slit_width=None, slit_pa=None, profile1d_type='circ_ap_cube',
                           from_instrument=True, from_data=True,
                           oversample=1, oversize=1):
 
@@ -300,15 +301,36 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
 
-            r1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                                                slit_pa, rstep, vel_arr)
+            if profile1d_type == 'circ_ap_pv':
 
-            vinterp = scp_interp.interp1d(r1d, vel1d,
-                                          fill_value='extrapolate')
-            disp_interp = scp_interp.interp1d(r1d, disp1d,
+                r1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
+                                                    slit_pa, rstep, vel_arr)
+                vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
-            vel1d = vinterp(aper_centers)
-            disp1d = disp_interp(aper_centers)
+                disp_interp = scp_interp.interp1d(r1d, disp1d,
+                                                  fill_value='extrapolate')
+                vel1d = vinterp(aper_centers)
+                disp1d = disp_interp(aper_centers)
+
+            elif profile1d_type == 'circ_ap_cube':
+
+                rpix = slit_width/rstep
+
+                if aper_dist is None:
+                    aper_dist_pix = 2*rpix
+                else:
+                    aper_dist_pix = aper_dist/rstep
+
+                aper_centers_pix = aper_centers/rstep
+                r1d, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
+                                                                          vel_arr,
+                                                                          dr=aper_dist_pix,
+                                                                          ap_centers=aper_centers_pix)
+
+            else:
+                raise TypeError('Unknown method for measuring the 1D profiles.')
+
+
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
