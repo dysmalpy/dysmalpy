@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import time
 import logging
+import copy
 
 # Third party imports
 import numpy as np
@@ -19,6 +20,9 @@ import astropy.units as u
 from astropy.extern import six
 import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
+
+
+import dill as _pickle
 
 # Local imports
 # Package imports
@@ -309,3 +313,34 @@ class Galaxy:
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
 
+    #
+    def preserve_self(self, filename=None):
+        # def save_galaxy_model(self, galaxy=None, filename=None):
+        if filename is not None:
+            
+            galtmp = copy.deepcopy(self)
+            galtmp.data = None
+            galtmp.model_data = None
+            
+            # galtmp.instrument = copy.deepcopy(galaxy.instrument)
+            # galtmp.model = modtmp
+            
+            #dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+            _pickle.dump(galtmp, open(filename, "wb") )
+            
+            return None
+            
+    def load_self(self, filename=None):
+        if filename is not None:
+            galtmp = _pickle.load(open(filename, "rb"))
+            # Reset
+            #self = copy.deepcopy(galtmp)
+            #return self
+            return galtmp
+            
+            
+def load_galaxy_object(filename=None):
+    gal = Galaxy()
+    gal = gal.load_self(filename=filename)
+    return gal
+    

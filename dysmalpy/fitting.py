@@ -26,6 +26,7 @@ from dysmalpy.extern.cap_mpfit import mpfit
 import emcee
 import acor
 
+
 import time, datetime
 
 from scipy.stats import gaussian_kde
@@ -61,6 +62,7 @@ def fit(gal, nWalkers=10,
            model_key_re = ['disk+bulge','r_eff_disk'],  
            do_plotting = True,
            save_burn = False,
+           save_model = True, 
            out_dir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
@@ -68,6 +70,7 @@ def fit(gal, nWalkers=10,
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
+           f_model = None, 
            f_sampler = None,
            f_burn_sampler = None,
            f_plot_param_corner = None,
@@ -115,6 +118,7 @@ def fit(gal, nWalkers=10,
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
+    if save_model and (f_model is None): f_model = out_dir+'galaxy_model.pickle'
     if f_sampler is None:            f_sampler = out_dir+'mcmc_sampler.pickle'
     if save_burn and (f_burn_sampler is None):  f_burn_sampler = out_dir+'mcmc_burn_sampler.pickle'
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
@@ -390,6 +394,10 @@ def fit(gal, nWalkers=10,
         
     if f_chain_ascii is not None:
         mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        
+    if f_model is not None:
+        #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
+        gal.preserve_self(filename=f_model)
         
     # --------------------------------
     # Plot trace, if output file set
@@ -680,6 +688,19 @@ class MCMCResults(object):
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
                     
+    # def save_galaxy_model(self, galaxy=None, filename=None):
+    #     if filename is not None:
+    #         
+    #         galtmp = copy.deepcopy(galaxy)
+    #         galtmp.data = None
+    #         galtmp.model_data = None
+    #         
+    #         # galtmp.instrument = copy.deepcopy(galaxy.instrument)
+    #         # galtmp.model = modtmp
+    #         
+    #         
+    #         dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+            
             
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
