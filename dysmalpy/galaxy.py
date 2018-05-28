@@ -339,8 +339,11 @@ class Galaxy:
     def preserve_self(self, filename=None):
         # def save_galaxy_model(self, galaxy=None, filename=None):
         if filename is not None:
-            
             galtmp = copy.deepcopy(self)
+            
+            galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
+            galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
+            
             galtmp.data = None
             galtmp.model_data = None
             galtmp.model_cube = None
