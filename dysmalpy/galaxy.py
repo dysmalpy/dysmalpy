@@ -343,6 +343,7 @@ class Galaxy:
             galtmp = copy.deepcopy(self)
             galtmp.data = None
             galtmp.model_data = None
+            galtmp.model_cube = None
             
             # galtmp.instrument = copy.deepcopy(galaxy.instrument)
             # galtmp.model = modtmp
