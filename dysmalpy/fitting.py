@@ -13,6 +13,7 @@ from multiprocessing import cpu_count
 
 # DYSMALPY code
 from dysmalpy import plotting
+from dysmalpy import galaxy
 
 # Third party imports
 import os
@@ -1145,6 +1146,18 @@ def dump_pickle(data, filename=None):
     _pickle.dump(data, open(filename, "wb") )
     return None
 
+
+
+def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
+    #, filename_sampler=None):
+    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
+    
+    mcmcResults = MCMCResults() #model=gal.model
+    
+    mcmcResults.reload_mcmc_results(filename=filename_mcmc_results)
+    #mcmcResults.reload_sampler(filename=filename_sampler)
+    
+    return gal, mcmcResults
 
 
 
