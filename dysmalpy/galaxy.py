@@ -322,7 +322,7 @@ class Galaxy:
                     aper_dist_pix = aper_dist/rstep
 
                 aper_centers_pix = aper_centers/rstep
-                r1d, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
+                aper_centers, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
                                                                           ap_centers=aper_centers_pix)
