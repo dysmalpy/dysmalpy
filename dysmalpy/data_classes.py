@@ -44,6 +44,10 @@ class Data(object):
 
 
 class Data1D(Data):
+    """
+    Convention:
+        slit_pa is angle of slit to left side of major axis (eg, neg r is E)
+    """
 
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, slit_width=None,
