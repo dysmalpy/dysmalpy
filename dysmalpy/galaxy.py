@@ -101,8 +101,13 @@ class Galaxy:
                           from_instrument=True, from_data=True,
                           oversample=1, oversize=1):
 
-        """Simulate an IFU cube then optionally collapse it down to a 2D
-        velocity/dispersion field or 1D velocity/dispersion profile."""
+        """
+        Simulate an IFU cube then optionally collapse it down to a 2D
+        velocity/dispersion field or 1D velocity/dispersion profile.
+        
+        Convention:
+            slit_pa is angle of slit to left side of major axis (eg, neg r is E)
+        """
 
         # Pull parameters from the observed data if specified
         if from_data:
@@ -322,10 +327,12 @@ class Galaxy:
                     aper_dist_pix = aper_dist/rstep
 
                 aper_centers_pix = aper_centers/rstep
-                aper_centers, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
+                aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
                                                                           ap_centers=aper_centers_pix)
+                aper_centers = aper_centers_pixout*rstep
+                                                                          
 
             else:
                 raise TypeError('Unknown method for measuring the 1D profiles.')

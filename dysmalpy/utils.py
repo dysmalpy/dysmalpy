@@ -138,17 +138,21 @@ def calc_pix_position(r, pa, xcenter, ycenter):
     :param ycenter:
     :return:
     """
-
+    
     pa_rad = np.pi/180. * pa
-    xnew = -r*np.sin(pa_rad)*np.sign(np.cos(pa_rad)) + xcenter
-    ynew = r*np.cos(pa_rad)*np.sign(np.cos(pa_rad)) + ycenter
+    #signfac = np.sign(np.cos(pa_rad))
+    #xnew = -r*np.sin(pa_rad)*signfac + xcenter
+    #signfac = np.sign(np.sin(pa_rad))
+    signfac = -1
+    xnew = -r*np.sin(pa_rad)*signfac + xcenter
+    ynew = r*np.cos(pa_rad)*signfac + ycenter
 
     return xnew, ynew
 
 
 def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=None,
                                  ap_centers=None, spec_mask=None, estimate_err=False, nmc=100,
-                                 profile_direction='negative'):
+                                 profile_direction='positive'):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
     :param cube: Cube to measure the 1D profile on
@@ -169,7 +173,8 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
           of apertures that are fit. The first row will be best fit values and the second row will
           contain the errors on those parameters.
     """
-
+    # profile_direction = 'negative'
+    
     ny = cube.shape[1]
     nx = cube.shape[2]
 
@@ -186,9 +191,10 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
         xaps, yaps, ap_centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
     else:
         xaps, yaps = calc_pix_position(ap_centers, pa, center_pixel[0], center_pixel[1])
-
-    if (profile_direction == 'negative') & (np.abs(pa) < 90.0):
-        ap_centers = -ap_centers
+    
+    ### SHOULD SORT THIS OUT FROM DATA by correctly setting model geom PA + slit_pa
+    # if (profile_direction == 'negative') & (np.abs(pa) < 90.0):
+    #     ap_centers = -ap_centers
 
     # Setup up the arrays to hold the results
     naps = len(xaps)
