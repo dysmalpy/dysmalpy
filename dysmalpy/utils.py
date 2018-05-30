@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import astropy.modeling as apy_mod
 import matplotlib.pyplot as plt
+import scipy.signal as sp_sig
 
 
 def calc_pixel_distance(nx, ny, center_coord):
@@ -261,3 +262,18 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
 
     else:
         return ap_centers, flux, mean, disp
+
+
+
+def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
+    if smoothing_type is None:
+        return vel, disp
+    else:
+        if (smoothing_type.lower() == 'median'):
+            vel = sp_sig.medfilt(vel, kernel_size=smoothing_npix)
+            disp = sp_sig.medfilt(disp, kernel_size=smoothing_npix)
+        else:
+            message("Smoothing type={} not supported".format(smoothing_type))
+            
+        return vel, disp
+        

@@ -30,13 +30,18 @@ class Data(object):
     def __init__(self, data=None, error=None, ndim=None, mask=None,
                  shape=None, 
                  filename_velocity=None, 
-                 filename_dispersion=None):
+                 filename_dispersion=None, 
+                 smoothing_type=None, 
+                 smoothing_npix=1):
                  
         self.data = data
         self.error = error
         self.ndim = ndim
         self.shape = shape
         self.mask = np.array(mask, dtype=np.bool)
+        
+        self.smoothing_type = smoothing_type
+        self.smoothing_npix = smoothing_npix
         
         self.filename_velocity = filename_velocity
         self.filename_dispersion = filename_dispersion
@@ -52,7 +57,9 @@ class Data1D(Data):
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, slit_width=None,
                  slit_pa=None, estimate_err=False, error_frac=0.2,
-                 inst_corr=False):
+                 inst_corr=False, 
+                 filename_velocity=None, 
+                 filename_dispersion=None):
         # Default assume 1D dispersion is **NOT** instrument corrected
         
         if r.shape != velocity.shape:
@@ -124,7 +131,9 @@ class Data1D(Data):
         self.slit_pa = slit_pa
         self.rarr = r
         super(Data1D, self).__init__(data=data, error=error, ndim=1,
-                                     shape=shape, mask=mask)
+                                     shape=shape, mask=mask,
+                                     filename_velocity=filename_velocity, 
+                                     filename_dispersion=filename_dispersion)
 
 
 class Data2D(Data):
@@ -132,7 +141,11 @@ class Data2D(Data):
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, estimate_err=False,
                  error_frac=0.2, ra=None, dec=None, ref_pixel=None,
-                 inst_corr=False):
+                 inst_corr=False, 
+                 filename_velocity=None, 
+                 filename_dispersion=None, 
+                 smoothing_type=None, 
+                 smoothing_npix=1):
 
         if mask is not None:
             if mask.shape != velocity.shape:
@@ -201,7 +214,11 @@ class Data2D(Data):
         self.dec = dec
         self.ref_pixel = ref_pixel
         super(Data2D, self).__init__(data=data, error=error, ndim=2,
-                                     shape=shape, mask=mask)
+                                     shape=shape, mask=mask,
+                                     filename_velocity=filename_velocity, 
+                                     filename_dispersion=filename_dispersion,
+                                     smoothing_type=smoothing_type, 
+                                     smoothing_npix=smoothing_npix)
 
 
 class Data3D(Data):
