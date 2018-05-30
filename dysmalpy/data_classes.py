@@ -209,7 +209,12 @@ class Data2D(Data):
             error['dispersion'] = None
 
         shape = velocity.shape
-        self.pixscale = pixscale
+        # Catch a case where Astropy unit might be passed:
+        if (type(pixscale) == u.quantity.Quantity):
+            self.pixscale = pixscale.to(u.arcsec).value
+        else:
+            # If constant, should be implicitly arcsec:
+            self.pixscale = pixscale
         self.ra = ra
         self.dec = dec
         self.ref_pixel = ref_pixel
