@@ -29,7 +29,7 @@ import dill as _pickle
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
-from dysmalpy.utils import measure_1d_profile_apertures
+from dysmalpy.utils import measure_1d_profile_apertures, apply_smoothing_2D
 
 __all__ = ['Galaxy']
 
@@ -258,6 +258,10 @@ class Galaxy:
             #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
             #     sim_cube_obs *= scale
             
+            # Throw a non-implemented error if smoothing + 3D model:
+            if self.data.smoothing_type is not None:
+                raise NotImplementedError('Smoothing for 3D output not implemented yet!')
+            
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)
@@ -282,7 +286,12 @@ class Galaxy:
             else:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
-
+            
+            if self.data.smoothing_type is not None:
+                vel, disp = apply_smoothing_2D(vel, disp, 
+                            smoothing_type=self.data.smoothing_type,
+                            smoothing_npix=self.data.smoothing_npix)
+            
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
 
