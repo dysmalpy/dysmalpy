@@ -130,7 +130,7 @@ class Instrument:
                 kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
                 kern2D = kernel.array
             else:
-                kernel = self.beam.as_kernel(self.pixscale)
+                kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
                 
             if isinstance(self.beam, DoubleBeam):
                 kern2D = kernel
@@ -429,6 +429,9 @@ class Moffat(object):
             
             alpha = self.alpha.value/pixscale
         except:
+            pixscale = pixscale.to(self.major_fwhm.unit)
+            pixscale = pixscale.value
+            
             major_fwhm = self.major_fwhm
             minor_fwhm = self.minor_fwhm
             pa = self.pa
