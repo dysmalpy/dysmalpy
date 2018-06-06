@@ -25,6 +25,8 @@ import astropy.constants as apy_con
 import astropy.units as u
 from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
+import pyximport; pyximport.install(setup_args={'include_dirs':['/Users/ttshimiz/Github/dysmalpy/dysmalpy/']})
+from . import cutils
 
 # Local imports
 from .parameters import DysmalParameter
@@ -654,14 +656,19 @@ class ModelSet:
 
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
+            t3 = time.time()
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
             vcirc = self.velocity_profile(rgal)
-
+            t4 = time.time()
+            print(t4-t3)
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
+            t5 = time.time()
             vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
+            t6 = time.time()
+            print(t6-t5)
             vobs[rgal == 0] = 0.
 
             # Calculate "flux" for each position
@@ -675,18 +682,19 @@ class ModelSet:
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
             t1 = time.time()
-            for zz in range(nz_sky_samp):
-                f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
-                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-                sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
-                tmp_cube = np.exp(
-                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-                cube_sum = np.nansum(tmp_cube, 0)
-                #cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * f_cube * 100.
+            #for zz in range(nz_sky_samp):
+            #    f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
+            #    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+            #    sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
+            #    tmp_cube = np.exp(
+            #        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+            #    cube_sum = np.nansum(tmp_cube, 0)
+            #    #cube_sum[cube_sum == 0] = 1
+            #    cube_final += tmp_cube / cube_sum * f_cube * 100.
+            cube_final = cutils.populate_cube(flux, vobs, sigmar, vx)
             t2 = time.time()
             print(t2 - t1)
-            cube_final = cube_final/np.mean(cube_final)
+            #cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
 
