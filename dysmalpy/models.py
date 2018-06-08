@@ -642,7 +642,6 @@ class ModelSet:
                 nz_sky_samp += 1
 
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-            print(sh)
             zsky, ysky, xsky = np.indices(sh)
             zsky = zsky - (nz_sky_samp - 1) / 2.
             ysky = ysky - (ny_sky_samp - 1) / 2.
@@ -656,19 +655,13 @@ class ModelSet:
 
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
-            t3 = time.time()
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
             vcirc = self.velocity_profile(rgal)
-            t4 = time.time()
-            print(t4-t3)
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
-            t5 = time.time()
             vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
-            t6 = time.time()
-            print(t6-t5)
             vobs[rgal == 0] = 0.
 
             # Calculate "flux" for each position
@@ -681,7 +674,6 @@ class ModelSet:
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
-            t1 = time.time()
             #for zz in range(nz_sky_samp):
             #    f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
             #    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
@@ -692,8 +684,6 @@ class ModelSet:
             #    #cube_sum[cube_sum == 0] = 1
             #    cube_final += tmp_cube / cube_sum * f_cube * 100.
             cube_final = cutils.populate_cube(flux, vobs, sigmar, vx)
-            t2 = time.time()
-            print(t2 - t1)
             #cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
