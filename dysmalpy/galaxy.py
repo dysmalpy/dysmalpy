@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import time
 import logging
+import copy
 
 # Third party imports
 import numpy as np
@@ -20,12 +21,15 @@ from astropy.extern import six
 import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
 
+
+import dill as _pickle
+
 # Local imports
 # Package imports
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
-from dysmalpy.utils import measure_1d_profile_apertures
+from dysmalpy.utils import measure_1d_profile_apertures, apply_smoothing_2D
 
 __all__ = ['Galaxy']
 
@@ -97,8 +101,13 @@ class Galaxy:
                           from_instrument=True, from_data=True,
                           oversample=1, oversize=1):
 
-        """Simulate an IFU cube then optionally collapse it down to a 2D
-        velocity/dispersion field or 1D velocity/dispersion profile."""
+        """
+        Simulate an IFU cube then optionally collapse it down to a 2D
+        velocity/dispersion field or 1D velocity/dispersion profile.
+        
+        Convention:
+            slit_pa is angle of slit to left side of major axis (eg, neg r is E)
+        """
 
         # Pull parameters from the observed data if specified
         if from_data:
@@ -249,6 +258,10 @@ class Galaxy:
             #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
             #     sim_cube_obs *= scale
             
+            # Throw a non-implemented error if smoothing + 3D model:
+            if self.data.smoothing_type is not None:
+                raise NotImplementedError('Smoothing for 3D output not implemented yet!')
+            
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)
@@ -273,7 +286,12 @@ class Galaxy:
             else:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
-
+            
+            if self.data.smoothing_type is not None:
+                vel, disp = apply_smoothing_2D(vel, disp, 
+                            smoothing_type=self.data.smoothing_type,
+                            smoothing_npix=self.data.smoothing_npix)
+            
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
 
@@ -318,10 +336,12 @@ class Galaxy:
                     aper_dist_pix = aper_dist/rstep
 
                 aper_centers_pix = aper_centers/rstep
-                r1d, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
+                aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
                                                                           ap_centers=aper_centers_pix)
+                aper_centers = aper_centers_pixout*rstep
+                                                                          
 
             else:
                 raise TypeError('Unknown method for measuring the 1D profiles.')
@@ -331,3 +351,38 @@ class Galaxy:
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
 
+    #
+    def preserve_self(self, filename=None):
+        # def save_galaxy_model(self, galaxy=None, filename=None):
+        if filename is not None:
+            galtmp = copy.deepcopy(self)
+            
+            galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
+            galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
+            
+            galtmp.data = None
+            galtmp.model_data = None
+            galtmp.model_cube = None
+            
+            # galtmp.instrument = copy.deepcopy(galaxy.instrument)
+            # galtmp.model = modtmp
+            
+            #dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+            _pickle.dump(galtmp, open(filename, "wb") )
+            
+            return None
+            
+    def load_self(self, filename=None):
+        if filename is not None:
+            galtmp = _pickle.load(open(filename, "rb"))
+            # Reset
+            #self = copy.deepcopy(galtmp)
+            #return self
+            return galtmp
+            
+            
+def load_galaxy_object(filename=None):
+    gal = Galaxy()
+    gal = gal.load_self(filename=filename)
+    return gal
+    

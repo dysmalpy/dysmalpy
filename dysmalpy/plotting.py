@@ -21,7 +21,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import ImageGrid
+from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 
 import corner
 
@@ -402,6 +402,203 @@ def plot_data_model_comparison_2D(gal,
         plt.draw()
         plt.show()
         
+        
+def plot_model_multid(gal, 
+            theta=None, 
+            oversample=1, 
+            oversize=1, 
+            fileout=None):
+        
+    #
+    ######################################
+    # Setup plot:
+    f = plt.figure(figsize=(6., 6))
+    scale = 3.5
+    ncols = 2
+    
+    grid_1D = [plt.subplot2grid((2, 2), (0, 0)), plt.subplot2grid((2, 2), (0, 1))]
+    
+    # gs_outer= plt.subplot(211)
+    # 
+    # 
+    # gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_outer[0])
+    # 
+    # axes = []
+    # k = -1
+    # grid_1D = []
+    # for j in six.moves.xrange(ncols):
+    #     # Comparison:
+    #     grid_1D.append(plt.subplot(gs[0,j]))
+    #     
+    # #grid_1D = [plt.subplot2grid((2, 2), (2, 0)), ax5 = plt.subplot2grid((3, 3), (2, 1))
+    #     
+        
+    # grid_1D = ImageGrid(f, 211,
+    #                      nrows_ncols=(1, ncols),
+    #                      direction="row",
+    #                      axes_pad=0.5,
+    #                      add_all=True,
+    #                      label_mode="1",
+    #                      share_all=True,
+    #                      cbar_mode="None"
+    #                      )
+    
+    # grid_1D = AxesGrid(f, 211, 
+    #                  nrows_ncols=(1, ncols),
+    #                  direction="row",
+    #                  axes_pad=0.5,
+    #                  add_all=True,
+    #                  share_all=False, 
+    #                  label_mode="1",
+    #                  )
+
+    grid_2D = ImageGrid(f, 212,
+                          nrows_ncols=(1, ncols),
+                          direction="row",
+                          axes_pad=0.5,
+                          add_all=True,
+                          label_mode="1",
+                          share_all=True,
+                          cbar_location="right",
+                          cbar_mode="each",
+                          cbar_size="5%",
+                          cbar_pad="1%",
+                          )
+    
+    
+    
+    
+    if theta is not None:
+        gal.model.update_parameters(theta)     # Update the parameters
+        
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=gal.model.line_center, ndim_final=1)
+    galnew = copy.deepcopy(gal)
+    model_data = galnew.model_data
+    data = galnew.data
+    if 'inst_corr' in data.data.keys():
+        if (data.data['inst_corr']):
+            model_data.data['dispersion'] = \
+                np.sqrt( model_data.data['dispersion']**2 - \
+                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                    
+                    
+
+
+    ######################################
+
+    keyxtitle = r'$r$ [arcsec]'
+    keyyarr = ['velocity', 'dispersion']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+
+    errbar_lw = 0.5
+    errbar_cap = 1.5
+
+    k = -1
+    for j in six.moves.xrange(ncols):
+        # Comparison:
+        k += 1
+        ax = grid_1D[k]
+        
+        try:
+            ax.scatter( data.rarr, data.data[keyyarr[j]],
+                c='black', marker='o', s=25, lw=1, label=None)
+        except:
+            pass
+        
+        ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
+            c='red', marker='s', s=25, lw=1, label=None)
+        ax.set_xlabel(keyxtitle)
+        ax.set_ylabel(keyytitlearr[j])
+        ax.axhline(y=0, ls='--', color='k', zorder=-10.)
+        
+        
+    ######################################
+    
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=gal.model.line_center, ndim_final=2, 
+                              from_data=False)
+
+
+    keyxarr = ['model']
+    keyyarr = ['velocity', 'dispersion']
+    keyxtitlearr = ['Model']
+    keyytitlearr = [r'$V$', r'$\sigma$']
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap =  cm.spectral
+    cmap.set_bad(color='k')
+    
+    
+    
+    for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
+        if k == 'velocity':
+            im = gal.model_data.data['velocity'].copy()
+            #im[~gal.data.mask] = np.nan
+            im[~np.isfinite(im)] = 0.
+            
+            vmin = im.min()
+            vmax = im.max()
+            
+            if max(np.abs(vmin), np.abs(vmax)) > 1000.:
+                vmin = -300.
+                vmax = 300.
+            
+        elif k == 'dispersion':
+            im = gal.model_data.data['dispersion'].copy()
+            #im[~gal.data.mask] = np.nan
+            
+            
+            # Correct model for instrument dispersion
+            # if the data is instrument corrected:
+            if 'inst_corr' in gal.data.data.keys():
+                if (gal.data.data['inst_corr']):
+                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                 u.km / u.s).value ** 2)
+            im[~np.isfinite(im)] = 0.
+            
+            vmin = im.min()
+            vmax = im.max()
+            
+            if max(np.abs(vmin), np.abs(vmax)) > 500.:
+                vmin = 0.
+                vmax = 200.
+            
+        else:
+            raise ValueError("key not supported.")
+        
+        
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                         vmin=vmin, vmax=vmax, origin=origin)
+
+        ax.set_ylabel(keyytitlearr[0])
+        ax.tick_params(which='both', top='off', bottom='off',
+                       left='off', right='off', labelbottom='off',
+                       labelleft='off')
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        # else:
+        #     ax.set_axis_off()
+
+        #ax.set_title(xt)
+
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
+
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+    
+    return None
+    
+    
         
 def plot_data_model_comparison(gal, 
             theta = None, 

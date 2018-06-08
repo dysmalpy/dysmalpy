@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import astropy.modeling as apy_mod
 import matplotlib.pyplot as plt
+import scipy.signal as sp_sig
 
 
 def calc_pixel_distance(nx, ny, center_coord):
@@ -138,21 +139,21 @@ def calc_pix_position(r, pa, xcenter, ycenter):
     :param ycenter:
     :return:
     """
-
-    pa = np.pi*(pa + 90.0)/180.
-
-    if pa < (np.pi/2):
-        xnew = r/np.sqrt(1 + np.tan(pa)**2) + xcenter
-    else:
-        xnew = -r / np.sqrt(1 + np.tan(pa) ** 2) + xcenter
-
-    ynew = r * np.sqrt(1 - 1/(1+np.tan(pa)**2)) + ycenter
+    
+    pa_rad = np.pi/180. * pa
+    #signfac = np.sign(np.cos(pa_rad))
+    #xnew = -r*np.sin(pa_rad)*signfac + xcenter
+    #signfac = np.sign(np.sin(pa_rad))
+    signfac = -1
+    xnew = -r*np.sin(pa_rad)*signfac + xcenter
+    ynew = r*np.cos(pa_rad)*signfac + ycenter
 
     return xnew, ynew
 
 
 def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=None,
-                                 ap_centers=None, spec_mask=None, estimate_err=False, nmc=100):
+                                 ap_centers=None, spec_mask=None, estimate_err=False, nmc=100,
+                                 profile_direction='positive'):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
     :param cube: Cube to measure the 1D profile on
@@ -173,7 +174,8 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
           of apertures that are fit. The first row will be best fit values and the second row will
           contain the errors on those parameters.
     """
-
+    # profile_direction = 'negative'
+    
     ny = cube.shape[1]
     nx = cube.shape[2]
 
@@ -190,6 +192,10 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
         xaps, yaps, ap_centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
     else:
         xaps, yaps = calc_pix_position(ap_centers, pa, center_pixel[0], center_pixel[1])
+
+    ### SHOULD SORT THIS OUT FROM DATA by correctly setting model geom PA + slit_pa
+    # if (profile_direction == 'negative') & (np.abs(pa) < 90.0):
+    #     ap_centers = -ap_centers
 
     # Setup up the arrays to hold the results
     naps = len(xaps)
@@ -256,3 +262,18 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
 
     else:
         return ap_centers, flux, mean, disp
+
+
+
+def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
+    if smoothing_type is None:
+        return vel, disp
+    else:
+        if (smoothing_type.lower() == 'median'):
+            vel = sp_sig.medfilt(vel, kernel_size=smoothing_npix)
+            disp = sp_sig.medfilt(disp, kernel_size=smoothing_npix)
+        else:
+            message("Smoothing type={} not supported".format(smoothing_type))
+            
+        return vel, disp
+        
