@@ -1106,6 +1106,9 @@ class Geometry(_DysmalFittable3DModel):
     Class to hold the geometric parameters that can be fit.
     Also takes as input the sky coordinates and returns the
     corresponding galaxy plane coordinates.
+    
+    Convention:
+        PA is angle of blue side, CCW from North
     """
 
     inc = DysmalParameter(default=45.0, bounds=(0, 90))
