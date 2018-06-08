@@ -328,7 +328,7 @@ class Galaxy:
 
             elif profile1d_type == 'circ_ap_cube':
 
-                rpix = slit_width/rstep
+                rpix = slit_width/rstep/2.
 
                 if aper_dist is None:
                     aper_dist_pix = 2*rpix
