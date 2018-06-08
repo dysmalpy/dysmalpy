@@ -819,6 +819,8 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
             if gal.data.data['inst_corr']:
                 disp_mod = np.sqrt(disp_mod**2 -
                                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                       # below the instrumental dispersion
 
         chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
