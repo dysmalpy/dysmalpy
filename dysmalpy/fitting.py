@@ -13,6 +13,7 @@ from multiprocessing import cpu_count
 
 # DYSMALPY code
 from dysmalpy import plotting
+from dysmalpy import galaxy
 
 # Third party imports
 import os
@@ -25,6 +26,7 @@ import copy
 from dysmalpy.extern.cap_mpfit import mpfit
 import emcee
 import acor
+
 
 import time, datetime
 
@@ -43,6 +45,8 @@ acor_force_min = 49
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+
+
 def fit(gal, nWalkers=10,
            cpuFrac=None,
            nCPUs = 1,
@@ -53,11 +57,13 @@ def fit(gal, nWalkers=10,
            maxAF = 0.5,
            nEff = 10,
            oversample = 1,
+           oversize = 1,
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
            do_plotting = True,
            save_burn = False,
+           save_model = True, 
            out_dir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
@@ -65,12 +71,14 @@ def fit(gal, nWalkers=10,
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
+           f_model = None, 
            f_sampler = None,
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
            f_mcmc_results = None,
-           f_chain_ascii = None ):
+           f_chain_ascii = None,
+           f_log = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
 
@@ -111,13 +119,21 @@ def fit(gal, nWalkers=10,
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
+    if save_model and (f_model is None): f_model = out_dir+'galaxy_model.pickle'
     if f_sampler is None:            f_sampler = out_dir+'mcmc_sampler.pickle'
     if save_burn and (f_burn_sampler is None):  f_burn_sampler = out_dir+'mcmc_burn_sampler.pickle'
     if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
-
+    
+    # Setup file redirect logging:
+    if f_log is not None:
+        loggerfile = logging.FileHandler(f_log)
+        loggerfile.setLevel(logging.INFO)
+        logger.addHandler(loggerfile)
+    
+    # ++++++++++++++++++++++++++++++
 
     if not continue_steps:
         # --------------------------------
@@ -132,7 +148,7 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'fitdispersion':fitdispersion, 
+    kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
@@ -140,7 +156,14 @@ def fit(gal, nWalkers=10,
 
     # --------------------------------
     # Output some fitting info to logger:
-    logger.info(' nCPUs: {}'.format(nCPUs))
+    logger.info("*************************************")
+    logger.info(" Fitting: {}".format(gal.name))
+    if gal.data.filename_velocity is not None:
+        logger.info("    velocity file: {}".format(gal.data.filename_velocity))
+    if gal.data.filename_dispersion is not None:
+        logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
+    
+    logger.info('\n  nCPUs: {}'.format(nCPUs))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
@@ -148,7 +171,7 @@ def fit(gal, nWalkers=10,
     # Run burn-in
     if nBurn > 0:
         logger.info('\nBurn-in:'+'\n'
-                    'Start: {}'.format(datetime.datetime.now()))
+                    'Start: {}\n'.format(datetime.datetime.now()))
         start = time.time()
 
         ####
@@ -193,7 +216,7 @@ def fit(gal, nWalkers=10,
         macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
         acortimemsg = "Autocorr est: "+str(acor_time)
         logger.info('\nEnd: '+endtime+'\n'
-                    '******************\n'
+                    '\n******************\n'
                     ''+nthingsmsg+'\n'
                     ''+scaleparammsg+'\n'
                     ''+timemsg+'\n'
@@ -250,7 +273,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Run sampler: Get start time
     logger.info('\nEnsemble sampling:\n'
-                'Start: {}'.format(datetime.datetime.now()))
+                'Start: {}\n'.format(datetime.datetime.now()))
     start = time.time()
 
 
@@ -324,7 +347,7 @@ def fit(gal, nWalkers=10,
     macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
     acortimemsg = "Autocorr est: "+str(acor_time)
     logger.info('\nEnd: '+endtime+'\n'
-                '******************\n'
+                '\n******************\n'
                 ''+nthingsmsg+'\n'
                 ''+scaleparammsg+'\n'
                 ''+timemsg+'\n'
@@ -373,6 +396,10 @@ def fit(gal, nWalkers=10,
     if f_chain_ascii is not None:
         mcmcResults.save_chain_ascii(filename=f_chain_ascii)
         
+    if f_model is not None:
+        #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
+        gal.preserve_self(filename=f_model)
+        
     # --------------------------------
     # Plot trace, if output file set
     if (do_plotting) & (f_plot_trace is not None) :
@@ -385,7 +412,13 @@ def fit(gal, nWalkers=10,
 
     if (do_plotting) & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mcmcResults, gal, fitdispersion=fitdispersion,
-                    oversample=oversample, fileout=f_plot_bestfit)
+                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+
+    # Clean up logger:
+    if f_log is not None:
+        logger.removeHandler(loggerfile)
+        
+        
 
     return mcmcResults
 
@@ -656,6 +689,19 @@ class MCMCResults(object):
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
                     
+    # def save_galaxy_model(self, galaxy=None, filename=None):
+    #     if filename is not None:
+    #         
+    #         galtmp = copy.deepcopy(galaxy)
+    #         galtmp.data = None
+    #         galtmp.model_data = None
+    #         
+    #         # galtmp.instrument = copy.deepcopy(galaxy.instrument)
+    #         # galtmp.model = modtmp
+    #         
+    #         
+    #         dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+            
             
     def reload_mcmc_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -674,24 +720,24 @@ class MCMCResults(object):
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
 
-    def plot_results(self, gal, fitdispersion=True, oversample=1,
-                f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
+    def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
+                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(fileout=f_plot_param_corner)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
-                oversample=oversample, fileout=f_plot_bestfit)
+                oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
         plotting.plot_corner(self, fileout=fileout)
-    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, fileout=None):
+    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
         """Plot/replot the bestfit for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_bestfit
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
-                    oversample=oversample, fileout=fileout)
+                              oversample=oversample, oversize=oversize, fileout=fileout)
     def plot_trace(self, fileout=None):
         """Plot/replot the trace for the MCMC fitting"""
         if fileout is None:
@@ -700,10 +746,11 @@ class MCMCResults(object):
 
 
 def log_prob(theta, gal,
-            oversample=1,
-            fitdispersion=True,
-            compute_dm=False, 
-            model_key_re=['disk+bulge','r_eff_disk']):
+             oversample=1,
+             oversize=1,
+             fitdispersion=True,
+             compute_dm=False,
+             model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -722,7 +769,7 @@ def log_prob(theta, gal,
             return -np.inf
     else:
         # Update the model data
-        gal.create_model_data(oversample=oversample,
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center)
                               
         # Evaluate likelihood prob of theta
@@ -757,31 +804,29 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         llike = -0.5*chisq_arr_raw.sum()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-        vel_dat = gal.data.data['velocity']
-        vel_mod = gal.model_data.data['velocity']
-        vel_err = gal.data.error['velocity']
 
-        disp_dat = gal.data.data['dispersion']
-        disp_mod = gal.model_data.data['dispersion']
-        disp_err = gal.data.error['dispersion']
+        msk = gal.data.mask
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
 
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
-                disp_mod = np.sqrt( disp_mod**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                disp_mod = np.sqrt(disp_mod**2 -
+                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                       # below the instrumental dispersion
 
-        msk = gal.data.mask
-
-
-        # Artificially mask zero errors which are masked:
-        vel_err[((vel_err==0) & (msk==0))] = 99.
-        disp_err[((disp_err==0) & (msk==0))] = 99.
-
-        chisq_arr_raw_vel = msk * (((vel_dat - vel_mod)/vel_err)**2 +
-                                   np.log(2.*np.pi*vel_err**2))
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
+                               np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
-            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod)/disp_err)**2 +
-                                          np.log(2.*np.pi*disp_err**2))
+            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2 +
+                                    np.log(2.*np.pi*disp_err**2))
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
         else:
             llike = -0.5*chisq_arr_raw_vel.sum()
@@ -813,13 +858,15 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
         chisq_arr_raw = chisq_arr_raw.flatten()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
-        vel_dat = gal.data.data['velocity']
-        vel_mod = gal.model_data.data['velocity']
-        vel_err = gal.data.error['velocity']
 
-        disp_dat = gal.data.data['dispersion']
-        disp_mod = gal.model_data.data['dispersion']
-        disp_err = gal.data.error['dispersion']
+        msk = gal.data.mask
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
 
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
@@ -828,15 +875,9 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
                     disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
                         u.km / u.s).value ** 2)
 
-        msk = gal.data.mask
-
-        # Artificially mask zero errors which are masked:
-        vel_err[((vel_err == 0) & (msk == 0))] = 99.
-        disp_err[((disp_err == 0) & (msk == 0))] = 99.
-
-        chisq_arr_raw_vel = msk * ((vel_dat - vel_mod) / vel_err)
+        chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err)
         if fitdispersion:
-            chisq_arr_raw_disp = msk * (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw_disp = (((disp_dat - disp_mod) / disp_err))
             chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
                                        chisq_arr_raw_disp.flatten()])
         else:
@@ -1107,6 +1148,18 @@ def dump_pickle(data, filename=None):
     _pickle.dump(data, open(filename, "wb") )
     return None
 
+
+
+def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
+    #, filename_sampler=None):
+    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
+    
+    mcmcResults = MCMCResults() #model=gal.model
+    
+    mcmcResults.reload_mcmc_results(filename=filename_mcmc_results)
+    #mcmcResults.reload_sampler(filename=filename_sampler)
+    
+    return gal, mcmcResults
 
 
 

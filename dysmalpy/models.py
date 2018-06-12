@@ -49,6 +49,8 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+np.warnings.filterwarnings('ignore')
+
 # TODO: Tied parameters are NOT automatically updated when variables change!!
 # TODO: Need to keep track during the fitting!
 
@@ -73,7 +75,23 @@ def sersic_menc(r, mass, n, r_eff):
     norm = mass
 
     return norm*integ
+    
+def v_circular(mass_enc, r):
+    """
+    Default method to evaluate the circular velocity
+    as a function of radius using the standard equation:
+    v(r) = SQRT(GM(r)/r)
+    """
+    vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+                    (r * 1000. * pc.cgs.value))
+    vcirc = vcirc/1e5
 
+    return vcirc
+
+def menc_from_vcirc(vcirc, r):
+    menc = ((vcirc*1e5)**2.*(r*1000.*pc.cgs.value) /
+                  (G.cgs.value * Msun.cgs.value))
+    return menc
 
 def apply_noord_flat(r, r_eff, mass, n, invq):
 
@@ -445,14 +463,72 @@ class ModelSet:
         r_eff = comp.parameters[param_i]
         
         # Get DM frac:
-        nstep = np.floor_divide(r_eff,rstep) 
-        rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-        rgal = np.append(rgal, r_eff)
+        if self.kinematic_options.adiabatic_contract:
+            nstep = np.floor_divide(r_eff,rstep) 
+            rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
+            rgal = np.append(rgal, r_eff)
+        else:
+            rgal = np.array([r_eff])
         
         vel, vdm = self.velocity_profile(rgal, compute_dm=True)
-        dm_frac = vdm[-1]**2/vel[-1]**2
+        
+        if self.kinematic_options.pressure_support:
+            # Correct for pressure support to get circular velocity:
+            vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
+        else:
+            vc = vel.copy()
+        
+        # Not generally true if a term is oblate; to be updated
+        # r_eff is the last (or only) entry:
+        dm_frac = vdm[-1]**2/vc[-1]**2
         
         return dm_frac
+
+    def enclosed_mass(self, r):
+        """
+        Method to calculate the total enclosed mass for the whole model
+        as a function of radius
+        :param r: Radius in kpc
+        :return: Mass enclosed within each radius in Msun
+        """
+
+        # First check to make sure there is at least one mass component in the
+        # model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so an enclosed "
+                                 "mass can't be calculated.")
+        else:
+
+            enc_mass = r*0.
+            enc_dm = r*0.
+            enc_bary = r*0.
+
+            for cmp in self.mass_components:
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    enc_mass_cmp = mcomp.enclosed_mass(r)
+                    enc_mass += enc_mass_cmp
+
+                    if mcomp._subtype == 'dark_matter':
+
+                        enc_dm += enc_mass_cmp
+
+                    elif mcomp._subtype == 'baryonic':
+
+                        enc_bary += enc_mass_cmp
+
+            if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
+
+                vcirc, vhalo_adi = self.velocity_profile(r, compute_dm=True)
+                # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
+                #               (G.cgs.value * Msun.cgs.value))
+                enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
+                enc_mass = enc_mass - enc_dm + enc_dm_adi
+                enc_dm = enc_dm_adi
+
+        return enc_mass, enc_bary, enc_dm
+
+
 
     def velocity_profile(self, r, compute_dm=False):
         """
@@ -467,8 +543,8 @@ class ModelSet:
                                  "can't be calculated.")
         else:
 
-            vdm = np.zeros(r.shape)
-            vbaryon = np.zeros(r.shape)
+            vdm = r*0.
+            vbaryon = r*0.
 
             for cmp in self.mass_components:
 
@@ -505,27 +581,34 @@ class ModelSet:
                 return vel, vdm
             else:
                 return vel
+                
+    def circular_velocity(self, r):
+        vel = self.velocity_profile(r, compute_dm=False)
+        vcirc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
+        return vcirc
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s, line_center=None, oversample=1):
+                      spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1):
+
         """Simulate an IFU cube of this model set"""
 
         # Start with a 3D array in the sky coordinate system
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
-        nx_sky_samp = nx_sky*oversample
-        ny_sky_samp = ny_sky*oversample
-        rstep_samp = rstep/oversample
-        nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
-        # Create 3D arrays of the sky pixel coordinates
-        sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-        zsky, ysky, xsky = np.indices(sh)
-        zsky = zsky - (nz_sky_samp - 1) / 2.
-        ysky = ysky - (ny_sky_samp - 1) / 2.
-        xsky = xsky - (nx_sky_samp - 1) / 2.
+        nx_sky_samp = nx_sky*oversample*oversize
+        ny_sky_samp = ny_sky*oversample*oversize
+        rstep_samp = rstep/oversample
+
+        if (np.mod(nx_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
+            nx_sky_samp = nx_sky_samp + 1
+
+        if (np.mod(ny_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
+            ny_sky_samp = ny_sky_samp + 1
+
+        #nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
@@ -545,6 +628,21 @@ class ModelSet:
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
+
+            # Create 3D arrays of the sky pixel coordinates
+            cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+            maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
+            maxr_y = np.max(np.array([maxr*1.5, np.min(
+                np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            if np.mod(nz_sky_samp, 2) < 0.5:
+                nz_sky_samp += 1
+
+            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+            zsky, ysky, xsky = np.indices(sh)
+            zsky = zsky - (nz_sky_samp - 1) / 2.
+            ysky = ysky - (ny_sky_samp - 1) / 2.
+            xsky = xsky - (nx_sky_samp - 1) / 2.
 
             # Apply the geometric transformation to get galactic coordinates
             # Need to account for oversampling in the x and y shift parameters
@@ -581,42 +679,72 @@ class ModelSet:
                 tmp_cube = np.exp(
                     -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
                 cube_sum = np.nansum(tmp_cube, 0)
-                cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * f_cube
+                #cube_sum[cube_sum == 0] = 1
+                cube_final += tmp_cube / cube_sum * f_cube * 100.
+
+            cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
 
-            # Apply the geometric transformation to get outflow coordinates
-            # Account for oversampling
-            self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
-            self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
-            xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
+            if self.outflow._spatial_type == 'resolved':
+                # Create 3D arrays of the sky pixel coordinates
+                cos_inc = np.cos(self.outflow_geometry.inc * np.pi / 180.)
+                maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
+                maxr_y = np.max(np.array([maxr * 1.5, np.min(
+                    np.hstack([maxr * 1.5 / cos_inc, maxr * 5.]))]))
+                nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+                if np.mod(nz_sky_samp, 2) < 0.5:
+                    nz_sky_samp += 1
 
-            # Convert to kpc
-            xout_kpc = xout * rstep_samp / dscale
-            yout_kpc = yout * rstep_samp / dscale
-            zout_kpc = zout * rstep_samp / dscale
+                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+                zsky, ysky, xsky = np.indices(sh)
+                zsky = zsky - (nz_sky_samp - 1) / 2.
+                ysky = ysky - (ny_sky_samp - 1) / 2.
+                xsky = xsky - (nx_sky_samp - 1) / 2.
 
-            rout = np.sqrt(xout**2 + yout**2 + zout**2)
-            vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
-            fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+                # Apply the geometric transformation to get outflow coordinates
+                # Account for oversampling
+                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
+                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
+                xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
 
-            # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-            # TODO: I really need to check this!!
-            vobs = -vout * zsky/rout
-            vobs[rout == 0] = vout[rout == 0]
+                # Convert to kpc
+                xout_kpc = xout * rstep_samp / dscale
+                yout_kpc = yout * rstep_samp / dscale
+                zout_kpc = zout * rstep_samp / dscale
 
-            sigma_out = self.outflow_dispersion(rout)
-            for zz in range(nz_sky_samp):
-                f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
-                vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-                sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
-                tmp_cube = np.exp(
-                    -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-                cube_sum = np.nansum(tmp_cube, 0)
-                cube_sum[cube_sum == 0] = 1
-                cube_final += tmp_cube / cube_sum * f_cube
+                rout = np.sqrt(xout**2 + yout**2 + zout**2)
+                vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
+                fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
+                # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+                vobs = -vout * zsky/rout
+                vobs[rout == 0] = vout[rout == 0]
+
+                sigma_out = self.outflow_dispersion(rout)
+                for zz in range(nz_sky_samp):
+                    f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
+                    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                    sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
+                    tmp_cube = np.exp(
+                        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                    cube_sum = np.nansum(tmp_cube, 0)
+                    cube_sum[cube_sum == 0] = 1
+                    cube_final += tmp_cube / cube_sum * f_cube
+
+            elif self.outflow._spatial_type == 'unresolved':
+
+                # Set where the unresolved will be located and account for oversampling
+                xshift = self.outflow_geometry.xshift.value * oversample
+                yshift = self.outflow_geometry.yshift.value * oversample
+
+                # The coordinates where the unresolved outflow is placed needs to be
+                # an integer pixel so for now we round to nearest integer.
+                xpix = np.int(np.round(xshift)) + nx_sky_samp/2
+                ypix = np.int(np.round(yshift)) + ny_sky_samp/2
+
+                voutflow = self.outflow(vx)
+                cube_final[:, ypix, xpix] += voutflow
 
         return cube_final, spec
 
@@ -659,9 +787,11 @@ class MassModel(_DysmalFittable1DModel):
         """
 
         mass_enc = self.enclosed_mass(r)
-        vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
-                        (r * 1000. * pc.cgs.value))
-        vcirc = vcirc/1e5
+        # vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
+        #                 (r * 1000. * pc.cgs.value))
+        # vcirc = vcirc/1e5
+        
+        vcirc = v_circular(mass_enc, r)
 
         return vcirc
 
@@ -767,19 +897,60 @@ class DiskBulge(MassModel):
                                 self.r_eff_disk)
 
         return menc_disk+menc_bulge
+        
+    def enclosed_mass_disk(self, r):
+        mdisk_total = 10 ** self.total_mass * (1 - self.bt)
+        
+        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
+                                self.r_eff_disk)
+        return menc_disk
+        
+    def enclosed_mass_bulge(self, r):
+        mbulge_total = 10 ** self.total_mass * self.bt
+    
+        menc_bulge= sersic_menc(r, mbulge_total, self.n_bulge,
+                                 self.r_eff_bulge)
+        return menc_bulge
 
-    def circular_velocity(self, r):
-
-        mbulge_total = 10**self.total_mass*self.bt
-        mdisk_total = 10**self.total_mass*(1-self.bt)
-
+        
+    def circular_velocity_disk(self, r):
         if self.noord_flat:
-
-            vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                                     self.n_bulge, self.invq_bulge)
-            vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            mdisk_total = 10**self.total_mass*(1-self.bt)
+            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
                                      self.n_disk, self.invq_disk)
 
+        else:
+            mass_enc = self.enclosed_mass_disk(r)
+            vcirc = v_circular(mass_enc, r)
+
+        return vcirc
+        
+    def circular_velocity_bulge(self, r):
+        if self.noord_flat:
+            mbulge_total = 10**self.total_mass*self.bt
+            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+                                     self.n_bulge, self.invq_bulge)
+        else:
+            mass_enc = self.enclosed_mass_bulge(r)
+            vcirc = v_circular(mass_enc, r)
+
+        return vcirc
+        
+    def circular_velocity(self, r):
+
+        if self.noord_flat:
+            # mbulge_total = 10**self.total_mass*self.bt
+            # mdisk_total = 10**self.total_mass*(1-self.bt)
+            # 
+            # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #                          self.n_bulge, self.invq_bulge)
+            # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            #                          self.n_disk, self.invq_disk)
+            # 
+            
+            vbulge = self.circular_velocity_bulge(r)
+            vdisk = self.circular_velocity_disk(r)
+            
             vcirc = np.sqrt(vbulge**2 + vdisk**2)
 
         else:
@@ -787,6 +958,22 @@ class DiskBulge(MassModel):
             vcirc = super(DiskBulge, self).circular_velocity(r)
 
         return vcirc
+        
+    def velocity_profile(self, r, modelset):
+        vcirc = self.circular_velocity(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_disk(self, r, modelset):
+        vcirc = self.circular_velocity_disk(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_bulge(self, r, modelset):
+        vcirc = self.circular_velocity_bulge(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
 
     def mass_to_light(self, r):
 
@@ -875,6 +1062,16 @@ class NFW(MassModel):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+        
+    def velocity_profile(self, r, model):
+        """
+        Calculate velocity profile, including any adiabtic contraction
+        """
+        
+        if model.kinematic_options.adiabatic_contract:
+            raise NotImplementedError("Adiabatic contraction not currently supported!")
+        else:
+            return self.circular_velocity(r)
 
 
 # ****** Geometric Model ********
@@ -897,6 +1094,9 @@ class Geometry(_DysmalFittable3DModel):
     Class to hold the geometric parameters that can be fit.
     Also takes as input the sky coordinates and returns the
     corresponding galaxy plane coordinates.
+    
+    Convention:
+        PA is angle of blue side, CCW from North
     """
 
     inc = DysmalParameter(default=45.0, bounds=(0, 90))
@@ -1042,7 +1242,42 @@ class KinematicOptions:
             vel = np.sqrt(vel_squared)
 
         return vel
+    
+    def correct_for_pressure_support(self, r, model, vel):
+        if self.pressure_support:
+            if self.pressure_support_re is None:
+                pre = None
+                for cmp in model.mass_components:
+                    if model.mass_components[cmp]:
+                        mcomp = model.components[cmp]
+                        if mcomp._subtype == 'baryonic':
+                            if isinstance(mcomp, DiskBulge):
+                                pre = mcomp.r_eff_disk.value
+                            else:
+                                pre = mcomp.r_eff.value
+                            break
 
+                if pre is None:
+                    logger.warning("No baryonic mass component found. Using "
+                                   "1 kpc as the pressure support effective"
+                                   " radius")
+                    pre = 1.0
+
+            else:
+                pre = self.pressure_support_re
+
+            if model.dispersion_profile is None:
+                raise AttributeError("Can't apply pressure support without "
+                                     "a dispersion profile!")
+
+            #logger.info("Correcting for pressure support with effective radius of {} "
+            #            "kpc.".format(pre))
+            sigma = model.dispersion_profile(r)
+            vel_squared = (
+                vel ** 2 + 3.36 * (r / pre) * sigma ** 2)
+            vel_squared[vel_squared < 0] = 0.
+            vel = np.sqrt(vel_squared)
+        return vel
 
 class BiconicalOutflow(_DysmalFittable3DModel):
     """Model for a biconical outflow. Assumption is symmetry above and below
@@ -1052,13 +1287,14 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     vmax = DysmalParameter(min=0)
     rturn = DysmalParameter(default=0.5, min=0)
     thetain = DysmalParameter(bounds=(0, 90))
-    thetaout = DysmalParameter(bounds=(0, 90))
+    dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
 
     _type = 'outflow'
+    _spatial_type = 'resolved'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, thetaout, rend,
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
                  profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both']
@@ -1073,9 +1309,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               thetaout, rend, **kwargs)
+                                               dtheta, rend, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, thetaout, rend):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1099,6 +1335,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
 
+        thetaout = np.min([thetain+dtheta, 90.])
         ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
         vel[ind_zero] = 0.
 
@@ -1110,12 +1347,32 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
         theta[r == 0] = 0.
         flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
-
-        ind_zero = ((theta < self.thetain) | (theta > self.thetaout) |
+        thetaout = np.min([self.thetain + self.dtheta, 90.])
+        ind_zero = ((theta < self.thetain) |
+                    (theta > thetaout) |
                     (r > self.rend))
         flux[ind_zero] = 0.
 
         return flux
+
+
+class UnresolvedOutflow(_DysmalFittable1DModel):
+    """
+    Model for an unresolved outflow component with a specific flux and width.
+    """
+
+    vcenter = DysmalParameter(default=0)
+    fwhm = DysmalParameter(default=1000.0, bounds=(0, None))
+    amplitude = DysmalParameter(default=1.0, bounds=(0, None))
+
+    _type = 'outflow'
+    _spatial_type = 'unresolved'
+    outputs = ('vout',)
+
+    @staticmethod
+    def evaluate(v, vcenter, fwhm, amplitude):
+
+        return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):

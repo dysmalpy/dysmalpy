@@ -21,7 +21,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import ImageGrid
+from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 
 import corner
 
@@ -146,27 +146,24 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
     return None
     
 def plot_data_model_comparison_1D(gal, 
-            data_kwarg = None,
+            data = None,
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-    if (data_kwarg is not None) & (data_kwarg != 'data'):
-        data = gal.__dict__[data_kwarg]
-        
+    if data is not None:
+
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
-        galnew.create_model_data(oversample=oversample,
+        galnew.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=galnew.model.line_center)
         model_data = galnew.model_data
-        
-        if fileout is not None:
-            fileoutsplt = fileout.split('.')
-            fileout = '.'.join(fileoutsplt[:-1]+'_1d.pdf')
+
     else:
         # Default: fit in 1D, compare to 1D data:
         data = gal.data
@@ -243,38 +240,39 @@ def plot_data_model_comparison_1D(gal,
 
 def plot_data_model_comparison_2D(gal, 
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     #
     ######################################
     # Setup plot:
-    f = plt.figure()
+    f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
     if fitdispersion:
         grid_vel = ImageGrid(f, 211,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
         grid_disp = ImageGrid(f, 212,
                               nrows_ncols=(1, 3),
                               direction="row",
-                              axes_pad=0.05,
+                              axes_pad=0.5,
                               add_all=True,
                               label_mode="1",
                               share_all=True,
                               cbar_location="right",
-                              cbar_mode="single",
-                              cbar_size="7%",
+                              cbar_mode="each",
+                              cbar_size="5%",
                               cbar_pad="1%",
                               )
 
@@ -282,13 +280,13 @@ def plot_data_model_comparison_2D(gal,
         grid_vel = ImageGrid(f, 111,
                              nrows_ncols=(1, 3),
                              direction="row",
-                             axes_pad=0.05,
+                             axes_pad=0.5,
                              add_all=True,
                              label_mode="1",
                              share_all=True,
                              cbar_location="right",
-                             cbar_mode="single",
-                             cbar_size="7%",
+                             cbar_mode="each",
+                             cbar_size="5%",
                              cbar_pad="1%",
                              )
 
@@ -303,22 +301,21 @@ def plot_data_model_comparison_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap =  cm.spectral
+    cmap.set_bad(color='k')
 
-    vel_vmin = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].min()
-    vel_vmax = gal.data.data['velocity'][
-        np.array(gal.data.mask, dtype=bool)].max()
+    vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+    vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
 
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
-            im = gal.data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im = gal.data.data['velocity'].copy()
+            im[~gal.data.mask] = np.nan
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         elif k == 'residual':
             im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-            im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+            im[~gal.data.mask] = np.nan
         else:
             raise ValueError("key not supported.")
 
@@ -337,30 +334,51 @@ def plot_data_model_comparison_2D(gal,
 
         ax.set_title(xt)
 
-    ax.cax.colorbar(imax)
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
 
     if fitdispersion:
 
-        disp_vmin = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].min()
-        disp_vmax = gal.data.data['dispersion'][
-            np.array(gal.data.mask, dtype=bool)].max()
+        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
 
         for ax, k in zip(grid_disp, keyxarr):
             if k == 'data':
-                im = gal.data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im = gal.data.data['dispersion'].copy()
+                im[~gal.data.mask] = np.nan
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+                im[~gal.data.mask] = np.nan
+
+                # Correct model for instrument dispersion
+                # if the data is instrument corrected:
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                     u.km / u.s).value ** 2)
+
             elif k == 'residual':
-                im = gal.data.data['dispersion'] - gal.model_data.data['dispersion']
-                im[~np.array(gal.data.mask, dtype=bool)] = -1.e6
+
+                im_model = gal.model_data.data['dispersion'].copy()
+                if 'inst_corr' in gal.data.data.keys():
+                    if (gal.data.data['inst_corr']):
+                        im_model = np.sqrt(im_model ** 2 -
+                                           gal.instrument.lsf.dispersion.to(
+                                           u.km / u.s).value ** 2)
+
+
+                im = gal.data.data['dispersion'] - im_model
+                im[~gal.data.mask] = np.nan
+
             else:
                 raise ValueError("key not supported.")
 
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            if k != 'residual':
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+            else:
+                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                 origin=origin)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
@@ -372,7 +390,8 @@ def plot_data_model_comparison_2D(gal,
             else:
                 ax.set_axis_off()
 
-        ax.cax.colorbar(imax)
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
 
     #############################################################
     # Save to file:
@@ -384,9 +403,207 @@ def plot_data_model_comparison_2D(gal,
         plt.show()
         
         
+def plot_model_multid(gal, 
+            theta=None, 
+            oversample=1, 
+            oversize=1, 
+            fileout=None):
+        
+    #
+    ######################################
+    # Setup plot:
+    f = plt.figure(figsize=(6., 6))
+    scale = 3.5
+    ncols = 2
+    
+    grid_1D = [plt.subplot2grid((2, 2), (0, 0)), plt.subplot2grid((2, 2), (0, 1))]
+    
+    # gs_outer= plt.subplot(211)
+    # 
+    # 
+    # gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_outer[0])
+    # 
+    # axes = []
+    # k = -1
+    # grid_1D = []
+    # for j in six.moves.xrange(ncols):
+    #     # Comparison:
+    #     grid_1D.append(plt.subplot(gs[0,j]))
+    #     
+    # #grid_1D = [plt.subplot2grid((2, 2), (2, 0)), ax5 = plt.subplot2grid((3, 3), (2, 1))
+    #     
+        
+    # grid_1D = ImageGrid(f, 211,
+    #                      nrows_ncols=(1, ncols),
+    #                      direction="row",
+    #                      axes_pad=0.5,
+    #                      add_all=True,
+    #                      label_mode="1",
+    #                      share_all=True,
+    #                      cbar_mode="None"
+    #                      )
+    
+    # grid_1D = AxesGrid(f, 211, 
+    #                  nrows_ncols=(1, ncols),
+    #                  direction="row",
+    #                  axes_pad=0.5,
+    #                  add_all=True,
+    #                  share_all=False, 
+    #                  label_mode="1",
+    #                  )
+
+    grid_2D = ImageGrid(f, 212,
+                          nrows_ncols=(1, ncols),
+                          direction="row",
+                          axes_pad=0.5,
+                          add_all=True,
+                          label_mode="1",
+                          share_all=True,
+                          cbar_location="right",
+                          cbar_mode="each",
+                          cbar_size="5%",
+                          cbar_pad="1%",
+                          )
+    
+    
+    
+    
+    if theta is not None:
+        gal.model.update_parameters(theta)     # Update the parameters
+        
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=gal.model.line_center, ndim_final=1)
+    galnew = copy.deepcopy(gal)
+    model_data = galnew.model_data
+    data = galnew.data
+    if 'inst_corr' in data.data.keys():
+        if (data.data['inst_corr']):
+            model_data.data['dispersion'] = \
+                np.sqrt( model_data.data['dispersion']**2 - \
+                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                    
+                    
+
+
+    ######################################
+
+    keyxtitle = r'$r$ [arcsec]'
+    keyyarr = ['velocity', 'dispersion']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+
+    errbar_lw = 0.5
+    errbar_cap = 1.5
+
+    k = -1
+    for j in six.moves.xrange(ncols):
+        # Comparison:
+        k += 1
+        ax = grid_1D[k]
+        
+        try:
+            ax.scatter( data.rarr, data.data[keyyarr[j]],
+                c='black', marker='o', s=25, lw=1, label=None)
+        except:
+            pass
+        
+        ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
+            c='red', marker='s', s=25, lw=1, label=None)
+        ax.set_xlabel(keyxtitle)
+        ax.set_ylabel(keyytitlearr[j])
+        ax.axhline(y=0, ls='--', color='k', zorder=-10.)
+        
+        
+    ######################################
+    
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=gal.model.line_center, ndim_final=2, 
+                              from_data=False)
+
+
+    keyxarr = ['model']
+    keyyarr = ['velocity', 'dispersion']
+    keyxtitlearr = ['Model']
+    keyytitlearr = [r'$V$', r'$\sigma$']
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap =  cm.spectral
+    cmap.set_bad(color='k')
+    
+    
+    
+    for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
+        if k == 'velocity':
+            im = gal.model_data.data['velocity'].copy()
+            #im[~gal.data.mask] = np.nan
+            im[~np.isfinite(im)] = 0.
+            
+            vmin = im.min()
+            vmax = im.max()
+            
+            if max(np.abs(vmin), np.abs(vmax)) > 1000.:
+                vmin = -300.
+                vmax = 300.
+            
+        elif k == 'dispersion':
+            im = gal.model_data.data['dispersion'].copy()
+            #im[~gal.data.mask] = np.nan
+            
+            
+            # Correct model for instrument dispersion
+            # if the data is instrument corrected:
+            if 'inst_corr' in gal.data.data.keys():
+                if (gal.data.data['inst_corr']):
+                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                 u.km / u.s).value ** 2)
+            im[~np.isfinite(im)] = 0.
+            
+            vmin = im.min()
+            vmax = im.max()
+            
+            if max(np.abs(vmin), np.abs(vmax)) > 500.:
+                vmin = 0.
+                vmax = 200.
+            
+        else:
+            raise ValueError("key not supported.")
+        
+        
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                         vmin=vmin, vmax=vmax, origin=origin)
+
+        ax.set_ylabel(keyytitlearr[0])
+        ax.tick_params(which='both', top='off', bottom='off',
+                       left='off', right='off', labelbottom='off',
+                       labelleft='off')
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        # else:
+        #     ax.set_axis_off()
+
+        #ax.set_title(xt)
+
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
+
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+    
+    return None
+    
+    
+        
 def plot_data_model_comparison(gal, 
             theta = None, 
-            oversample=1, 
+            oversample=1,
+            oversize=1,
             fitdispersion=True, 
             fileout=None):
     """
@@ -394,20 +611,22 @@ def plot_data_model_comparison(gal,
     """
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
-        gal.create_model_data(oversample=oversample,
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center)
 
     if gal.data.ndim == 1:
         plot_data_model_comparison_1D(gal, 
-                    data_kwarg = None,
+                    data = None,
                     theta = theta, 
-                    oversample=oversample, 
+                    oversample=oversample,
+                    oversize=oversize,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(gal, 
                     theta = theta, 
-                    oversample=oversample, 
+                    oversample=oversample,
+                    oversize=oversize,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 3:
@@ -420,13 +639,14 @@ def plot_data_model_comparison(gal,
 
 def plot_bestfit(mcmcResults, gal,
             oversample=1,
+            oversize=1,
             fitdispersion=True,
             fileout=None):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
-            oversample=oversample, fitdispersion=fitdispersion, fileout=fileout)
+            oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout)
                 
     return None
 
