@@ -368,10 +368,10 @@ class DoubleBeam:
         self._scale2 = scale2
 
 
-    def as_kernel(self, pixscale):
+    def as_kernel(self, pixscale, support_scaling=None):
 
-        kernel1 = self.beam1.as_kernel(pixscale)
-        kernel2 = self.beam2.as_kernel(pixscale)
+        kernel1 = self.beam1.as_kernel(pixscale, support_scaling=support_scaling)
+        kernel2 = self.beam2.as_kernel(pixscale, support_scaling=support_scaling)
 
         if kernel1.shape[0] > kernel2.shape[1]:
 
@@ -417,7 +417,7 @@ class Moffat(object):
         
         self.padfac = padfac
 
-    def as_kernel(self, pixscale):
+    def as_kernel(self, pixscale, support_scaling=None):
         
         try:
             pixscale = pixscale.to(self.major_fwhm.unit)
@@ -439,8 +439,12 @@ class Moffat(object):
         
         
         #padfac = 16. #8. # from Beam
+        if support_scaling is not None:
+            padfac = support_scaling
+        else:
+            padfac = self.padfac
         
-        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * self.padfac))
+        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * padfac))
         if npix % 2 == 0:
             npix += 1
         
