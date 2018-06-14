@@ -1076,6 +1076,19 @@ class NFW(MassModel):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+
+    def density_profile(self, r):
+        """
+        Calculate the density as a function of radius
+        :param r: Radius in kpc
+        :return rho: dark matter density in Msun/kpc^3
+        """
+
+        rho0 = self.calc_rho0()
+        rvir = self.calc_rvir()
+        rs = rvir/self.conc
+
+        return rho0/(r/rs * (1 + r/rs)**self._a)
         
     def velocity_profile(self, r, model):
         """
