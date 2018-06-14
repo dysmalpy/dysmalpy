@@ -1012,9 +1012,10 @@ class NFW(MassModel):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo,
+    def __init__(self, mvirial, conc, z=0, a=2, cosmo=_default_cosmo,
                  **kwargs):
         self.z = z
+        self._a = a
         self.cosmo = cosmo
         super(NFW, self).__init__(mvirial, conc, **kwargs)
 
@@ -1038,16 +1039,29 @@ class NFW(MassModel):
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
+
         # For very small r, bb can be negative.
-        bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
+        if self._a == 2:
+            bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
+        elif self._a == 1:
+            bb = np.abs(r/rs + np.log(rs/(rs + r)))
+        else:
+            bb = np.abs((1 - (1 + r/rs)**(1 - self._a)*((self._a - 1)*r/rs + 1))/(self._a**2 - 3*self._a + 2))
 
         return aa*bb
 
     def calc_rho0(self):
 
         rvirial = self.calc_rvir()
-        aa = 10**self.mvirial/(4.*np.pi*rvirial**3)
-        bb = self.conc**3/(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
+        aa = 10**self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
+
+        if self._a == 2:
+            bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
+        elif self._a == 1:
+            bb = 1./(self.conc - np.log(1 + self.conc))
+        else:
+            bb = ((self._a**2 - 3.*self._a + 2) /
+                  (1 - (1 + self.conc)**(1 - self._a)*((self._a - 1)*self.conc + 1)))
 
         return aa * bb
 
