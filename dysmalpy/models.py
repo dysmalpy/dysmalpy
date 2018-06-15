@@ -912,7 +912,6 @@ class DiskBulge(MassModel):
                                  self.r_eff_bulge)
         return menc_bulge
 
-        
     def circular_velocity_disk(self, r):
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
@@ -990,7 +989,7 @@ class DiskBulge(MassModel):
             flux_disk = sersic_mr(r, 1.0-self.bt,
                                   self.n_disk, self.r_eff_disk)
             flux_bulge = sersic_mr(r, self.bt,
-                                  self.n_bulge, self.r_eff_bulge)
+                                   self.n_bulge, self.r_eff_bulge)
             flux = flux_disk + flux_bulge
 
         else:
@@ -1001,16 +1000,45 @@ class DiskBulge(MassModel):
         return flux
 
 
-class NFW(MassModel):
+class DarkMatterHalo(MassModel):
+    """
+    Generic class for dark matter halo profiles
+    """
+
+    # Standard parameters for a dark matter halo profile
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    conc = DysmalParameter(default=5.0, bounds=(6, 20))
+
+    _subtype = 'dark_matter'
+
+    @abc.abstractmethod
+    def calc_rvir(self, *args, **kwargs):
+        """
+        Method to calculate the virial radius
+        """
+
+    @abc.abstractmethod
+    def calc_rho0(self, *args, **kwargs):
+        """
+        Method to calculate the scale density
+        """
+
+    def velocity_profile(self, r, model):
+        """
+        Calculate velocity profile, including any adiabatic contraction
+        """
+
+        if model.kinematic_options.adiabatic_contract:
+            raise NotImplementedError("Adiabatic contraction not currently supported!")
+        else:
+            return self.circular_velocity(r)
+
+
+class NFW(DarkMatterHalo):
     """
     1D NFW mass model parameterized by the virial radius, virial mass, and
     concentration.
     """
-
-    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    conc = DysmalParameter(default=5.0, bounds=(1, 40))
-
-    _subtype = 'dark_matter'
 
     def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo,
                  **kwargs):
@@ -1019,13 +1047,13 @@ class NFW(MassModel):
         super(NFW, self).__init__(mvirial, conc, **kwargs)
 
     def evaluate(self, r, mvirial, conc):
-        """1D NFW model for a dark matter halo"""
+        """3D mass density profile"""
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
 
-        return (2*np.pi * rho0 * rvirial /
-                conc / (1+conc * r / rvirial)**2)
+        return rho0 / (r / rs * (1 + r / rs) ** 2)
 
     def enclosed_mass(self, r):
         """
@@ -1064,28 +1092,6 @@ class NFW(MassModel):
 
         return rvir
 
-    def density_profile(self, r):
-        """
-        Calculate the density as a function of radius
-        :param r: Radius in kpc
-        :return rho: dark matter density in Msun/kpc^3
-        """
-
-        rho0 = self.calc_rho0()
-        rvir = self.calc_rvir()
-        rs = rvir/self.conc
-
-        return rho0/(r/rs * (1 + r/rs)**self._a)
-        
-    def velocity_profile(self, r, model):
-        """
-        Calculate velocity profile, including any adiabtic contraction
-        """
-        
-        if model.kinematic_options.adiabatic_contract:
-            raise NotImplementedError("Adiabatic contraction not currently supported!")
-        else:
-            return self.circular_velocity(r)
 
 
 # ****** Geometric Model ********
