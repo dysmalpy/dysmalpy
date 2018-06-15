@@ -1034,6 +1034,61 @@ class DarkMatterHalo(MassModel):
             return self.circular_velocity(r)
 
 
+class TwoPowerHalo(DarkMatterHalo):
+    """
+    Class for a generic two power law density model for a dark matter halo
+    See Equation 2.64 of Binney & Tremaine 'Galactic Dynamics'
+    """
+
+    def __init__(self, mvirial, conc, alpha, beta, z=0, cosmo=_default_cosmo,
+                 **kwargs):
+        self.z = z
+        self.alpha = alpha
+        self.beta = beta
+        self.cosmo = cosmo
+        super(TwoPowerHalo, self).__init__(mvirial, conc, **kwargs)
+
+    def evaluate(self, r, mvirial, conc):
+
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+
+        return rho0 / ((r/rs)**self.alpha * (1 + r/rs)**(self.beta - self.alpha))
+
+    def enclosed_mass(self, r):
+
+        rvirial = self.calc_rvir()
+        rs = rvirial/self.conc
+        aa = (r/rvirial)**(3 - self.alpha)
+        bb = (scp_spec.hyp2f1(3-self.alpha, self.beta-self.alpha, 4-self.alpha, -r/rs) /
+              scp_spec.hyp2f1(3 - self.alpha, self.beta - self.alpha, 4 - self.alpha, -self.conc))
+
+        return aa*bb
+
+    def calc_rho0(self):
+
+        rvir = self.calc_rvir()
+        rs = rvir/self.conc
+        aa = -10**self.mvirial/(4*np.pi*self.conc**(3-self.alpha)*rs**3)
+        bb = (self.alpha - 3) / scp_spec.hyp2f1(3-self.alpha, self.beta-self.alpha, 4-self.alpha, -self.conc)
+
+        return aa*bb
+
+    def calc_rvir(self):
+        """
+        Calculate the virial radius based on virial mass and redshift
+        M_vir = 100*H(z)^2/G * R_vir^3
+        """
+
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
+                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
+
+
 class NFW(DarkMatterHalo):
     """
     1D NFW mass model parameterized by the virial radius, virial mass, and
