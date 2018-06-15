@@ -1060,7 +1060,7 @@ class TwoPowerHalo(DarkMatterHalo):
 
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
-        aa = (r/rvirial)**(3 - self.alpha)
+        aa = 10**self.mvirial*(r/rvirial)**(3 - self.alpha)
         bb = (scp_spec.hyp2f1(3-self.alpha, self.beta-self.alpha, 4-self.alpha, -r/rs) /
               scp_spec.hyp2f1(3 - self.alpha, self.beta - self.alpha, 4 - self.alpha, -self.conc))
 
