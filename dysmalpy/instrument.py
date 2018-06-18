@@ -449,8 +449,8 @@ class Moffat(object):
             npix += 1
         
         
-        print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta, 
-                    major_fwhm, pixscale, npix))
+        #print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta, 
+        #            major_fwhm, pixscale, npix))
         
         
         # Arrays
