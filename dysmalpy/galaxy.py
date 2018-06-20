@@ -179,7 +179,12 @@ class Galaxy:
             spec_unit = self.instrument.spec_start.unit
             nspec = self.instrument.nspec
             rstep = self.instrument.pixscale.value
-
+            
+            try:
+                slit_width = self.instrument.slit_width
+            except:
+                pass
+            
         else:
 
             if (nx_sky is None) | (ny_sky is None) | (rstep is None):
@@ -187,6 +192,7 @@ class Galaxy:
                 raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                  "be set if from_instrument and/or from_data"
                                  " is False.")
+                                 
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,
                                                   dscale=self.dscale,

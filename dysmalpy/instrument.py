@@ -121,8 +121,8 @@ class Instrument:
         
         return cube
 
-    def set_beam_kernel(self, support_scaling=8.):
-
+    def set_beam_kernel(self, support_scaling=12.):
+        # Old default: same as Beam: support_scaling=8.
         if (self.beam_type == 'analytic') | (self.beam_type == None):
             
 
@@ -393,7 +393,7 @@ class DoubleBeam:
         
 class Moffat(object):
 
-    def __init__(self, major_fwhm=None, minor_fwhm=None, pa=None, beta=None, padfac=16.):
+    def __init__(self, major_fwhm=None, minor_fwhm=None, pa=None, beta=None, padfac=12.):
         
         if (major_fwhm is None) | (beta is None):
             raise ValueError('Need to specify at least the major axis FWHM + beta of beam.')
@@ -444,7 +444,12 @@ class Moffat(object):
         else:
             padfac = self.padfac
         
-        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * padfac))
+        # Npix: rounded std dev[ in pix] * padfac * 2 -- working in DIAMETER
+        # Factor of 1.43: For beta~2.5, Moffat FWHM ~ 0.7*Gaus FWHM 
+        #    -> add extra padding so the Moffat window
+        #       isn't much smaller than similar Gaussian PSF.
+        
+        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * 2 * 1./0.7 * padfac))
         if npix % 2 == 0:
             npix += 1
         
