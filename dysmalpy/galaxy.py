@@ -259,8 +259,9 @@ class Galaxy:
             #     sim_cube_obs *= scale
             
             # Throw a non-implemented error if smoothing + 3D model:
-            if self.data.smoothing_type is not None:
-                raise NotImplementedError('Smoothing for 3D output not implemented yet!')
+            if from_data:
+                if self.data.smoothing_type is not None:
+                    raise NotImplementedError('Smoothing for 3D output not implemented yet!')
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
@@ -287,10 +288,11 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
             
-            if self.data.smoothing_type is not None:
-                vel, disp = apply_smoothing_2D(vel, disp, 
-                            smoothing_type=self.data.smoothing_type,
-                            smoothing_npix=self.data.smoothing_npix)
+            if from_data:
+                if self.data.smoothing_type is not None:
+                    vel, disp = apply_smoothing_2D(vel, disp, 
+                                smoothing_type=self.data.smoothing_type,
+                                smoothing_npix=self.data.smoothing_npix)
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
