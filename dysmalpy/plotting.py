@@ -471,8 +471,12 @@ def plot_model_multid(gal,
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
         
-    gal.create_model_data(oversample=oversample, oversize=oversize,
+    try:
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center, ndim_final=1)
+    except:
+        gal.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=gal.model.line_center, ndim_final=1, from_data=False)
     galnew = copy.deepcopy(gal)
     model_data = galnew.model_data
     data = galnew.data

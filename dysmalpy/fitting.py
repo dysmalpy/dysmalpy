@@ -398,6 +398,9 @@ def fit(gal, nWalkers=10,
         
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
+        # Update theta to best-fit and save:
+        gal.model.update_parameters(mcmcResults.bestfit_parameters)
+        
         gal.preserve_self(filename=f_model)
         
     # --------------------------------
