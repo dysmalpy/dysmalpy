@@ -625,8 +625,9 @@ class ModelSet:
             vx = (spec - line_center_conv) / line_center_conv * apy_con.c.to(
                 u.km / u.s).value
 
-        velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
-                          (1, ny_sky_samp, nx_sky_samp))
+        #velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
+        #                  (1, ny_sky_samp, nx_sky_samp))
+
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
 
         # First construct the cube based on mass components
@@ -665,11 +666,11 @@ class ModelSet:
             vobs[rgal == 0] = 0.
 
             # Calculate "flux" for each position
-            flux = np.zeros(vobs.shape)
+            flux_mass = np.zeros(vobs.shape)
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
-                    flux += self.components[cmp].mass_to_light(rgal) * zscale
+                    flux_mass += self.components[cmp].mass_to_light(rgal) * zscale
 
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
@@ -683,17 +684,17 @@ class ModelSet:
             #    cube_sum = np.nansum(tmp_cube, 0)
             #    #cube_sum[cube_sum == 0] = 1
             #    cube_final += tmp_cube / cube_sum * f_cube * 100.
-            cube_final = cutils.populate_cube(flux, vobs, sigmar, vx)
+            cube_final += cutils.populate_cube(flux_mass, vobs, sigmar, vx)
             #cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
 
             if self.outflow._spatial_type == 'resolved':
                 # Create 3D arrays of the sky pixel coordinates
-                cos_inc = np.cos(self.outflow_geometry.inc * np.pi / 180.)
+                sin_inc = np.sin(self.outflow_geometry.inc * np.pi / 180.)
                 maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
                 maxr_y = np.max(np.array([maxr * 1.5, np.min(
-                    np.hstack([maxr * 1.5 / cos_inc, maxr * 5.]))]))
+                    np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
                 nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
                 if np.mod(nz_sky_samp, 2) < 0.5:
                     nz_sky_samp += 1
@@ -703,7 +704,6 @@ class ModelSet:
                 zsky = zsky - (nz_sky_samp - 1) / 2.
                 ysky = ysky - (ny_sky_samp - 1) / 2.
                 xsky = xsky - (nx_sky_samp - 1) / 2.
-
                 # Apply the geometric transformation to get outflow coordinates
                 # Account for oversampling
                 self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
@@ -724,15 +724,16 @@ class ModelSet:
                 vobs[rout == 0] = vout[rout == 0]
 
                 sigma_out = self.outflow_dispersion(rout)
-                for zz in range(nz_sky_samp):
-                    f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
-                    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-                    sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
-                    tmp_cube = np.exp(
-                        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-                    cube_sum = np.nansum(tmp_cube, 0)
-                    cube_sum[cube_sum == 0] = 1
-                    cube_final += tmp_cube / cube_sum * f_cube
+                #for zz in range(nz_sky_samp):
+                #    f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
+                #    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
+                #    sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
+                #    tmp_cube = np.exp(
+                #        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
+                #    cube_sum = np.nansum(tmp_cube, 0)
+                #    cube_sum[cube_sum == 0] = 1
+                #    cube_final += tmp_cube / cube_sum * f_cube
+                cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
 
             elif self.outflow._spatial_type == 'unresolved':
 
