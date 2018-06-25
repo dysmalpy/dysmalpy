@@ -99,7 +99,7 @@ class Galaxy:
                           spec_unit=(u.km/u.s), aper_centers=None, aper_dist=None,
                           slit_width=None, slit_pa=None, profile1d_type='circ_ap_cube',
                           from_instrument=True, from_data=True,
-                          oversample=1, oversize=1):
+                          oversample=1, oversize=1, debug=False):
 
         """
         Simulate an IFU cube then optionally collapse it down to a 2D
@@ -211,6 +211,9 @@ class Galaxy:
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
         else:
             sim_cube_nooversamp = sim_cube
+
+        if debug:
+            self.model_cube_no_convolve = sim_cube_nooversamp
 
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
@@ -345,7 +348,8 @@ class Galaxy:
                 aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
-                                                                          ap_centers=aper_centers_pix)
+                                                                          ap_centers=aper_centers_pix,
+                                                                          debug=debug)
                 aper_centers = aper_centers_pixout*rstep
                                                                           
 
