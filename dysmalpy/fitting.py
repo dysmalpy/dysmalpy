@@ -58,6 +58,7 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
+           red_chisq = False, 
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
@@ -149,7 +150,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
-                    'compute_dm':compute_dm, 'model_key_re':model_key_re }
+                    'compute_dm':compute_dm, 'model_key_re':model_key_re, 'red_chisq': red_chisq }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -751,6 +752,7 @@ class MCMCResults(object):
 def log_prob(theta, gal,
              oversample=1,
              oversize=1,
+             red_chisq=False, 
              fitdispersion=True,
              compute_dm=False,
              model_key_re=['disk+bulge','r_eff_disk']):
@@ -776,7 +778,8 @@ def log_prob(theta, gal,
                               line_center=gal.model.line_center)
                               
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
+        llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
+                    compute_dm=compute_dm, model_key_re=model_key_re)
 
         if compute_dm:
             lprob = lprior + llike[0]
@@ -794,7 +797,8 @@ def log_prob(theta, gal,
             return lprob
 
 
-def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
+def log_like(gal, red_chisq=False, fitdispersion=True, 
+                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
@@ -804,7 +808,15 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         # Artificially mask zero errors which are masked
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
-        llike = -0.5*chisq_arr_raw.sum()
+        if red_chisq:
+            if gal.model.nparams_free > np.sum(msk) :
+                raise ValueError("More free parameters than data points!")
+            invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
+        else:
+            invnu = 1.
+        llike = -0.5*chisq_arr_raw.sum() * invnu
+        
+
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
 
@@ -828,15 +840,27 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
+            if red_chisq:
+                if gal.model.nparams_free > 2.*np.sum(msk) :
+                    raise ValueError("More free parameters than data points!")
+                invnu = 1./ (1.*(2.*np.sum(msk) - gal.model.nparams_free))
+            else:
+                invnu = 1.
             chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2 +
                                     np.log(2.*np.pi*disp_err**2))
-            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
+            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
         else:
-            llike = -0.5*chisq_arr_raw_vel.sum()
+            if red_chisq:
+                if gal.model.nparams_free > np.sum(msk) :
+                    raise ValueError("More free parameters than data points!")
+                invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
+            else:
+                invnu = 1.
+            llike = -0.5*chisq_arr_raw_vel.sum() * invnu
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
-
+        
     if compute_dm:
         dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
         return llike, dm_frac
