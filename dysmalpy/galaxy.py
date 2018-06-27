@@ -212,8 +212,8 @@ class Galaxy:
         else:
             sim_cube_nooversamp = sim_cube
 
-        if debug:
-            self.model_cube_no_convolve = sim_cube_nooversamp
+        #if debug:
+        self.model_cube_no_convolve = sim_cube_nooversamp
 
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
