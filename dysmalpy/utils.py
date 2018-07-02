@@ -192,7 +192,7 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
         xaps, yaps, ap_centers = determine_aperture_centers(nx, ny, center_pixel, pa, dr)
     else:
         xaps, yaps = calc_pix_position(ap_centers, pa, center_pixel[0], center_pixel[1])
-    
+
     ### SHOULD SORT THIS OUT FROM DATA by correctly setting model geom PA + slit_pa
     # if (profile_direction == 'negative') & (np.abs(pa) < 90.0):
     #     ap_centers = -ap_centers
