@@ -684,7 +684,7 @@ class ModelSet:
                 #cube_sum[cube_sum == 0] = 1
                 cube_final += tmp_cube / cube_sum * f_cube * 100.
 
-            cube_final = cube_final/np.mean(cube_final)
+            #cube_final = cube_final/np.mean(cube_final)
 
         if self.outflow is not None:
 
@@ -750,7 +750,7 @@ class ModelSet:
 
         if debug:
             return cube_final, spec, flux_mass, vobs_mass
-        
+
         return cube_final, spec
 
 
