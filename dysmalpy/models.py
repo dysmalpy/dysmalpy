@@ -592,7 +592,8 @@ class ModelSet:
 
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1):
+                      spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1,
+                      debug=False):
 
         """Simulate an IFU cube of this model set"""
 
@@ -643,6 +644,7 @@ class ModelSet:
                 nz_sky_samp += 1
 
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+            print(sh)
             zsky, ysky, xsky = np.indices(sh)
             zsky = zsky - (nz_sky_samp - 1) / 2.
             ysky = ysky - (ny_sky_samp - 1) / 2.
@@ -661,12 +663,14 @@ class ModelSet:
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
-            vobs = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+            vobs_mass = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
-            vobs[rgal == 0] = 0.
+            vobs_mass[rgal == 0] = 0.
 
             # Calculate "flux" for each position
-            flux_mass = np.zeros(vobs.shape)
+
+            flux_mass = np.zeros(vobs_mass.shape)
+
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
@@ -675,17 +679,7 @@ class ModelSet:
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
-            #for zz in range(nz_sky_samp):
-            #    f_cube = np.tile(flux[zz, :, :], (nspec, 1, 1))
-            #    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-            #    sig_cube = np.tile(sigmar[zz, :, :], (nspec, 1, 1))
-            #    tmp_cube = np.exp(
-            #        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-            #    cube_sum = np.nansum(tmp_cube, 0)
-            #    #cube_sum[cube_sum == 0] = 1
-            #    cube_final += tmp_cube / cube_sum * f_cube * 100.
-            cube_final += cutils.populate_cube(flux_mass, vobs, sigmar, vx)
-            #cube_final = cube_final/np.mean(cube_final)
+            cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
 
         if self.outflow is not None:
 
@@ -748,6 +742,9 @@ class ModelSet:
 
                 voutflow = self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
+
+        if debug:
+            return cube_final, spec, flux_mass, vobs_mass
 
         return cube_final, spec
 
