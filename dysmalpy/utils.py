@@ -153,7 +153,7 @@ def calc_pix_position(r, pa, xcenter, ycenter):
 
 def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=None,
                                  ap_centers=None, spec_mask=None, estimate_err=False, nmc=100,
-                                 profile_direction='positive'):
+                                 profile_direction='positive', debug=False):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
     :param cube: Cube to measure the 1D profile on
@@ -238,6 +238,22 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
         mean[i] = best_fit.mean.value
         disp[i] = best_fit.stddev.value
         flux[i] = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp[i]
+
+        if debug:
+            print(ap_centers[i], xaps[i], yaps[i])
+            plt.figure()
+            plt.imshow(mask_ap)
+            plt.plot(xaps[i], yaps[i], 'ro', ms=4)
+            theta = np.arange(0, 2*np.pi, 0.01)
+            xcircle = rap*np.cos(theta) + xaps[i]
+            ycircle = rap*np.sin(theta) + yaps[i]
+            plt.plot(xcircle, ycircle, 'g--')
+            plt.title('r = {0}'.format(ap_centers[i]))
+
+            #plt.figure()
+            #plt.plot(spec_arr_fit, spec_fit)
+            #plt.plot(spec_arr_fit, best_fit(spec_arr_fit))
+            #plt.title('r = {0}'.format(ap_centers[i]))
 
         if estimate_err:
             residual = spec - best_fit(spec)
