@@ -445,7 +445,7 @@ class Moffat(object):
             padfac = self.padfac
         
         # Npix: rounded std dev[ in pix] * padfac * 2 -- working in DIAMETER
-        # Factor of 1.43: For beta~2.5, Moffat FWHM ~ 0.7*Gaus FWHM 
+        # Factor of 1./0.7: For beta~2.5, Moffat FWHM ~ 0.7*Gaus FWHM 
         #    -> add extra padding so the Moffat window
         #       isn't much smaller than similar Gaussian PSF.
         
