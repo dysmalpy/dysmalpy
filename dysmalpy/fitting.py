@@ -1141,7 +1141,15 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.dim))
     # Walkers, iterations
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
-
+    
+    #
+    try:
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(sampler.chain[:,nBurn:,jj])[0] for jj in range(sampler.dim)]
+    except:
+        acor_time = None
+        
+        
     # Make a dictionary:
     df = { 'chain': sampler.chain[:, nBurn:, :],
            'lnprobability': sampler.lnprobability[:, nBurn:],
@@ -1150,7 +1158,9 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nIter': sampler.iterations,
            'nParam': sampler.dim,
            'nCPU': sampler.threads,
-           'nWalkers': len(sampler.chain) }
+           'nWalkers': len(sampler.chain), 
+           'acceptance_fraction': sampler.acceptance_fraction,
+           'acor_time': acor_time }
 
     if len(sampler.blobs) > 0:
         df['blobs'] = sampler.blobs
