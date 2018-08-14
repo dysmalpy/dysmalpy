@@ -295,11 +295,12 @@ class Galaxy:
             else:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
-            
-            if self.data.smoothing_type is not None:
-                vel, disp = apply_smoothing_2D(vel, disp, 
-                            smoothing_type=self.data.smoothing_type,
-                            smoothing_npix=self.data.smoothing_npix)
+
+            if from_data:
+                if self.data.smoothing_type is not None:
+                    vel, disp = apply_smoothing_2D(vel, disp,
+                                smoothing_type=self.data.smoothing_type,
+                                fiesmoothing_npix=self.data.smoothing_npix)
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
