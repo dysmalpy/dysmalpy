@@ -1034,27 +1034,35 @@ class DarkMatterHalo(MassModel):
             return self.circular_velocity(r)
 
 
-class TwoPowerHalo(DarkMatterHalo):
+class TwoPowerHalo(MassModel):
     """
     Class for a generic two power law density model for a dark matter halo
     See Equation 2.64 of Binney & Tremaine 'Galactic Dynamics'
     """
 
+    # Powerlaw slopes for the density model
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    conc = DysmalParameter(default=5.0, bounds=(6, 20))
+    alpha = DysmalParameter(default=1.0)
+    beta = DysmalParameter(default=3.0)
+
+    _subtype = 'dark_matter'
+
     def __init__(self, mvirial, conc, alpha, beta, z=0, cosmo=_default_cosmo,
                  **kwargs):
         self.z = z
-        self.alpha = alpha
-        self.beta = beta
+        #self.alpha = alpha
+        #self.beta = beta
         self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(mvirial, conc, **kwargs)
+        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, **kwargs)
 
-    def evaluate(self, r, mvirial, conc):
+    def evaluate(self, r, mvirial, conc, alpha, beta):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
 
-        return rho0 / ((r/rs)**self.alpha * (1 + r/rs)**(self.beta - self.alpha))
+        return rho0 / ((r/rs)**alpha * (1 + r/rs)**(beta - alpha))
 
     def enclosed_mass(self, r):
 
