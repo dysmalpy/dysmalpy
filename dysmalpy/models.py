@@ -639,12 +639,12 @@ class ModelSet:
             maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
             maxr_y = np.max(np.array([maxr*1.5, np.min(
                 np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
-            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
             if np.mod(nz_sky_samp, 2) < 0.5:
                 nz_sky_samp += 1
 
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-            print(sh)
             zsky, ysky, xsky = np.indices(sh)
             zsky = zsky - (nz_sky_samp - 1) / 2.
             ysky = ysky - (ny_sky_samp - 1) / 2.
