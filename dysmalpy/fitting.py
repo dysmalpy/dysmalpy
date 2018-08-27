@@ -562,7 +562,7 @@ class MCMCResults(object):
         
 
 
-    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
+    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
         """
         Default analysis of posterior distributions from MCMC fitting:
             look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
