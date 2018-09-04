@@ -391,6 +391,13 @@ def fit(gal, nWalkers=10,
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
 
+            
+    # Update theta to best-fit:
+    gal.model.update_parameters(mcmcResults.bestfit_parameters)
+    mcmcResults.bestfit_redchisq = log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
+                    compute_dm=False, model_key_re=model_key_re)
+    
+    
     if f_mcmc_results is not None:
         mcmcResults.save_results(filename=f_mcmc_results)
         
@@ -399,9 +406,7 @@ def fit(gal, nWalkers=10,
         
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
-        # Update theta to best-fit and save:
-        gal.model.update_parameters(mcmcResults.bestfit_parameters)
-        
+        # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model)
         
     # --------------------------------
@@ -493,6 +498,8 @@ class MCMCResults(object):
 
         self.bestfit_parameters_l68 = None
         self.bestfit_parameters_u68 = None
+        
+        self.bestfit_redchisq = None
 
         if model is not None:
             self.set_model(model)
@@ -662,6 +669,11 @@ class MCMCResults(object):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
+        
+        self.bestfit_redchisq = None
+        
+        
+        
         
     def save_results(self, filename=None):
         if filename is not None:
