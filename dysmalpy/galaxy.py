@@ -300,7 +300,7 @@ class Galaxy:
                 if self.data.smoothing_type is not None:
                     vel, disp = apply_smoothing_2D(vel, disp,
                                 smoothing_type=self.data.smoothing_type,
-                                fiesmoothing_npix=self.data.smoothing_npix)
+                                smoothing_npix=self.data.smoothing_npix)
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
