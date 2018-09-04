@@ -243,7 +243,9 @@ def plot_data_model_comparison_2D(gal,
             oversample=1,
             oversize=1,
             fitdispersion=True, 
-            fileout=None):
+            fileout=None,
+            symmetric_residuals=True,
+            max_residual=100.):
     #
     ######################################
     # Setup plot:
@@ -316,6 +318,9 @@ def plot_data_model_comparison_2D(gal,
         elif k == 'residual':
             im = gal.data.data['velocity'] - gal.model_data.data['velocity']
             im[~gal.data.mask] = np.nan
+            if symmetric_residuals:
+                vel_vmin = -max_residual
+                vel_vmax = max_residual
         else:
             raise ValueError("key not supported.")
 
@@ -369,16 +374,16 @@ def plot_data_model_comparison_2D(gal,
 
                 im = gal.data.data['dispersion'] - im_model
                 im[~gal.data.mask] = np.nan
+                
+                if symmetric_residuals:
+                    disp_vmin = -max_residual
+                    disp_vmax = max_residual
 
             else:
                 raise ValueError("key not supported.")
 
-            if k != 'residual':
-                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                                 vmin=disp_vmin, vmax=disp_vmax, origin=origin)
-            else:
-                imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                                 origin=origin)
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
