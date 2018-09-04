@@ -394,6 +394,10 @@ def fit(gal, nWalkers=10,
             
     # Update theta to best-fit:
     gal.model.update_parameters(mcmcResults.bestfit_parameters)
+    
+    gal.create_model_data(oversample=oversample, oversize=oversize, 
+                              line_center=gal.model.line_center)
+    
     mcmcResults.bestfit_redchisq = log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
                     compute_dm=False, model_key_re=model_key_re)
     
