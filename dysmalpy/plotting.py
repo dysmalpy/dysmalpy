@@ -245,7 +245,8 @@ def plot_data_model_comparison_2D(gal,
             fitdispersion=True, 
             fileout=None,
             symmetric_residuals=True,
-            max_residual=100.):
+            max_residual=100.,
+            model_key_vel_shift=['geom', 'vel_shift']):
     #
     ######################################
     # Setup plot:
@@ -307,16 +308,23 @@ def plot_data_model_comparison_2D(gal,
 
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
-
+    
+    try:
+        vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
+    except:
+        vel_shift = 0
+        
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
             im = gal.data.data['velocity'].copy()
+            im -= vel_shift
+            
             im[~gal.data.mask] = np.nan
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
             im[~gal.data.mask] = np.nan
         elif k == 'residual':
-            im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+            im = gal.data.data['velocity'] - vel_shift - gal.model_data.data['velocity']
             im[~gal.data.mask] = np.nan
             if symmetric_residuals:
                 vel_vmin = -max_residual

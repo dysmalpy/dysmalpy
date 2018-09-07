@@ -486,6 +486,14 @@ class ModelSet:
         dm_frac = vdm[-1]**2/vc[-1]**2
         
         return dm_frac
+        
+    def get_vel_shift(self, model_key_vel_shift=None):
+        comp = self.components.__getitem__(model_key_vel_shift[0])
+        param_i = comp.param_names.index(model_key_vel_shift[1])
+        vel_shift = comp.parameters[param_i]
+        # Vel shift needs to be in km/s
+        
+        return vel_shift
 
     def enclosed_mass(self, r):
         """
@@ -1186,6 +1194,8 @@ class Geometry(_DysmalFittable3DModel):
     pa = DysmalParameter(default=0.0, bounds=(-180, 180))
     xshift = DysmalParameter(default=0.0)
     yshift = DysmalParameter(default=0.0)
+    
+    vel_shift = DysmalParameter(default=0.0, fixed=True)  # default: none
 
     _type = 'geometry'
     outputs = ('xp', 'yp', 'zp')
