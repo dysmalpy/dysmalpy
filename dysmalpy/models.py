@@ -1201,7 +1201,7 @@ class Geometry(_DysmalFittable3DModel):
     outputs = ('xp', 'yp', 'zp')
 
     @staticmethod
-    def evaluate(x, y, z, inc, pa, xshift, yshift):
+    def evaluate(x, y, z, inc, pa, xshift, yshift, vel_shift):
 
         inc = np.pi / 180. * inc
         pa = np.pi / 180. * (pa - 90.)
