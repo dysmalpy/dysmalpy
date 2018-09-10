@@ -313,12 +313,14 @@ def plot_data_model_comparison_2D(gal,
         vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
     except:
         vel_shift = 0
-        
+    #
+    vel_vmin -= vel_shift
+    vel_vmax -= vel_shift
+    
     for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
         if k == 'data':
             im = gal.data.data['velocity'].copy()
             im -= vel_shift
-            
             im[~gal.data.mask] = np.nan
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
