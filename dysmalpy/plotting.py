@@ -170,8 +170,12 @@ def plot_data_model_comparison_1D(gal,
         model_data = gal.model_data
     
     # Correct model for instrument dispersion if the data is instrument corrected:
+    
     if 'inst_corr' in data.data.keys():
-        if (data.data['inst_corr']):
+        inst_corr = data.data['inst_corr']
+        
+            
+    if inst_corr: 
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - \
                     gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
@@ -212,7 +216,7 @@ def plot_data_model_comparison_1D(gal,
             c='black', marker='o', s=25, lw=1, label=None)
             
             
-        axes[k].scatter( data.rarr, model_data.data[keyyarr[j]],
+        axes[k].scatter( model_data.rarr, model_data.data[keyyarr[j]],
             c='red', marker='s', s=25, lw=1, label=None)
         axes[k].set_xlabel(keyxtitle)
         axes[k].set_ylabel(keyytitlearr[j])
@@ -248,6 +252,12 @@ def plot_data_model_comparison_2D(gal,
             max_residual=100.,
             model_key_vel_shift=['geom', 'vel_shift']):
     #
+    try:
+        if 'inst_corr' in gal.data.data.keys():
+            inst_corr = gal.data.data['inst_corr']
+    except:
+        pass
+        
     ######################################
     # Setup plot:
     f = plt.figure(figsize=(9.5, 6))
@@ -292,20 +302,22 @@ def plot_data_model_comparison_2D(gal,
                              cbar_size="5%",
                              cbar_pad="1%",
                              )
-
-    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
-    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
-
+    #
     keyxarr = ['data', 'model', 'residual']
     keyyarr = ['velocity', 'dispersion']
     keyxtitlearr = ['Data', 'Model', 'Residual']
     keyytitlearr = [r'$V$', r'$\sigma$']
 
+    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
+    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
+
+
+
     int_mode = "nearest"
     origin = 'lower'
     cmap =  cm.nipy_spectral
     cmap.set_bad(color='k')
-
+    
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
     
@@ -354,8 +366,12 @@ def plot_data_model_comparison_2D(gal,
 
     if fitdispersion:
 
-        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        if gal.data is not None:
+            disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+            disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        else:
+            disp_vmin = gal.model_data.data['dispersion'].min()
+            disp_vmax = gal.model_data.data['dispersion'].max()
 
         for ax, k in zip(grid_disp, keyxarr):
             if k == 'data':
@@ -363,23 +379,20 @@ def plot_data_model_comparison_2D(gal,
                 im[~gal.data.mask] = np.nan
             elif k == 'model':
                 im = gal.model_data.data['dispersion'].copy()
+                
                 im[~gal.data.mask] = np.nan
 
                 # Correct model for instrument dispersion
                 # if the data is instrument corrected:
-                if 'inst_corr' in gal.data.data.keys():
-                    if (gal.data.data['inst_corr']):
-                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
-                                     u.km / u.s).value ** 2)
+                if inst_corr:
+                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                 u.km / u.s).value ** 2)
 
             elif k == 'residual':
 
                 im_model = gal.model_data.data['dispersion'].copy()
-                if 'inst_corr' in gal.data.data.keys():
-                    if (gal.data.data['inst_corr']):
-                        im_model = np.sqrt(im_model ** 2 -
-                                           gal.instrument.lsf.dispersion.to(
-                                           u.km / u.s).value ** 2)
+                im_model = np.sqrt(im_model ** 2 -
+                                   gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
 
 
                 im = gal.data.data['dispersion'] - im_model
@@ -417,6 +430,223 @@ def plot_data_model_comparison_2D(gal,
         plt.draw()
         plt.show()
         
+#
+def plot_model_1D(gal, 
+            oversample=1,
+            oversize=1,
+            fitdispersion=True, 
+            best_dispersion=None, 
+            inst_corr=True, 
+            fileout=None):
+    ######################################
+    # Setup data/model comparison: if this isn't the fit dimension 
+    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
+        
+    model_data = gal.model_data
+            
+    if inst_corr: 
+            model_data.data['dispersion'] = \
+                np.sqrt( model_data.data['dispersion']**2 - \
+                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+    
+    
+    ######################################
+    # Setup plot:
+    f = plt.figure()
+    scale = 3.5
+    if fitdispersion:
+        ncols = 2
+    else:
+        ncols = 1
+    nrows = 1
+    
+    f.set_size_inches(1.1*ncols*scale, nrows*scale)
+    gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
+
+    keyxtitle = r'$r$ [arcsec]'
+    keyyarr = ['velocity', 'dispersion']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+    keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
+                    r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+
+    errbar_lw = 0.5
+    errbar_cap = 1.5
+
+    axes = []
+    k = -1
+    for j in six.moves.xrange(ncols):
+        # Comparison:
+        axes.append(plt.subplot(gs[0,j]))
+        k += 1
+            
+        axes[k].scatter( model_data.rarr, model_data.data[keyyarr[j]],
+            c='red', marker='s', s=25, lw=1, label=None)
+            
+        if keyyarr[j] == 'dispersion':
+            if best_dispersion:
+                axes[k].axhline(y=best_dispersion, ls='--', color='red', zorder=-1.)
+            
+        axes[k].set_xlabel(keyxtitle)
+        axes[k].set_ylabel(keyytitlearr[j])
+        axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
+        
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.show()
+    
+
+def plot_model_2D(gal, 
+            oversample=1,
+            oversize=1,
+            fitdispersion=True, 
+            fileout=None,
+            symmetric_residuals=True,
+            max_residual=100.,
+            model_key_vel_shift=['geom', 'vel_shift'], 
+            inst_corr=True):
+    #
+        
+    ######################################
+    # Setup plot:
+    f = plt.figure(figsize=(9.5, 6))
+    scale = 3.5
+    if fitdispersion:
+        grid_vel = ImageGrid(f, 121,
+                             nrows_ncols=(1, 1),
+                             direction="row",
+                             axes_pad=0.5,
+                             add_all=True,
+                             label_mode="1",
+                             share_all=True,
+                             cbar_location="right",
+                             cbar_mode="each",
+                             cbar_size="5%",
+                             cbar_pad="1%",
+                             )
+
+        grid_disp = ImageGrid(f, 122,
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+    else:
+        grid_vel = ImageGrid(f, 111,
+                             nrows_ncols=(1, 1),
+                             direction="row",
+                             axes_pad=0.5,
+                             add_all=True,
+                             label_mode="1",
+                             share_all=True,
+                             cbar_location="right",
+                             cbar_mode="each",
+                             cbar_size="5%",
+                             cbar_pad="1%",
+                             )
+                                 
+                                 
+    #
+    keyxarr = ['model']
+    keyyarr = ['velocity', 'dispersion']
+    keyxtitlearr = ['Model']
+    keyytitlearr = [r'$V$', r'$\sigma$']
+
+    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
+    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
+
+
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap =  cm.nipy_spectral
+    cmap.set_bad(color='k')
+    
+    vel_vmin = gal.model_data.data['velocity'].min()
+    vel_vmax = gal.model_data.data['velocity'].max()
+    if np.abs(vel_vmax) > 400.:
+        vel_vmax = 400.
+    if np.abs(vel_vmin) > 400.:
+        vel_vmin = -400.
+    
+    try:
+        vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
+    except:
+        vel_shift = 0
+    #
+    vel_vmin -= vel_shift
+    vel_vmax -= vel_shift
+    
+    for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
+        im = gal.model_data.data['velocity'].copy()
+            
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                         vmin=vel_vmin, vmax=vel_vmax, origin=origin)
+
+        ax.set_ylabel(keyytitlearr[0])
+        ax.tick_params(which='both', top='off', bottom='off',
+                       left='off', right='off', labelbottom='off',
+                       labelleft='off')
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        
+        ax.set_ylabel(keyytitlearr[0])
+
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
+
+    if fitdispersion:
+
+        disp_vmin = gal.model_data.data['dispersion'].min()
+        disp_vmax = gal.model_data.data['dispersion'].max()
+        
+        print("disp_vmin={}, disp_vmax={}".format(disp_vmin, disp_vmax))
+        if np.abs(disp_vmax) > 500:
+            disp_vmax = 500.
+        if np.abs(disp_vmin) > 500:
+            disp_vmin = 0. 
+
+        for ax, k in zip(grid_disp, keyxarr):
+            im = gal.model_data.data['dispersion'].copy()
+            if inst_corr:
+                im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                             u.km / u.s).value ** 2)
+                
+                disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
+                disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
+                
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+
+            ax.set_ylabel(keyytitlearr[1])
+            ax.tick_params(which='both', top='off', bottom='off',
+                           left='off', right='off', labelbottom='off',
+                           labelleft='off')
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
         
 def plot_model_multid(gal, 
             theta=None, 
