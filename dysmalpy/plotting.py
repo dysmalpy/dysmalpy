@@ -610,7 +610,6 @@ def plot_model_2D(gal,
         disp_vmin = gal.model_data.data['dispersion'].min()
         disp_vmax = gal.model_data.data['dispersion'].max()
         
-        print("disp_vmin={}, disp_vmax={}".format(disp_vmin, disp_vmax))
         if np.abs(disp_vmax) > 500:
             disp_vmax = 500.
         if np.abs(disp_vmin) > 500:
