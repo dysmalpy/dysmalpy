@@ -401,7 +401,7 @@ def fit(gal, nWalkers=10,
     gal.create_model_data(oversample=oversample, oversize=oversize, 
                               line_center=gal.model.line_center)
     
-    mcmcResults.bestfit_redchisq = log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
+    mcmcResults.bestfit_redchisq = -2.*log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
                     compute_dm=False, model_key_re=model_key_re)
     
     
