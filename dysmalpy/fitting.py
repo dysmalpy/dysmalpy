@@ -58,9 +58,11 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
+           red_chisq = False, 
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
+           model_key_vel_shift=['geom', 'vel_shift'], 
            do_plotting = True,
            save_burn = False,
            save_model = True, 
@@ -149,7 +151,9 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
-                    'compute_dm':compute_dm, 'model_key_re':model_key_re }
+                    'compute_dm':compute_dm, 'model_key_re':model_key_re, 
+                    'model_key_vel_shift':model_key_vel_shift,
+                    'red_chisq': red_chisq }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -390,6 +394,17 @@ def fit(gal, nWalkers=10,
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
 
+            
+    # Update theta to best-fit:
+    gal.model.update_parameters(mcmcResults.bestfit_parameters)
+    
+    gal.create_model_data(oversample=oversample, oversize=oversize, 
+                              line_center=gal.model.line_center)
+    
+    mcmcResults.bestfit_redchisq = -2.*log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
+                    compute_dm=False, model_key_re=model_key_re)
+    
+    
     if f_mcmc_results is not None:
         mcmcResults.save_results(filename=f_mcmc_results)
         
@@ -398,9 +413,7 @@ def fit(gal, nWalkers=10,
         
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
-        # Update theta to best-fit and save:
-        gal.model.update_parameters(mcmcResults.bestfit_parameters)
-        
+        # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model)
         
     # --------------------------------
@@ -492,6 +505,8 @@ class MCMCResults(object):
 
         self.bestfit_parameters_l68 = None
         self.bestfit_parameters_u68 = None
+        
+        self.bestfit_redchisq = None
 
         if model is not None:
             self.set_model(model)
@@ -561,7 +576,7 @@ class MCMCResults(object):
         
 
 
-    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
+    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
         """
         Default analysis of posterior distributions from MCMC fitting:
             look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
@@ -662,6 +677,11 @@ class MCMCResults(object):
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
+        self.bestfit_redchisq = None
+        
+        
+        
+        
     def save_results(self, filename=None):
         if filename is not None:
             dump_pickle(self, filename=filename) # Save mcmcResults class
@@ -751,9 +771,11 @@ class MCMCResults(object):
 def log_prob(theta, gal,
              oversample=1,
              oversize=1,
+             red_chisq=False, 
              fitdispersion=True,
              compute_dm=False,
-             model_key_re=['disk+bulge','r_eff_disk']):
+             model_key_re=['disk+bulge','r_eff_disk'],
+             model_key_vel_shift=['geom', 'vel_shift']):
     """
     Evaluate the log probability of the given model
     """
@@ -776,7 +798,9 @@ def log_prob(theta, gal,
                               line_center=gal.model.line_center)
                               
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, fitdispersion=fitdispersion, compute_dm=compute_dm, model_key_re=model_key_re)
+        llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
+                    compute_dm=compute_dm, model_key_re=model_key_re,
+                    model_key_vel_shift=model_key_vel_shift)
 
         if compute_dm:
             lprob = lprior + llike[0]
@@ -794,9 +818,18 @@ def log_prob(theta, gal,
             return lprob
 
 
-def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
+def log_like(gal, red_chisq=False, fitdispersion=True, 
+                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk'], 
+                model_key_vel_shift=['geom', 'vel_shift']):
+
+    # 'geom' velocity shift for the data:
+    vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
 
     if gal.data.ndim == 3:
+        # Will have problem with vel shift: data, model won't match...
+        if np.abs(vel_shift) != 0.:
+            raise ValueError('vel shift not implemented to handle 3D yet!')
+            
         dat = gal.data.data.unmasked_data[:].value
         mod = gal.model_data.data.unmasked_data[:].value
         err = gal.data.error.unmasked_data[:].value
@@ -804,7 +837,15 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
         # Artificially mask zero errors which are masked
         err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
-        llike = -0.5*chisq_arr_raw.sum()
+        if red_chisq:
+            if gal.model.nparams_free > np.sum(msk) :
+                raise ValueError("More free parameters than data points!")
+            invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
+        else:
+            invnu = 1.
+        llike = -0.5*chisq_arr_raw.sum() * invnu
+        
+
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
 
@@ -824,19 +865,32 @@ def log_like(gal, fitdispersion=True, compute_dm=False, model_key_re=['disk+bulg
                                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
-
-        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
+                                                       
+        # Includes velocity shift
+        chisq_arr_raw_vel = (((vel_dat - vel_shift - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
+            if red_chisq:
+                if gal.model.nparams_free > 2.*np.sum(msk) :
+                    raise ValueError("More free parameters than data points!")
+                invnu = 1./ (1.*(2.*np.sum(msk) - gal.model.nparams_free))
+            else:
+                invnu = 1.
             chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2 +
                                     np.log(2.*np.pi*disp_err**2))
-            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum())
+            llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
         else:
-            llike = -0.5*chisq_arr_raw_vel.sum()
+            if red_chisq:
+                if gal.model.nparams_free > np.sum(msk) :
+                    raise ValueError("More free parameters than data points!")
+                invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
+            else:
+                invnu = 1.
+            llike = -0.5*chisq_arr_raw_vel.sum() * invnu
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
-
+        
     if compute_dm:
         dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
         return llike, dm_frac
@@ -1117,7 +1171,15 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.dim))
     # Walkers, iterations
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
-
+    
+    #
+    try:
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(sampler.chain[:,nBurn:,jj])[0] for jj in range(sampler.dim)]
+    except:
+        acor_time = None
+        
+        
     # Make a dictionary:
     df = { 'chain': sampler.chain[:, nBurn:, :],
            'lnprobability': sampler.lnprobability[:, nBurn:],
@@ -1126,7 +1188,9 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'nIter': sampler.iterations,
            'nParam': sampler.dim,
            'nCPU': sampler.threads,
-           'nWalkers': len(sampler.chain) }
+           'nWalkers': len(sampler.chain), 
+           'acceptance_fraction': sampler.acceptance_fraction,
+           'acor_time': acor_time }
 
     if len(sampler.blobs) > 0:
         df['blobs'] = sampler.blobs
