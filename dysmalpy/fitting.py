@@ -7,7 +7,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-    ## Standard library
+## Standard library
 import logging
 from multiprocessing import cpu_count
 
