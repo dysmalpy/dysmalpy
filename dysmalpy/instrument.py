@@ -194,7 +194,7 @@ class Instrument:
 
     @beam.setter
     def beam(self, new_beam):
-        if isinstance(new_beam, Beam):
+        if isinstance(new_beam, Beam) | isinstance(new_beam, Moffat):
             self._beam = new_beam
         elif new_beam is None:
             self._beam = None

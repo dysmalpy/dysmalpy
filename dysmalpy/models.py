@@ -486,6 +486,14 @@ class ModelSet:
         dm_frac = vdm[-1]**2/vc[-1]**2
         
         return dm_frac
+        
+    def get_vel_shift(self, model_key_vel_shift=None):
+        comp = self.components.__getitem__(model_key_vel_shift[0])
+        param_i = comp.param_names.index(model_key_vel_shift[1])
+        vel_shift = comp.parameters[param_i]
+        # Vel shift needs to be in km/s
+        
+        return vel_shift
 
     def enclosed_mass(self, r):
         """
@@ -636,12 +644,12 @@ class ModelSet:
             maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
             maxr_y = np.max(np.array([maxr*1.5, np.min(
                 np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
-            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
             if np.mod(nz_sky_samp, 2) < 0.5:
                 nz_sky_samp += 1
 
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-            print(sh)
             zsky, ysky, xsky = np.indices(sh)
             zsky = zsky - (nz_sky_samp - 1) / 2.
             ysky = ysky - (ny_sky_samp - 1) / 2.
@@ -1031,27 +1039,35 @@ class DarkMatterHalo(MassModel):
             return self.circular_velocity(r)
 
 
-class TwoPowerHalo(DarkMatterHalo):
+class TwoPowerHalo(MassModel):
     """
     Class for a generic two power law density model for a dark matter halo
     See Equation 2.64 of Binney & Tremaine 'Galactic Dynamics'
     """
 
+    # Powerlaw slopes for the density model
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    conc = DysmalParameter(default=5.0, bounds=(6, 20))
+    alpha = DysmalParameter(default=1.0)
+    beta = DysmalParameter(default=3.0)
+
+    _subtype = 'dark_matter'
+
     def __init__(self, mvirial, conc, alpha, beta, z=0, cosmo=_default_cosmo,
                  **kwargs):
         self.z = z
-        self.alpha = alpha
-        self.beta = beta
+        #self.alpha = alpha
+        #self.beta = beta
         self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(mvirial, conc, **kwargs)
+        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, **kwargs)
 
-    def evaluate(self, r, mvirial, conc):
+    def evaluate(self, r, mvirial, conc, alpha, beta):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
 
-        return rho0 / ((r/rs)**self.alpha * (1 + r/rs)**(self.beta - self.alpha))
+        return rho0 / ((r/rs)**alpha * (1 + r/rs)**(beta - alpha))
 
     def enclosed_mass(self, r):
 
@@ -1175,12 +1191,14 @@ class Geometry(_DysmalFittable3DModel):
     pa = DysmalParameter(default=0.0, bounds=(-180, 180))
     xshift = DysmalParameter(default=0.0)
     yshift = DysmalParameter(default=0.0)
+    
+    vel_shift = DysmalParameter(default=0.0, fixed=True)  # default: none
 
     _type = 'geometry'
     outputs = ('xp', 'yp', 'zp')
 
     @staticmethod
-    def evaluate(x, y, z, inc, pa, xshift, yshift):
+    def evaluate(x, y, z, inc, pa, xshift, yshift, vel_shift):
 
         inc = np.pi / 180. * inc
         pa = np.pi / 180. * (pa - 90.)

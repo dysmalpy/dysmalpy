@@ -299,7 +299,7 @@ class Galaxy:
             
             if from_data:
                 if self.data.smoothing_type is not None:
-                    vel, disp = apply_smoothing_2D(vel, disp, 
+                    vel, disp = apply_smoothing_2D(vel, disp,
                                 smoothing_type=self.data.smoothing_type,
                                 smoothing_npix=self.data.smoothing_npix)
             
