@@ -1382,13 +1382,14 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     thetain = DysmalParameter(bounds=(0, 90))
     dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
+    norm_flux = DysmalParameter(default=0.0)
 
     _type = 'outflow'
     _spatial_type = 'resolved'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
-                 profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux,
+                 profile_type='both', tau_flux=5.0, **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both']
 
@@ -1399,12 +1400,12 @@ class BiconicalOutflow(_DysmalFittable3DModel):
                          "'decrease', or 'both.'")
 
         self.tau_flux = tau_flux
-        self.norm_flux = norm_flux
+        #self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               dtheta, rend, **kwargs)
+                                               dtheta, rend, norm_flux, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1439,7 +1440,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         r = np.sqrt(x**2 + y**2 + z**2)
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
         theta[r == 0] = 0.
-        flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
+        flux = 10**self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
         thetaout = np.min([self.thetain + self.dtheta, 90.])
         ind_zero = ((theta < self.thetain) |
                     (theta > thetaout) |
