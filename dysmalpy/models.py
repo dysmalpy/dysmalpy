@@ -639,7 +639,7 @@ class ModelSet:
 
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
         
-        v_sys = self.geometry.vel_shift.to(u.km/u.s).value  # systemic velocity
+        v_sys = self.geometry.vel_shift.value  # systemic velocity
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
