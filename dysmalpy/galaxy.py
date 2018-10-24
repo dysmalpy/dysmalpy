@@ -55,7 +55,8 @@ class Galaxy:
     """
 
     def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
-                 data=None, name='galaxy'):
+                 data=None, name='galaxy', 
+                 data1d=None, data2d=None, data3d=None):
 
         self._z = z
         self.name = name
@@ -64,6 +65,11 @@ class Galaxy:
         else:
             self.model = model
         self.data = data
+        
+        self.data1d = data1d
+        self.data2d = data2d
+        self.data3d = data3d
+        
         self.instrument = instrument
         self._cosmo = cosmo
         self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
