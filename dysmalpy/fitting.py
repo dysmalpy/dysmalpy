@@ -65,6 +65,7 @@ def fit(gal, nWalkers=10,
            do_plotting = True,
            save_burn = False,
            save_model = True, 
+           save_data = True, 
            out_dir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
@@ -412,7 +413,7 @@ def fit(gal, nWalkers=10,
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
         # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model)
+        gal.preserve_self(filename=f_model, save_data=save_data)
         
     # --------------------------------
     # Plot trace, if output file set

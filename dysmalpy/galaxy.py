@@ -369,7 +369,7 @@ class Galaxy:
                                      slit_pa=slit_pa)
 
     #
-    def preserve_self(self, filename=None):
+    def preserve_self(self, filename=None, save_data=True):
         # def save_galaxy_model(self, galaxy=None, filename=None):
         if filename is not None:
             galtmp = copy.deepcopy(self)
@@ -377,9 +377,10 @@ class Galaxy:
             galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
             galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
             
-            galtmp.data = None
-            galtmp.model_data = None
-            galtmp.model_cube = None
+            if not save_data:
+                galtmp.data = None
+                galtmp.model_data = None
+                galtmp.model_cube = None
             
             # galtmp.instrument = copy.deepcopy(galaxy.instrument)
             # galtmp.model = modtmp
