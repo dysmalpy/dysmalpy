@@ -688,6 +688,9 @@ class ModelSet:
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
             cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+            
+            self.geometry.xshift = self.geometry.xshift.value / oversample
+            self.geometry.yshift = self.geometry.yshift.value / oversample
 
         if self.outflow is not None:
 
@@ -736,6 +739,9 @@ class ModelSet:
                 #    cube_sum[cube_sum == 0] = 1
                 #    cube_final += tmp_cube / cube_sum * f_cube
                 cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
+                
+                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value / oversample
+                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value / oversample
 
             elif self.outflow._spatial_type == 'unresolved':
 
@@ -750,6 +756,9 @@ class ModelSet:
 
                 voutflow = self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
+                
+                xshift = self.outflow_geometry.xshift.value / oversample
+                yshift = self.outflow_geometry.yshift.value / oversample
 
         if debug:
             return cube_final, spec, flux_mass, vobs_mass
