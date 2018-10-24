@@ -969,7 +969,7 @@ def plot_model_multid_base(gal,
                         print(" showing apers: ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
                                                         gal.model.geometry.xshift.value, 
                                                         gal.model.geometry.yshift.value, 
-                                                        gal.model.geometry.vel_shift.value)
+                                                        gal.model.geometry.vel_shift.value))
                         
                         
                         
