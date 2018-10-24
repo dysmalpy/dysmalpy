@@ -487,13 +487,13 @@ class ModelSet:
         
         return dm_frac
         
-    def get_vel_shift(self, model_key_vel_shift=None):
-        comp = self.components.__getitem__(model_key_vel_shift[0])
-        param_i = comp.param_names.index(model_key_vel_shift[1])
-        vel_shift = comp.parameters[param_i]
-        # Vel shift needs to be in km/s
-        
-        return vel_shift
+    # def get_vel_shift(self, model_key_vel_shift=None):
+    #     comp = self.components.__getitem__(model_key_vel_shift[0])
+    #     param_i = comp.param_names.index(model_key_vel_shift[1])
+    #     vel_shift = comp.parameters[param_i]
+    #     # Vel shift needs to be in km/s
+    #     
+    #     return vel_shift
 
     def enclosed_mass(self, r):
         """
@@ -638,6 +638,8 @@ class ModelSet:
         #                  (1, ny_sky_samp, nx_sky_samp))
 
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
+        
+        v_sys = self.geometry.vel_shift.to(u.km/u.s).value  # systemic velocity
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
@@ -671,7 +673,7 @@ class ModelSet:
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
-            vobs_mass = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+            vobs_mass = v_sys + (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
             vobs_mass[rgal == 0] = 0.
 
@@ -725,7 +727,7 @@ class ModelSet:
                 fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
                 # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-                vobs = -vout * zsky/rout
+                vobs = v_sys -vout * zsky/rout
                 vobs[rout == 0] = vout[rout == 0]
 
                 sigma_out = self.outflow_dispersion(rout)
@@ -754,7 +756,7 @@ class ModelSet:
                 xpix = np.int(np.round(xshift)) + nx_sky_samp/2
                 ypix = np.int(np.round(yshift)) + ny_sky_samp/2
 
-                voutflow = self.outflow(vx)
+                voutflow = v_sys + self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
                 
                 xshift = self.outflow_geometry.xshift.value / oversample
