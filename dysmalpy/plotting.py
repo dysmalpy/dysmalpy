@@ -201,8 +201,10 @@ def plot_data_model_comparison_1D(gal,
     keyxtitle = r'$r$ [arcsec]'
     keyyarr = ['velocity', 'dispersion']
     keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
-    keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
-                    r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
+    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
+                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]']
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -229,11 +231,11 @@ def plot_data_model_comparison_1D(gal,
         # Residuals:
         axes.append(plt.subplot(gs[1,j]))
         k += 1
-        axes[k].errorbar( data.rarr, model_data.data[keyyarr[j]]-data.data[keyyarr[j]],
+        axes[k].errorbar( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
                 xerr=None, yerr = data.error[keyyarr[j]],
                 marker=None, ls='None', ecolor='k', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        axes[k].scatter( data.rarr, model_data.data[keyyarr[j]]-data.data[keyyarr[j]],
+        axes[k].scatter( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
             c='red', marker='s', s=25, lw=1, label=None)
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
         axes[k].set_xlabel(keyxtitle)
@@ -496,8 +498,10 @@ def plot_model_1D(gal,
     keyxtitle = r'$r$ [arcsec]'
     keyyarr = ['velocity', 'dispersion']
     keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
-    keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
-                    r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
+    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
+                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]']
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -1414,8 +1418,10 @@ def plot_model_multid_base(gal,
         # keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
         #                 r'$\sigma_{\mathrm{model}}-\sigma_{\mathrm{data}}$ [km/s]']
         keyytitlearr = [r'$V$ [km/s]', r'sigma [km/s]']
-        keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
-                        r'sigma$_{\mathrm{model}}$-sigma$_{\mathrm{data}}$ [km/s]']
+        # keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
+        #                 r'sigma$_{\mathrm{model}}$-sigma$_{\mathrm{data}}$ [km/s]']
+        keyytitlearrresid = [r'$V_{\mathrm{data}}-V_{\mathrm{model}}$ [km/s]', 
+                        r'sigma$_{\mathrm{data}}$-sigma$_{\mathrm{model}}$ [km/s]']
     
         errbar_lw = 0.5
         errbar_cap = 1.5
@@ -1446,11 +1452,11 @@ def plot_model_multid_base(gal,
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
                 elif plottype[mm] == 'residual':
                     try:
-                        ax.errorbar( data.rarr, model_data.data[keyyarr[j]]-data.data[keyyarr[j]],
+                        ax.errorbar( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
                                 xerr=None, yerr = data.error[keyyarr[j]],
                                 marker=None, ls='None', ecolor='k', zorder=-1.,
                                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-                        ax.scatter( model_data.rarr, model_data.data[keyyarr[j]]-data.data[keyyarr[j]],
+                        ax.scatter( model_data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
                             c='red', marker='s', s=25, lw=1, label=None)
                     except:
                         pass
