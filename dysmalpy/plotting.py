@@ -863,6 +863,18 @@ def plot_model_multid_base(gal,
         origin = 'lower'
         cmap =  cm.nipy_spectral
         cmap.set_bad(color='k')
+        
+        
+        # cmap_resid = cm.RdBu_r
+        
+        gamma = 1.5 #1.2 # 1. # 1.5 # 3. # 2. 
+        cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5, 
+                    gamma_lower=gamma, gamma_upper=gamma, 
+                    name_new='RdBu_r_stretch')
+        
+        
+        cmap.set_bad(color='k')
+        
     
     
         # -----------------------
@@ -900,6 +912,13 @@ def plot_model_multid_base(gal,
         
         
         alpha_masked = 0.7 #0.6
+        alpha_bkgd = 0.5 #1. #0.5
+        alpha_aper = 0.8
+        
+        vmin_2d = []
+        vmax_2d = []
+        vmin_2d_resid = []
+        vmax_2d_resid = []
     
         #for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
         for j in six.moves.xrange(len(keyyarr)):
@@ -919,22 +938,34 @@ def plot_model_multid_base(gal,
                         im = gal.data.data['velocity'].copy()
                         im -= vel_shift
                         #im[~gal.data.mask] = np.nan
+                        cmaptmp = cmap
+                        
+                        vmin_2d.append(vel_vmin)
+                        vmax_2d.append(vel_vmax)
                     elif k == 'model':
                         im = gal.model_data.data['velocity'].copy()
                         im -= vel_shift
                         #im[~gal.data.mask] = np.nan
+                        cmaptmp = cmap
                     elif k == 'residual':
                         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
                         #im[~gal.data.mask] = np.nan
                         if symmetric_residuals:
                             vel_vmin = -max_residual
                             vel_vmax = max_residual
+                            
+                        cmaptmp = cmap_resid
+                        
+                        vmin_2d_resid.append(vel_vmin)
+                        vmax_2d_resid.append(vel_vmax)
                     else:
                         raise ValueError("key not supported.")
 
-                    imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=vel_vmin, vmax=vel_vmax, origin=origin)
                                      
+                    
+                    
                     # ++++++++++++++++++++++++++
                     imtmp = im.copy()
                     imtmp[gal.data.mask] = vel_vmax
@@ -997,11 +1028,10 @@ def plot_model_multid_base(gal,
                         cmstar = cm.plasma
                         cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
                         cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
-                        alpha = 0.8
                         
                         for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
                             #print("mm={}:  rap={}".format(mm, rap))
-                            circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha), fill=False)
+                            circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
                             ax.add_artist(circle)
                             if (mm == 0):
                                 ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
@@ -1014,8 +1044,9 @@ def plot_model_multid_base(gal,
                         
                         
                                  
-                    ax.set_ylabel(yt)
+                    #ax.set_ylabel(yt)
                     if k == 'data':
+                        ax.set_ylabel(yt)
                         ax.tick_params(which='both', top='off', bottom='off',
                                        left='off', right='off', labelbottom='off',
                                        labelleft='off')
@@ -1036,9 +1067,14 @@ def plot_model_multid_base(gal,
                     if k == 'data':
                         im = gal.data.data['dispersion'].copy()
                         #im[~gal.data.mask] = np.nan
+                        cmaptmp = cmap
+                        
+                        vmin_2d.append(disp_vmin)
+                        vmax_2d.append(disp_vmax)
+                        
                     elif k == 'model':
                         im = gal.model_data.data['dispersion'].copy()
-
+                        cmaptmp = cmap
                         #im[~gal.data.mask] = np.nan
 
                         # Correct model for instrument dispersion
@@ -1047,7 +1083,7 @@ def plot_model_multid_base(gal,
                             im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
                             
                             
-                        #
+                        # -------------------------------------------
                         if (show_1d_apers) & (data1d is not None):
                             aper_centers = data1d.rarr
                             slit_width = data1d.slit_width
@@ -1091,11 +1127,10 @@ def plot_model_multid_base(gal,
                             cmstar = cm.plasma
                             cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
                             cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
-                            alpha = 0.8
 
                             for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
                                 #print("mm={}:  rap={}".format(mm, rap))
-                                circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha), fill=False)
+                                circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
                                 ax.add_artist(circle)
                                 if (mm == 0):
                                     ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
@@ -1105,7 +1140,7 @@ def plot_model_multid_base(gal,
                             #     circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color='magenta', fill=False)
                             #     ax.add_artist(circle)
                             #     ax.scatter(xap+pyoff, yap+pyoff, color='magenta', marker='+')
-                        
+                        # -------------------------------------------
 
                     elif k == 'residual':
 
@@ -1119,11 +1154,15 @@ def plot_model_multid_base(gal,
                         if symmetric_residuals:
                             disp_vmin = -max_residual
                             disp_vmax = max_residual
-
+                        cmaptmp = cmap_resid
+                        
+                        vmin_2d_resid.append(disp_vmin)
+                        vmax_2d_resid.append(disp_vmax)
+                        
                     else:
                         raise ValueError("key not supported.")
 
-                    imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=disp_vmin, vmax=disp_vmax, origin=origin)
                     #
                     
@@ -1157,7 +1196,8 @@ def plot_model_multid_base(gal,
                             sp.set_visible(False)
                     else:
                         ax.set_axis_off()
-
+                        
+                        
                     cbar = ax.cax.colorbar(imax)
                     cbar.ax.tick_params(labelsize=8)
             
@@ -1190,6 +1230,10 @@ def plot_model_multid_base(gal,
         
         gal.model.geometry.xshift = 0
         gal.model.geometry.yshift = 0
+        
+        if galorig.data.ndim == 2:
+            # Should not be shifted here:
+            gal.model.geometry.vel_shift = 0
     
         try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
@@ -1248,6 +1292,27 @@ def plot_model_multid_base(gal,
                     ax.set_xlabel(keyxtitle)
                     ax.set_ylabel(keyytitlearr[j])
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
+                    
+                    if ((show_1d_apers) & (data2d is not None)):
+                        # Color gradient background:
+                        xlim = ax.get_xlim()
+                        ylim = ax.get_ylim()
+                        nstp = 20
+                        yrange = ylim[1]-ylim[0]
+                        Xtmp = []
+                        for nn in six.moves.xrange(nstp+1):
+                            ytmp = ylim[1] - nn/(1.*nstp)*yrange
+                            Xtmp.append([ytmp, ytmp])
+                        #Xtmp = [[ylim[1], ylim[1]], [ylim[0], ylim[0]]]
+                        print("ylim={}".format(ylim))
+                        print("vmin_2d[j]={}".format(vmin_2d[j]))
+                        print("vmax_2d[j]={}".format(vmax_2d[j]))
+                        ax.imshow(Xtmp, interpolation='bicubic', cmap=cmap, 
+                                    extent=(xlim[0], xlim[1], ylim[0], ylim[1]), alpha=alpha_bkgd, 
+                                    zorder=-100., aspect='auto', 
+                                    vmin=vmin_2d[j], vmax=vmax_2d[j])
+                        
+                    
                 elif plottype[mm] == 'residual':
                     try:
                         ax.errorbar( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
@@ -1262,6 +1327,23 @@ def plot_model_multid_base(gal,
                     ax.set_xlabel(keyxtitle)
                     ax.set_ylabel(keyytitlearrresid[j])
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
+                    
+                    if ((show_1d_apers) & (data2d is not None)):
+                        # Color gradient background:
+                        xlim = ax.get_xlim()
+                        ylim = ax.get_ylim()
+                        nstp = 20
+                        yrange = ylim[1]-ylim[0]
+                        Xtmp = []
+                        for nn in six.moves.xrange(nstp+1):
+                            ytmp = ylim[1] - nn/(1.*nstp)*yrange
+                            Xtmp.append([ytmp, ytmp])
+                        #Xtmp = [[ylim[1], ylim[1]], [ylim[0], ylim[0]]]
+                        #Xtmp = [[ylim[1], ylim[1]], [ylim[0], ylim[0]]]
+                        ax.imshow(Xtmp, interpolation='bicubic', cmap=cmap_resid, 
+                                    extent=(xlim[0], xlim[1], ylim[0], ylim[1]), alpha=alpha_bkgd, 
+                                    zorder=-100., aspect='auto', 
+                                    vmin=vmin_2d_resid[j], vmax=vmax_2d_resid[j])
         
     ######################################
     
@@ -1359,5 +1441,108 @@ def make_clean_mcmc_plot_names(mcmcResults):
             names.append(key_nice+': '+param_nice)
 
     return names
+
+
+#
+def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
+    gamma_upper=1.0, excise_middle=False, bad=None, over=None, under=None,
+    name_new=None):
+  """
+  Provides functions for altering colormaps to make them more suitable for
+  particular use cases.
+
+  From Drummond Fielding and Chris White GSPS talk 2016-17
+  
+  ++++++++++++++++
+  
+  Creates a recentered and/or stretched and/or sharper version of the given
+  colormap.
+
+  Inputs:
+
+    name_original: String naming existing colormap, which should be diverging
+    and must have an anchor point at 0.5.
+
+    diverge: Location of new center from which colors diverge. Defaults to 0.5.
+
+    gamma_lower, gamma_upper: Stretch parameters for values below and above the
+    diverging point. Must be positive. Values greater than 1 compress colors
+    near the diverging point, providing more color resolution there. Values less
+    than 1 do the same at the extremes of the range. Default to no stretching.
+
+    excise_middle: Flag indicating the middle point should be removed, with the
+    two color ranges joined sharply instead. Defaults to False.
+
+    bad, over, under: Colors to be used for invalid values, values above the
+    upper limit, and values below the lower limit. Default to values from
+    original map.
+
+    name_new: String under which new colormap will be registered. Defaults to
+    prepending 'New' to original name.
+
+  Returns new colormap.
+  
+  
+  
+  """
+
+  # Get original colormap
+  cmap_original_data = cm.datad[name_original]
+  cmap_original = cm.get_cmap(name_original)
+
+  # Define new colormap data
+  cmap_new_data = {}
+  for color in ('red', 'green', 'blue'):
+
+    # Get original definition
+    new_data = np.array(cmap_original._segmentdata[color])
+    midpoint = np.where(new_data[:,0] == 0.5)[0][0]
+
+    # Excise middle value if desired
+    if excise_middle:
+      anchor_lower = new_data[midpoint-1,0]
+      anchors_lower = new_data[:midpoint,0]
+      anchors_lower = 1.0/(2.0*anchor_lower) * anchors_lower
+      anchor_upper = new_data[midpoint+1,0]
+      anchors_upper = new_data[midpoint+1:,0]
+      anchors_upper = 1.0/(2.0-2.0*anchor_upper) * (anchors_upper-1.0) + 1.0
+      anchors = np.concatenate((anchors_lower[:-1], [0.5], anchors_upper[1:]))
+      vals_below = \
+          np.concatenate((new_data[:midpoint,1], new_data[midpoint+2:,1]))
+      vals_above = \
+          np.concatenate((new_data[:midpoint-1,2], new_data[midpoint+1:,2]))
+      new_data = np.vstack((anchors, vals_below, vals_above)).T
+      midpoint -= 1
+
+    # Apply shift and stretch if desired
+    anchors_lower = new_data[:midpoint,0]
+    if diverge != 0.5 or gamma_lower != 1.0:
+      anchors_lower = diverge * (1.0 - (1.0-2.0*anchors_lower) ** gamma_lower)
+    anchors_upper = new_data[midpoint+1:,0]
+    if diverge != 0.5 or gamma_upper != 1.0:
+      anchors_upper = \
+          diverge + (1.0-diverge) * (2.0*anchors_upper-1.0) ** gamma_upper
+    anchors = np.concatenate((anchors_lower, [diverge], anchors_upper))
+    anchors[0] = 0.0
+    anchors[-1] = 1.0
+    new_data[:,0] = anchors
+
+    # Record changes
+    cmap_new_data[color] = new_data
+
+  # Create new colormap
+  if name_new is None:
+    name_new = 'New' + name_original
+  cmap_new = mplcolors.LinearSegmentedColormap(name_new, cmap_new_data)
+  bad = cmap_original(np.nan) if bad is None else bad
+  over = cmap_original(np.inf) if over is None else over
+  under = cmap_original(-np.inf) if under is None else under
+  cmap_new.set_bad(bad)
+  cmap_new.set_over(over)
+  cmap_new.set_under(under)
+
+  # Register and return new colormap
+  cm.register_cmap(name=name_new, cmap=cmap_new)
+  return cmap_new
 
 
