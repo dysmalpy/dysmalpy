@@ -62,10 +62,10 @@ def fit(gal, nWalkers=10,
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
-           model_key_vel_shift=['geom', 'vel_shift'], 
            do_plotting = True,
            save_burn = False,
            save_model = True, 
+           save_data = True, 
            out_dir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
@@ -152,7 +152,6 @@ def fit(gal, nWalkers=10,
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re, 
-                    'model_key_vel_shift':model_key_vel_shift,
                     'red_chisq': red_chisq }
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
@@ -414,7 +413,7 @@ def fit(gal, nWalkers=10,
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
         # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model)
+        gal.preserve_self(filename=f_model, save_data=save_data)
         
     # --------------------------------
     # Plot trace, if output file set
@@ -774,8 +773,7 @@ def log_prob(theta, gal,
              red_chisq=False, 
              fitdispersion=True,
              compute_dm=False,
-             model_key_re=['disk+bulge','r_eff_disk'],
-             model_key_vel_shift=['geom', 'vel_shift']):
+             model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -799,8 +797,7 @@ def log_prob(theta, gal,
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
-                    compute_dm=compute_dm, model_key_re=model_key_re,
-                    model_key_vel_shift=model_key_vel_shift)
+                    compute_dm=compute_dm, model_key_re=model_key_re)
 
         if compute_dm:
             lprob = lprior + llike[0]
@@ -819,16 +816,10 @@ def log_prob(theta, gal,
 
 
 def log_like(gal, red_chisq=False, fitdispersion=True, 
-                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk'], 
-                model_key_vel_shift=['geom', 'vel_shift']):
-
-    # 'geom' velocity shift for the data:
-    vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
+                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
-        if np.abs(vel_shift) != 0.:
-            raise ValueError('vel shift not implemented to handle 3D yet!')
 
         msk = gal.data.mask
         dat = gal.data.data.unmasked_data[:].value[msk]
@@ -868,7 +859,7 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
                                                        # below the instrumental dispersion
                                                        
         # Includes velocity shift
-        chisq_arr_raw_vel = (((vel_dat - vel_shift - vel_mod)/vel_err)**2 +
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
             if red_chisq:

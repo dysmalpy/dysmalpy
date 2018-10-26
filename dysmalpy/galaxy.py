@@ -55,7 +55,8 @@ class Galaxy:
     """
 
     def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
-                 data=None, name='galaxy'):
+                 data=None, name='galaxy', 
+                 data1d=None, data2d=None, data3d=None):
 
         self._z = z
         self.name = name
@@ -64,6 +65,11 @@ class Galaxy:
         else:
             self.model = model
         self.data = data
+        
+        self.data1d = data1d
+        self.data2d = data2d
+        self.data3d = data3d
+        
         self.instrument = instrument
         self._cosmo = cosmo
         self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
@@ -363,7 +369,7 @@ class Galaxy:
                                      slit_pa=slit_pa)
 
     #
-    def preserve_self(self, filename=None):
+    def preserve_self(self, filename=None, save_data=True):
         # def save_galaxy_model(self, galaxy=None, filename=None):
         if filename is not None:
             galtmp = copy.deepcopy(self)
@@ -371,9 +377,10 @@ class Galaxy:
             galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
             galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
             
-            galtmp.data = None
-            galtmp.model_data = None
-            galtmp.model_cube = None
+            if not save_data:
+                galtmp.data = None
+                galtmp.model_data = None
+                galtmp.model_cube = None
             
             # galtmp.instrument = copy.deepcopy(galaxy.instrument)
             # galtmp.model = modtmp
