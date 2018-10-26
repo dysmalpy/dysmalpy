@@ -829,14 +829,15 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         # Will have problem with vel shift: data, model won't match...
         if np.abs(vel_shift) != 0.:
             raise ValueError('vel shift not implemented to handle 3D yet!')
-            
-        dat = gal.data.data.unmasked_data[:].value
-        mod = gal.model_data.data.unmasked_data[:].value
-        err = gal.data.error.unmasked_data[:].value
+
         msk = gal.data.mask
+        dat = gal.data.data.unmasked_data[:].value[msk]
+        mod = gal.model_data.data.unmasked_data[:].value[msk]
+        err = gal.data.error.unmasked_data[:].value[msk]
+
         # Artificially mask zero errors which are masked
-        err[((err==0) & (msk==0))] = 99.
-        chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
+        #err[((err==0) & (msk==0))] = 99.
+        chisq_arr_raw = ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2)
         if red_chisq:
             if gal.model.nparams_free > np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
