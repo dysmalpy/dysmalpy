@@ -447,6 +447,7 @@ def plot_data_model_comparison_3D(gal,
             fitdispersion=True, 
             fileout=None,
             symmetric_residuals=True,
+            show_1d_apers = False, 
             max_residual=100.,
             inst_corr = True,
             vcrop=False, 
@@ -455,7 +456,7 @@ def plot_data_model_comparison_3D(gal,
     plot_model_multid(gal, theta=theta, fitdispersion=fitdispersion, 
                 oversample=oversample, oversize=oversize, fileout=fileout, 
                 symmetric_residuals=symmetric_residuals, max_residual=max_residual,
-                show_1d_apers=False,
+                show_1d_apers=show_1d_apers,
                 inst_corr=inst_corr,
                 vcrop=vcrop, 
                 vcrop_value=vcrop_value)
@@ -1372,6 +1373,7 @@ def plot_data_model_comparison(gal,
             fitdispersion=True, 
             fileout=None, 
             vcrop=False, 
+            show_1d_apers=False, 
             vcrop_value=800.):
     """
     Plot data, model, and residuals between the data and this model.
@@ -1402,6 +1404,7 @@ def plot_data_model_comparison(gal,
                     oversample=oversample,
                     oversize=oversize,
                     fitdispersion=fitdispersion, 
+                    show_1d_apers=show_1d_apers, 
                     fileout=fileout, 
                     vcrop=vcrop, 
                     vcrop_value=vcrop_value)
@@ -1418,6 +1421,7 @@ def plot_bestfit(mcmcResults, gal,
             oversample=1,
             oversize=1,
             fitdispersion=True,
+            show_1d_apers=False,
             fileout=None,
             vcrop=False, 
             vcrop_value=800.):
@@ -1426,7 +1430,7 @@ def plot_bestfit(mcmcResults, gal,
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
             oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout,
-            vcrop=vcrop, vcrop_value=vcrop_value)
+            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers)
                 
     return None
 
