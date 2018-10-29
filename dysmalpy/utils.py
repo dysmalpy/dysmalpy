@@ -355,8 +355,8 @@ def extract_1D_moments_from_cube(gal,
     ny = gal.data.shape[1]
     center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift, 
                     np.int(ny / 2) + gal.model.geometry.yshift)
-    aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2)
-    aper_centers_pix = aper_centers/rstep
+    aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2) 
+    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
     
     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
     aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(gal.data.data.unmasked_data[:]*gal.data.mask, 
