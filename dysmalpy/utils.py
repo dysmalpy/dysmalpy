@@ -345,7 +345,7 @@ def extract_1D_moments_from_cube(gal,
     rpix = slit_width/rstep/2.
     
     if aper_dist is None:
-        aper_dist_pix = 2*rpix
+        aper_dist_pix = rpix #2*rpix
     else:
         aper_dist_pix = aper_dist/rstep
         
