@@ -949,7 +949,7 @@ def plot_model_multid_base(gal,
                         cmaptmp = cmap
                     elif k == 'residual':
                         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-                        #im[~gal.data.mask] = np.nan
+                        im[~gal.data.mask] = np.nan
                         if symmetric_residuals:
                             vel_vmin = -max_residual
                             vel_vmax = max_residual
@@ -1149,7 +1149,7 @@ def plot_model_multid_base(gal,
 
 
                         im = gal.data.data['dispersion'] - im_model
-                        #im[~gal.data.mask] = np.nan
+                        im[~gal.data.mask] = np.nan
 
                         if symmetric_residuals:
                             disp_vmin = -max_residual
