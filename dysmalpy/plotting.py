@@ -850,8 +850,7 @@ def plot_model_multid_base(gal,
         keyxarr = ['data', 'model', 'residual']
         keyyarr = ['velocity', 'dispersion']
         keyxtitlearr = ['Data', 'Model', 'Residual']
-        #keyytitlearr = [r'$V$', r'$\sigma$']
-        keyytitlearr = [r'$V$', r'sigma']
+        keyytitlearr = [r'$V$', r'$\sigma$']
     
         int_mode = "nearest"
         origin = 'lower'
@@ -1137,12 +1136,9 @@ def plot_model_multid_base(gal,
         keyxtitle = r'$r$ [arcsec]'
         keyyarr = ['velocity', 'dispersion']
         plottype = ['data', 'residual']
-        # keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
-        # keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
-        #                 r'$\sigma_{\mathrm{model}}-\sigma_{\mathrm{data}}$ [km/s]']
-        keyytitlearr = [r'$V$ [km/s]', r'sigma [km/s]']
-        keyytitlearrresid = [r'$V_{\mathrm{data}}-V_{\mathrm{model}}$ [km/s]', 
-                        r'sigma$_{\mathrm{data}}$-sigma$_{\mathrm{model}}$ [km/s]']
+        keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+        keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
+                        r'$\sigma_{\mathrm{model}}-\sigma_{\mathrm{data}}$ [km/s]']
     
         errbar_lw = 0.5
         errbar_cap = 1.5
