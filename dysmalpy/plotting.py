@@ -25,6 +25,8 @@ import matplotlib.cm as cm
 import matplotlib.colors as mplcolors
 from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 
+from matplotlib import colorbar
+
 import corner
 
 from .utils import calc_pix_position
@@ -755,54 +757,44 @@ def plot_model_multid_base(gal,
     
     ncols = 5
     
-    padx = 1. #0.5 #0.25
+    padx = 0.25
     pady = 0.25
+    
+    xextra = 0.15 #0.2
     yextra = 0. #0.75
-    xextra =1.*2
+    
     scale = 2.5 #3.5
     
-    f = plt.figure(figsize=((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale))
+    f = plt.figure()
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
+    
     
     suptitle = 'Fitting dim: n={}'.format(gal.data.ndim)
     
     
-    # grid_1D = [plt.subplot2grid((nrows, ncols), (0, 0)), plt.subplot2grid((nrows, ncols), (0, 1))]
-    # if fitdispersion:
-    #     grid_1D.append(plt.subplot2grid((nrows, ncols), (1, 0)))
-    #     grid_1D.append(plt.subplot2grid((nrows, ncols), (1, 1)))
-    #     
-    #
+    padx = 0.1 
+    gs_outer = gridspec.GridSpec(1, 2, wspace=padx, width_ratios=[3.35, 4.75]) 
     
-    padx = 0.25
     
-    gs_outer = gridspec.GridSpec(1, 2, wspace=padx, width_ratios=[3.75, 4.])
-    
-    padx = 0.5
-    gs0 = gridspec.GridSpecFromSubplotSpec(nrows, 2, subplot_spec=gs_outer[0], wspace=padx)
-    grid_1D = [plt.subplot(gs0[0,0]), plt.subplot(gs0[0,1])]
+    padx = 0.35
+    gs01 = gridspec.GridSpecFromSubplotSpec(nrows, 2, subplot_spec=gs_outer[0], wspace=padx)
+    grid_1D = [plt.subplot(gs01[0,0]), plt.subplot(gs01[0,1])]
     if fitdispersion:
-        grid_1D.append(plt.subplot(gs0[1,0]))
-        grid_1D.append(plt.subplot(gs0[1,1]))
+        grid_1D.append(plt.subplot(gs01[1,0]))
+        grid_1D.append(plt.subplot(gs01[1,1]))
     
     
-    
-    # axes_pad=0.5
-    # [left, bottom, width, height]
-    #122
-    padx = 0.4 #0.5
-    rect = [0.5, 0., 0.45, 1.] #[0.45, 0., 0.5, 1.]
-    grid_2D = ImageGrid(f, rect,
-                          nrows_ncols=(nrows, 3),
-                          direction="row",
-                          axes_pad=padx,
-                          add_all=True,
-                          label_mode="1",
-                          share_all=True,
-                          cbar_location="right",
-                          cbar_mode="each",
-                          cbar_size="5%",
-                          cbar_pad="1%",
-                          )
+    padx = 0.2 #0.4
+    pady = 0.1 #0.35
+    gs02 = gridspec.GridSpecFromSubplotSpec(nrows, 3, subplot_spec=gs_outer[1], 
+            wspace=padx, hspace=pady)
+    grid_2D = []
+    # grid_2D_cax = []
+    for jj in six.moves.xrange(nrows):
+        for mm in six.moves.xrange(3):
+            grid_2D.append(plt.subplot(gs02[jj,mm]))
+            
+            
     
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
@@ -826,6 +818,7 @@ def plot_model_multid_base(gal,
     if data2d is None:
         for ax in grid_2D:
             ax.set_axis_off()
+            
             
     else:
         
@@ -857,8 +850,7 @@ def plot_model_multid_base(gal,
         keyxarr = ['data', 'model', 'residual']
         keyyarr = ['velocity', 'dispersion']
         keyxtitlearr = ['Data', 'Model', 'Residual']
-        #keyytitlearr = [r'$V$', r'$\sigma$']
-        keyytitlearr = [r'$V$', r'sigma']
+        keyytitlearr = [r'$V$', r'$\sigma$']
     
         int_mode = "nearest"
         origin = 'lower'
@@ -891,10 +883,6 @@ def plot_model_multid_base(gal,
                 vel_vmax = vcrop_value
             
         
-        # try:
-        #     vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
-        # except:
-        #     vel_shift = 0
         vel_shift = gal.model.geometry.vel_shift.value
         
         #
@@ -987,64 +975,11 @@ def plot_model_multid_base(gal,
                     # ++++++++++++++++++++++++++
                                      
                     if (show_1d_apers) & (data1d is not None):
-                        aper_centers = data1d.rarr
-                        slit_width = data1d.slit_width
-                        slit_pa = data1d.slit_pa
-                        rstep = gal.instrument.pixscale.value
-                        rpix = slit_width/rstep/2.
-                        aper_dist_pix = 2*rpix
-                        aper_centers_pix = aper_centers/rstep
                         
-                        pa = slit_pa
+                        ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
+                                        galorig=galorig, alpha_aper=alpha_aper)
                         
                         
-                        print(" showing apers: ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
-                                                        gal.model.geometry.xshift.value, 
-                                                        gal.model.geometry.yshift.value, 
-                                                        gal.model.geometry.vel_shift.value))
-                        
-                        
-                        
-                        nx = data2d.data['velocity'].shape[1]
-                        ny = data2d.data['velocity'].shape[0]
-                        #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-                        
-                        center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
-                                        np.int(ny / 2) + gal.model.geometry.yshift.value)
-                        
-                        #
-                        
-                        #if (gal.data.ndim == 2):
-                        ax.scatter(center_pixel[0], center_pixel[1], color='cyan', marker='+')
-                        ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
-                                        
-                        # Assume equal distance between successive apertures equal to diameter of aperture
-                        dr = aper_dist_pix
-                        
-                        # First determine the centers of all the apertures that fit within the cube
-                        xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
-                        
-                        pyoff = 0.
-                        
-                        cmstar = cm.plasma
-                        cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
-                        cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
-                        
-                        for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-                            #print("mm={}:  rap={}".format(mm, rap))
-                            circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
-                            ax.add_artist(circle)
-                            if (mm == 0):
-                                ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
-                                
-                        
-                        # for xap, yap in zip([center_pixel[0]], [center_pixel[1]]):
-                        #     circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color='magenta', fill=False)
-                        #     ax.add_artist(circle)
-                        #     ax.scatter(xap+pyoff, yap+pyoff, color='magenta', marker='+')
-                        
-                        
-                                 
                     #ax.set_ylabel(yt)
                     if k == 'data':
                         ax.set_ylabel(yt)
@@ -1059,10 +994,13 @@ def plot_model_multid_base(gal,
                         ax.set_axis_off()
 
                     ax.set_title(xt)
-
-                    cbar = ax.cax.colorbar(imax)
+                    
+                    #########
+                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01, 
+                            fraction=5./101., aspect=20.)
+                    cbar = plt.colorbar(imax, cax=cax, **kw)
                     cbar.ax.tick_params(labelsize=8)
-                
+                    
                 # -----------------------------------
                 if keyyarr[j] == 'dispersion':
                     if k == 'data':
@@ -1086,61 +1024,10 @@ def plot_model_multid_base(gal,
                             
                         # -------------------------------------------
                         if (show_1d_apers) & (data1d is not None):
-                            aper_centers = data1d.rarr
-                            slit_width = data1d.slit_width
-                            slit_pa = data1d.slit_pa
-                            rstep = gal.instrument.pixscale.value
-                            rpix = slit_width/rstep/2.
-                            aper_dist_pix = 2*rpix
-                            aper_centers_pix = aper_centers/rstep
-
-                            pa = slit_pa
-
-
-                            print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
-                                                            gal.model.geometry.xshift.value, 
-                                                            gal.model.geometry.yshift.value, 
-                                                            gal.model.geometry.vel_shift.value))
-
-
-
-                            nx = data2d.data['velocity'].shape[1]
-                            ny = data2d.data['velocity'].shape[0]
-                            #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-
-                            center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
-                                            np.int(ny / 2) + gal.model.geometry.yshift.value)
-
-                            #
-
-                            #if (gal.data.ndim == 2):
-                            ax.scatter(center_pixel[0], center_pixel[1], color='cyan', marker='+')
-                            ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
-
-                            # Assume equal distance between successive apertures equal to diameter of aperture
-                            dr = aper_dist_pix
-
-                            # First determine the centers of all the apertures that fit within the cube
-                            xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
-
-                            pyoff = 0.
-
-                            cmstar = cm.plasma
-                            cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
-                            cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
-
-                            for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-                                #print("mm={}:  rap={}".format(mm, rap))
-                                circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
-                                ax.add_artist(circle)
-                                if (mm == 0):
-                                    ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
-
-
-                            # for xap, yap in zip([center_pixel[0]], [center_pixel[1]]):
-                            #     circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color='magenta', fill=False)
-                            #     ax.add_artist(circle)
-                            #     ax.scatter(xap+pyoff, yap+pyoff, color='magenta', marker='+')
+                            
+                            ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
+                                        galorig=galorig, alpha_aper=alpha_aper)
+                            
                         # -------------------------------------------
 
                     elif k == 'residual':
@@ -1198,8 +1085,11 @@ def plot_model_multid_base(gal,
                     else:
                         ax.set_axis_off()
                         
-                        
-                    cbar = ax.cax.colorbar(imax)
+                    
+                    #########
+                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01, 
+                            fraction=5./101., aspect=20.)
+                    cbar = plt.colorbar(imax, cax=cax, **kw)
                     cbar.ax.tick_params(labelsize=8)
             
     #
@@ -1215,17 +1105,6 @@ def plot_model_multid_base(gal,
     else:
         
         gal = copy.deepcopy(galorig)
-    
-        # if gal.data.ndim == 2:
-        # 
-        #     nx = data2d.data['velocity'].shape[1]
-        #     ny = data2d.data['velocity'].shape[0]
-        #     center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift, 
-        #                     np.int(ny / 2) + gal.model.geometry.yshift)
-        # 
-        # else:
-        #     center_pixel = None
-            
         #
         gal.data = data1d
         
@@ -1257,14 +1136,9 @@ def plot_model_multid_base(gal,
         keyxtitle = r'$r$ [arcsec]'
         keyyarr = ['velocity', 'dispersion']
         plottype = ['data', 'residual']
-        # keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
-        # keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
-        #                 r'$\sigma_{\mathrm{model}}-\sigma_{\mathrm{data}}$ [km/s]']
-        keyytitlearr = [r'$V$ [km/s]', r'sigma [km/s]']
-        # keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
-        #                 r'sigma$_{\mathrm{model}}$-sigma$_{\mathrm{data}}$ [km/s]']
-        keyytitlearrresid = [r'$V_{\mathrm{data}}-V_{\mathrm{model}}$ [km/s]', 
-                        r'sigma$_{\mathrm{data}}$-sigma$_{\mathrm{model}}$ [km/s]']
+        keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+        keyytitlearrresid = [r'$V_{\mathrm{model}}-V_{\mathrm{data}}$ [km/s]', 
+                        r'$\sigma_{\mathrm{model}}-\sigma_{\mathrm{data}}$ [km/s]']
     
         errbar_lw = 0.5
         errbar_cap = 1.5
@@ -1549,4 +1423,58 @@ def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
   cm.register_cmap(name=name_new, cmap=cmap_new)
   return cmap_new
 
+#
+def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8):
+
+    aper_centers = data1d.rarr
+    slit_width = data1d.slit_width
+    slit_pa = data1d.slit_pa
+    rstep = gal.instrument.pixscale.value
+    rpix = slit_width/rstep/2.
+    aper_dist_pix = 2*rpix
+    aper_centers_pix = aper_centers/rstep
+
+    pa = slit_pa
+
+
+    print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
+                                    gal.model.geometry.xshift.value, 
+                                    gal.model.geometry.yshift.value, 
+                                    gal.model.geometry.vel_shift.value))
+
+
+
+    nx = data2d.data['velocity'].shape[1]
+    ny = data2d.data['velocity'].shape[0]
+    #center_pixel = (np.int(nx / 2), np.int(ny / 2))
+
+    center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
+                    np.int(ny / 2) + gal.model.geometry.yshift.value)
+
+    #
+
+    #if (gal.data.ndim == 2):
+    ax.scatter(center_pixel[0], center_pixel[1], color='cyan', marker='+')
+    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
+
+    # Assume equal distance between successive apertures equal to diameter of aperture
+    dr = aper_dist_pix
+
+    # First determine the centers of all the apertures that fit within the cube
+    xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
+
+    pyoff = 0.
+
+    cmstar = cm.plasma
+    cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
+    cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
+
+    for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
+        #print("mm={}:  rap={}".format(mm, rap))
+        circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
+        ax.add_artist(circle)
+        if (mm == 0):
+            ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
+    
+    return ax
 
