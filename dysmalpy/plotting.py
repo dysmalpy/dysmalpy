@@ -1018,6 +1018,9 @@ def plot_model_multid_base(gal,
                         ax.annotate(scatter_str,
                             (0.99,-0.01), xycoords='axes fraction', 
                             ha='right', va='top', fontsize=8)
+                            
+                        print("annotation 1: {}".format(median_str))
+                        print("annotation 2: {}".format(scatter_str))
                     
                 # -----------------------------------
                 if keyyarr[j] == 'dispersion':
