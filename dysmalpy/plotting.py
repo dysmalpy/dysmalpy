@@ -991,7 +991,12 @@ def plot_model_multid_base(gal,
                         #
                         print("ytitle={}".format(yt))
                     else:
-                        ax.set_axis_off()
+                        #ax.set_axis_off()
+                        ax.tick_params(which='both', top='off', bottom='off',
+                                       left='off', right='off', labelbottom='off',
+                                       labelleft='off')
+                        for sp in ax.spines.values():
+                            sp.set_visible(False)
 
                     ax.set_title(xt)
                     
@@ -1096,8 +1101,12 @@ def plot_model_multid_base(gal,
                         for sp in ax.spines.values():
                             sp.set_visible(False)
                     else:
-                        ax.set_axis_off()
-                        
+                        #ax.set_axis_off()
+                        ax.tick_params(which='both', top='off', bottom='off',
+                                       left='off', right='off', labelbottom='off',
+                                       labelleft='off')
+                        for sp in ax.spines.values():
+                            sp.set_visible(False)
                         
                     
                     #########
