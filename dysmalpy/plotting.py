@@ -1010,8 +1010,8 @@ def plot_model_multid_base(gal,
                     if k == 'residual':
                         med = np.median(im[gal.data.mask])
                         rms = np.std(im[gal.data.mask])
-                        median_str = r"$V_{med}={:0.1f}$".format(med)
-                        scatter_str = r"$V_{rms}={:0.1f}$".format(rms)
+                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
                         ax.annotate(median_str,
                             (0.01,-0.01), xycoords='axes fraction', 
                             ha='left', va='top', fontsize=8)
@@ -1122,8 +1122,8 @@ def plot_model_multid_base(gal,
                     if k == 'residual':
                         med = np.median(im[gal.data.mask])
                         rms = np.std(im[gal.data.mask])
-                        median_str = r"$\sigma_{med}={:0.1f}$".format(med)
-                        scatter_str = r"$\sigma_{rms}={:0.1f}$".format(rms)
+                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
                         ax.annotate(median_str,
                             (0.01,-0.01), xycoords='axes fraction', 
                             ha='left', va='top', fontsize=8)
