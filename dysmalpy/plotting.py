@@ -1001,6 +1001,19 @@ def plot_model_multid_base(gal,
                     cbar = plt.colorbar(imax, cax=cax, **kw)
                     cbar.ax.tick_params(labelsize=8)
                     
+                    
+                    if k == 'residual':
+                        med = np.median(im[gal.data.mask])
+                        rms = np.std(im[gal.data.mask])
+                        median_str = r"$V_{med}={:0.1f}$".format(med)
+                        scatter_str = r"$V_{rms}={:0.1f}$".format(rms)
+                        ax.annotate(median_str,
+                            (0.01,-0.01), xycoords='axes fraction', 
+                            ha='left', va='top', fontsize=8)
+                        ax.annotate(scatter_str,
+                            (0.99,-0.01), xycoords='axes fraction', 
+                            ha='right', va='top', fontsize=8)
+                    
                 # -----------------------------------
                 if keyyarr[j] == 'dispersion':
                     if k == 'data':
@@ -1085,14 +1098,28 @@ def plot_model_multid_base(gal,
                     else:
                         ax.set_axis_off()
                         
+                        
                     
                     #########
                     cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01, 
                             fraction=5./101., aspect=20.)
                     cbar = plt.colorbar(imax, cax=cax, **kw)
                     cbar.ax.tick_params(labelsize=8)
-            
-    #
+                    
+                    #
+                    if k == 'residual':
+                        med = np.median(im[gal.data.mask])
+                        rms = np.std(im[gal.data.mask])
+                        median_str = r"$\sigma_{med}={:0.1f}$".format(med)
+                        scatter_str = r"$\sigma_{rms}={:0.1f}$".format(rms)
+                        ax.annotate(median_str,
+                            (0.01,-0.01), xycoords='axes fraction', 
+                            ha='left', va='top', fontsize=8)
+                        ax.annotate(scatter_str,
+                            (0.99,-0.01), xycoords='axes fraction', 
+                            ha='right', va='top', fontsize=8)
+                            
+    #   
     # ----------------------------------------------------------------------
     # 1D plotting
     
