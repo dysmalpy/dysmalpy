@@ -51,10 +51,27 @@ def create_aperture_mask(nx, ny, center_coord, dr):
     :return:
     """
 
-    seps, pa = calc_pixel_distance(nx, ny, center_coord)
-
-    return seps <= dr
-
+    # seps, pa = calc_pixel_distance(nx, ny, center_coord)
+    
+    ## Return boolian if center w/in the aperture area
+    # return seps <= dr
+    
+    ##  
+    
+    dx = xx - center_coord[0]
+    dy = yy - center_coord[1]
+    
+    seps_ul, pa = calc_pixel_distance(nx, ny, [center_coord[0]+0.5, center_coord[1]-0.5])
+    seps_ll, pa = calc_pixel_distance(nx, ny, [center_coord[0]+0.5, center_coord[1]+0.5])
+    seps_ur, pa = calc_pixel_distance(nx, ny, [center_coord[0]-0.5, center_coord[1]-0.5])
+    seps_lr, pa = calc_pixel_distance(nx, ny, [center_coord[0]-0.5, center_coord[1]+0.5])
+    
+    
+    mask_ap = np.zeros(seps_ul.shape)
+    mask_ap[(seps_ul <= dr) | (seps_ll <= dr) | (seps_ur <= dr) | (seps_lr <= dr)] = 1.
+    
+    return mask_ap
+    
 
 def determine_aperture_centers(nx, ny, center_coord, pa, dr):
     """
