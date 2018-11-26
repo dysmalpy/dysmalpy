@@ -323,7 +323,7 @@ def plot_data_model_comparison_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap =  cm.nipy_spectral
+    cmap =  cm.Spectral_r #cm.nipy_spectral
     cmap.set_bad(color='k')
     
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
@@ -606,7 +606,7 @@ def plot_model_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap =  cm.nipy_spectral
+    cmap =  cm.Spectral_r  #cm.nipy_spectral
     cmap.set_bad(color='k')
     
     vel_vmin = gal.model_data.data['velocity'].min()
@@ -854,7 +854,7 @@ def plot_model_multid_base(gal,
     
         int_mode = "nearest"
         origin = 'lower'
-        cmap =  cm.nipy_spectral
+        cmap =  cm.Spectral_r #cm.nipy_spectral
         cmap.set_bad(color='k')
         
         
