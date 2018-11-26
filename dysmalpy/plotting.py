@@ -1013,14 +1013,12 @@ def plot_model_multid_base(gal,
                         median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
                         scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
                         ax.annotate(median_str,
-                            (0.01,-0.01), xycoords='axes fraction', 
+                            (0.01,-0.05), xycoords='axes fraction', 
                             ha='left', va='top', fontsize=8)
                         ax.annotate(scatter_str,
-                            (0.99,-0.01), xycoords='axes fraction', 
+                            (0.99,-0.05), xycoords='axes fraction', 
                             ha='right', va='top', fontsize=8)
                             
-                        print("annotation 1: {}".format(median_str))
-                        print("annotation 2: {}".format(scatter_str))
                     
                 # -----------------------------------
                 if keyyarr[j] == 'dispersion':
@@ -1125,10 +1123,10 @@ def plot_model_multid_base(gal,
                         median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
                         scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
                         ax.annotate(median_str,
-                            (0.01,-0.01), xycoords='axes fraction', 
+                            (0.01,-0.05), xycoords='axes fraction', 
                             ha='left', va='top', fontsize=8)
                         ax.annotate(scatter_str,
-                            (0.99,-0.01), xycoords='axes fraction', 
+                            (0.99,-0.05), xycoords='axes fraction', 
                             ha='right', va='top', fontsize=8)
                             
     #   
