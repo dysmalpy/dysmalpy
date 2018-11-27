@@ -368,7 +368,25 @@ def plot_data_model_comparison_2D(gal,
             for sp in ax.spines.values():
                 sp.set_visible(False)
         else:
-            ax.set_axis_off()
+            #ax.set_axis_off()
+            ax.tick_params(which='both', top='off', bottom='off',
+                           left='off', right='off', labelbottom='off',
+                           labelleft='off')
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+            
+        #
+        if k == 'residual':
+            med = np.median(im[gal.data.mask])
+            rms = np.std(im[gal.data.mask])
+            median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+            scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+            ax.annotate(median_str,
+                (0.01,-0.05), xycoords='axes fraction', 
+                ha='left', va='top', fontsize=8)
+            ax.annotate(scatter_str,
+                (0.99,-0.05), xycoords='axes fraction', 
+                ha='right', va='top', fontsize=8)
 
         ax.set_title(xt)
 
@@ -427,7 +445,25 @@ def plot_data_model_comparison_2D(gal,
                 for sp in ax.spines.values():
                     sp.set_visible(False)
             else:
-                ax.set_axis_off()
+                #ax.set_axis_off()
+                ax.tick_params(which='both', top='off', bottom='off',
+                               left='off', right='off', labelbottom='off',
+                               labelleft='off')
+                for sp in ax.spines.values():
+                    sp.set_visible(False)
+                
+            #
+            if k == 'residual':
+                med = np.median(im[gal.data.mask])
+                rms = np.std(im[gal.data.mask])
+                median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                ax.annotate(median_str,
+                    (0.01,-0.05), xycoords='axes fraction', 
+                    ha='left', va='top', fontsize=8)
+                ax.annotate(scatter_str,
+                    (0.99,-0.05), xycoords='axes fraction', 
+                    ha='right', va='top', fontsize=8)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
