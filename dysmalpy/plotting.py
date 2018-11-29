@@ -1199,7 +1199,9 @@ def plot_model_multid_base(gal,
             
             else:
                 # Testing with Emily's models -- no shifts applied from Hannah
-                pass
+                #pass
+                gal.model.geometry.vel_shift = 0
+                
         elif galorig.data.ndim == 1:
             if remove_shift:
                 # Should not be shifted here:
@@ -1553,6 +1555,10 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
     print("center_pixel w/ NO REMOVE shift:")
     print("center_pixel={}".format(center_pixel))
+    print("aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
+    
+    center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
+                    np.int(ny / 2) + gal.model.geometry.yshift.value)
     
     
     if center_pixel is None:
@@ -1564,6 +1570,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
     #if (gal.data.ndim == 2):
     ax.scatter(center_pixel[0], center_pixel[1], color='cyan', marker='+')
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='magenta'], marker='+')
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
 
     # Assume equal distance between successive apertures equal to diameter of aperture
