@@ -777,13 +777,13 @@ def plot_model_multid_base(gal,
             max_residual=100.,
             xshift = None,
             yshift = None, 
-            remove_shift = True, 
             oversample=1, 
             oversize=1, 
             fileout=None,
             vcrop = False, 
             vcrop_value = 800., 
             show_1d_apers=False, 
+            remove_shift = True,
             inst_corr=None):
         
     #
@@ -1200,6 +1200,11 @@ def plot_model_multid_base(gal,
             else:
                 # Testing with Emily's models -- no shifts applied from Hannah
                 pass
+        elif galorig.data.ndim == 1:
+            if remove_shift:
+                # Should not be shifted here:
+                gal.model.geometry.xshift = 0
+                gal.model.geometry.yshift = 0
     
         try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
@@ -1544,6 +1549,10 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     else:
         # remove shift:
         center_pixel = None
+    
+    
+    print("center_pixel w/ NO REMOVE shift:")
+    print("center_pixel={}".format(center_pixel))
     
     
     if center_pixel is None:
