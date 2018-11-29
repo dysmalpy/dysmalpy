@@ -355,9 +355,9 @@ class Galaxy:
                 
                 
                 ##########
-                if gal.data.aper_center_pix_shift is not None:
-                    center_pixel = (np.int(nx_sky / 2) + gal.data.aper_center_pix_shift[0], 
-                                    np.int(ny_sky / 2) + gal.data.aper_center_pix_shift[1])
+                if self.data.aper_center_pix_shift is not None:
+                    center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0], 
+                                    np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
                 else:
                     center_pixel = None
                 
