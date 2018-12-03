@@ -344,7 +344,7 @@ class Galaxy:
             if profile1d_type == 'circ_ap_pv':
 
                 r1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                                                    slit_pa, rstep, vel_arr)
+                                                    slit_pa-180., rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,

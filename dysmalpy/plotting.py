@@ -1209,6 +1209,7 @@ def plot_model_multid_base(gal,
                 # Should not be shifted here:
                 gal.model.geometry.xshift = 0
                 gal.model.geometry.yshift = 0
+                gal.data.aper_center_pix_shift = (0,0)
     
         try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
