@@ -605,7 +605,7 @@ class ModelSet:
         vel = self.velocity_profile(r, compute_dm=False)
         
         vmax = vel.max()
-        return vel
+        return vmax
         
     
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
