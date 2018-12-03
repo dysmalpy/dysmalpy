@@ -597,7 +597,17 @@ class ModelSet:
         vel = self.velocity_profile(r, compute_dm=False)
         vcirc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
         return vcirc
-
+    
+    def get_vmax(self, r=None):
+        if r is None:
+            r = np.linspace(0., 25., num=251, endpoint=True)
+        
+        vel = self.velocity_profile(r, compute_dm=False)
+        
+        vmax = vel.max()
+        return vel
+        
+    
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1,
