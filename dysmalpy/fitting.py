@@ -58,7 +58,8 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
-           red_chisq = False, 
+           red_chisq = False,
+           profile1d_type='circ_ap_cube',
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
@@ -152,7 +153,7 @@ def fit(gal, nWalkers=10,
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re, 
-                    'red_chisq': red_chisq }
+                    'red_chisq': red_chisq, 'profile1d_type':profile1d_type}
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -773,6 +774,7 @@ def log_prob(theta, gal,
              red_chisq=False, 
              fitdispersion=True,
              compute_dm=False,
+             profile1d_type='circ_ap_cube',
              model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
@@ -793,7 +795,7 @@ def log_prob(theta, gal,
     else:
         # Update the model data
         gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center)
+                              line_center=gal.model.line_center, profile1d_type=profile1d_type)
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
