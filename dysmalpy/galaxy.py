@@ -98,6 +98,16 @@ class Galaxy:
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
+        
+        
+    # def get_vmax(self, r=None):
+    #     if r is None:
+    #         r = np.linspace(0., 25., num=251, endpoint=True)
+    # 
+    #     vel = self.velocity_profile(r, compute_dm=False)
+    # 
+    #     vmax = vel.max()
+    #     return vmax
 
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,

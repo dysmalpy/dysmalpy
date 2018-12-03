@@ -541,7 +541,7 @@ class ModelSet:
 
 
 
-    def velocity_profile(self, r, compute_dm=False):
+    def velocity_profile(self, r, compute_dm=False, skip_bulge=False):
         """
         Method to calculate the 1D velocity profile
         as a function of radius
@@ -561,7 +561,10 @@ class ModelSet:
 
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
-                    cmpnt_v = mcomp.circular_velocity(r)
+                    if isinstance(mcomp, DiskBulge):
+                        cmpnt_v = mcomp.circular_velocity(r, skip_bulge=skip_bulge)
+                    else:
+                        cmpnt_v = mcomp.circular_velocity(r)
                     if mcomp._subtype == 'dark_matter':
 
                         vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
@@ -602,7 +605,7 @@ class ModelSet:
         if r is None:
             r = np.linspace(0., 25., num=251, endpoint=True)
         
-        vel = self.velocity_profile(r, compute_dm=False)
+        vel = self.velocity_profile(r, compute_dm=False, skip_bulge=True)
         
         vmax = vel.max()
         return vmax
@@ -964,26 +967,31 @@ class DiskBulge(MassModel):
 
         return vcirc
         
-    def circular_velocity(self, r):
+    def circular_velocity(self, r, skip_bulge=False):
 
-        if self.noord_flat:
-            # mbulge_total = 10**self.total_mass*self.bt
-            # mdisk_total = 10**self.total_mass*(1-self.bt)
-            # 
-            # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #                          self.n_bulge, self.invq_bulge)
-            # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-            #                          self.n_disk, self.invq_disk)
-            # 
-            
+        #if self.noord_flat:
+        # mbulge_total = 10**self.total_mass*self.bt
+        # mdisk_total = 10**self.total_mass*(1-self.bt)
+        # 
+        # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+        #                          self.n_bulge, self.invq_bulge)
+        # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+        #                          self.n_disk, self.invq_disk)
+        # 
+        
+        if skip_bulge:
+            vdisk = self.circular_velocity_disk(r)
+        
+            vcirc = vdisk
+        else:
             vbulge = self.circular_velocity_bulge(r)
             vdisk = self.circular_velocity_disk(r)
-            
+        
             vcirc = np.sqrt(vbulge**2 + vdisk**2)
 
-        else:
-
-            vcirc = super(DiskBulge, self).circular_velocity(r)
+        # else:
+        # 
+        #     vcirc = super(DiskBulge, self).circular_velocity(r)
 
         return vcirc
         
