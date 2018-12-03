@@ -368,7 +368,25 @@ def plot_data_model_comparison_2D(gal,
             for sp in ax.spines.values():
                 sp.set_visible(False)
         else:
-            ax.set_axis_off()
+            #ax.set_axis_off()
+            ax.tick_params(which='both', top='off', bottom='off',
+                           left='off', right='off', labelbottom='off',
+                           labelleft='off')
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+            
+        #
+        if k == 'residual':
+            med = np.median(im[gal.data.mask])
+            rms = np.std(im[gal.data.mask])
+            median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+            scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+            ax.annotate(median_str,
+                (0.01,-0.05), xycoords='axes fraction', 
+                ha='left', va='top', fontsize=8)
+            ax.annotate(scatter_str,
+                (0.99,-0.05), xycoords='axes fraction', 
+                ha='right', va='top', fontsize=8)
 
         ax.set_title(xt)
 
@@ -427,7 +445,25 @@ def plot_data_model_comparison_2D(gal,
                 for sp in ax.spines.values():
                     sp.set_visible(False)
             else:
-                ax.set_axis_off()
+                #ax.set_axis_off()
+                ax.tick_params(which='both', top='off', bottom='off',
+                               left='off', right='off', labelbottom='off',
+                               labelleft='off')
+                for sp in ax.spines.values():
+                    sp.set_visible(False)
+                
+            #
+            if k == 'residual':
+                med = np.median(im[gal.data.mask])
+                rms = np.std(im[gal.data.mask])
+                median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                ax.annotate(median_str,
+                    (0.01,-0.05), xycoords='axes fraction', 
+                    ha='left', va='top', fontsize=8)
+                ax.annotate(scatter_str,
+                    (0.99,-0.05), xycoords='axes fraction', 
+                    ha='right', va='top', fontsize=8)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
@@ -695,7 +731,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
             xshift = None,
             yshift = None,
             vcrop=False, 
-            vcrop_value=800.):
+            vcrop_value=800.,
+            remove_shift=True):
             
     if gal.data.ndim == 1:
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d, 
@@ -704,13 +741,15 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
                     oversample=oversample, oversize=oversize, fileout=fileout, 
                     xshift = xshift,
                     yshift = yshift,
-                    show_1d_apers=show_1d_apers)
+                    show_1d_apers=show_1d_apers,
+                    remove_shift=True)
     elif gal.data.ndim == 2:
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data, 
                     theta=theta,fitdispersion=fitdispersion, 
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual, 
                     oversample=oversample, oversize=oversize, fileout=fileout,
-                    show_1d_apers=show_1d_apers)
+                    show_1d_apers=show_1d_apers, 
+                    remove_shift=remove_shift)
         
     elif gal.data.ndim == 3:
         
@@ -722,7 +761,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual, 
                     oversample=oversample, oversize=oversize, fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr, 
-                    vcrop=vcrop, vcrop_value=vcrop_value)
+                    vcrop=vcrop, vcrop_value=vcrop_value, 
+                    remove_shift=remove_shift)
         
         # raise ValueError("Not implemented yet!")
         
@@ -743,6 +783,7 @@ def plot_model_multid_base(gal,
             vcrop = False, 
             vcrop_value = 800., 
             show_1d_apers=False, 
+            remove_shift = True,
             inst_corr=None):
         
     #
@@ -977,7 +1018,8 @@ def plot_model_multid_base(gal,
                     if (show_1d_apers) & (data1d is not None):
                         
                         ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
-                                        galorig=galorig, alpha_aper=alpha_aper)
+                                        galorig=galorig, alpha_aper=alpha_aper,
+                                        remove_shift=remove_shift)
                         
                         
                     #ax.set_ylabel(yt)
@@ -1045,7 +1087,8 @@ def plot_model_multid_base(gal,
                         if (show_1d_apers) & (data1d is not None):
                             
                             ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
-                                        galorig=galorig, alpha_aper=alpha_aper)
+                                        galorig=galorig, alpha_aper=alpha_aper,
+                                        remove_shift=remove_shift)
                             
                         # -------------------------------------------
 
@@ -1145,12 +1188,27 @@ def plot_model_multid_base(gal,
         #
         gal.data = data1d
         
-        gal.model.geometry.xshift = 0
-        gal.model.geometry.yshift = 0
         
         if galorig.data.ndim == 2:
-            # Should not be shifted here:
-            gal.model.geometry.vel_shift = 0
+            if remove_shift:
+                # Should not be shifted here:
+                gal.model.geometry.vel_shift = 0
+                
+                gal.model.geometry.xshift = 0
+                gal.model.geometry.yshift = 0
+                # Need to also set the central aperture in the data to (0,0)  
+                gal.data.aper_center_pix_shift = (0,0)
+            
+            else:
+                # Testing with Emily's models -- no shifts applied from Hannah
+                #pass
+                gal.model.geometry.vel_shift = 0
+                
+        elif galorig.data.ndim == 1:
+            if remove_shift:
+                # Should not be shifted here:
+                gal.model.geometry.xshift = 0
+                gal.model.geometry.yshift = 0
     
         try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
@@ -1160,6 +1218,7 @@ def plot_model_multid_base(gal,
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1, from_data=False)
+                                  
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
         data = data1d #galnew.data
@@ -1461,7 +1520,7 @@ def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
   return cmap_new
 
 #
-def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8):
+def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
 
     aper_centers = data1d.rarr
     slit_width = data1d.slit_width
@@ -1483,15 +1542,37 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8):
 
     nx = data2d.data['velocity'].shape[1]
     ny = data2d.data['velocity'].shape[0]
-    #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-
-    center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
+    
+    
+    if not remove_shift:
+        if data1d.aper_center_pix_shift is not None:
+            center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0], 
+                            np.int(ny / 2) + data1d.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+    else:
+        # remove shift:
+        center_pixel = None
+    
+    
+    print("center_pixel w/ NO REMOVE shift:")
+    print("center_pixel={}".format(center_pixel))
+    print("aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
+    
+    center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
                     np.int(ny / 2) + gal.model.geometry.yshift.value)
+    
+    
+    if center_pixel is None:
+        #center_pixel = (np.int(nx / 2), np.int(ny / 2))
+        center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
+                        np.int(ny / 2) + gal.model.geometry.yshift.value)
 
     #
 
     #if (gal.data.ndim == 2):
     ax.scatter(center_pixel[0], center_pixel[1], color='cyan', marker='+')
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='magenta', marker='+')
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
 
     # Assume equal distance between successive apertures equal to diameter of aperture
