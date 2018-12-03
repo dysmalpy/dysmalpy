@@ -98,6 +98,16 @@ class Galaxy:
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
+        
+        
+    # def get_vmax(self, r=None):
+    #     if r is None:
+    #         r = np.linspace(0., 25., num=251, endpoint=True)
+    # 
+    #     vel = self.velocity_profile(r, compute_dm=False)
+    # 
+    #     vmax = vel.max()
+    #     return vmax
 
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,
@@ -352,10 +362,20 @@ class Galaxy:
                     aper_dist_pix = aper_dist/rstep
 
                 aper_centers_pix = aper_centers/rstep
+                
+                
+                ##########
+                if self.data.aper_center_pix_shift is not None:
+                    center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0], 
+                                    np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                else:
+                    center_pixel = None
+                
                 aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
                                                                           ap_centers=aper_centers_pix,
+                                                                          center_pixel=center_pixel, 
                                                                           debug=debug)
                 aper_centers = aper_centers_pixout*rstep
                                                                           
