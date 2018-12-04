@@ -56,7 +56,8 @@ class Data1D(Data):
 
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, slit_width=None,
-                 slit_pa=None, estimate_err=False, error_frac=0.2,
+                 slit_pa=None, aper_center_pix_shift=None, 
+                 estimate_err=False, error_frac=0.2,
                  inst_corr=False, 
                  filename_velocity=None, 
                  filename_dispersion=None):
@@ -125,6 +126,9 @@ class Data1D(Data):
         else:
 
             error['dispersion'] = None
+            
+        ############
+        self.aper_center_pix_shift = aper_center_pix_shift
 
         shape = velocity.shape
         self.slit_width = slit_width

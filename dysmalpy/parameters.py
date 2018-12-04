@@ -160,6 +160,62 @@ class BoundedGaussianPrior(Prior):
         return rvs
 
 
+class BoundedSineGaussianPrior(Prior):
+
+    def __init__(self, center=0, stddev=1.0):
+        # Center, bounds in INC
+        # Stddev in SINE INC
+        
+        self.center = center
+        self.stddev = stddev
+        
+        self.center_sine = np.sin(self.center*np.pi/180.)
+
+    def log_prior(self, param):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (param.value >= pmin) & (param.value <= pmax):
+            return norm.pdf(np.sin(param.value*np.pi/180.), loc=self.center_sine, scale=self.stddev)
+        else:
+            return -np.inf
+
+    def sample_prior(self, param, N=1):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        rvs = []
+        while len(rvs) < N:
+
+            test_v_sine = np.random.normal(loc=self.center_sine, scale=self.stddev,
+                                      size=1)[0]
+            test_v = np.abs(np.arcsin(test_v_sine))*180./np.pi
+            if (test_v >= pmin) & (test_v <= pmax):
+
+                rvs.append(test_v)
+
+        return rvs
+
+
+
+
+
 class DysmalParameter(Parameter):
 
     constraints = ('fixed', 'tied', 'bounds', 'prior')
