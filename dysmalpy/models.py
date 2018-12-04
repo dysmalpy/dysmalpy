@@ -1387,13 +1387,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
                  profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
 
-        valid_profiles = ['increase', 'decrease', 'both']
+        valid_profiles = ['increase', 'decrease', 'both', 'constant']
 
         if profile_type in valid_profiles:
             self.profile_type = profile_type
         else:
             logger.error("Invalid profile type. Must be one of 'increase',"
-                         "'decrease', or 'both.'")
+                         "'decrease', 'constant', or 'both.'")
 
         self.tau_flux = tau_flux
         self.norm_flux = norm_flux
@@ -1418,12 +1418,17 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
             amp = -vmax/rend**n
             vel[r <= rend] = vmax + amp*r[r <= rend]** n
+            vel[r == 0] = 0
 
         elif self.profile_type == 'both':
 
             vel[r <= rturn] = vmax*(r[r <= rturn]/rturn)**n
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
+            
+        elif self.profile_type == 'constant':
+            
+            vel[r <= rend] = vmax
 
         thetaout = np.min([thetain+dtheta, 90.])
         ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
