@@ -7,7 +7,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-    ## Standard library
+## Standard library
 import logging
 from multiprocessing import cpu_count
 
@@ -58,14 +58,15 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
-           red_chisq = False, 
+           red_chisq = False,
+           profile1d_type='circ_ap_cube',
            fitdispersion = True,
            compute_dm = False, 
            model_key_re = ['disk+bulge','r_eff_disk'],  
-           model_key_vel_shift=['geom', 'vel_shift'], 
            do_plotting = True,
            save_burn = False,
            save_model = True, 
+           save_data = True, 
            out_dir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
@@ -152,8 +153,7 @@ def fit(gal, nWalkers=10,
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re, 
-                    'model_key_vel_shift':model_key_vel_shift,
-                    'red_chisq': red_chisq }
+                    'red_chisq': red_chisq, 'profile1d_type':profile1d_type}
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                 args=[gal], kwargs=kwargs_dict,
                 a = scale_param_a, threads = nCPUs)
@@ -404,6 +404,9 @@ def fit(gal, nWalkers=10,
     mcmcResults.bestfit_redchisq = -2.*log_like(gal, red_chisq=True, fitdispersion=fitdispersion, 
                     compute_dm=False, model_key_re=model_key_re)
     
+    #
+    mcmcResults.vrot_bestfit = gal.model.get_vmax()
+    
     
     if f_mcmc_results is not None:
         mcmcResults.save_results(filename=f_mcmc_results)
@@ -414,7 +417,7 @@ def fit(gal, nWalkers=10,
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
         # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model)
+        gal.preserve_self(filename=f_model, save_data=save_data)
         
     # --------------------------------
     # Plot trace, if output file set
@@ -774,8 +777,8 @@ def log_prob(theta, gal,
              red_chisq=False, 
              fitdispersion=True,
              compute_dm=False,
-             model_key_re=['disk+bulge','r_eff_disk'],
-             model_key_vel_shift=['geom', 'vel_shift']):
+             profile1d_type='circ_ap_cube',
+             model_key_re=['disk+bulge','r_eff_disk']):
     """
     Evaluate the log probability of the given model
     """
@@ -795,12 +798,11 @@ def log_prob(theta, gal,
     else:
         # Update the model data
         gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center)
+                              line_center=gal.model.line_center, profile1d_type=profile1d_type)
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
-                    compute_dm=compute_dm, model_key_re=model_key_re,
-                    model_key_vel_shift=model_key_vel_shift)
+                    compute_dm=compute_dm, model_key_re=model_key_re)
 
         if compute_dm:
             lprob = lprior + llike[0]
@@ -819,24 +821,19 @@ def log_prob(theta, gal,
 
 
 def log_like(gal, red_chisq=False, fitdispersion=True, 
-                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk'], 
-                model_key_vel_shift=['geom', 'vel_shift']):
-
-    # 'geom' velocity shift for the data:
-    vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
+                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
-        if np.abs(vel_shift) != 0.:
-            raise ValueError('vel shift not implemented to handle 3D yet!')
-            
-        dat = gal.data.data.unmasked_data[:].value
-        mod = gal.model_data.data.unmasked_data[:].value
-        err = gal.data.error.unmasked_data[:].value
+
         msk = gal.data.mask
+        dat = gal.data.data.unmasked_data[:].value[msk]
+        mod = gal.model_data.data.unmasked_data[:].value[msk]
+        err = gal.data.error.unmasked_data[:].value[msk]
+
         # Artificially mask zero errors which are masked
-        err[((err==0) & (msk==0))] = 99.
-        chisq_arr_raw = msk * ( ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2) )
+        #err[((err==0) & (msk==0))] = 99.
+        chisq_arr_raw = ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2)
         if red_chisq:
             if gal.model.nparams_free > np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
@@ -867,7 +864,7 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
                                                        # below the instrumental dispersion
                                                        
         # Includes velocity shift
-        chisq_arr_raw_vel = (((vel_dat - vel_shift - vel_mod)/vel_err)**2 +
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
             if red_chisq:

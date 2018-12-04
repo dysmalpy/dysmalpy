@@ -55,7 +55,8 @@ class Galaxy:
     """
 
     def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
-                 data=None, name='galaxy'):
+                 data=None, name='galaxy', 
+                 data1d=None, data2d=None, data3d=None):
 
         self._z = z
         self.name = name
@@ -64,6 +65,11 @@ class Galaxy:
         else:
             self.model = model
         self.data = data
+        
+        self.data1d = data1d
+        self.data2d = data2d
+        self.data3d = data3d
+        
         self.instrument = instrument
         self._cosmo = cosmo
         self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
@@ -92,6 +98,16 @@ class Galaxy:
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
+        
+        
+    # def get_vmax(self, r=None):
+    #     if r is None:
+    #         r = np.linspace(0., 25., num=251, endpoint=True)
+    # 
+    #     vel = self.velocity_profile(r, compute_dm=False)
+    # 
+    #     vmax = vel.max()
+    #     return vmax
 
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,
@@ -251,17 +267,17 @@ class Galaxy:
             # errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
             #
             # if self.model.per_spaxel_norm_3D:
-            #     # Do normalization on a per-spaxel basis -- eg, don't care about preserving
-            #     #   M/L ratio information from model.
-            #     # collapse in spectral dimension only: axis 0
-            #     num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*\
-            #                 sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
-            #     den = np.sum(self.data.mask*\
-            #               (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
-            #     scale = num/den
-            #     scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
-            #     scale3D[0, :, :] = scale
-            #     sim_cube_obs *= scale3D
+            # Do normalization on a per-spaxel basis -- eg, don't care about preserving
+            #   M/L ratio information from model.
+            # collapse in spectral dimension only: axis 0
+            num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
+                             sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
+            den = np.sum(self.data.mask*
+                            (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+            scale = np.abs(num/den)
+            scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
+            scale3D[0, :, :] = scale
+            sim_cube_obs *= scale3D
             # else:
             #     scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
             #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
@@ -329,7 +345,7 @@ class Galaxy:
             if profile1d_type == 'circ_ap_pv':
 
                 r1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                                                    slit_pa, rstep, vel_arr)
+                                                    slit_pa-180., rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
@@ -347,10 +363,20 @@ class Galaxy:
                     aper_dist_pix = aper_dist/rstep
 
                 aper_centers_pix = aper_centers/rstep
+                
+                
+                ##########
+                if self.data.aper_center_pix_shift is not None:
+                    center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0], 
+                                    np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                else:
+                    center_pixel = None
+                
                 aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
                                                                           vel_arr,
                                                                           dr=aper_dist_pix,
                                                                           ap_centers=aper_centers_pix,
+                                                                          center_pixel=center_pixel, 
                                                                           debug=debug)
                 aper_centers = aper_centers_pixout*rstep
                                                                           
@@ -364,7 +390,7 @@ class Galaxy:
                                      slit_pa=slit_pa)
 
     #
-    def preserve_self(self, filename=None):
+    def preserve_self(self, filename=None, save_data=True):
         # def save_galaxy_model(self, galaxy=None, filename=None):
         if filename is not None:
             galtmp = copy.deepcopy(self)
@@ -372,9 +398,10 @@ class Galaxy:
             galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
             galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
             
-            galtmp.data = None
-            galtmp.model_data = None
-            galtmp.model_cube = None
+            if not save_data:
+                galtmp.data = None
+                galtmp.model_data = None
+                galtmp.model_cube = None
             
             # galtmp.instrument = copy.deepcopy(galaxy.instrument)
             # galtmp.model = modtmp

@@ -487,13 +487,13 @@ class ModelSet:
         
         return dm_frac
         
-    def get_vel_shift(self, model_key_vel_shift=None):
-        comp = self.components.__getitem__(model_key_vel_shift[0])
-        param_i = comp.param_names.index(model_key_vel_shift[1])
-        vel_shift = comp.parameters[param_i]
-        # Vel shift needs to be in km/s
-        
-        return vel_shift
+    # def get_vel_shift(self, model_key_vel_shift=None):
+    #     comp = self.components.__getitem__(model_key_vel_shift[0])
+    #     param_i = comp.param_names.index(model_key_vel_shift[1])
+    #     vel_shift = comp.parameters[param_i]
+    #     # Vel shift needs to be in km/s
+    #     
+    #     return vel_shift
 
     def enclosed_mass(self, r):
         """
@@ -541,7 +541,7 @@ class ModelSet:
 
 
 
-    def velocity_profile(self, r, compute_dm=False):
+    def velocity_profile(self, r, compute_dm=False, skip_bulge=False):
         """
         Method to calculate the 1D velocity profile
         as a function of radius
@@ -561,7 +561,10 @@ class ModelSet:
 
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
-                    cmpnt_v = mcomp.circular_velocity(r)
+                    if isinstance(mcomp, DiskBulge):
+                        cmpnt_v = mcomp.circular_velocity(r, skip_bulge=skip_bulge)
+                    else:
+                        cmpnt_v = mcomp.circular_velocity(r)
                     if mcomp._subtype == 'dark_matter':
 
                         vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
@@ -597,7 +600,17 @@ class ModelSet:
         vel = self.velocity_profile(r, compute_dm=False)
         vcirc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
         return vcirc
-
+    
+    def get_vmax(self, r=None):
+        if r is None:
+            r = np.linspace(0., 25., num=251, endpoint=True)
+        
+        vel = self.velocity_profile(r, compute_dm=False, skip_bulge=True)
+        
+        vmax = vel.max()
+        return vmax
+        
+    
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1,
@@ -635,6 +648,8 @@ class ModelSet:
                 u.km / u.s).value
 
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
+        
+        v_sys = self.geometry.vel_shift.value  # systemic velocity
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
@@ -668,7 +683,7 @@ class ModelSet:
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
-            vobs_mass = (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+            vobs_mass = v_sys + (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
             vobs_mass[rgal == 0] = 0.
 
@@ -685,6 +700,9 @@ class ModelSet:
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
             cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+            
+            self.geometry.xshift = self.geometry.xshift.value / oversample
+            self.geometry.yshift = self.geometry.yshift.value / oversample
 
         if self.outflow is not None:
 
@@ -719,7 +737,7 @@ class ModelSet:
                 fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
                 # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-                vobs = -vout * zsky/rout
+                vobs = v_sys -vout * zsky/rout
                 vobs[rout == 0] = vout[rout == 0]
 
                 sigma_out = self.outflow_dispersion(rout)
@@ -733,6 +751,9 @@ class ModelSet:
                 #    cube_sum[cube_sum == 0] = 1
                 #    cube_final += tmp_cube / cube_sum * f_cube
                 cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
+                
+                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value / oversample
+                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value / oversample
 
             elif self.outflow._spatial_type == 'unresolved':
 
@@ -745,8 +766,11 @@ class ModelSet:
                 xpix = np.int(np.round(xshift)) + nx_sky_samp/2
                 ypix = np.int(np.round(yshift)) + ny_sky_samp/2
 
-                voutflow = self.outflow(vx)
+                voutflow = v_sys + self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
+                
+                xshift = self.outflow_geometry.xshift.value / oversample
+                yshift = self.outflow_geometry.yshift.value / oversample
 
         if debug:
             return cube_final, spec, flux_mass, vobs_mass
@@ -940,26 +964,31 @@ class DiskBulge(MassModel):
 
         return vcirc
         
-    def circular_velocity(self, r):
+    def circular_velocity(self, r, skip_bulge=False):
 
-        if self.noord_flat:
-            # mbulge_total = 10**self.total_mass*self.bt
-            # mdisk_total = 10**self.total_mass*(1-self.bt)
-            # 
-            # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #                          self.n_bulge, self.invq_bulge)
-            # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-            #                          self.n_disk, self.invq_disk)
-            # 
-            
+        #if self.noord_flat:
+        # mbulge_total = 10**self.total_mass*self.bt
+        # mdisk_total = 10**self.total_mass*(1-self.bt)
+        # 
+        # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+        #                          self.n_bulge, self.invq_bulge)
+        # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+        #                          self.n_disk, self.invq_disk)
+        # 
+        
+        if skip_bulge:
+            vdisk = self.circular_velocity_disk(r)
+        
+            vcirc = vdisk
+        else:
             vbulge = self.circular_velocity_bulge(r)
             vdisk = self.circular_velocity_disk(r)
-            
+        
             vcirc = np.sqrt(vbulge**2 + vdisk**2)
 
-        else:
-
-            vcirc = super(DiskBulge, self).circular_velocity(r)
+        # else:
+        # 
+        #     vcirc = super(DiskBulge, self).circular_velocity(r)
 
         return vcirc
         
@@ -1379,13 +1408,14 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     thetain = DysmalParameter(bounds=(0, 90))
     dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
+    norm_flux = DysmalParameter(default=0.0)
 
     _type = 'outflow'
     _spatial_type = 'resolved'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, dtheta, rend,
-                 profile_type='both', tau_flux=5.0, norm_flux=1.0, **kwargs):
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux,
+                 profile_type='both', tau_flux=5.0, **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both', 'constant']
 
@@ -1396,12 +1426,12 @@ class BiconicalOutflow(_DysmalFittable3DModel):
                          "'decrease', 'constant', or 'both.'")
 
         self.tau_flux = tau_flux
-        self.norm_flux = norm_flux
+        #self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               dtheta, rend, **kwargs)
+                                               dtheta, rend, norm_flux, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1441,7 +1471,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         r = np.sqrt(x**2 + y**2 + z**2)
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
         theta[r == 0] = 0.
-        flux = self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
+        flux = 10**self.norm_flux*np.exp(-self.tau_flux*(r/self.rend))
         thetaout = np.min([self.thetain + self.dtheta, 90.])
         ind_zero = ((theta < self.thetain) |
                     (theta > thetaout) |
