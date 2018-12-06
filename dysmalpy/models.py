@@ -647,9 +647,6 @@ class ModelSet:
             vx = (spec - line_center_conv) / line_center_conv * apy_con.c.to(
                 u.km / u.s).value
 
-        #velcube = np.tile(np.resize(vx, (nspec, 1, 1)),
-        #                  (1, ny_sky_samp, nx_sky_samp))
-
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
         
         v_sys = self.geometry.vel_shift.value  # systemic velocity
@@ -1420,13 +1417,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux,
                  profile_type='both', tau_flux=5.0, **kwargs):
 
-        valid_profiles = ['increase', 'decrease', 'both']
+        valid_profiles = ['increase', 'decrease', 'both', 'constant']
 
         if profile_type in valid_profiles:
             self.profile_type = profile_type
         else:
             logger.error("Invalid profile type. Must be one of 'increase',"
-                         "'decrease', or 'both.'")
+                         "'decrease', 'constant', or 'both.'")
 
         self.tau_flux = tau_flux
         #self.norm_flux = norm_flux
@@ -1451,12 +1448,17 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
             amp = -vmax/rend**n
             vel[r <= rend] = vmax + amp*r[r <= rend]** n
+            vel[r == 0] = 0
 
         elif self.profile_type == 'both':
 
             vel[r <= rturn] = vmax*(r[r <= rturn]/rturn)**n
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
+            
+        elif self.profile_type == 'constant':
+            
+            vel[r <= rend] = vmax
 
         thetaout = np.min([thetain+dtheta, 90.])
         ind_zero = (theta < thetain) | (theta > thetaout) | (vel < 0)
