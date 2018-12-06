@@ -443,7 +443,7 @@ def fit(gal, nWalkers=10,
 
 
 
-def fit_mpfit(gal, fit_dispersion=True):
+def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
     """
     A real simple function for fitting with least squares instead of MCMC.
     Right now being used for testing.
@@ -466,7 +466,7 @@ def fit_mpfit(gal, fit_dispersion=True):
                 parinfo[k]['limits'][1] = bounds[1]
                 parinfo[k]['value'] = p_initial[k]
 
-    fa = {'gal':gal, 'fitdispersion':fit_dispersion}
+    fa = {'gal':gal, 'fitdispersion':fit_dispersion, 'profile1d_type':profile1d_type}
     m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
 
     return m
@@ -895,10 +895,10 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         return llike
 
 
-def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True):
+def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube'):
 
     gal.model.update_parameters(theta)
-    gal.create_model_data()
+    gal.create_model_data(profile1d_type=profile1d_type)
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
