@@ -84,6 +84,7 @@ halo_bounds = {'mvirial': (10, 13),
 
 halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
                   fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
 halo.mvirial.prior = parameters.BoundedGaussianPrior(center=11.5, stddev=0.5)
 
 # Dispersion profile
@@ -173,7 +174,7 @@ gal.instrument = inst
 dat_arr = np.loadtxt(data_dir+'GS4_43501.obs_prof.txt')
 gs4_r = dat_arr[:,0]
 gs4_vel = dat_arr[:,1]
-gs4_disp = dat_arr[:,3]
+gs4_disp = np.sqrt(dat_arr[:,3]**2 + sig_inst.value**2)
 err_vel = dat_arr[:,2]
 err_disp = dat_arr[:,4]
 inst_corr = True                  # Flag for if the measured dispersion has been
@@ -190,15 +191,12 @@ gal.data = test_data1d
 nwalkers = 20
 ncpus = 4
 scale_param_a = 2
-nburn = 10
-nsteps = 10
 minaf = None
 maxaf = None
 neff = 10
 do_plotting = True
 oversample = 1
 fitdispersion = True
-
 
 def run_1d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
