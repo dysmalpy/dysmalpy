@@ -264,7 +264,7 @@ def plot_data_model_comparison_2D(gal,
         if 'inst_corr' in gal.data.data.keys():
             inst_corr = gal.data.data['inst_corr']
     except:
-        pass
+        inst_corr = False
         
     ######################################
     # Setup plot:
@@ -420,8 +420,9 @@ def plot_data_model_comparison_2D(gal,
             elif k == 'residual':
 
                 im_model = gal.model_data.data['dispersion'].copy()
-                im_model = np.sqrt(im_model ** 2 -
-                                   gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
+                if inst_corr:
+                    im_model = np.sqrt(im_model ** 2 -
+                                       gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
 
 
                 im = gal.data.data['dispersion'] - im_model
@@ -810,7 +811,7 @@ def plot_model_multid_base(gal,
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
     
     
-    suptitle = 'Fitting dim: n={}'.format(gal.data.ndim)
+    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
     
     
     padx = 0.1 
@@ -1344,14 +1345,16 @@ def plot_data_model_comparison(gal,
             fileout=None, 
             vcrop=False, 
             show_1d_apers=False, 
-            vcrop_value=800.):
+            vcrop_value=800.,
+            profile1d_type='circ_ap_cube'):
     """
     Plot data, model, and residuals between the data and this model.
     """
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
         gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center)
+                              line_center=gal.model.line_center,
+                              profile1d_type=profile1d_type)
 
     if gal.data.ndim == 1:
         plot_data_model_comparison_1D(gal, 
