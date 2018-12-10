@@ -494,8 +494,9 @@ def symmetrize_velfield(xbin, ybin, velBin, errBin, sym=2, pa=90.):
 
     errOut = interpolate.griddata(xyIn, errBin, xyOut)
     errOut = errOut.reshape(4, xbin.size)
+    errOut[0, :] = errBin
     err_count = np.sum(np.isfinite(errOut), axis=0)
-    err_count[err_count == 0] = 1
+    #err_count[err_count == 0] = 1
     errSym = np.sqrt(np.nansum(errOut**2, axis=0))/err_count
 
     return velSym, errSym
