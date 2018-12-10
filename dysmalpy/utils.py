@@ -14,6 +14,7 @@ import astropy.modeling as apy_mod
 import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
+from scipy import interpolate
 
 from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
@@ -446,3 +447,56 @@ def extract_2D_moments_from_cube(gal):
                         inst_corr = True)
     
     return gal
+
+
+# _rotate_points and symmetrize_velfield from cap_symmetrize_velfield.py within display_pixels
+# package created by Michele Cappelari.
+
+def _rotate_points(x, y, ang):
+    """
+    Rotates points counter-clockwise by an angle ANG-90 in degrees.
+
+    """
+    theta = np.radians(ang - 90.)
+    xNew = x * np.cos(theta) - y * np.sin(theta)
+    yNew = x * np.sin(theta) + y * np.cos(theta)
+
+    return xNew, yNew
+
+
+# ----------------------------------------------------------------------
+
+def symmetrize_velfield(xbin, ybin, velBin, errBin, sym=2, pa=90.):
+    """
+    This routine generates a bi-symmetric ('axisymmetric')
+    version of a given set of kinematical measurements.
+    PA: is the angle in degrees, measured counter-clockwise,
+      from the vertical axis (Y axis) to the galaxy major axis.
+    SYM: by-simmetry: is 1 for (V,h3,h5) and 2 for (sigma,h4,h6)
+
+    """
+    xbin, ybin, velBin = map(np.asarray, [xbin, ybin, velBin])
+
+    assert xbin.size == ybin.size == velBin.size, 'The vectors (xbin, ybin, velBin) must have the same size'
+
+    x, y = _rotate_points(xbin, ybin, -pa)  # Negative PA for counter-clockwise
+
+    xyIn = np.column_stack([x, y])
+    xout = np.hstack([x, -x, x, -x])
+    yout = np.hstack([y, y, -y, -y])
+    xyOut = np.column_stack([xout, yout])
+    velOut = interpolate.griddata(xyIn, velBin, xyOut)
+    velOut = velOut.reshape(4, xbin.size)
+    velOut[0, :] = velBin  # see V3.0.1
+    if sym == 1:
+        velOut[[1, 3], :] *= -1.
+    velSym = np.nanmean(velOut, axis=0)
+
+    errOut = interpolate.griddata(xyIn, errBin, xyOut)
+    errOut = errOut.reshape(4, xbin.size)
+    err_count = np.sum(np.isfinite(errOut), axis=0)
+    err_count[err_count == 0] = 1
+    errSym = np.sqrt(np.nansum(errOut**2, axis=0))/err_count
+
+    return velSym, errSym
+
