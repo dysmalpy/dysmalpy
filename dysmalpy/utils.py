@@ -500,3 +500,37 @@ def symmetrize_velfield(xbin, ybin, velBin, errBin, sym=2, pa=90.):
 
     return velSym, errSym
 
+# ----------------------------------------------------------------------
+
+def symmetrize_1D_profile(rin, vin, errin, sym=1):
+    
+    whz = np.where(np.abs(rin) == np.abs(rin).min())[0]
+    maxval = np.max([np.abs(rin[0]), np.abs(rin[-1])])
+    rnum = np.max([2.*(len(rin)-whz[0]-1)+1, 2.*whz[0]+1])
+    rout = np.linspace(-maxval, maxval, num=rnum, endpoint=True)
+    
+    
+    vinterp = interpolate.interp1d(rin, vin, kind='cubic', bounds_error=False, fill_value=np.NaN)
+    errinterp = interpolate.interp1d(rin, errin, kind='cubic', bounds_error=False, fill_value=np.NaN)
+    
+    if sym == 1:
+        symm_fac = -1.
+    elif sym == 2:
+        symm_fac = 1.
+    
+    
+    vint = vinterp(rout)
+    errint = errinterp(rout)
+    
+    
+    velOut = np.vstack([vint, symm_fac*vint[::-1]])
+    errOut = np.vstack([errint, errint[::-1]])
+    
+    vsym = np.nanmean(velOut, axis=0)
+    
+    err_count = np.sum(np.isfinite(errOut), axis=0)
+    err_count[err_count == 0] = 1
+    errsym = np.sqrt(np.nansum(errOut**2, axis=0))/err_count
+    
+    return rout, vsym, errsym
+
