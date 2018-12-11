@@ -198,7 +198,7 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
 
     # Assume the default central pixel is the center of the cube
     if center_pixel is None:
-        center_pixel = (np.int(nx / 2), np.int(ny / 2))
+        center_pixel = ((nx - 1) / 2., (ny - 1) / 2.)
 
     # Assume equal distance between successive apertures equal to diameter of aperture
     if dr is None:
