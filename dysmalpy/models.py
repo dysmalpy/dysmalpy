@@ -1357,7 +1357,13 @@ class KinematicOptions:
             sigma = model.dispersion_profile(r)
             vel_squared = (
                 vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
-            vel_squared[vel_squared < 0] = 0.
+            # if array:
+            try:
+                vel_squared[vel_squared < 0] = 0.
+            else:
+                # if float single value:
+                if (vel_squared < 0):
+                    vel_squared = 0.
             vel = np.sqrt(vel_squared)
 
         return vel
@@ -1394,7 +1400,13 @@ class KinematicOptions:
             sigma = model.dispersion_profile(r)
             vel_squared = (
                 vel ** 2 + 3.36 * (r / pre) * sigma ** 2)
-            vel_squared[vel_squared < 0] = 0.
+            # if array:
+            try:
+                vel_squared[vel_squared < 0] = 0.
+            else:
+                # if float single value:
+                if (vel_squared < 0):
+                    vel_squared = 0.
             vel = np.sqrt(vel_squared)
         return vel
 
