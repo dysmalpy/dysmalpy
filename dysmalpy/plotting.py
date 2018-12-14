@@ -1353,7 +1353,7 @@ def plot_data_model_comparison(gal,
     Plot data, model, and residuals between the data and this model.
     """
 
-    dummy_gal = gal.copy()
+    dummy_gal = copy.deepcopy(gal)
 
     if remove_shift:
         dummy_gal.data.aper_center_pix_shift = (0,0)
