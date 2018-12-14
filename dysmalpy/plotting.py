@@ -1357,6 +1357,8 @@ def plot_data_model_comparison(gal,
 
     if remove_shift:
         dummy_gal.data.aper_center_pix_shift = (0,0)
+        dummy_gal.model.geometry.xshift = 0
+        dummy_gal.model.geometry.yshift = 0
 
     if theta is not None:
         dummy_gal.model.update_parameters(theta)     # Update the parameters
