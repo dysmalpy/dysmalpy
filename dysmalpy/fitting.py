@@ -81,6 +81,7 @@ def fit(gal, nWalkers=10,
            f_plot_bestfit = None,
            f_mcmc_results = None,
            f_chain_ascii = None,
+           f_vel_ascii = None, 
            f_log = None ):
     """
     Fit observed kinematics using DYSMALPY model set.
@@ -129,6 +130,7 @@ def fit(gal, nWalkers=10,
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
+    if f_vel_ascii is None:          f_vel_ascii = out_dir+'galaxy_bestfit_vrot_vcirc.dat'
     
     # Setup file redirect logging:
     if f_log is not None:
@@ -413,6 +415,10 @@ def fit(gal, nWalkers=10,
         
     if f_chain_ascii is not None:
         mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        
+        
+    if f_vel_ascii is not None:
+        mcmcResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
         
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
@@ -715,18 +721,20 @@ class MCMCResults(object):
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
                     
-    # def save_galaxy_model(self, galaxy=None, filename=None):
-    #     if filename is not None:
-    #         
-    #         galtmp = copy.deepcopy(galaxy)
-    #         galtmp.data = None
-    #         galtmp.model_data = None
-    #         
-    #         # galtmp.instrument = copy.deepcopy(galaxy.instrument)
-    #         # galtmp.model = modtmp
-    #         
-    #         
-    #         dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+    def save_bestfit_vel_ascii(gal, filename=None, model_key_re = ['disk+bulge','r_eff_disk']):
+        if filename is not None:
+            try:
+                # RE needs to be in kpc
+                comp = gal.model.components.__getitem__(model_key_re[0])
+                param_i = comp.param_names.index(model_key_re[1])
+                r_eff = comp.parameters[param_i]
+            except:
+                r_eff = 10./3.
+            rmax = np.max([3.*r_eff, 10.])
+            stepsize = 0.1 # stepsize 0.1 kpc
+            r = np.arange(0., rmax+stepsize, stepsize)
+            
+            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
             
             
     def reload_mcmc_results(self, filename=None):
