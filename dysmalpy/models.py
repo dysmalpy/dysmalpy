@@ -459,20 +459,26 @@ class ModelSet:
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
         return log_prior_model
         
-    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=None):
-        # RE needs to be in kpc
-        comp = self.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i]
-        
-        # Get DM frac:
-        if self.kinematic_options.adiabatic_contract:
-            nstep = np.floor_divide(r_eff,rstep) 
+    def get_dm_aper(self, r, rstep=0.2):
+        lnin = 0
+        try:
+            lnin = len(r)
+            if lnin == 1:
+                r = r[0]
+                makearr = True
+            else:
+                rgal = r
+                makearr = False
+        except:
+            makearr = True
+            
+        if makearr:
+            nstep = np.floor_divide(r,rstep) 
             rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
             rgal = np.append(rgal, r_eff)
-        else:
-            rgal = np.array([r_eff])
-        
+            
+            
+        ## Get DM frac:
         vel, vdm = self.velocity_profile(rgal, compute_dm=True)
         
         if self.kinematic_options.pressure_support:
@@ -483,17 +489,47 @@ class ModelSet:
         
         # Not generally true if a term is oblate; to be updated
         # r_eff is the last (or only) entry:
-        dm_frac = vdm[-1]**2/vc[-1]**2
+        if (lnin <= 1):
+            dm_frac = vdm[-1]**2/vc[-1]**2
+            if lnin == 1:
+                dm_frac = np.array([df_frac])
+        else:
+            dm_frac = vdm**2/vc**2
+        
+        return dm_frac
+            
+    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=None):
+        # RE needs to be in kpc
+        comp = self.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        
+        
+        dm_frac = self.get_dm_aper(self, r_eff, rstep=rstep)
+        
+        
+        # # Get DM frac:
+        # if self.kinematic_options.adiabatic_contract:
+        #     nstep = np.floor_divide(r_eff,rstep) 
+        #     rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
+        #     rgal = np.append(rgal, r_eff)
+        # else:
+        #     rgal = np.array([r_eff])
+        # 
+        # vel, vdm = self.velocity_profile(rgal, compute_dm=True)
+        # 
+        # if self.kinematic_options.pressure_support:
+        #     # Correct for pressure support to get circular velocity:
+        #     vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
+        # else:
+        #     vc = vel.copy()
+        # 
+        # # Not generally true if a term is oblate; to be updated
+        # # r_eff is the last (or only) entry:
+        # dm_frac = vdm[-1]**2/vc[-1]**2
         
         return dm_frac
         
-    # def get_vel_shift(self, model_key_vel_shift=None):
-    #     comp = self.components.__getitem__(model_key_vel_shift[0])
-    #     param_i = comp.param_names.index(model_key_vel_shift[1])
-    #     vel_shift = comp.parameters[param_i]
-    #     # Vel shift needs to be in km/s
-    #     
-    #     return vel_shift
 
     def enclosed_mass(self, r):
         """
@@ -610,6 +646,59 @@ class ModelSet:
         vmax = vel.max()
         return vmax
         
+    def write_vrot_vcirc_file(self, r=None, filename=None):
+        self.write_profile_file(r=r, filename=filename, 
+                cols=['velocity_profile', 'circular_velocity'], 
+                colnames=['vrot', 'vcirc'], colunits=['[km/s]', '[km/s]'])
+                
+        # if r is None:     r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
+        #     
+        # vrot = self.velocity_profile(r)
+        # vcirc = self.circular_velocity(r)
+        #     
+        # with open(filename, 'w') as f:
+        #     namestr = '#    r      vrot      vcirc'
+        #     f.write(namestr+'\n')
+        #     unitstr = '#   [kpc]    [km/s]      [km/s]'
+        #     f.write(unitstr+'\n')
+        #     
+        #     for i in six.moves.xrange(len(r)):
+        #         datastr = '{:0.1f}  {:0.3f}   {:0.3f}'.format(r[i], vrot[i], vcirc[i])
+        #         f.write(datstr+'\n')
+                
+        
+    def write_profile_file(self, r=None, filename=None, 
+            cols=None, colnames=None, colunits=None):
+        if cols is None:        cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
+        if colnames is None:    conames = cols
+        if r is None:           r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
+            
+        profiles = np.zeros((len(r), len(cols)+1))
+        profiles[:,0] = r
+        for j in six.moves.xrange(len(cols)):
+            try:
+                fnc = getattr(self, cols[j])
+                arr = fnc(r)
+            except:
+                arr = np.ones(len(r))*-99.
+            profiles[:, j+1] = arr
+        
+        colsout = ['r']
+        colsout.extend(cols)
+        if colunits is not None:
+            unitsout = ['kpc']
+            unitsout.extend(colunits)
+        
+        with open(filename, 'w') as f:
+            namestr = '#   ' + '   '.join(colsout)
+            f.write(namestr+'\n')
+            if colunits is not None:
+                unitstr = '#   ' + '   '.join(unitsout)
+                f.write(unitstr+'\n')
+            for i in six.moves.xrange(len(r)):
+                datstr = '    '.join(["{0:0.2f}".format(p) for p in profiles[i,:]])
+                f.write(datstr+'\n')
+            
     
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
