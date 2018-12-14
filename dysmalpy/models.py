@@ -1503,7 +1503,7 @@ class KinematicOptions:
             # if array:
             try:
                 vel_squared[vel_squared < 0] = 0.
-            else:
+            except:
                 # if float single value:
                 if (vel_squared < 0):
                     vel_squared = 0.
