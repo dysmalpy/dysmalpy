@@ -668,9 +668,20 @@ class ModelSet:
                 
         
     def write_profile_file(self, r=None, filename=None, 
-            cols=None, colnames=None, colunits=None):
+            cols=None, prettycolnames=None, colunits=None):
+        """
+            Input:
+                filename:        output filename to write to. Will be written as ascii, w/ space delimiter.
+                
+                cols:            the names of ModelSet methods that will be called as function of r, 
+                                 and to be  saved as a column in the output file
+                prettycolnames:  alternate column names for output in file header (eg, 'vrot' not 'velocity_profile')
+                
+            Optional:
+                colunits:        units of each column. r is added by hand, and will always be in kpc.
+        """
         if cols is None:        cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
-        if colnames is None:    conames = cols
+        if prettycolnames is None:    prettycolnames = cols
         if r is None:           r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
             
         profiles = np.zeros((len(r), len(cols)+1))
@@ -684,7 +695,7 @@ class ModelSet:
             profiles[:, j+1] = arr
         
         colsout = ['r']
-        colsout.extend(cols)
+        colsout.extend(prettycolnames)
         if colunits is not None:
             unitsout = ['kpc']
             unitsout.extend(colunits)
