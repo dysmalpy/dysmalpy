@@ -707,7 +707,7 @@ class ModelSet:
                 unitstr = '#   ' + '   '.join(unitsout)
                 f.write(unitstr+'\n')
             for i in six.moves.xrange(len(r)):
-                datstr = '    '.join(["{0:0.2f}".format(p) for p in profiles[i,:]])
+                datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
                 f.write(datstr+'\n')
             
     
