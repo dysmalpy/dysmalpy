@@ -1339,26 +1339,33 @@ def plot_model_multid_base(gal,
     
         
 def plot_data_model_comparison(gal, 
-            theta = None, 
-            oversample=1,
-            oversize=1,
-            fitdispersion=True, 
-            fileout=None, 
-            vcrop=False, 
-            show_1d_apers=False, 
-            vcrop_value=800.,
-            profile1d_type='circ_ap_cube'):
+                               theta = None,
+                               oversample=1,
+                               oversize=1,
+                               fitdispersion=True,
+                               fileout=None,
+                               vcrop=False,
+                               show_1d_apers=False,
+                               vcrop_value=800.,
+                               profile1d_type='circ_ap_cube',
+                               remove_shift=False):
     """
     Plot data, model, and residuals between the data and this model.
     """
+
+    dummy_gal = gal.copy()
+
+    if remove_shift:
+        dummy_gal.data.aper_center_pix_shift = (0,0)
+
     if theta is not None:
-        gal.model.update_parameters(theta)     # Update the parameters
-        gal.create_model_data(oversample=oversample, oversize=oversize,
+        dummy_gal.model.update_parameters(theta)     # Update the parameters
+        dummy_gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center,
                               profile1d_type=profile1d_type)
 
     if gal.data.ndim == 1:
-        plot_data_model_comparison_1D(gal, 
+        plot_data_model_comparison_1D(dummy_gal,
                     data = None,
                     theta = theta, 
                     oversample=oversample,
@@ -1366,14 +1373,14 @@ def plot_data_model_comparison(gal,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 2:
-        plot_data_model_comparison_2D(gal, 
+        plot_data_model_comparison_2D(dummy_gal,
                     theta = theta, 
                     oversample=oversample,
                     oversize=oversize,
                     fitdispersion=fitdispersion, 
                     fileout=fileout)
     elif gal.data.ndim == 3:
-        plot_data_model_comparison_3D(gal, 
+        plot_data_model_comparison_3D(dummy_gal,
                     theta = theta, 
                     oversample=oversample,
                     oversize=oversize,
@@ -1392,19 +1399,20 @@ def plot_data_model_comparison(gal,
     return None
 
 def plot_bestfit(mcmcResults, gal,
-            oversample=1,
-            oversize=1,
-            fitdispersion=True,
-            show_1d_apers=False,
-            fileout=None,
-            vcrop=False, 
-            vcrop_value=800.):
+                 oversample=1,
+                 oversize=1,
+                 fitdispersion=True,
+                 show_1d_apers=False,
+                 fileout=None,
+                 vcrop=False,
+                 vcrop_value=800.,
+                 remove_shift=False):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
             oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout,
-            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers)
+            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift)
                 
     return None
 
