@@ -640,9 +640,9 @@ class ModelSet:
     def get_vmax(self, r=None):
         if r is None:
             r = np.linspace(0., 25., num=251, endpoint=True)
-        
-        vel = self.velocity_profile(r, compute_dm=False, skip_bulge=True)
-        
+    
+        vel = self.velocity_profile(r, compute_dm=False)
+    
         vmax = vel.max()
         return vmax
         
