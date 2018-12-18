@@ -407,7 +407,14 @@ def fit(gal, nWalkers=10,
                     compute_dm=False, model_key_re=model_key_re)
     
     #
-    mcmcResults.vrot_bestfit = gal.model.get_vmax()
+    if model_key_re is not None:
+        comp = gal.model.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i] 
+        mcmcResults.vrot_bestfit = gal.model.velocity_profile(1.38*reff, compute_dm=False)
+    
+    
+    mcmcResult.vmax_bestfit = gal.model.get_vmax()
     
     
     if f_mcmc_results is not None:
