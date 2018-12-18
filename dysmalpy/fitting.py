@@ -414,7 +414,7 @@ def fit(gal, nWalkers=10,
         mcmcResults.vrot_bestfit = gal.model.velocity_profile(1.38*reff, compute_dm=False)
     
     
-    mcmcResult.vmax_bestfit = gal.model.get_vmax()
+    mcmcResults.vmax_bestfit = gal.model.get_vmax()
     
     
     if f_mcmc_results is not None:
