@@ -647,9 +647,30 @@ class ModelSet:
         return vmax
         
     def write_vrot_vcirc_file(self, r=None, filename=None):
-        self.write_profile_file(r=r, filename=filename, 
-                cols=['velocity_profile', 'circular_velocity'], 
-                colnames=['vrot', 'vcirc'], colunits=['[km/s]', '[km/s]'])
+        # Quick test for if vcirc defined:
+        coltry = ['velocity_profile', 'circular_velocity']
+        coltrynames = ['vrot', 'vcirc']
+        coltryunits = ['[km/s]', '[km/s]']
+        cols = []
+        colnames = []
+        colunits = []
+        for c, cn, cu in zip(coltry, coltrynames, coltryuints):
+            try:
+                fnc = getattr(self, c)
+                tmp = fnc(np.array([2.]))
+                cols.append(c)
+                colnames.append(cn)
+                colunits.append(cu)
+            except:
+                pass
+        
+        if len(cols) >= 1:
+            self.write_profile_file(r=r, filename=filename, 
+                cols=cols, prettycolnames=colnames, colunits=colunits)
+        
+        # self.write_profile_file(r=r, filename=filename, 
+        #     cols=['velocity_profile', 'circular_velocity'], 
+        #     colnames=['vrot', 'vcirc'], colunits=['[km/s]', '[km/s]'])
                 
         # if r is None:     r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
         #     
@@ -680,9 +701,9 @@ class ModelSet:
             Optional:
                 colunits:        units of each column. r is added by hand, and will always be in kpc.
         """
-        if cols is None:        cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
+        if cols is None:              cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
         if prettycolnames is None:    prettycolnames = cols
-        if r is None:           r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
+        if r is None:                 r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
             
         profiles = np.zeros((len(r), len(cols)+1))
         profiles[:,0] = r

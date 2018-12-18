@@ -130,7 +130,7 @@ def fit(gal, nWalkers=10,
     if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
     if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
-    if f_vel_ascii is None:          f_vel_ascii = out_dir+'galaxy_bestfit_vrot_vcirc.dat'
+    if f_vel_ascii is None:          f_vel_ascii = out_dir+'galaxy_bestfit_vel_profile.dat'
     
     # Setup file redirect logging:
     if f_log is not None:
@@ -416,10 +416,6 @@ def fit(gal, nWalkers=10,
     if f_chain_ascii is not None:
         mcmcResults.save_chain_ascii(filename=f_chain_ascii)
         
-        
-    if f_vel_ascii is not None:
-        mcmcResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
-        
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
         # Save model w/ updated theta equal to best-fit:
@@ -438,6 +434,11 @@ def fit(gal, nWalkers=10,
     if (do_plotting) & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mcmcResults, gal, fitdispersion=fitdispersion,
                               oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+                              
+    # --------------------------------
+    # Save velocity / other profiles to ascii file:
+    if f_vel_ascii is not None:
+        mcmcResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
 
     # Clean up logger:
     if f_log is not None:
