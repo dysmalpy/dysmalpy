@@ -419,6 +419,22 @@ class DoubleBeam:
                               kernel2.array * self._scale2 / np.sum(kernel2.array))
 
         return kernel_total
+
+    def __deepcopy__(self, memo):
+        self2 = type(self)(major1=self.beam1._major, major2=self.beam2._major, minor1=self.beam1._minor,
+                           minor2=self.beam2._minor, pa1=self.beam1._pa, pa2=self.beam2._pa,
+                           scale1=self._scale1, scale2=self._scale2)
+
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(major1=self.beam1._major, major2=self.beam2._major, minor1=self.beam1._minor,
+                           minor2=self.beam2._minor, pa1=self.beam1._pa, pa2=self.beam2._pa,
+                           scale1=self._scale1, scale2=self._scale2)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
         
 class Moffat(object):
 
