@@ -251,6 +251,23 @@ class Instrument:
             return (self.spec_start + np.round(self.nspec/2)*self.spec_step)
 
 
+class GaussianBeam(Beam):
+    """
+    Re-definition of Beam to allow it to work with copy.deepcopy and copy.copy
+    """
+
+    def __deepcopy__(self, memo):
+        self2 = type(self)(major=self._major, minor=self._minor, pa=self._pa, area=None,
+                           default_unit=self.default_unit, meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(major=self._major, minor=self._minor, pa=self._pa, area=None,
+                           default_unit=self.default_unit, meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
 
 class LSF(u.Quantity):
     """
@@ -334,6 +351,18 @@ class LSF(u.Quantity):
 
         return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
 
+    def __deepcopy__(self, memo):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
 
 class DoubleBeam:
 
@@ -390,6 +419,22 @@ class DoubleBeam:
                               kernel2.array * self._scale2 / np.sum(kernel2.array))
 
         return kernel_total
+
+    def __deepcopy__(self, memo):
+        self2 = type(self)(major1=self.beam1._major, major2=self.beam2._major, minor1=self.beam1._minor,
+                           minor2=self.beam2._minor, pa1=self.beam1._pa, pa2=self.beam2._pa,
+                           scale1=self._scale1, scale2=self._scale2)
+
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(major1=self.beam1._major, major2=self.beam2._major, minor1=self.beam1._minor,
+                           minor2=self.beam2._minor, pa1=self.beam1._pa, pa2=self.beam2._pa,
+                           scale1=self._scale1, scale2=self._scale2)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
         
 class Moffat(object):
 
