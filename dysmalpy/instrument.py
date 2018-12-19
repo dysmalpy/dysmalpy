@@ -251,6 +251,23 @@ class Instrument:
             return (self.spec_start + np.round(self.nspec/2)*self.spec_step)
 
 
+class GaussianBeam(Beam):
+    """
+    Re-definition of Beam to allow it to work with copy.deepcopy and copy.copy
+    """
+
+    def __deepcopy__(self, memo):
+        self2 = type(self)(major=self._major, minor=self._minor, pa=self._pa, area=None,
+                           default_unit=self.default_unit, meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(major=self._major, minor=self._minor, pa=self._pa, area=None,
+                           default_unit=self.default_unit, meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
 
 class LSF(u.Quantity):
     """
