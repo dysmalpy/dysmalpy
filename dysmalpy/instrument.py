@@ -351,6 +351,18 @@ class LSF(u.Quantity):
 
         return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
 
+    def __deepcopy__(self, memo):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
 
 class DoubleBeam:
 
