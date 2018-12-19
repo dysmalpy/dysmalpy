@@ -729,7 +729,7 @@ class MCMCResults(object):
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
                     
-    def save_bestfit_vel_ascii(gal, filename=None, model_key_re = ['disk+bulge','r_eff_disk']):
+    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge','r_eff_disk']):
         if filename is not None:
             try:
                 # RE needs to be in kpc
