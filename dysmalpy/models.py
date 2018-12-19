@@ -12,6 +12,7 @@ import os
 import abc
 import logging
 import time
+import six
 from collections import OrderedDict
 
 # Third party imports
@@ -654,7 +655,7 @@ class ModelSet:
         cols = []
         colnames = []
         colunits = []
-        for c, cn, cu in zip(coltry, coltrynames, coltryuints):
+        for c, cn, cu in zip(coltry, coltrynames, coltryunits):
             try:
                 fnc = getattr(self, c)
                 tmp = fnc(np.array([2.]))
