@@ -22,8 +22,8 @@ import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
 
 
-#import dill as _pickle
-import pickle as _pickle
+import dill as _pickle
+#import pickle as _pickle
 
 # Local imports
 # Package imports
