@@ -1,0 +1,199 @@
+# Example parameters file for fitting a single object with 1D data
+# Note: DO NOT CHANGE THE NAMES IN THE 1ST COLUMN AND KEEP THE COMMAS!!
+# See README for a description of each parameter and its available options.
+
+# ******************************* OBJECT INFO **********************************
+galID,    COS3_18434    # Name of your object
+z,        0.9073057     # Redshift
+
+
+# ****************************** DATA INFO *************************************
+fdata,            COS3_18434.obs_prof.txt    # Full path to your data
+data_inst_corr,   True                              
+slit_width,       1.0                        # arcsecs
+slit_pa,          -161.0                     # Degrees from N towards blue
+symmetrize_data,  True                       # Symmetrize data before fitting?
+profile1d_type,   circ_ap_cube
+
+
+# ***************************** OUTPUT *****************************************
+outdir,           COS3_18434_1D_out/         # Full path for output directory
+
+
+# ***************************** OBSERVATION SETUP ****************************
+
+# Instrument Setup
+# ------------------
+pixscale,         0.2          # arcsec/pixel
+fov_npix,         25           # Number of pixels on a side
+sig_inst_res,     35.0         # Instrumental dispersion in km/s
+spec_type,   velocity
+spec_start,     -1000.         # Starting value for spectral axis
+spec_step,         10.         # Step size for spectral axis in km/s
+nspec,            201          # Number of spectral step
+
+# PSF Setup
+# ---------
+psf_type,         Moffat       # Gaussian or Moffat
+psf_fwhm,         0.452        # arcsecs
+psf_beta,         2.821        # Beta parameter for a Moffat PSF
+
+
+# **************************** SETUP MODEL *************************************
+
+# Model Settings
+# -------------
+include_halo,        False     # Include the halo as a component in fitting?
+adiabatic_contract,  False     # Apply adiabatic contraction?
+pressure_support,    True      # Apply assymmetric drift correction?
+noord_flat,          True      # Apply Noordermeer flattenning?
+oversample,          3         # Spatial oversample factor
+oversize,            1         # Oversize factor
+
+
+# DISK + BULGE
+# ------------
+
+# Initial Values
+total_mass,           11.0     # Total mass of disk and bulge log(Msun)
+bt,                   0.13     # Bulge-to-Total Ratio
+r_eff_disk,           5.03     # Effective radius of disk in kpc
+n_disk,               1.0      # Sersic index for disk
+invq_disk,            4.0      # disk scale length to zheight ratio for disk
+n_bulge,              4.0      # Sersic index for bulge
+invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
+r_eff_bulge,          1.0      # Effective radius of bulge in kpc
+
+# Fixed?
+total_mass_fixed,     False
+bt_fixed,             False
+r_eff_disk_fixed,     False
+n_disk_fixed,         True
+r_eff_bulge_fixed,    True
+n_bulge_fixed,        True
+
+# Prior bounds
+total_mass_bounds,   9.0  13.0
+bt_bounds,           0.0  1.0
+r_eff_disk_bounds,   0.1  20.0
+n_disk_bounds,       1.0  8.0
+r_eff_bulge_bounds,  1.0  5.0
+n_bulge_bounds,      1.0  8.0
+
+# Prior type
+total_mass_prior,    flat
+bt_prior,            gaussian
+r_eff_disk_prior,    gaussian
+n_disk_prior,        flat
+r_eff_bulge_bounds,  flat
+n_bulge_prior,       flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+total_mass_stddev,   1.0
+bt_stddev,           0.1
+r_eff_disk_stddev,   1.0
+n_disk_stddev,       0.1
+r_eff_bulge_stddev,  1.0
+n_bulge_stddev,      0.1 
+
+
+# DARK MATTER HALO
+# ----------------
+
+# Initial Values
+mvirial,             12.0       # Halo virial mass in log(Msun)
+halo_conc,           5.0        # Halo concentration parameter
+
+# Fixed?
+mvirial_fixed,       False
+halo_conc,           True
+
+# Prior Bounds
+mvirial_bounds,      9.0 13.0
+halo_conc,           1.0 20.0
+
+# Prior Type
+mvirial_prior,       flat
+halo_conc_prior,     flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+mvirial_stddev,      1.0
+halo_conc_stddev,    0.5
+
+
+# DISPERSION PROFILE
+# ------------------
+
+# Initial Values
+sigma0,              50.0
+
+# Fixed?
+sigma0_fixed,        False
+
+# Prior Bounds
+sigma0_bounds,       5.0 300.0
+
+# Prior Type
+sigma0_prior,        flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+sigma0_stddev,       25.0
+
+
+# ZHEIGHT PROFILE
+# ---------------
+# Initial Values
+sigmaz,              0.6
+
+# Fixed?
+sigmaz_fixed,        False
+
+# Prior Bounds
+sigmaz_bounds,       0.1 1.0
+
+# Prior Type
+sigmaz_prior,         flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+sigmaz_stddev,       0.1
+
+# Tie the zheight to the effective radius of the disk?
+zheight_tied,        True
+
+
+# GEOMETRY
+# --------
+
+# Initial Values
+inc,                 33.2
+pa,                  -161.0
+
+# Fixed?
+inc_fixed,           True
+
+# Prior Bounds
+inc_bounds,          0.0 90.0
+
+# Prior Type
+inc_prior,           sine_gaussian
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+inc_stddev,          5.0
+
+
+# ******************************** MCMC Fitting Settings ******************************
+nWalkers,         400
+nCPUs,            190
+scale_param_a,      3.
+nBurn,            100
+nSteps,           100
+minAF,           None
+maxAF,           None
+nEff,              10
+do_plotting,     True
+fitdispersion,   True
