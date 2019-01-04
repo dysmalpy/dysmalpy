@@ -395,6 +395,8 @@ def extract_1D_moments_from_cube(gal,
     
 def extract_2D_moments_from_cube(gal):
     
+    raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+    
     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
    
     
