@@ -14,6 +14,8 @@ import pandas as pd
 import astropy.units as u
 
 from dysmalpy import data_classes
+from dysmalpy import parameters
+from dysmalpy import fitting
 
 from astropy.table import Table
 
@@ -125,7 +127,7 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
             for param_n in gal.model.param_names[cmp_n]:
                 
                 if '{}:{}'.format(cmp_n,param_n) in mcmc_results.chain_param_names:
-                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0]
+                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0][0]
                     best = mcmc_results.bestfit_parameters[whparam]
                     l68 = mcmc_results.bestfit_parameters_l68_err[whparam]
                     u68 = mcmc_results.bestfit_parameters_u68_err[whparam]
@@ -134,12 +136,12 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
                     l68 = -99.
                     u68 = -99.
                 
-                datstr = '{}   {}   {}   {:0.4f}   {:0.4f}   {:0.4f}'.format(cmp_n, param_n, 
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n, 
                             gal.model.fixed[cmp_n][param_n], best, l68, u68)
                 f.write(datstr+'\n')
                 
         #
-        datstr = '{}   {}   {}   {:0.4f}   {:0.4f}   {:0.4f}'.format('redchisq', '-----', 
+        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----', 
                     '-----', mcmc_results.bestfit_redchisq, -99, -99)
         f.write(datstr+'\n')
         
@@ -165,13 +167,13 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
             for param_n in gal.model.param_names[cmp_n]:
                 
                 if '{}:{}'.format(cmp_n,param_n) in mcmc_results.chain_param_names:
-                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0]
+                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0][0]
                     best = mcmc_results.bestfit_parameters[whparam]
                     l68 = mcmc_results.bestfit_parameters_l68_err[whparam]
                     u68 = mcmc_results.bestfit_parameters_u68_err[whparam]
                     
                     
-                    datstr = '    {}    {:0.4f}  -{:0.4f} +{:0.4f}'.format(param_n, best, l68, u68)
+                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
                     f.write(datstr+'\n')
             #
             f.write('\n')
@@ -181,7 +183,7 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
                 if '{}:{}'.format(cmp_n,param_n) not in mcmc_results.chain_param_names:
                     best = getattr(gal.model.components[cmp_n], param_n).value
                     
-                    datstr = '    {}    {:0.4f}  [FIXED]'.format(param_n, best)
+                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
                     f.write(datstr+'\n')
                     
         #

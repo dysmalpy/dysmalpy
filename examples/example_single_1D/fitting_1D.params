@@ -170,7 +170,6 @@ zheight_tied,        True
 
 # Initial Values
 inc,                 33.2
-pa,                  -161.0
 
 # Fixed?
 inc_fixed,           True
@@ -187,7 +186,7 @@ inc_stddev,          5.0
 
 
 # ******************************** MCMC Fitting Settings ******************************
-nWalkers,         400
+nWalkers,         500
 nCPUs,            190
 scale_param_a,      3.
 nBurn,            100
