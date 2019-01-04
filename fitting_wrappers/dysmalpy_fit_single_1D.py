@@ -5,6 +5,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 from contextlib import contextmanager
+import sys
 
 from dysmalpy import galaxy
 from dysmalpy import models
@@ -18,7 +19,7 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 
-from . import utils_io
+import utils_io
 
 
 
@@ -63,7 +64,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
                                     profile1d_type=mcmc_dict['profile1d_type'],
                                     oversample=mcmc_dict['oversample'], 
                                     fitdispersion=mcmc_dict['fitdispersion'], 
-                                    out_dir=mcmc_dict['outdir'],
+                                    outdir=mcmc_dict['outdir'],
                                     f_plot_trace_burnin=mcmc_dict['f_plot_trace_burnin'],
                                     f_plot_trace=mcmc_dict['f_plot_trace'],
                                     f_model=mcmc_dict['f_model'],
@@ -236,9 +237,13 @@ def setup_gal_inst_mod_1D(params=None):
     geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
                            fixed=geom_fixed, bounds=geom_bounds, name='geom')
     geom = utils_io.set_comp_param_prior(comp=geom, param_name='inc', params=params)
-    geom = utils_io.set_comp_param_prior(comp=geom, param_name='pa', params=params)
-    geom = utils_io.set_comp_param_prior(comp=geom, param_name='xshift', params=params)
-    geom = utils_io.set_comp_param_prior(comp=geom, param_name='yshift', params=params)
+    
+    if 'pa' in list(params.keys()):
+        geom = utils_io.set_comp_param_prior(comp=geom, param_name='pa', params=params)
+    if 'xshift' in list(params.keys()):
+        geom = utils_io.set_comp_param_prior(comp=geom, param_name='xshift', params=params)
+    if 'yshift' in list(params.keys()):
+        geom = utils_io.set_comp_param_prior(comp=geom, param_name='yshift', params=params)
                                
     
     
