@@ -9,33 +9,34 @@ z,        0.9073057     # Redshift
 
 # ****************************** DATA INFO *************************************
 fdata,            COS3_18434.obs_prof.txt    # Full path to your data
-data_inst_corr,   True                              
+data_inst_corr,   True                       # Is the dispersion corrected for
+                                             # instrumental broadening?
 slit_width,       1.0                        # arcsecs
 slit_pa,          -161.0                     # Degrees from N towards blue
 symmetrize_data,  True                       # Symmetrize data before fitting?
-profile1d_type,   circ_ap_cube
+profile1d_type,   circ_ap_cube               # DON'T CHANGE!
 
 
 # ***************************** OUTPUT *****************************************
 outdir,           COS3_18434_1D_out/         # Full path for output directory
 
 
-# ***************************** OBSERVATION SETUP ****************************
+# ***************************** OBSERVATION SETUP ******************************
 
 # Instrument Setup
 # ------------------
-pixscale,         0.2          # arcsec/pixel
-fov_npix,         25           # Number of pixels on a side
+pixscale,         0.2          # Pixel scale in arcsec/pixel
+fov_npix,         25           # Number of pixels on a side of model cube
 sig_inst_res,     35.0         # Instrumental dispersion in km/s
-spec_type,   velocity
+spec_type,   velocity          # DON'T CHANGE!
 spec_start,     -1000.         # Starting value for spectral axis
 spec_step,         10.         # Step size for spectral axis in km/s
-nspec,            201          # Number of spectral step
+nspec,            201          # Number of spectral steps
 
 # PSF Setup
 # ---------
 psf_type,         Moffat       # Gaussian or Moffat
-psf_fwhm,         0.452        # arcsecs
+psf_fwhm,         0.452        # PSF FWHM in arcsecs
 psf_beta,         2.821        # Beta parameter for a Moffat PSF
 
 
@@ -64,7 +65,7 @@ n_bulge,              4.0      # Sersic index for bulge
 invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
 r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
-# Fixed?
+# Fixed? True if its a fixed parameter, False otherwise
 total_mass_fixed,     False
 bt_fixed,             False
 r_eff_disk_fixed,     False
@@ -72,7 +73,7 @@ n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True
 
-# Prior bounds
+# Prior bounds. Lower and upper bounds on the prior
 total_mass_bounds,   9.0  13.0
 bt_bounds,           0.0  1.0
 r_eff_disk_bounds,   0.1  20.0
@@ -80,7 +81,7 @@ n_disk_bounds,       1.0  8.0
 r_eff_bulge_bounds,  1.0  5.0
 n_bulge_bounds,      1.0  8.0
 
-# Prior type
+# Prior type. 'flat' or 'gaussian'
 total_mass_prior,    flat
 bt_prior,            gaussian
 r_eff_disk_prior,    gaussian
@@ -105,15 +106,15 @@ n_bulge_stddev,      0.1
 mvirial,             12.0       # Halo virial mass in log(Msun)
 halo_conc,           5.0        # Halo concentration parameter
 
-# Fixed?
+# Fixed? True if its a fixed parameter, False otherwise
 mvirial_fixed,       False
 halo_conc,           True
 
-# Prior Bounds
+# Prior bounds. Lower and upper bounds on the prior
 mvirial_bounds,      9.0 13.0
 halo_conc,           1.0 20.0
 
-# Prior Type
+# Prior type. 'flat' or 'gaussian'
 mvirial_prior,       flat
 halo_conc_prior,     flat
 
@@ -123,16 +124,16 @@ mvirial_stddev,      1.0
 halo_conc_stddev,    0.5
 
 
-# DISPERSION PROFILE
+# INTRINSIC DISPERSION PROFILE
 # ------------------
 
 # Initial Values
-sigma0,              50.0
+sigma0,              50.0      # Constant intrinsic dispersion value
 
-# Fixed?
+# Fixed? True if its a fixed parameter, False otherwise
 sigma0_fixed,        False
 
-# Prior Bounds
+# Prior bounds. Lower and upper bounds on the prior
 sigma0_bounds,       5.0 300.0
 
 # Prior Type
@@ -145,16 +146,17 @@ sigma0_stddev,       25.0
 
 # ZHEIGHT PROFILE
 # ---------------
-# Initial Values
-sigmaz,              0.6
 
-# Fixed?
+# Initial Values
+sigmaz,              0.6      # Gaussian width of the galaxy in z
+
+# Fixed? True if its a fixed parameter, False otherwise
 sigmaz_fixed,        False
 
-# Prior Bounds
+# Prior bounds. Lower and upper bounds on the prior
 sigmaz_bounds,       0.1 1.0
 
-# Prior Type
+# Prior type. 'flat' or 'gaussian'
 sigmaz_prior,         flat
 
 # Standard deviation of Gaussian Prior, if chosen
@@ -162,6 +164,7 @@ sigmaz_prior,         flat
 sigmaz_stddev,       0.1
 
 # Tie the zheight to the effective radius of the disk?
+# If set to True, make sure sigmaz_fixed is False
 zheight_tied,        True
 
 
@@ -169,16 +172,15 @@ zheight_tied,        True
 # --------
 
 # Initial Values
-inc,                 33.2
-pa,                  -161.0
+inc,                 33.2    # Inclination of galaxy, 0=face-on, 90=edge-on
 
-# Fixed?
+# Fixed? True if its a fixed parameter, False otherwise
 inc_fixed,           True
 
-# Prior Bounds
+# Prior bounds. Lower and upper bounds on the prior
 inc_bounds,          0.0 90.0
 
-# Prior Type
+# Prior type. 'flat', 'gaussian', or 'sine_gaussian'
 inc_prior,           sine_gaussian
 
 # Standard deviation of Gaussian Prior, if chosen
@@ -187,13 +189,13 @@ inc_stddev,          5.0
 
 
 # ******************************** MCMC Fitting Settings ******************************
-nWalkers,         400
-nCPUs,            190
-scale_param_a,      3.
-nBurn,            100
-nSteps,           100
+nWalkers,         400        # Number of walkers to use in MCMC fitting
+nCPUs,            190        # Number of CPUs to use
+scale_param_a,      3.       # Scale parameter for MCMC steps
+nBurn,            100        # Number of burn-in steps
+nSteps,           100        # Number of "real" steps
 minAF,           None
 maxAF,           None
 nEff,              10
-do_plotting,     True
-fitdispersion,   True
+do_plotting,     True        # Produce all output plots?
+fitdispersion,   True        # Simultaneously fit the velocity and dispersion?
