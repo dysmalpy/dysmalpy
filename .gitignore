@@ -62,3 +62,6 @@ distribute-*.tar.gz
 
 #AFS stuff
 .__afs*
+
+# Private data
+dysmalpy/examples/example_single_1D/COS3_18434.obs_prof.txt
