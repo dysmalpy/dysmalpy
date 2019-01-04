@@ -67,7 +67,7 @@ def fit(gal, nWalkers=10,
            save_burn = False,
            save_model = True, 
            save_data = True, 
-           out_dir = 'mcmc_fit_results/',
+           outdir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
            continue_steps = False,
@@ -113,24 +113,24 @@ def fit(gal, nWalkers=10,
     #len(model.get_free_parameters_values())
 
     # Output filenames
-    if (len(out_dir) > 0):
-        if (out_dir[-1] != '/'): out_dir += '/'
-    ensure_dir(out_dir)
+    if (len(outdir) > 0):
+        if (outdir[-1] != '/'): outdir += '/'
+    ensure_dir(outdir)
 
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
-    if continue_steps and (f_sampler is None):  f_sampler = out_dir+'mcmc_sampler_continue.pickle'
+    if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
 
     # If the output filenames aren't defined: use default output filenames
-    if f_plot_trace_burnin is None:  f_plot_trace_burnin = out_dir+'mcmc_burnin_trace.pdf'
-    if f_plot_trace is None:         f_plot_trace = out_dir+'mcmc_trace.pdf'
-    if save_model and (f_model is None): f_model = out_dir+'galaxy_model.pickle'
-    if f_sampler is None:            f_sampler = out_dir+'mcmc_sampler.pickle'
-    if save_burn and (f_burn_sampler is None):  f_burn_sampler = out_dir+'mcmc_burn_sampler.pickle'
-    if f_plot_param_corner is None:  f_plot_param_corner = out_dir+'mcmc_param_corner.pdf'
-    if f_plot_bestfit is None:       f_plot_bestfit = out_dir+'mcmc_best_fit.pdf'
-    if f_mcmc_results is None:       f_mcmc_results = out_dir+'mcmc_results.pickle'
-    if f_chain_ascii is None:        f_chain_ascii = out_dir+'mcmc_chain_blobs.dat'
-    if f_vel_ascii is None:          f_vel_ascii = out_dir+'galaxy_bestfit_vel_profile.dat'
+    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
+    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.pdf'
+    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
+    if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.pickle'
+    if save_burn and (f_burn_sampler is None):  f_burn_sampler = outdir+'mcmc_burn_sampler.pickle'
+    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.pdf'
+    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.pdf'
+    if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
+    if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
+    if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
     
     # Setup file redirect logging:
     if f_log is not None:
@@ -1005,7 +1005,7 @@ def create_default_mcmc_options():
        maxAF = 0.5,
        nEff = 10,
        do_plotting = True,
-       out_dir = 'mcmc_fit_results/',
+       outdir = 'mcmc_fit_results/',
        f_plot_trace_burnin = None,
        f_plot_trace = None,
        f_sampler = None,
