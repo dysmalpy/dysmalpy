@@ -20,8 +20,6 @@ from dysmalpy import fitting
 from astropy.table import Table
 
 
-
-
 def read_fitting_params_input(fname=None):
     params = {}
     
@@ -275,6 +273,98 @@ def load_single_object_1D_data(fdata=None, params=None):
                                       slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'] )
                                       
     return data1d
+    
+def load_single_object_2D_data(params=None, adjust_error=True, 
+            automask=True, vmax=500., dispmax=600.):
+    
+    # +++++++++++++++++++++++++++++++++++++++++++
+    # Upload the data set to be fit
+    gal_vel = fits.getdata(params['fdata_vel'])
+    err_vel = fits.getdata(params['fdata_verr'])
+    gal_disp = fits.getdata(params['fdata_disp'])
+    err_disp = fits.getdata(params['fdata_derr'])
+    mask = fits.getdata(params['fdata_mask'])
+    
+    inst_corr = params['data_inst_corr']
+    
+    
+    # Auto mask som bad data
+    if automask: 
+        indtmp = (gal_disp > dispmax) | (np.abs(gal_vel) > vmax)
+        mask[indtmp] = 0
+        
+        
+        
+    if adjust_error:
+        # Mask > 1sig lower error outliers:
+        errv_l68 = np.percentile(err_vel, 15.865)
+        errd_l68 = np.percentile(err_disp, 15.865)
+        
+        indv = (err_vel < errv_l68)
+        err_vel[indv] = errv_l68
+        
+        indd = (err_disp < errd_l68)
+        err_disp[indd] = errd_l68
+        
+        
+    
+    # Mask pixels with zero error for vel/disp:
+    mask[(err_vel == 0)] = 0
+    mask[(err_disp == 0)] = 0
+    
+    
+    #####
+    # Apply symmetrization if wanted:
+    try:
+        if params['symmetrize_data']:
+            ybin, xbin = np.indices(gal_vel.shape, dtype=np.float64)
+            ybin = ybin.flatten()
+            xbin = xbin.flatten()
+            xbin -= (gal_vel.shape[1]-1.)/2.
+            ybin -= (gal_vel.shape[0]-1.)/2.
+            xbin -= params['xshift']  
+            ybin -= params['yshift']
+            
+            bool_mask = np.array(mask.copy(), dtype=bool)
+            bool_mask_flat = np.array(mask.copy(), dtype=bool).flatten()
+            
+            gal_vel_flat_in = gal_vel.flatten()
+            err_vel_flat_in = err_vel.flatten()
+            gal_vel_flat_in[~bool_mask_flat] = np.NaN
+            err_vel_flat_in[~bool_mask_flat] = np.NaN
+            
+            gal_vel_flat, err_vel_flat = dysmalpy_utils.symmetrize_velfield(xbin, ybin, 
+                                gal_vel_flat_in, err_vel_flat_in, 
+                                sym=1, pa=params['pa'])
+            
+            gal_disp_flat_in = gal_disp.flatten()
+            err_disp_flat_in = err_disp.flatten()
+            gal_disp_flat_in[~bool_mask_flat] = np.NaN
+            err_disp_flat_in[~bool_mask_flat] = np.NaN
+            gal_disp_flat, err_disp_flat = dysmalpy_utils.symmetrize_velfield(xbin, ybin, 
+                                gal_disp_flat_in, err_disp_flat_in, 
+                                sym=2, pa=params['pa'])
+                                
+            #
+            gal_vel[bool_mask] = gal_vel_flat[bool_mask_flat]
+            err_vel[bool_mask] = err_vel_flat[bool_mask_flat]
+            gal_disp[bool_mask] = gal_disp_flat[bool_mask_flat]
+            err_disp[bool_mask] = err_disp_flat[bool_mask_flat]
+    except:
+        pass
+    
+    
+    data2d = data_classes.Data2D(pixscale=pixscale, velocity=gal_vel,
+                                      vel_disp=gal_disp, vel_err=err_vel,
+                                      vel_disp_err=err_disp, mask=mask,
+                                      filename_velocity=params['fdata_vel'],
+                                      filename_dispersion=params['fdata_disp'],
+                                      smoothing_type=params['smoothing_type'],
+                                      smoothing_npix=params['smoothing_npix'],
+                                      inst_corr=inst_corr)
+                                      
+            
+    return data2d
     
 #
 def set_comp_param_prior(comp=None, param_name=None, params=None):
