@@ -30,7 +30,7 @@ import dill as _pickle
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
-from dysmalpy.utils import measure_1d_profile_apertures, apply_smoothing_2D
+from dysmalpy.utils import measure_1d_profile_apertures, apply_smoothing_2D, apply_smoothing_3D
 
 __all__ = ['Galaxy']
 
