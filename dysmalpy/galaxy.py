@@ -294,16 +294,21 @@ class Galaxy:
                                      spec_unit=spec_unit)
 
         elif ndim_final == 2:
-
+            
+            if from_data:
+                if self.data.smoothing_type is not None:
+                    self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
+                                smoothing_type=self.data.smoothing_type,
+                                smoothing_npix=self.data.smoothing_npix)
+                                
             if spec_type == "velocity":
-
                 vel = self.model_cube.data.moment1().to(u.km/u.s).value
                 disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
 
             elif spec_type == "wavelength":
 
-                cube_with_vel = self.model_cube.data.with_spectral_unit(
-                    u.km/u.s, velocity_convention='optical',
+                cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
+                    velocity_convention='optical',
                     rest_value=line_center)
 
                 vel = cube_with_vel.moment1().value
@@ -314,11 +319,11 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
             
-            if from_data:
-                if self.data.smoothing_type is not None:
-                    vel, disp = apply_smoothing_2D(vel, disp,
-                                smoothing_type=self.data.smoothing_type,
-                                smoothing_npix=self.data.smoothing_npix)
+            # if from_data:
+            #     if self.data.smoothing_type is not None:
+            #         vel, disp = apply_smoothing_2D(vel, disp,
+            #                     smoothing_type=self.data.smoothing_type,
+            #                     smoothing_npix=self.data.smoothing_npix)
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
