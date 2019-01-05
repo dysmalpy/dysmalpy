@@ -26,52 +26,55 @@ def read_fitting_params_input(fname=None):
     params = {}
     
     columns = ['keys', 'values']
-    df = pd.read_csv(fname, sep=',', comment='#', names=columns).copy() 
+    df = pd.read_csv(fname, sep=',', comment='#', names=columns, skipinitialspace=True).copy() 
     
     for j, key in enumerate(df['keys'].values):
-        valset = False
-        try:
-            tmpval = df['values'][j].split('#')[0].strip()
-        except:
-            tmpval = df['values'][j].strip()
-        try:
-            tmparr = tmpval.split(' ')
-            tmparrnew = []
-            if len(tmparr) > 1:
-                tmparrnew = []
-                for ta in tmparr:
-                    if len(ta) > 0:
-                        tv = ta.strip()
-                        try:
-                            tvn = np.float(tv)
-                        except:
-                            tvn = tv
-                        tmparrnew.append(tvn)
-                tmpval = tmparrnew
-                valset = True
-            
-        except:
+        if key is np.NaN:
             pass
+        else:
+            valset = False
+            try:
+                tmpval = df['values'][j].split('#')[0].strip()
+            except:
+                tmpval = df['values'][j].strip()
+            try:
+                tmparr = tmpval.split(' ')
+                tmparrnew = []
+                if len(tmparr) > 1:
+                    tmparrnew = []
+                    for ta in tmparr:
+                        if len(ta) > 0:
+                            tv = ta.strip()
+                            try:
+                                tvn = np.float(tv)
+                            except:
+                                tvn = tv
+                            tmparrnew.append(tvn)
+                    tmpval = tmparrnew
+                    valset = True
             
-        if not valset:
-            strtmpval = str(tmpval).strip()
-            if strtmpval == 'True':
-                tmpval = True
-            elif strtmpval == 'False':
-                tmpval = False
-            elif strtmpval == 'None':
-                tmpval = None
-            else:
-                try:
-                    fltval = np.float(tmpval)
-                    if (fltval % 1) == 0.:
-                        tmpval = np.int(fltval)
-                    else:
-                        tmpval = fltval
-                except:
-                    tmpval = strtmpval.strip()
+            except:
+                pass
+            
+            if not valset:
+                strtmpval = str(tmpval).strip()
+                if strtmpval == 'True':
+                    tmpval = True
+                elif strtmpval == 'False':
+                    tmpval = False
+                elif strtmpval == 'None':
+                    tmpval = None
+                else:
+                    try:
+                        fltval = np.float(tmpval)
+                        if (fltval % 1) == 0.:
+                            tmpval = np.int(fltval)
+                        else:
+                            tmpval = fltval
+                    except:
+                        tmpval = strtmpval.strip()
         
-        params[key] = tmpval
+            params[key] = tmpval
         
     return params
     #
