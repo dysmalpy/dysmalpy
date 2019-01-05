@@ -182,7 +182,7 @@ inc,                 33.2
 pa,                  -161.0
 xshift,              0.        # pixels
 yshift,              0.        # pixels
-vel_shift,           0.        # km/s
+vel_shift,           -10.      # km/s
 
 # Fixed?
 inc_fixed,           False
@@ -196,7 +196,7 @@ inc_bounds,          3.2  63.2
 pa_bounds,           -171.0  -151.0
 xshift_bounds,       -1.5  1.5        # pixels
 yshift_bounds,       -1.5  1.5        # pixels
-vel_shift_bounds,    -20.  20.        # km/s
+vel_shift_bounds,    -30.  10.        # km/s
 
 # Prior Type
 inc_prior,           sine_gaussian
@@ -221,7 +221,7 @@ vel_shift_stddev,    10.
 
 
 # ******************************** MCMC Fitting Settings ******************************
-nWalkers,         400
+nWalkers,         500
 nCPUs,            190
 scale_param_a,      3.
 nBurn,            100
