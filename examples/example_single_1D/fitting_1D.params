@@ -182,7 +182,13 @@ inc_prior,           sine_gaussian
 
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
-inc_stddev,          5.0
+
+# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and 
+# 		center of prior are defined in angle space (inc)
+inc_stddev,          0.1
+
+## Example if normal gaussian used (eg, angle space)
+#inc_stddev,          5.0
 
 
 # ******************************** MCMC Fitting Settings ******************************
