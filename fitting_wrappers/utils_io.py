@@ -138,7 +138,7 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
                     u68 = -99.
                 
                 datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n, 
-                            gal.model.fixed[cmp_n][param_n], best, l68, u68)
+                            "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
                 f.write(datstr+'\n')
                 
         #
