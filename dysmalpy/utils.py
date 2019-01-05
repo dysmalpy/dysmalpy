@@ -317,7 +317,10 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
     else:
         if (smoothing_type.lower() == 'median'):
             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
-            cube.spatial_smooth_median(smoothing_npix)
+            # cb = cube.filled_data
+            # cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
+            cube = cube.spatial_smooth_median(smoothing_npix)
+            
         else:
             message("Smoothing type={} not supported".format(smoothing_type))
 
