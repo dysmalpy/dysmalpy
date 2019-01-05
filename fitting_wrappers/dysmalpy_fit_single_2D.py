@@ -61,7 +61,6 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
                                     nSteps=mcmc_dict['nSteps'], minAF=mcmc_dict['minAF'], maxAF=mcmc_dict['maxAF'],
                                     nEff=mcmc_dict['nEff'], do_plotting=mcmc_dict['do_plotting'],
                                     red_chisq=mcmc_dict['red_chisq'],
-                                    profile1d_type=mcmc_dict['profile1d_type'],
                                     oversample=mcmc_dict['oversample'], 
                                     fitdispersion=mcmc_dict['fitdispersion'], 
                                     outdir=mcmc_dict['outdir'],
