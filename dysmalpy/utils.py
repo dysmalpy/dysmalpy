@@ -415,6 +415,16 @@ def extract_2D_moments_from_cube(gal):
     data_cube = SpectralCube(data=gal.data.data.unmasked_data[:].value, 
                 mask=mask, wcs=gal.data.data.wcs)
     
+    #
+    if gal.data.smoothing_type is not None:
+        data_cube = apply_smoothing_3D(data_cube,
+                    smoothing_type=self.data.smoothing_type,
+                    smoothing_npix=self.data.smoothing_npix)
+        smoothing_type=gal.data.smoothing_type
+        smoothing_npix=gal.data.smoothing_npix
+    else:
+        smoothing_type = None
+        smoothing_npix = None
     
     vel = data_cube.moment1().to(u.km/u.s).value
     disp = data_cube.linewidth_sigma().to(u.km/u.s).value
@@ -425,15 +435,15 @@ def extract_2D_moments_from_cube(gal):
     mask[whmsk] = 0
     
     
-    if gal.data.smoothing_type is not None:
-        vel, disp = apply_smoothing_2D(vel, disp,
-                    smoothing_type=gal.data.smoothing_type,
-                    smoothing_npix=gal.data.smoothing_npix)
-        smoothing_type=gal.data.smoothing_type
-        smoothing_npix=gal.data.smoothing_npix
-    else:
-        smoothing_type = None
-        smoothing_npix = None
+    # if gal.data.smoothing_type is not None:
+    #     vel, disp = apply_smoothing_2D(vel, disp,
+    #                 smoothing_type=gal.data.smoothing_type,
+    #                 smoothing_npix=gal.data.smoothing_npix)
+    #     smoothing_type=gal.data.smoothing_type
+    #     smoothing_npix=gal.data.smoothing_npix
+    # else:
+    #     smoothing_type = None
+    #     smoothing_npix = None
     
     
     # Artificially mask the bad stuff:
