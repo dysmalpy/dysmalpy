@@ -19,6 +19,7 @@ from dysmalpy import fitting
 
 from astropy.table import Table
 
+import astropy.io.fits as fits
 
 def read_fitting_params_input(fname=None):
     params = {}
