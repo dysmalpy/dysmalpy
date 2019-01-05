@@ -256,8 +256,6 @@ def load_single_object_1D_data(fdata=None, params=None):
     gal_disp =  dat_arr[:,3]
     err_vel =   dat_arr[:,2]
     err_disp =  dat_arr[:,4]
-    # inst_corr = params['data_inst_corr']                  # Flag for if the measured dispersion has been
-    #                                                       # corrected for instrumental resolution
     
     #####
     # Apply symmetrization if wanted:
@@ -286,8 +284,6 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     gal_disp = fits.getdata(params['fdata_disp'])
     err_disp = fits.getdata(params['fdata_derr'])
     mask = fits.getdata(params['fdata_mask'])
-    
-    inst_corr = params['data_inst_corr']
     
     
     # Auto mask som bad data
@@ -356,14 +352,14 @@ def load_single_object_2D_data(params=None, adjust_error=True,
         pass
     
     
-    data2d = data_classes.Data2D(pixscale=pixscale, velocity=gal_vel,
+    data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp, mask=mask,
                                       filename_velocity=params['fdata_vel'],
                                       filename_dispersion=params['fdata_disp'],
                                       smoothing_type=params['smoothing_type'],
                                       smoothing_npix=params['smoothing_npix'],
-                                      inst_corr=inst_corr)
+                                      inst_corr=params['data_inst_corr'])
                                       
             
     return data2d
