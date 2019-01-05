@@ -16,6 +16,7 @@ import astropy.units as u
 from dysmalpy import data_classes
 from dysmalpy import parameters
 from dysmalpy import fitting
+from dysmalpy import utils as dysmalpy_utils
 
 from astropy.table import Table
 
