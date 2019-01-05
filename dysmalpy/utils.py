@@ -317,7 +317,7 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
     else:
         if (smoothing_type.lower() == 'median'):
             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
-            print("cube.shape={}".format(cube.unmasked_data.shape))
+            print("cube.shape={}".format(cube.shape))
             cb = cube.filled_data[:].value
             print("cb.shape={}".format(cb.shape))
             cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
