@@ -156,7 +156,21 @@ def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
         f.write("Date: {}".format(datetime.datetime.now())+'\n')
         f.write('\n')
         
-        f.write('Datafile: {}'.format(params['fdata'])+'\n')
+        try:
+            f.write('Datafile: {}'.format(params['fdata'])+'\n')
+        except:
+            try:
+                f.write('Datafiles:\n')
+                f.write(' vel:  {}'.format(params['fdata_vel'])+'\n')
+                f.write(' verr: {}'.format(params['fdata_verr'])+'\n')
+                f.write(' disp: {}'.format(params['fdata_disp'])+'\n')
+                f.write(' derr: {}'.format(params['fdata_derr'])+'\n')
+                try:
+                    f.write(' mask: {}'.format(params['fdata_mask'])+'\n')
+                except:
+                    pass
+            except:
+                pass
         f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
         
         f.write('\n')
