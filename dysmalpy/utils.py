@@ -309,8 +309,20 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
             message("Smoothing type={} not supported".format(smoothing_type))
             
         return vel, disp
-        
-        
+
+
+def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
+    if smoothing_type is None:
+        return cube
+    else:
+        if (smoothing_type.lower() == 'median'):
+            cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
+        else:
+            message("Smoothing type={} not supported".format(smoothing_type))
+
+        return cube
+
+
 def extract_1D_2D_data_moments_from_cube(gal, 
             slit_width=None, slit_pa=None, 
             aper_dist=None):
