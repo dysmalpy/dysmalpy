@@ -1,0 +1,332 @@
+This file contains a more in-depth description of each of the parameters
+that can be set in fitting_1D.params. For all parameters that take a string,
+quotations are not necessary.
+
+
+# ******************************* OBJECT INFO **********************************
+galID:  The name of your object that will be used in the file-naming.
+z:      Redshift of your object
+
+
+# ****************************** DATA INFO *************************************
+
+** Note about 1D data format **
+The wrapper expects your 1D data file to be an ascii file with 5 columns in the
+following order:
+1.) Radius in arcseconds from the center of the galaxy from negative to positive
+2.) Velocity in km/s. Make sure your profile starts with the blue side
+    corresponding to negative radii
+3.) Velocity error in km/s.
+4.) Velocity dispersion in km/s.
+5.) Velocity dispersion error in km/s.
+
+fdata: Full path to your data. If the data is inside this directory, then just
+       the file name.
+
+data_inst_corr: True/False for whether the dispersion profile has been corrected
+                for the instrumental broadening.
+
+slit_width: Circular aperture diameter in arcsecs used to create the 1D profile
+
+slit_pa: Position angle in degrees that the apertures were placed on.
+         Make sure this is towards the BLUE-SHIFTED side of your galaxy.
+         -180 to 180 with 0 to the North and negative clockwise.
+
+symmetrize_data: True/False for whether you want the data to be symmetrized.
+
+profile1d_type: For now, do NOT change this parameter in the file.
+
+
+# ***************************** OUTPUT *****************************************
+outdir: Full path to where you want the output directory to be located on your
+        machine
+
+
+# ***************************** OBSERVATION SETUP ******************************
+
+# Instrument Setup
+# ------------------
+pixscale: Pixelscale of the instrument that observed your galaxy
+
+fov_npix: Number of pixels on a side for the field of view
+
+sig_inst_res: Instrumental dispersion in km/s of your instrument
+
+spec_type: For now, do NOT change this parameter in the file
+
+spec_start: Starting velocity in km/s for the spectral axis of the model cube
+spec_step: Velocity step size in km/s for the spectral axis of the model cube
+nspec: Number of spectral elements for the spectral axis of the model cube
+
+
+# PSF Setup
+# ---------
+psf_type: The shape of the PSF for the observation.
+          Can be either Gaussian or Moffat
+psf_fwhm: PSF FWHM in arcsecs for the Gaussian or Moffat
+psf_beta: Beta parameter for the Moffat PSF. This will have no effect if you
+          choose Gaussian as your PSF shape
+
+
+# **************************** SETUP MODEL *************************************
+
+This section allows the user to change parameters associated with the specific
+model they want to use to fit their data. For each of the model "components"
+(i.e. DISK+BULGE, DARK MATTER HALO, etc), there are parameters that can be set
+to vary during your fitting. These are listed under the Initial Value section.
+These parameters can then be set fixed (True) or free (False) under the Fixed?
+section with parameter names with _fixed attached at the end. Each model
+parameter then also has a prior associated with it of which we provide 3 types:
+1.) Flat: Uniform prior between two values.
+2.) Gaussian: Gaussian prior with a central value and standard deviation and
+              bounded between two values.
+3.) Sine Gaussian: Gaussian prior on the sine of the parameter. Useful for
+                   putting a prior on the sin(inclination). Bounds are still
+                   given for the absolute value of the parameter but the
+                   standard deviation is given for the sine of the parameter.
+
+The prior type is chosen with the parameter names with _prior attached at the
+end and can be 'flat', 'gaussian', or 'sine_gaussian'.
+
+For all prior types, bounds on the allowed values for the free parameter must
+be given and these are provided with the parameter names with _bounds attached
+at the end. Simply put the lower and upper bounds next to each other with a
+space between them.
+
+If a Gaussian or Sine Gaussian prior is chosen, then a standard deviation must be
+given via the parameter names with _stddev attached at the end.
+
+Also, the central value for the Gaussian or Sine Gaussian prior will be taken
+from the values you give under the Initial Values.
+
+Before addressing each of the model components there are several general model
+settings that can be set as well.
+
+# Model Settings
+# -------------
+include_halo: True/False for including the halo component in the model.
+
+adiabatic_contract: True/False if adiabatic contraction will be used. If True,
+                    then include_halo must be set to True as well.
+
+pressure_support: True/False if the velocities should include assymetric drift.
+                  The prescription described in Burkert+16 is used.
+
+noord_flat: True/False if Noordermeer flattening should be used.
+            See Nordermeer+08.
+
+oversample: Integer number if the model should be oversampled spatially.
+            Example: If fov_npix is chosen to be 25 and oversample is 3, then
+                     the model will first be generated on a 75x75 pixel grid
+                     with a factor of 3 higher pixel scale and then downsampled
+                     to 25x25 before extracting the 1D profile.
+
+oversize: Integer number if the model should be first generated on a larger FOV.
+          Example: If fov_npix is chosen to be 25 and oversize is 3, then the
+                   model with first be generated on a 75x75 pixel grid with
+                   the same pixel scale, and cropped to 25x25 before extracting
+                   the 1D profile.
+
+
+# DISK + BULGE
+# ------------
+
+This model component is a simple combination of a disk and a bulge, with the
+mass of each of the components controlled by the B/T parameter. The mass
+distribution of each of them is parametrised as a Sersic profile.
+
+# Initial Values
+total_mass: Total mass of disk and bulge in log(Msun) units
+
+bt: Bulge-to-Total Ratio. Can be a value between 0 and 1
+
+r_eff_disk: Effective radius of disk in kpc
+
+n_disk: Sersic index for the disk
+
+invq_disk: Disk scale length to z-height ratio for disk. This value will be
+           used to apply Noordermeer flattening if this is turned on.
+           This is NOT a parameter that can be varied.
+
+n_bulge: Sersic index for bulge
+
+invq_bulge: Disk scale length to z-height ratio for disk. This value will be
+            used to apply Noordermeer flattening if this is turned on.
+            This is NOT a parameter that can be varied.
+
+r_eff_bulge: Effective radius of bulge in kpc
+
+# Fixed? True if its a fixed parameter, False otherwise
+total_mass_fixed,     False
+bt_fixed,             False
+r_eff_disk_fixed,     False
+n_disk_fixed,         True
+r_eff_bulge_fixed,    True
+n_bulge_fixed,        True
+
+# Prior bounds. Lower and upper bounds on the prior
+total_mass_bounds,   9.0  13.0
+bt_bounds,           0.0  1.0
+r_eff_disk_bounds,   0.1  20.0
+n_disk_bounds,       1.0  8.0
+r_eff_bulge_bounds,  1.0  5.0
+n_bulge_bounds,      1.0  8.0
+
+# Prior type. 'flat' or 'gaussian'
+total_mass_prior,    flat
+bt_prior,            gaussian
+r_eff_disk_prior,    gaussian
+n_disk_prior,        flat
+r_eff_bulge_prior,   flat
+n_bulge_prior,       flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+total_mass_stddev,   1.0
+bt_stddev,           0.1
+r_eff_disk_stddev,   1.0
+n_disk_stddev,       0.1
+r_eff_bulge_stddev,  1.0
+n_bulge_stddev,      0.1
+
+
+# DARK MATTER HALO
+# ----------------
+
+The dark matter halo is currently being modelled as an NFW profile. Future
+versions will allow for different halo profiles such as an Einasto profile.
+The virial radius is calculated based on the virial mass and redshift following
+the prescription of Mo+98.
+
+# Initial Values
+mvirial: Halo virial mass in log(Msun)
+halo_conc: Halo concentration parameter
+
+# Fixed? True if its a fixed parameter, False otherwise
+mvirial_fixed,       False
+halo_conc,           True
+
+# Prior bounds. Lower and upper bounds on the prior
+mvirial_bounds,      9.0 13.0
+halo_conc,           1.0 20.0
+
+# Prior type. 'flat' or 'gaussian'
+mvirial_prior,       flat
+halo_conc_prior,     flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+mvirial_stddev,      1.0
+halo_conc_stddev,    0.5
+
+
+# INTRINSIC DISPERSION PROFILE
+# ------------------
+
+Currently the only available velocity dispersion profile is a simple constant.
+
+# Initial Values
+sigma0: Constant intrinsic dispersion value for all radii
+
+# Fixed? True if its a fixed parameter, False otherwise
+sigma0_fixed,        False
+
+# Prior bounds. Lower and upper bounds on the prior
+sigma0_bounds,       5.0 300.0
+
+# Prior Type
+sigma0_prior,        flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+sigma0_stddev,       25.0
+
+
+# ZHEIGHT PROFILE
+# ---------------
+
+This profile controls the flux distribution as a function height above the
+plane of the galaxy. Currently the only available profile is a Gaussian.
+
+# Initial Values
+sigmaz: Gaussian standard deviation of the height profile
+
+# Fixed? True if its a fixed parameter, False otherwise
+sigmaz_fixed,        False
+
+# Prior bounds. Lower and upper bounds on the prior
+sigmaz_bounds,       0.1 1.0
+
+# Prior type. 'flat' or 'gaussian'
+sigmaz_prior,         flat
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+sigmaz_stddev,       0.1
+
+# Tie the zheight to the effective radius of the disk?
+# If set to True, make sure sigmaz_fixed is False
+zheight_tied: True/False if you would like sigmaz to instead be connected to the
+              effective radius of the disk through the invq_disk parameter.
+              If True, then sigmaz will always be 0.85*r_eff_disk/invq.
+
+
+# GEOMETRY
+# --------
+
+This model component controls the observational geometry of the system.
+
+# Initial Values
+inc: Inclination of the galaxy, 0=face-on, 90=edge-on
+
+# Fixed? True if its a fixed parameter, False otherwise
+inc_fixed,           True
+
+# Prior bounds. Lower and upper bounds on the prior
+inc_bounds,          0.0 90.0
+
+# Prior type. 'flat', 'gaussian', or 'sine_gaussian'
+inc_prior,           sine_gaussian
+
+# Standard deviation of Gaussian Prior, if chosen
+# No effect if Flat prior is chosen
+
+# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and
+# 		center of prior are defined in angle space (inc)
+inc_stddev,          0.1
+
+## Example if normal gaussian used (eg, angle space)
+#inc_stddev,          5.0
+
+
+# ******************************** MCMC Fitting Settings ***********************
+nWalkers: Number of walkers to use for the MCMC fitting
+
+nCPUs: Number of CPUs to use for parallelization
+
+scale_param_a: Scale parameter "a" that defines step sizes in parameter space.
+               A value of 2-3 should be good.
+nBurn: The number of steps to use for the burn-in phase.
+
+nSteps: The number of steps to use during the sampling phase that defines
+        the posterior distribution.
+
+minAF: Minimum acceptance fraction to use during the test of convergence. A good
+       value is 0.2. If set to None, then the fitting will run all of the steps
+       defined in nSteps.
+
+maxAF: Maximum acceptance fraction to use during the test of convergence. A good
+       value is 0.5. If set to None, then the fitting will run all of the steps
+       defined in nSteps.
+
+nEff: The multiplicative factor to use during the test of convergence. If during
+      the fitting process, the maximum autocorrelation time * neFF is less than
+      the number of steps that have been run then the fitting will stop. A good
+      value is 10, meaning that the MCMC walkers have performed a
+      number of steps >= 10 times the maximum autocorrelation time of the free
+      parameters.
+
+do_plotting: True/False for whether to produce all of the output plots
+
+fitdispersion: True/False for whether to simultaneously fit the dispersion profile
+               along with the velocity.
