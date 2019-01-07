@@ -46,14 +46,18 @@ of the files will be the name of your object:
         -- l68_err: lower uncertainty determined from the 16th %tile of the posterior
                     distribution; -99 if the parameter was fixed
         -- u68_err: upper uncertainty determined from the 84th %tile of the posterior
-                distribution; -99 if the parameter was fixed
+                    distribution; -99 if the parameter was fixed
     -- The last line of the table contains the reduced chi-square of the fit
        with the value in the "best_value" column.
 
 3.) COS3_18434_mcmc_best_fit.pdf
     -- Plot of the data with the best fitting model
 
-4.) COS3_18434_mcmc_burnin_trace.pdf
+4.) COS3_18434_mcmc_param_corner.pdf
+    -- "Corner" plot showing the joint 2D and marginalized posterior distributions
+       for each free parameter
+           
+5.) COS3_18434_mcmc_burnin_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "burnin" phase
 
@@ -62,17 +66,13 @@ of the files will be the name of your object:
        different than at the start. I.e the walkers should have "walked" away
        from their initial distribution.
 
-5.) COS3_18434_mcmc_trace.pdf
+6.) COS3_18434_mcmc_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "sampling" phase. These are the values that are used to define
        the posterior distribution of each free parameter.
 
     -- Use this plot to assess visually whether the parameters have converged
        on a distribution or whether more steps are needed.
-
-6.) COS3_18434_mcmc_param_corner.pdf
-    -- "Corner" plot showing the joint 2D and marginalized posterior distributions
-       for each free parameter
 
 7.) COS3_18434_mcmc_chain_blobs.dat
     -- Table of the values contained in the posterior distribution for each
