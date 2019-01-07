@@ -1,14 +1,18 @@
-This file outlines how to fit a single galaxy's 1D velocity and dispersion
-profile using the DYSMALPY wrappers and provides a description of all of the
+This file outlines how to fit a single galaxy's 2D velocity and dispersion
+maps using the DYSMALPY wrappers and provides a description of all of the
 parameters that can be tuned in the modelling and fitting procedure.
 
 The following files should be provided in this example_single_1D directory:
--- dysmalpy_fit_1d.sh: Bash shell script to run everything
--- fitting_1D.params: Example parameter file that is input to the shell script
+-- dysmalpy_fit_2d.sh: Bash shell script to run everything
+-- fitting_2D.params: Example parameter file that is input to the shell script
 -- README: This file!
--- README_1D_params: Description of all parameters in fitting_1D.params
--- COS3_18434.obs_prof.txt: Example 1D data file
--- COS3_18434_1D_out/: Example output directory for fitting in 1D
+-- README_2D_params: Description of all parameters in fitting_2D.params
+-- COS3_18434.vel_gau_sm3.fits: Example velocity map
+-- COS3_18434.vel_gau_err_sm3.fits: Example velocity error map
+-- COS3_18434.disp_gau_sm3.fits: Example dispersion map
+-- COS3_18434.disp_gau_err_sm3.fits: Example dispersion error map
+-- COS3_18434_mask_gau_esw0_sm3.fits: Example mask
+-- COS3_18434_2D_out/: Example output directory for fitting in 2D
 
 Overview
 --------
@@ -16,11 +20,11 @@ Fitting a single object requires the following steps:
 1.) Copy this directory from AFS to the machine you will be using. Please
     do NOT perform fits that save to the DYSMALPY directory on AFS.
 
-2.) Edit the parameters in fitting_1D.params to match your own object and needs.
-    See README_1D_params for a description of each one.
+2.) Edit the parameters in fitting_2D.params to match your own object and needs.
+    See README_2D_params for a description of each one.
 
 3.) Start the fitting by typing the following in your terminal:
-    ./dysmalpy_fit_1d.sh fitting_1D.params
+    ./dysmalpy_fit_1d.sh fitting_2D.params
 
 The fitting should begin and you should start seeing messages appear updating
 the progress of the fit.
@@ -95,7 +99,7 @@ of the files will be the name of your object:
      -- Log file that records the output during the run and will show if any
         errors occurred
 
-13.) fitting_1D.params
+13.) fitting_2D.params
      -- Copy of the parameter file that was used for the fit
 
 
