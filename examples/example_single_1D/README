@@ -1,0 +1,103 @@
+This file outlines how to fit a single galaxy's 1D velocity and dispersion
+profile using the DYSMALPY wrappers and provides a description of all of the
+parameters that can be tuned in the modelling and fitting procedure.
+
+The following files should be provided in this example_single_1D directory:
+-- dysmalpy_fit_1d.sh: Bash shell script to run everything
+-- fitting_1D.params: Example parameter file that is input to the shell script
+-- README: This file!
+-- COS3_18434.obs_prof.txt: Example 1D data file
+-- COS3_18434_1D_out/: Example output directory for fitting in 1D
+
+Overview
+--------
+Fitting a single object requires the following steps:
+1.) Copy this directory from AFS to the machine you will be using. Please
+    do NOT perform fits that save to the DYSMALPY directory on AFS.
+
+2.) Edit the parameters in fitting_1D.params to match your own object and needs.
+    See README_1D_params for a description of each one.
+
+3.) Start the fitting by typing the following in your terminal:
+    ./dysmalpy_fit_1d.sh fitting_1D.params
+
+The fitting should begin and you should start seeing messages appear updating
+the progress of the fit.
+
+Output Files
+------------
+Within the output directory that you specify in fitting_1D.params, you should
+find the following files with the only difference being the name at the front
+of the files will be the name of your object:
+
+1.) COS3_18434_mcmc_best_fit_results.info
+    -- Contains a nice human readable output of the best fit parameters of your
+       model with uncertainties determined from the 68th percentile of the
+       posterior distribution
+
+2.) COS3_18434_mcmc_best_fit_results.dat
+    -- Results of the fitting in a machine readable format with the following
+       columns
+        -- component: String with the model component name
+        -- param_name: String with the parameter name
+        -- fixed: True/False for whether model parameter was fixed or not
+        -- best_value: Best fit value for the model parameter or the fixed value
+        -- l68_err: lower uncertainty determined from the 16th %tile of the posterior
+                    distribution; -99 if the parameter was fixed
+        -- u68_err: upper uncertainty determined from the 84th %tile of the posterior
+                distribution; -99 if the parameter was fixed
+    -- The last line of the table contains the reduced chi-square of the fit
+       with the value in the "best_value" column.
+
+3.) COS3_18434_mcmc_best_fit.pdf
+    -- Plot of the data with the best fitting model
+
+4.) COS3_18434_mcmc_burnin_trace.pdf
+    -- Plot of every MCMC walker for every free model parameter as it evolved
+       during the "burnin" phase
+
+    -- Use this plot to assess whether the burnin phase was long enough. The
+       distribution of the walkers towards the end of the burnin should look
+       different than at the start. I.e the walkers should have "walked" away
+       from their initial distribution.
+
+5.) COS3_18434_mcmc_trace.pdf
+    -- Plot of every MCMC walker for every free model parameter as it evolved
+       during the "sampling" phase. These are the values that are used to define
+       the posterior distribution of each free parameter.
+
+    -- Use this plot to assess visually whether the parameters have converged
+       on a distribution or whether more steps are needed.
+
+6.) COS3_18434_mcmc_param_corner.pdf
+    -- "Corner" plot showing the joint 2D and marginalized posterior distributions
+       for each free parameter
+
+7.) COS3_18434_mcmc_chain_blobs.dat
+    -- Table of the values contained in the posterior distribution for each
+       free parameter
+
+8.) COS3_18434_galaxy_bestfit_vel_profile.dat
+    -- Best fit circular and rotational velocity profile as a function of radius
+       with steps of 0.1 kpc and a maximum of 3 effective radii
+
+9.) COS3_18434_galaxy_model.pickle
+    -- Python pickle file containing the setup for the model and the instrument
+
+10.) COS3_18434_mcmc_results.pickle
+     -- Python pickle file containing the MCMC fitting results of the run
+
+11.) COS3_18434_mcmc_sampler.pickle
+     -- Python pickle file containing the MCMC setup and chains from the fit
+
+12.) COS3_18434_info.log
+     -- Log file that records the output during the run and will show if any
+        errors occurred
+
+13.) fitting_1D.params
+     -- Copy of the parameter file that was used for the fit
+
+
+
+
+
