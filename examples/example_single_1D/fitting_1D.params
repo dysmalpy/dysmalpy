@@ -86,7 +86,7 @@ total_mass_prior,    flat
 bt_prior,            gaussian
 r_eff_disk_prior,    gaussian
 n_disk_prior,        flat
-r_eff_bulge_bounds,  flat
+r_eff_bulge_prior,   flat
 n_bulge_prior,       flat
 
 # Standard deviation of Gaussian Prior, if chosen
