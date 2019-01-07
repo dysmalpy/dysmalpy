@@ -45,7 +45,7 @@ of the files will be the name of your object:
         -- l68_err: lower uncertainty determined from the 16th %tile of the posterior
                     distribution; -99 if the parameter was fixed
         -- u68_err: upper uncertainty determined from the 84th %tile of the posterior
-                distribution; -99 if the parameter was fixed
+                    distribution; -99 if the parameter was fixed
     -- The last line of the table contains the reduced chi-square of the fit
        with the value in the "best_value" column.
 
