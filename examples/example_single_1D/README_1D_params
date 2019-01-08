@@ -61,6 +61,12 @@ spec_start: Starting velocity in km/s for the spectral axis of the model cube
 spec_step: Velocity step size in km/s for the spectral axis of the model cube
 nspec: Number of spectral elements for the spectral axis of the model cube
 
+# LSF Setup
+# ---------
+use_lsf: True/False for whether to apply a line spread function to the model
+         cube.
+sig_inst_res: Instrumental dispersion in km/s of your instrument if using an LSF
+
 
 # PSF Setup
 # ---------
