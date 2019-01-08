@@ -15,7 +15,6 @@ fdata_derr,           COS3_18434.disp_gau_err_sm3.fits   # Full path to disp. er
 fdata_mask,           COS3_18434_mask_gau_esw0_sm3.fits  # Full path to mask 
                                                          #   -- strongly recommended to have a mask
 data_inst_corr,   True
-pa,               -161.0                                 # Degrees from N towards blue
 symmetrize_data,  False                                  # Symmetrize data before fitting?
 
 
@@ -35,11 +34,15 @@ outdir,           COS3_18434_2D_out/         # Full path for output directory
 # ------------------
 pixscale,         0.2          # arcsec/pixel
 fov_npix,         33           # Number of pixels on a side
-sig_inst_res,     35.0         # Instrumental dispersion in km/s
 spec_type,   velocity
 spec_start,     -1000.         # Starting value for spectral axis
 spec_step,         10.         # Step size for spectral axis in km/s
 nspec,            201          # Number of spectral step
+
+# LSF Setup
+# ---
+use_lsf,          True         # True/False if using an LSF
+sig_inst_res,     35.0         # Instrumental dispersion in km/s
 
 # PSF Setup
 # ---------
@@ -184,21 +187,21 @@ xshift,              0.        # pixels
 yshift,              0.        # pixels
 vel_shift,           -10.      # km/s
 
-# Fixed?
+# Fixed? True if its a fixed parameter, False otherwise
 inc_fixed,           False
 pa_fixed,            False
 xshift_fixed,        False
 yshift_fixed,        False
 vel_shift_fixed,     False
 
-# Prior Bounds
+# Prior Bounds Lower and upper bounds on the prior
 inc_bounds,          3.2  63.2
 pa_bounds,           -171.0  -151.0
 xshift_bounds,       -1.5  1.5        # pixels
 yshift_bounds,       -1.5  1.5        # pixels
 vel_shift_bounds,    -30.  10.        # km/s
 
-# Prior Type
+# Prior Type.  'flat', 'gaussian', or 'sine_gaussian'
 inc_prior,           sine_gaussian
 pa_prior,            flat
 xshift_prior,        flat

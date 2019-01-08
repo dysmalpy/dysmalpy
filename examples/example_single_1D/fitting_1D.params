@@ -27,11 +27,16 @@ outdir,           COS3_18434_1D_out/         # Full path for output directory
 # ------------------
 pixscale,         0.2          # Pixel scale in arcsec/pixel
 fov_npix,         25           # Number of pixels on a side of model cube
-sig_inst_res,     35.0         # Instrumental dispersion in km/s
 spec_type,   velocity          # DON'T CHANGE!
 spec_start,     -1000.         # Starting value for spectral axis
 spec_step,         10.         # Step size for spectral axis in km/s
 nspec,            201          # Number of spectral steps
+
+# LSF Setup
+# ---------
+use_lsf,          True         # True/False if using an LSF
+sig_inst_res,     35.0         # Instrumental dispersion in km/s
+
 
 # PSF Setup
 # ---------
@@ -108,7 +113,7 @@ halo_conc,           5.0        # Halo concentration parameter
 
 # Fixed? True if its a fixed parameter, False otherwise
 mvirial_fixed,       False
-halo_conc,           True
+halo_conc_fixed,     True
 
 # Prior bounds. Lower and upper bounds on the prior
 mvirial_bounds,      9.0 13.0
