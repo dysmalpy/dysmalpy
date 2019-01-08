@@ -6,6 +6,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 from contextlib import contextmanager
 import sys
+import shutil
 
 from dysmalpy import galaxy
 from dysmalpy import models
@@ -35,7 +36,10 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     fitting.ensure_dir(params['outdir'])
     
     # Copy paramfile into outdir for posterity:
-    os.system('cp {} {}'.format(param_filename, outdir))
+    #os.system('cp {} {}'.format(param_filename, outdir))
+
+    # Copy paramfile that is OS independent
+    shutil.copy(param_filename, outdir)
     
     # Check if fitting already done:
     fit_exists = os.path.isfile(outdir+'{}_mcmc_results.pickle'.format(params['galID']))

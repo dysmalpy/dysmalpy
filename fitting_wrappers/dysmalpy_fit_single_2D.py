@@ -35,8 +35,11 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
     fitting.ensure_dir(params['outdir'])
     
     # Copy paramfile into outdir for posterity:
-    os.system('cp {} {}'.format(param_filename, outdir))
-    
+    #os.system('cp {} {}'.format(param_filename, outdir))
+
+    # Copy paramfile that is OS independent
+    shutil.copy(param_filename, outdir)
+
     # Check if fitting already done:
     fit_exists = os.path.isfile(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
     
