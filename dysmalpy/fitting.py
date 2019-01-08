@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division, print_function,
 ## Standard library
 import logging
 from multiprocessing import cpu_count
+import abc
 
 # DYSMALPY code
 from dysmalpy import plotting
@@ -384,13 +385,13 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Bundle the results up into a results class:
     mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
-                f_plot_trace_burnin = f_plot_trace_burnin,
-                f_plot_trace = f_plot_trace,
-                f_sampler = f_sampler,
-                f_plot_param_corner = f_plot_param_corner,
-                f_plot_bestfit = f_plot_bestfit,
-                f_mcmc_results = f_mcmc_results,
-                f_chain_ascii = f_chain_ascii)
+                              f_plot_trace_burnin = f_plot_trace_burnin,
+                              f_plot_trace = f_plot_trace,
+                              f_sampler = f_sampler,
+                              f_plot_param_corner = f_plot_param_corner,
+                              f_plot_bestfit = f_plot_bestfit,
+                              f_results= f_mcmc_results,
+                              f_chain_ascii = f_chain_ascii)
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
@@ -486,43 +487,18 @@ def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
     return m
 
 
-class MCMCResults(object):
+class FitResults(object):
     """
-    Class to hold results of MCMC fitting to DYSMALPY models.
-    
-    Note: emcee sampler object is ported to a dictionary in 
-            mcmcResults.sampler
-        
-        The name of the free parameters in the chain are accessed through:
-            mcmcResults.chain_param_names, 
-                or more generally (separate model + parameter names) through
-                mcmcResults.free_param_names
+    General class to hold the results of any fitting
     """
-    def __init__(self, model=None,
-            sampler=None,
-            f_plot_trace_burnin = None,
-            f_plot_trace = None,
-            f_burn_sampler = None,
-            f_sampler = None,
-            f_plot_param_corner = None,
-            f_plot_bestfit = None,
-            f_mcmc_results = None,
-            f_chain_ascii = None, 
-            linked_posterior_names=None):
 
-        self.sampler = sampler
-        self.linked_posterior_names = linked_posterior_names
-
-        #self.components = OrderedDict()
+    def __init__(self,
+                 model=None,
+                 f_plot_bestfit=None,
+                 f_results=None):
 
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
-        self.bestfit_parameters_l68_err = None
-        self.bestfit_parameters_u68_err = None
-
-        self.bestfit_parameters_l68 = None
-        self.bestfit_parameters_u68 = None
-        
         self.bestfit_redchisq = None
 
         if model is not None:
@@ -536,18 +512,8 @@ class MCMCResults(object):
             self.nparams_free = None
             self.chain_param_names = None
 
-
-        # Save what the filenames are for reference - eg, if they were defined by default.
-        self.f_plot_trace_burnin = f_plot_trace_burnin
-        self.f_plot_trace = f_plot_trace
-        self.f_burn_sampler = f_burn_sampler
-        self.f_sampler = f_sampler
-        self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
-        self.f_mcmc_results = f_mcmc_results
-        self.f_chain_ascii = f_chain_ascii
-
-
+        self.f_results = f_results
 
 
     def set_model(self, model):
@@ -561,7 +527,6 @@ class MCMCResults(object):
 
         self.nparams_free = model.nparams_free
         self.init_free_param_info(model)
-
 
     def init_free_param_info(self, model):
         """
@@ -586,50 +551,143 @@ class MCMCResults(object):
 
         self.free_param_names = dictfreenames
         self._free_param_keys = dictfreecomp
-        
-        
-        self.chain_param_names = make_arr_cmp_params(self)
-        
-        
 
+        self.chain_param_names = make_arr_cmp_params(self)
+
+
+    def save_results(self, filename=None):
+        if filename is not None:
+            dump_pickle(self, filename=filename) # Save FitResults class to a pickle file
+
+
+    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk']):
+        if filename is not None:
+            try:
+                # RE needs to be in kpc
+                comp = gal.model.components.__getitem__(model_key_re[0])
+                param_i = comp.param_names.index(model_key_re[1])
+                r_eff = comp.parameters[param_i]
+            except:
+                r_eff = 10. / 3.
+            rmax = np.max([3. * r_eff, 10.])
+            stepsize = 0.1  # stepsize 0.1 kpc
+            r = np.arange(0., rmax + stepsize, stepsize)
+
+            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
+
+
+    @abc.abstractmethod
+    def plot_results(self, *args, **kwargs):
+        """
+        Method to produce all of the necessary plots showing the results of the fitting.
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+
+    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
+        """Plot/replot the bestfit for the MCMC fitting"""
+        if fileout is None:
+            fileout = self.f_plot_bestfit
+        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
+                              oversample=oversample, oversize=oversize, fileout=fileout)
+
+
+    def reload_results(self, filename=None):
+        """Reload MCMC results saved earlier: the whole object"""
+        if filename is None:
+            filename = self.f_results
+        resultsSaved = load_pickle(filename)
+        for key in self.__dict__.keys():
+            try:
+                self.__dict__[key] = resultsSaved.__dict__[key]
+            except:
+                pass
+
+
+class MCMCResults(FitResults):
+    """
+    Class to hold results of MCMC fitting to DYSMALPY models.
+    
+    Note: emcee sampler object is ported to a dictionary in 
+            mcmcResults.sampler
+        
+        The name of the free parameters in the chain are accessed through:
+            mcmcResults.chain_param_names, 
+                or more generally (separate model + parameter names) through
+                mcmcResults.free_param_names
+    """
+    def __init__(self, model=None,
+                 sampler=None,
+                 f_plot_trace_burnin=None,
+                 f_plot_trace=None,
+                 f_burn_sampler=None,
+                 f_sampler=None,
+                 f_plot_param_corner=None,
+                 f_plot_bestfit=None,
+                 f_results=None,
+                 f_chain_ascii=None,
+                 linked_posterior_names=None):
+
+        self.sampler = sampler
+        self.linked_posterior_names = linked_posterior_names
+
+        self.bestfit_parameters_l68_err = None
+        self.bestfit_parameters_u68_err = None
+        self.bestfit_parameters_l68 = None
+        self.bestfit_parameters_u68 = None
+
+        # Filenames that are specific to MCMC fitting
+        self.f_plot_trace_burnin = f_plot_trace_burnin
+        self.f_plot_trace = f_plot_trace
+        self.f_burn_sampler = f_burn_sampler
+        self.f_sampler = f_sampler
+        self.f_plot_param_corner = f_plot_param_corner
+        self.f_chain_ascii = f_chain_ascii
+
+        super(FitResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
+                                         f_results=f_results)
+        
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
         """
         Default analysis of posterior distributions from MCMC fitting:
-            look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
-            and extract the +- 1 sigma uncertainty bounds (eg, the 16%/84% distribution of posteriors)
+            look at marginalized posterior distributions, and
+            extract the best-fit value (peak of KDE), and extract the +- 1 sigma uncertainty bounds
+            (eg, the 16%/84% distribution of posteriors)
 
         Optional input:
-                    linked_posterior_names:  indicate if best-fit of parameters
-                                             should be measured in multi-D histogram space
+        linked_posterior_names: indicate if best-fit of parameters
+                                should be measured in multi-D histogram space
                                 format:  set of linked parameter sets, with each linked parameter set
                                          consisting of len-2 tuples/lists of the component+parameter names.
                                 
                                 
-                        Structure explanation:
-                        (1) Want to analyze component+param 1 and 2 together, and then 
-                                3 and 4 together.
+        Structure explanation:
+        (1) Want to analyze component+param 1 and 2 together, and then
+            3 and 4 together.
                                 
-                            Input structure would be:
-                            linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
-                            with 
-                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-                            jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
-                            for a full array of:
-                            linked_posterior_names = 
-                                [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+            Input structure would be:
+                linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
+                with
+                join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+                jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
+                for a full array of:
+                linked_posterior_names =
+                    [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
                             
-                        (2) Want to analyze component+param 1 and 2 together:
-                            linked_posterior_names = [ joint_param_bundle1 ]
-                            with 
-                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+        (2) Want to analyze component+param 1 and 2 together:
+            linked_posterior_names = [ joint_param_bundle1 ]
+            with
+            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
                             
-                            for a full array of:
-                                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
+            for a full array of:
+                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
                             
-                        eg:  look at halo: mvirial and disk+bulge: total_mass together
-                            linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
-                         or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
+                eg:  look at halo: mvirial and disk+bulge: total_mass together
+                    linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
+                    or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
 
         """
 
@@ -695,13 +753,7 @@ class MCMCResults(object):
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
         self.bestfit_redchisq = None
-        
-        
-        
-        
-    def save_results(self, filename=None):
-        if filename is not None:
-            dump_pickle(self, filename=filename) # Save mcmcResults class
+
             
     def save_chain_ascii(self, filename=None):
         if filename is not None:
@@ -728,39 +780,15 @@ class MCMCResults(object):
                     if blobset:
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
-                    
-    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge','r_eff_disk']):
-        if filename is not None:
-            try:
-                # RE needs to be in kpc
-                comp = gal.model.components.__getitem__(model_key_re[0])
-                param_i = comp.param_names.index(model_key_re[1])
-                r_eff = comp.parameters[param_i]
-            except:
-                r_eff = 10./3.
-            rmax = np.max([3.*r_eff, 10.])
-            stepsize = 0.1 # stepsize 0.1 kpc
-            r = np.arange(0., rmax+stepsize, stepsize)
-            
-            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
-            
-            
-    def reload_mcmc_results(self, filename=None):
-        """Reload MCMC results saved earlier: the whole object"""
-        if filename is None:
-            filename = self.f_mcmc_results
-        mcmcSaved = load_pickle(filename)
-        for key in self.__dict__.keys():
-            try:
-                self.__dict__[key] = mcmcSaved.__dict__[key]
-            except:
-                pass
+
+
 
     def reload_sampler(self, filename=None):
         """Reload the MCMC sampler saved earlier"""
         if filename is None:
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
+
 
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
@@ -769,22 +797,134 @@ class MCMCResults(object):
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
+
+
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
         plotting.plot_corner(self, fileout=fileout)
-    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
-        """Plot/replot the bestfit for the MCMC fitting"""
-        if fileout is None:
-            fileout = self.f_plot_bestfit
-        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
-                              oversample=oversample, oversize=oversize, fileout=fileout)
+
+
     def plot_trace(self, fileout=None):
         """Plot/replot the trace for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_trace
         plotting.plot_trace(self, fileout=fileout)
+
+
+class MPFITResults(FitResults):
+    """
+    Class to hold results of using MPFIT to fit to DYSMALPY models.
+    """
+
+    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
+        """
+        Default analysis of posterior distributions from MCMC fitting:
+            look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
+            and extract the +- 1 sigma uncertainty bounds (eg, the 16%/84% distribution of posteriors)
+
+        Optional input:
+                    linked_posterior_names:  indicate if best-fit of parameters
+                                             should be measured in multi-D histogram space
+                                format:  set of linked parameter sets, with each linked parameter set
+                                         consisting of len-2 tuples/lists of the component+parameter names.
+
+
+                        Structure explanation:
+                        (1) Want to analyze component+param 1 and 2 together, and then
+                                3 and 4 together.
+
+                            Input structure would be:
+                            linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
+                            with
+                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+                            jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
+                            for a full array of:
+                            linked_posterior_names =
+                                [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+
+                        (2) Want to analyze component+param 1 and 2 together:
+                            linked_posterior_names = [ joint_param_bundle1 ]
+                            with
+                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+
+                            for a full array of:
+                                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
+
+                        eg:  look at halo: mvirial and disk+bulge: total_mass together
+                            linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
+                         or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
+
+        """
+
+        if self.sampler is None:
+            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
+
+        # Unpack MCMC samples: lower, upper 1, 2 sigma
+        mcmc_limits = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
+
+        ## location of peaks of *marginalized histograms* for each parameter
+        mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
+        for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
+            yb, xb = np.histogram(self.sampler['flatchain'][:, i], bins=nPostBins)
+            wh_pk = np.where(yb == yb.max())[0][0]
+            mcmc_peak_hist[i] = np.average([xb[wh_pk], xb[wh_pk + 1]])
+
+        ## Use max prob as guess to get peakKDE value,
+        ##      the peak of the marginalized posterior distributions (following M. George's speclens)
+        mcmc_param_bestfit = getPeakKDE(self.sampler['flatchain'], mcmc_peak_hist)
+
+        # --------------------------------------------
+        if linked_posterior_names is not None:
+            # Make sure the param of self is updated
+            #   (for ref. when reloading saved mcmcResult objects)
+            self.linked_posterior_names = linked_posterior_names
+            linked_posterior_ind_arr = get_linked_posterior_indices(self,
+                                                                    linked_posterior_names=linked_posterior_names)
+
+            bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
+                                                                    guess=mcmc_param_bestfit,
+                                                                    linked_posterior_ind_arr=linked_posterior_ind_arr,
+                                                                    nPostBins=nPostBins)
+
+            for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+                for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
+                    mcmc_param_bestfit[linked_posterior_ind_arr[k][j]] = bestfit_theta_linked[k][j]
+
+        # --------------------------------------------
+        # Uncertainty bounds are currently determined from marginalized posteriors
+        #   (even if the best-fit is found from linked posterior).
+
+        mcmc_stack = np.concatenate(([mcmc_param_bestfit], mcmc_limits), axis=0)
+        # Order: best fit value, lower 1sig bound, upper 1sig bound
+
+        mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0] - v[1], v[2] - v[0]),
+                                                    list(zip(*mcmc_stack)))))
+
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        self.bestfit_parameters = mcmc_param_bestfit
+
+        # 1sig lower, upper uncertainty
+        self.bestfit_parameters_err = mcmc_uncertainties_1sig
+
+        # Bound limits (in case it's useful)
+        self.bestfit_parameters_l68 = mcmc_limits[0]
+        self.bestfit_parameters_u68 = mcmc_limits[1]
+
+        # Separate 1sig l, u uncertainty, for utility:
+        self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
+        self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
+
+        self.bestfit_redchisq = None
+
+
+    def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
+                     f_plot_bestfit=None):
+        """Plot/replot the corner plot and bestfit for the MCMC fitting"""
+        self.plot_bestfit(gal, fitdispersion=fitdispersion,
+                          oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
 
 
 def log_prob(theta, gal,
@@ -910,7 +1050,7 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
     else:
         return llike
         
-#
+
 def chisq_red(gal, fitdispersion=True, 
                 compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
@@ -1020,7 +1160,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
 
         chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err)
         if fitdispersion:
-            chisq_arr_raw_disp = (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw_disp = ((disp_dat - disp_mod) / disp_err)
             chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
                                        chisq_arr_raw_disp.flatten()])
         else:
@@ -1054,7 +1194,6 @@ def initialize_walkers(model, nWalkers=None):
                 stack_rand.append(param_rand)
     pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos
-
 
 
 def create_default_mcmc_options():
@@ -1091,7 +1230,6 @@ def create_default_mcmc_options():
     return mcmc_options
 
 
-
 def getPeakKDE(flatchain, guess):
     """
     Return chain pars that give peak of posterior PDF, using KDE.
@@ -1110,6 +1248,7 @@ def getPeakKDE(flatchain, guess):
             peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
         return peakKDE
         
+
 def getPeakKDEmultiD(flatchain, inds, guess):
     """
     Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
@@ -1179,6 +1318,7 @@ def get_linked_posterior_peak_values(flatchain,
 
     return bestfit_theta_linked
 
+
 def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     """
     Convert the input set of linked posterior names to set of indices:
@@ -1239,6 +1379,7 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
         
     return linked_posterior_ind_arr
 
+
 def make_arr_cmp_params(mcmcResults):
     arr = np.array([])
     for cmp in mcmcResults.free_param_names.keys():
@@ -1247,6 +1388,7 @@ def make_arr_cmp_params(mcmcResults):
             arr = np.append( arr, cmp.strip().lower()+':'+param.strip().lower() )
 
     return arr
+
 
 def make_emcee_sampler_dict(sampler, nBurn=0):
     """
@@ -1291,16 +1433,17 @@ def ensure_dir(dir):
         os.makedirs(dir)
     return None
 
+
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
     data = _pickle.load(open(filename, "rb"))
     return data
 
+
 def dump_pickle(data, filename=None):
     """ Small wrapper function to pickle a structure """
     _pickle.dump(data, open(filename, "wb") )
     return None
-
 
 
 def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
