@@ -955,7 +955,7 @@ def chisq_red(gal, fitdispersion=True,
                                                        # below the instrumental dispersion
                                                        
         # Includes velocity shift
-        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 
+        chisq_arr_raw_vel = ((vel_dat - vel_mod)/vel_err)**2
         if fitdispersion:
             if red_chisq:
                 if gal.model.nparams_free > 2.*np.sum(msk) :
@@ -963,7 +963,7 @@ def chisq_red(gal, fitdispersion=True,
                 invnu = 1./ (1.*(2.*np.sum(msk) - gal.model.nparams_free))
             else:
                 invnu = 1.
-            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2 
+            chisq_arr_raw_disp = ((disp_dat - disp_mod)/disp_err)**2
             redchsq = ( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
         else:
             if red_chisq:
@@ -979,9 +979,9 @@ def chisq_red(gal, fitdispersion=True,
         
     if compute_dm:
         dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        return llike, dm_frac
+        return redchsq, dm_frac
     else:
-        return llike
+        return redchsq
 
 
 def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube'):
