@@ -273,8 +273,8 @@ def setup_gal_inst_mod_1D(params=None):
     else:
         raise ValueError("not implemented for wavelength yet!")
     nspec = params['nspec']                               # Number of spectral pixels
-    sig_inst = params['sig_inst_res']*u.km/u.s          # Instrumental spectral resolution  [km/s]
-    
+
+
     
     if params['psf_type'].lower().strip() == 'gaussian':
         beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
@@ -285,11 +285,13 @@ def setup_gal_inst_mod_1D(params=None):
         beam = instrument.Moffat(major_fwhm=beamsize, beta=beta)
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
-    
-    lsf = instrument.LSF(sig_inst)
-    
+
+    if params['use_lsf']:
+        sig_inst = params['sig_inst_res'] * u.km / u.s  # Instrumental spectral resolution  [km/s]
+        lsf = instrument.LSF(sig_inst)
+        inst.lsf = lsf
+
     inst.beam = beam
-    inst.lsf = lsf
     inst.pixscale = pixscale
     inst.fov = fov
     inst.spec_type = spec_type
