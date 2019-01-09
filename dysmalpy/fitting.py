@@ -47,7 +47,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-
 def fit(gal, nWalkers=10,
            cpuFrac=None,
            nCPUs = 1,
@@ -530,7 +529,8 @@ def fit_mpfit(gal,
                 'Start: {}\n'.format(datetime.datetime.now()))
     start = time.time()
 
-    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=maxiter)
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=maxiter,
+              iterfunct=mpfit_printer, iterkw={'logger': logger})
 
     end = time.time()
     elapsed = end - start
@@ -1460,6 +1460,39 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
     return df
 
 
+def mpfit_printer(fcn, x, iter, fnorm, functkw=None,
+                  quiet=0, parinfo=None,
+                  pformat='%.10g', dof=None,
+                  logger=None):
+
+        if quiet:
+            return
+
+        # Determine which parameters to print
+        nprint = len(x)
+        iter_line = "Iter {}  CHI-SQUARE = {:.10g}  DOF = {:}".format(iter, fnorm, dof)
+        param_lines = '\n'
+        for i in range(nprint):
+            if (parinfo is not None) and ('parname' in parinfo[i]):
+                p = '   ' + parinfo[i]['parname'] + ' = '
+            else:
+                p = '   P' + str(i) + ' = '
+            if (parinfo is not None) and ('mpprint' in parinfo[i]):
+                iprint = parinfo[i]['mpprint']
+            else:
+                iprint = 1
+            if iprint:
+
+                param_lines += p + (pformat % x[i]) + '  ' + '\n'
+
+        if logger is None:
+            print(iter_line+param_lines)
+        else:
+            logger.info(iter_line+param_lines)
+
+        return 0
+
+
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
@@ -1486,7 +1519,7 @@ def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
     
     mcmcResults = MCMCResults() #model=gal.model
     
-    mcmcResults.reload_mcmc_results(filename=filename_mcmc_results)
+    mcmcResults.reload_results(filename=filename_mcmc_results)
     #mcmcResults.reload_sampler(filename=filename_sampler)
     
     return gal, mcmcResults
