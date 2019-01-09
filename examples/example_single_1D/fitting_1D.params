@@ -117,7 +117,7 @@ halo_conc_fixed,     True
 
 # Prior bounds. Lower and upper bounds on the prior
 mvirial_bounds,      9.0 13.0
-halo_conc,           1.0 20.0
+halo_conc_bounds,    1.0 20.0
 
 # Prior type. 'flat' or 'gaussian'
 mvirial_prior,       flat
@@ -199,14 +199,26 @@ inc_stddev,          0.1
 #inc_stddev,          5.0
 
 
-# ******************************** MCMC Fitting Settings ******************************
-nWalkers,         500
-nCPUs,            190
+# **************************** Fitting Settings ********************************
+
+fit_method,       mcmc     # mcmc or mpfit
+do_plotting,     True      # Produce all output plots?
+fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
+
+
+# MCMC Settings
+---------------
+nWalkers,         500      # Number of walkers. Must be even and >= 2x
+                           # the number of free parameters
+nCPUs,            190      # Number of CPUs to use for parallelization
 scale_param_a,      3.
-nBurn,            100
-nSteps,           100
-minAF,           None
-maxAF,           None
-nEff,              10
-do_plotting,     True        # Produce all output plots?
-fitdispersion,   True        # Simultaneously fit the velocity and dispersion?
+nBurn,            100      # Number of steps during burn-in
+nSteps,           100      # Number of steps for sampling
+minAF,           None      # Minimum acceptance fraction
+maxAF,           None      # Maximum acceptance fraction
+nEff,              10      # Number of auto-correlation times before convergence
+
+
+# MPFIT Settings
+----------------
+maxiter,         200       # Maximum number of iterations before mpfit quits
