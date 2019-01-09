@@ -8,6 +8,9 @@ from contextlib import contextmanager
 import sys
 import shutil
 
+import matplotlib
+matplotlib.use('agg')
+
 from dysmalpy import galaxy
 from dysmalpy import models
 from dysmalpy import fitting
@@ -42,7 +45,19 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     shutil.copy(param_filename, outdir)
     
     # Check if fitting already done:
-    fit_exists = os.path.isfile(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
+    if params['fit_method'] == 'mcmc':
+
+        fit_exists = os.path.isfile(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
+
+    elif params['fit_method'] == 'mpfit':
+
+        fit_exists = os.path.isfile(outdir + '{}_mpfit_results.pickle'.format(params['galID']))
+
+    else:
+
+        raise ValueError(
+            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
+                params['fit_method']))
     
     if fit_exists: 
         print('------------------------------------------------------------------')
@@ -53,37 +68,52 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     else:
         #######################
         # Setup
-        gal, mcmc_dict = setup_single_object_1D(params=params, data=data)
+        gal, fit_dict = setup_single_object_1D(params=params, data=data)
     
         # Clean up existing log file:
-        if os.path.isfile(mcmc_dict['f_log']):
-            os.remove(mcmc_dict['f_log'])
+        if os.path.isfile(fit_dict['f_log']):
+            os.remove(fit_dict['f_log'])
         
         # Fit
-        mcmc_results = fitting.fit(gal, nWalkers=mcmc_dict['nWalkers'], nCPUs=mcmc_dict['nCPUs'],
-                                    scale_param_a=mcmc_dict['scale_param_a'], nBurn=mcmc_dict['nBurn'],
-                                    nSteps=mcmc_dict['nSteps'], minAF=mcmc_dict['minAF'], maxAF=mcmc_dict['maxAF'],
-                                    nEff=mcmc_dict['nEff'], do_plotting=mcmc_dict['do_plotting'],
-                                    red_chisq=mcmc_dict['red_chisq'],
-                                    profile1d_type=mcmc_dict['profile1d_type'],
-                                    oversample=mcmc_dict['oversample'], 
-                                    fitdispersion=mcmc_dict['fitdispersion'], 
-                                    outdir=mcmc_dict['outdir'],
-                                    f_plot_trace_burnin=mcmc_dict['f_plot_trace_burnin'],
-                                    f_plot_trace=mcmc_dict['f_plot_trace'],
-                                    f_model=mcmc_dict['f_model'],
-                                    f_sampler=mcmc_dict['f_sampler'],
-                                    f_burn_sampler=mcmc_dict['f_burn_sampler'],
-                                    f_plot_param_corner=mcmc_dict['f_plot_param_corner'],
-                                    f_plot_bestfit=mcmc_dict['f_plot_bestfit'],
-                                    f_mcmc_results=mcmc_dict['f_mcmc_results'],
-                                    f_chain_ascii=mcmc_dict['f_chain_ascii'], 
-                                    f_vel_ascii=mcmc_dict['f_vel_ascii'], 
-                                    f_log=mcmc_dict['f_log'])
-    
-    
+        if fit_dict['fit_method'] == 'mcmc':
+            results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
+                                  scale_param_a=fit_dict['scale_param_a'], nBurn=fit_dict['nBurn'],
+                                  nSteps=fit_dict['nSteps'], minAF=fit_dict['minAF'], maxAF=fit_dict['maxAF'],
+                                  nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
+                                  red_chisq=fit_dict['red_chisq'],
+                                  profile1d_type=fit_dict['profile1d_type'],
+                                  oversample=fit_dict['oversample'],
+                                  fitdispersion=fit_dict['fitdispersion'],
+                                  outdir=fit_dict['outdir'],
+                                  f_plot_trace_burnin=fit_dict['f_plot_trace_burnin'],
+                                  f_plot_trace=fit_dict['f_plot_trace'],
+                                  f_model=fit_dict['f_model'],
+                                  f_sampler=fit_dict['f_sampler'],
+                                  f_burn_sampler=fit_dict['f_burn_sampler'],
+                                  f_plot_param_corner=fit_dict['f_plot_param_corner'],
+                                  f_plot_bestfit=fit_dict['f_plot_bestfit'],
+                                  f_mcmc_results=fit_dict['f_mcmc_results'],
+                                  f_chain_ascii=fit_dict['f_chain_ascii'],
+                                  f_vel_ascii=fit_dict['f_vel_ascii'],
+                                  f_log=fit_dict['f_log'])
+
+        elif fit_dict['fit_method'] == 'mpfit':
+
+            results = fitting.fit_mpfit(gal, oversample=fit_dict['oversample'],
+                                        oversize=fit_dict['oversize'],
+                                        fitdispersion=fit_dict['fitdispersion'],
+                                        profile1d_type=fit_dict['profile1d_type'],
+                                        maxiter=fit_dict['maxiter'],
+                                        do_plotting=fit_dict['do_plotting'],
+                                        outdir=fit_dict['outdir'],
+                                        f_model=fit_dict['f_model'],
+                                        f_plot_bestfit=fit_dict['f_plot_bestfit'],
+                                        f_results=fit_dict['f_results'],
+                                        f_vel_ascii=fit_dict['f_vel_ascii'],
+                                        f_log=fit_dict['f_log'])
+
         # Save results
-        utils_io.save_results_ascii_files(mcmc_results=mcmc_results, gal=gal, params=params)
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
     
     
     return None
@@ -108,9 +138,9 @@ def setup_single_object_1D(params=None, data=None):
     
     # ------------------------------------------------------------
     # Setup fitting dict:
-    mcmc_dict = utils_io.setup_mcmc_dict(params=params)
+    fit_dict = utils_io.setup_fit_dict(params=params)
     
-    return gal, mcmc_dict
+    return gal, fit_dict
     
     
     

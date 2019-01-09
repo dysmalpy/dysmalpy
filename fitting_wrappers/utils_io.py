@@ -111,112 +111,230 @@ def read_fitting_params(fname=None):
 
     return params
     
-def save_results_ascii_files(mcmc_results=None, gal=None, params=None):
+def save_results_ascii_files(fit_results=None, gal=None, params=None):
     
     outdir = params['outdir']
     galID = params['galID']
-    
-    f_ascii_machine = outdir+'{}_mcmc_best_fit_results.dat'.format(galID)
-    
-    f_ascii_pretty = outdir+'{}_mcmc_best_fit_results.info'.format(galID)
-    
-    
-    with open(f_ascii_machine, 'w') as f:
-        namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
-        f.write(namestr+'\n')
-        
-        
-        for cmp_n in gal.model.param_names.keys():
-            for param_n in gal.model.param_names[cmp_n]:
-                
-                if '{}:{}'.format(cmp_n,param_n) in mcmc_results.chain_param_names:
-                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0][0]
-                    best = mcmc_results.bestfit_parameters[whparam]
-                    l68 = mcmc_results.bestfit_parameters_l68_err[whparam]
-                    u68 = mcmc_results.bestfit_parameters_u68_err[whparam]
-                else:
-                    best = getattr(gal.model.components[cmp_n], param_n).value
-                    l68 = -99.
-                    u68 = -99.
-                
-                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n, 
-                            "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
-                f.write(datstr+'\n')
-                
+
+    if params['fit_method'] == 'mcmc':
+        f_ascii_machine = outdir+'{}_mcmc_best_fit_results.dat'.format(galID)
+
+        f_ascii_pretty = outdir+'{}_mcmc_best_fit_results.info'.format(galID)
+
+
+        with open(f_ascii_machine, 'w') as f:
+            namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
+            f.write(namestr+'\n')
+
+
+            for cmp_n in gal.model.param_names.keys():
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
+                        whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                        best = fit_results.bestfit_parameters[whparam]
+                        l68 = fit_results.bestfit_parameters_l68_err[whparam]
+                        u68 = fit_results.bestfit_parameters_u68_err[whparam]
+                    else:
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+                        l68 = -99.
+                        u68 = -99.
+
+                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                                "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
+                    f.write(datstr+'\n')
+
+            #
+            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+                        '-----', fit_results.bestfit_redchisq, -99, -99)
+            f.write(datstr+'\n')
+
         #
-        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----', 
-                    '-----', mcmc_results.bestfit_redchisq, -99, -99)
-        f.write(datstr+'\n')
-        
-    #
-    with open(f_ascii_pretty, 'w') as f:
-        f.write('###############################'+'\n')
-        f.write(' Fitting for {}'.format(params['galID'])+'\n')
-        f.write('\n')
-        
-        f.write("Date: {}".format(datetime.datetime.now())+'\n')
-        f.write('\n')
-        
-        try:
-            f.write('Datafile: {}'.format(params['fdata'])+'\n')
-        except:
+        with open(f_ascii_pretty, 'w') as f:
+            f.write('###############################'+'\n')
+            f.write(' Fitting for {}'.format(params['galID'])+'\n')
+            f.write('\n')
+
+            f.write("Date: {}".format(datetime.datetime.now())+'\n')
+            f.write('\n')
+
             try:
-                f.write('Datafiles:\n')
-                f.write(' vel:  {}'.format(params['fdata_vel'])+'\n')
-                f.write(' verr: {}'.format(params['fdata_verr'])+'\n')
-                f.write(' disp: {}'.format(params['fdata_disp'])+'\n')
-                f.write(' derr: {}'.format(params['fdata_derr'])+'\n')
+                f.write('Datafile: {}'.format(params['fdata'])+'\n')
+            except:
                 try:
-                    f.write(' mask: {}'.format(params['fdata_mask'])+'\n')
+                    f.write('Datafiles:\n')
+                    f.write(' vel:  {}'.format(params['fdata_vel'])+'\n')
+                    f.write(' verr: {}'.format(params['fdata_verr'])+'\n')
+                    f.write(' disp: {}'.format(params['fdata_disp'])+'\n')
+                    f.write(' derr: {}'.format(params['fdata_derr'])+'\n')
+                    try:
+                        f.write(' mask: {}'.format(params['fdata_mask'])+'\n')
+                    except:
+                        pass
                 except:
                     pass
-            except:
-                pass
-        f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
-        
-        f.write('\n')
-        f.write('###############################'+'\n')
-        f.write(' Fitting results'+'\n')
-        
-        for cmp_n in gal.model.param_names.keys():
-            f.write('-----------'+'\n')
-            f.write(' {}'.format(cmp_n)+'\n')
-            
-            for param_n in gal.model.param_names[cmp_n]:
-                
-                if '{}:{}'.format(cmp_n,param_n) in mcmc_results.chain_param_names:
-                    whparam = np.where(mcmc_results.chain_param_names == '{}:{}'.format(cmp_n,param_n))[0][0]
-                    best = mcmc_results.bestfit_parameters[whparam]
-                    l68 = mcmc_results.bestfit_parameters_l68_err[whparam]
-                    u68 = mcmc_results.bestfit_parameters_u68_err[whparam]
-                    
-                    
-                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
-                    f.write(datstr+'\n')
+            f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
+
+            f.write('\n')
+            f.write('Fitting method: MPFIT')
+            f.write('\n')
+            f.write('###############################'+'\n')
+            f.write(' Fitting results'+'\n')
+
+            for cmp_n in gal.model.param_names.keys():
+                f.write('-----------'+'\n')
+                f.write(' {}'.format(cmp_n)+'\n')
+
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
+                        whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                        best = fit_results.bestfit_parameters[whparam]
+                        l68 = fit_results.bestfit_parameters_l68_err[whparam]
+                        u68 = fit_results.bestfit_parameters_u68_err[whparam]
+
+
+                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+                        f.write(datstr+'\n')
+                #
+                f.write('\n')
+                #
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n,param_n) not in fit_results.chain_param_names:
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+
+                        datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                        f.write(datstr+'\n')
+
             #
             f.write('\n')
+            f.write('-----------'+'\n')
+            datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
+            f.write(datstr+'\n')
+
+            f.write('\n')
+
+    elif params['fit_method'] == 'mpfit':
+
+        f_ascii_machine = outdir + '{}_mpfit_best_fit_results.dat'.format(galID)
+
+        f_ascii_pretty = outdir + '{}_mpfit_best_fit_results.info'.format(galID)
+
+        with open(f_ascii_machine, 'w') as f:
+            namestr = '# component    param_name    fixed    best_value   error'
+            f.write(namestr + '\n')
+
+            for cmp_n in gal.model.param_names.keys():
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
+                        whparam = \
+                        np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
+                            0][0]
+                        best = fit_results.bestfit_parameters[whparam]
+                        err = fit_results.bestfit_parameters_err[whparam]
+                    else:
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+                        err = -99
+
+                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format(
+                        cmp_n, param_n,
+                        "{}".format(gal.model.fixed[cmp_n][param_n]), best, err)
+                    f.write(datstr + '\n')
+
             #
-            for param_n in gal.model.param_names[cmp_n]:
-                
-                if '{}:{}'.format(cmp_n,param_n) not in mcmc_results.chain_param_names:
-                    best = getattr(gal.model.components[cmp_n], param_n).value
-                    
-                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
-                    f.write(datstr+'\n')
-                    
+            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format('redchisq',
+                                                                                       '-----',
+                                                                                       '-----',
+                                                                                       fit_results.bestfit_redchisq,
+                                                                                       -99)
+            f.write(datstr + '\n')
+
         #
-        f.write('\n')
-        f.write('-----------'+'\n')
-        datstr = 'Red. chisq: {:0.4f}'.format(mcmc_results.bestfit_redchisq)
-        f.write(datstr+'\n')
-        
-        f.write('\n')
+        with open(f_ascii_pretty, 'w') as f:
+            f.write('###############################' + '\n')
+            f.write(' Fitting for {}'.format(params['galID']) + '\n')
+            f.write('\n')
+
+            f.write("Date: {}".format(datetime.datetime.now()) + '\n')
+            f.write('\n')
+
+            try:
+                f.write('Datafile: {}'.format(params['fdata']) + '\n')
+            except:
+                try:
+                    f.write('Datafiles:\n')
+                    f.write(' vel:  {}'.format(params['fdata_vel']) + '\n')
+                    f.write(' verr: {}'.format(params['fdata_verr']) + '\n')
+                    f.write(' disp: {}'.format(params['fdata_disp']) + '\n')
+                    f.write(' derr: {}'.format(params['fdata_derr']) + '\n')
+                    try:
+                        f.write(' mask: {}'.format(params['fdata_mask']) + '\n')
+                    except:
+                        pass
+                except:
+                    pass
+            f.write('Paramfile: {}'.format(params['param_filename']) + '\n')
+
+            f.write('\n')
+            f.write('Fitting method: MPFIT')
+            f.write('\n')
+            f.write('###############################' + '\n')
+            f.write(' Fitting results' + '\n')
+
+            for cmp_n in gal.model.param_names.keys():
+                f.write('-----------' + '\n')
+                f.write(' {}'.format(cmp_n) + '\n')
+
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
+                        whparam = \
+                        np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
+                            0][0]
+                        best = fit_results.bestfit_parameters[whparam]
+                        err = fit_results.bestfit_parameters_err[whparam]
+
+                        datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best,
+                                                                                    err)
+                        f.write(datstr + '\n')
+                #
+                f.write('\n')
+                #
+                for param_n in gal.model.param_names[cmp_n]:
+
+                    if '{}:{}'.format(cmp_n, param_n) not in fit_results.chain_param_names:
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+
+                        datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                        f.write(datstr + '\n')
+
+            #
+            f.write('\n')
+            f.write('-----------' + '\n')
+            datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
+            f.write(datstr + '\n')
+
+            f.write('\n')
     
     
     return None
 
     
-#
+def setup_fit_dict(params=None):
+
+    if params['fit_method'] == 'mcmc':
+
+        fit_dict = setup_mcmc_dict(params=params)
+
+    elif params['fit_method'] == 'mpfit':
+
+        fit_dict = setup_mpfit_dict(params=params)
+
+    return fit_dict
+
+
 def setup_mcmc_dict(params=None):
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # Parameters for the MCMC fitting + output filenames
@@ -260,7 +378,35 @@ def setup_mcmc_dict(params=None):
         mcmc_dict[key] = params[key]
         
     return mcmc_dict
-    
+
+
+def setup_mpfit_dict(params=None):
+
+    fitting.ensure_dir(params['outdir'])
+    outdir = params['outdir']
+    galID = params['galID']
+    f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
+    f_plot_bestfit = outdir+'{}_mpfit_best_fit.pdf'.format(galID)
+    f_results = outdir+'{}_mpfit_results.pickle'.format(galID)
+    f_plot_bestfit_multid = outdir+'{}_mpfit_best_fit_multid.pdf'.format(galID)
+    f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
+    f_log = outdir+'{}_info.log'.format(galID)
+
+    mpfit_dict = {'outdir': outdir,
+                  'f_model': f_model,
+                  'f_plot_bestfit':  f_plot_bestfit,
+                  'f_plot_bestfit_multid': f_plot_bestfit_multid,
+                  'f_results':  f_results,
+                  'f_vel_ascii': f_vel_ascii,
+                  'f_log': f_log,
+                  'do_plotting': True}
+
+    for key in params.keys():
+        # Copy over all various fitting options
+        mpfit_dict[key] = params[key]
+
+    return mpfit_dict
+
     
 def load_single_object_1D_data(fdata=None, params=None):
     
