@@ -314,8 +314,19 @@ inc_stddev,          0.1
 
 
 
-# ******************************** MCMC Fitting Settings ***********************
+# **************************** Fitting Settings ********************************
 
+fit_method: Can be mcmc to use MCMC to perform the fitting or mpfit to use
+            MPFIT to perform the fitting and determine the best fit
+            parameters
+do_plotting: True/False for whether to produce all of the output plots
+fitdispersion: True/False for whether to simultaneously fit the
+               dispersion profile along with the velocity.
+               If set to False, the fitting entirely ignores
+               the dispersion profile / map.
+
+# MCMC Settings
+# -------------
 nWalkers: Number of walkers to use for the MCMC fitting
 
 nCPUs: Number of CPUs to use for parallelization
@@ -344,10 +355,12 @@ nEff: The multiplicative factor to use during the test of convergence. If during
       parameters. For this truncation to be applied, 
       all 3 of 'nEff', 'minAF', and 'maxAF' must be set (e.g., not 'None')
 
-do_plotting: True/False for whether to produce all of the output plots
 
-fitdispersion: True/False for whether to simultaneously fit the dispersion profile
-               along with the velocity. 
-               If set to False, the fitting entirely ignores the dispersion profile / map.
+# MPFIT Settings
+# --------------
+maxiter: The maximum number of iterations to let MPFIT perform before it quits
+
+
+
 
 
