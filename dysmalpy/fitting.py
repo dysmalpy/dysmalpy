@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division, print_function,
 ## Standard library
 import logging
 from multiprocessing import cpu_count
+import abc
 
 # DYSMALPY code
 from dysmalpy import plotting
@@ -44,7 +45,6 @@ acor_force_min = 49
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-
 
 
 def fit(gal, nWalkers=10,
@@ -84,7 +84,7 @@ def fit(gal, nWalkers=10,
            f_vel_ascii = None, 
            f_log = None ):
     """
-    Fit observed kinematics using DYSMALPY model set.
+    Fit observed kinematics using MCMC and a DYSMALPY model set.
 
     Input:
             gal:            observed galaxy, including kinematics.
@@ -163,7 +163,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
-    logger.info(" Fitting: {}".format(gal.name))
+    logger.info(" Fitting: {} with MCMC".format(gal.name))
     if gal.data.filename_velocity is not None:
         logger.info("    velocity file: {}".format(gal.data.filename_velocity))
     if gal.data.filename_dispersion is not None:
@@ -384,13 +384,13 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Bundle the results up into a results class:
     mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
-                f_plot_trace_burnin = f_plot_trace_burnin,
-                f_plot_trace = f_plot_trace,
-                f_sampler = f_sampler,
-                f_plot_param_corner = f_plot_param_corner,
-                f_plot_bestfit = f_plot_bestfit,
-                f_mcmc_results = f_mcmc_results,
-                f_chain_ascii = f_chain_ascii)
+                              f_plot_trace_burnin = f_plot_trace_burnin,
+                              f_plot_trace = f_plot_trace,
+                              f_sampler = f_sampler,
+                              f_plot_param_corner = f_plot_param_corner,
+                              f_plot_bestfit = f_plot_bestfit,
+                              f_results= f_mcmc_results,
+                              f_chain_ascii = f_chain_ascii)
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
@@ -456,17 +456,48 @@ def fit(gal, nWalkers=10,
     return mcmcResults
 
 
-
-def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
+def fit_mpfit(gal,
+              oversample=1,
+              oversize=1,
+              fitdispersion=True,
+              profile1d_type='circ_ap_cube',
+              model_key_re = ['disk+bulge','r_eff_disk'],
+              maxiter=200,
+              do_plotting=True,
+              save_model=True,
+              save_data=True,
+              outdir='mpfit_fit_results/',
+              f_model = None,
+              f_plot_bestfit = None,
+              f_results = None,
+              f_vel_ascii = None,
+              f_log = None):
     """
-    A real simple function for fitting with least squares instead of MCMC.
-    Right now being used for testing.
+    Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
 
+    # Create output directory
+    if len(outdir) > 0:
+        if outdir[-1] != '/': outdir += '/'
+    ensure_dir(outdir)
+
+    # If the output filenames aren't defined: use default output filenames
+    if save_model and (f_model is None): f_model = outdir + 'galaxy_model.pickle'
+    if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
+    if f_results is None:                f_results = outdir + 'mcmc_results.pickle'
+    if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
+
+    # Setup file redirect logging:
+    if f_log is not None:
+        loggerfile = logging.FileHandler(f_log)
+        loggerfile.setLevel(logging.INFO)
+        logger.addHandler(loggerfile)
+
+    # Setup the parinfo dictionary that mpfit needs
     p_initial = gal.model.get_free_parameters_values()
     pkeys = gal.model.get_free_parameter_keys()
     nparam = len(p_initial)
-    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0} for i in
+    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0, 'parname':''} for i in
                range(nparam)]
 
     for cmp in pkeys:
@@ -479,51 +510,109 @@ def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
                 parinfo[k]['limits'][0] = bounds[0]
                 parinfo[k]['limits'][1] = bounds[1]
                 parinfo[k]['value'] = p_initial[k]
+                parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
 
-    fa = {'gal':gal, 'fitdispersion':fit_dispersion, 'profile1d_type':profile1d_type}
-    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
+    # Setup dictionary of arguments that mpfit_chisq needs
+    fa = {'gal':gal, 'fitdispersion':fitdispersion, 'profile1d_type':profile1d_type,
+          'oversample':oversample, 'oversize':oversize}
 
-    return m
+    # Run mpfit
+    # Output some fitting info to logger:
+    logger.info("*************************************")
+    logger.info(" Fitting: {} using MPFIT".format(gal.name))
+    if gal.data.filename_velocity is not None:
+        logger.info("    velocity file: {}".format(gal.data.filename_velocity))
+    if gal.data.filename_dispersion is not None:
+        logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
+
+    logger.info('\nMPFIT Fitting:\n'
+                'Start: {}\n'.format(datetime.datetime.now()))
+    start = time.time()
+
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=maxiter,
+              iterfunct=mpfit_printer, iterkw={'logger': logger})
+
+    end = time.time()
+    elapsed = end - start
+    endtime = str(datetime.datetime.now())
+    timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed / 60.),
+                                                                  (elapsed / 60. - np.floor(
+                                                                      elapsed / 60.)) * 60.)
+    statusmsg = 'MPFIT Status = {}'.format(m.status)
+    if m.status <= 0:
+        errmsg = 'MPFIT Error/Warning Message = {}'.format(m.errmsg)
+    elif m.status == 5:
+        errmsg = 'MPFIT Error/Warning Message = Maximum number of iterations reached. Fit may not have converged!'
+    else:
+        errmsg = 'MPFIT Error/Warning Message = None'
+
+    logger.info('\nEnd: ' + endtime + '\n'
+                '\n******************\n'
+                '' + timemsg + '\n'
+                '' + statusmsg + '\n'
+                '' + errmsg + '\n'
+                '******************')
+
+    # Save all of the fitting results in an MPFITResults object
+    mpfitResults = MPFITResults(model=gal.model,
+                                f_plot_bestfit=f_plot_bestfit,
+                                f_results=f_results)
+
+    mpfitResults.input_results(m)
+
+    # Update theta to best-fit:
+    gal.model.update_parameters(mpfitResults.bestfit_parameters)
+
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                          line_center=gal.model.line_center, profile1d_type=profile1d_type)
 
 
-class MCMCResults(object):
+    # Get vmax and vrot
+    if model_key_re is not None:
+        comp = gal.model.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        mpfitResults.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
+
+    mpfitResults.vmax_bestfit = gal.model.get_vmax()
+
+    if f_results is not None:
+        mpfitResults.save_results(filename=f_results)
+
+    if f_model is not None:
+        # Save model w/ updated theta equal to best-fit:
+        gal.preserve_self(filename=f_model, save_data=save_data)
+
+    if do_plotting & (f_plot_bestfit is not None):
+        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion,
+                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+
+    # Save velocity / other profiles to ascii file:
+    if f_vel_ascii is not None:
+        mpfitResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+
+        # Clean up logger:
+    if f_log is not None:
+        logger.removeHandler(loggerfile)
+
+
+    return mpfitResults
+
+
+class FitResults(object):
     """
-    Class to hold results of MCMC fitting to DYSMALPY models.
-    
-    Note: emcee sampler object is ported to a dictionary in 
-            mcmcResults.sampler
-        
-        The name of the free parameters in the chain are accessed through:
-            mcmcResults.chain_param_names, 
-                or more generally (separate model + parameter names) through
-                mcmcResults.free_param_names
+    General class to hold the results of any fitting
     """
-    def __init__(self, model=None,
-            sampler=None,
-            f_plot_trace_burnin = None,
-            f_plot_trace = None,
-            f_burn_sampler = None,
-            f_sampler = None,
-            f_plot_param_corner = None,
-            f_plot_bestfit = None,
-            f_mcmc_results = None,
-            f_chain_ascii = None, 
-            linked_posterior_names=None):
 
-        self.sampler = sampler
-        self.linked_posterior_names = linked_posterior_names
-
-        #self.components = OrderedDict()
+    def __init__(self,
+                 model=None,
+                 f_plot_bestfit=None,
+                 f_results=None):
 
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
-        self.bestfit_parameters_l68_err = None
-        self.bestfit_parameters_u68_err = None
-
-        self.bestfit_parameters_l68 = None
-        self.bestfit_parameters_u68 = None
-        
         self.bestfit_redchisq = None
+        self._fixed = None
 
         if model is not None:
             self.set_model(model)
@@ -536,24 +625,15 @@ class MCMCResults(object):
             self.nparams_free = None
             self.chain_param_names = None
 
-
-        # Save what the filenames are for reference - eg, if they were defined by default.
-        self.f_plot_trace_burnin = f_plot_trace_burnin
-        self.f_plot_trace = f_plot_trace
-        self.f_burn_sampler = f_burn_sampler
-        self.f_sampler = f_sampler
-        self.f_plot_param_corner = f_plot_param_corner
         self.f_plot_bestfit = f_plot_bestfit
-        self.f_mcmc_results = f_mcmc_results
-        self.f_chain_ascii = f_chain_ascii
-
-
-
+        self.f_results = f_results
 
     def set_model(self, model):
+
         self.param_names = model.param_names.copy()
         self._param_keys = model._param_keys.copy()
         self.nparams = model.nparams
+        self._fixed = model.fixed
 
         self.free_param_names = OrderedDict()
         self._free_param_keys = OrderedDict()
@@ -561,7 +641,6 @@ class MCMCResults(object):
 
         self.nparams_free = model.nparams_free
         self.init_free_param_info(model)
-
 
     def init_free_param_info(self, model):
         """
@@ -586,50 +665,138 @@ class MCMCResults(object):
 
         self.free_param_names = dictfreenames
         self._free_param_keys = dictfreecomp
-        
-        
-        self.chain_param_names = make_arr_cmp_params(self)
-        
-        
 
+        self.chain_param_names = make_arr_cmp_params(self)
+
+    def save_results(self, filename=None):
+        if filename is not None:
+            dump_pickle(self, filename=filename)  # Save FitResults class to a pickle file
+
+    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk']):
+        if filename is not None:
+            try:
+                # RE needs to be in kpc
+                comp = gal.model.components.__getitem__(model_key_re[0])
+                param_i = comp.param_names.index(model_key_re[1])
+                r_eff = comp.parameters[param_i]
+            except:
+                r_eff = 10. / 3.
+            rmax = np.max([3. * r_eff, 10.])
+            stepsize = 0.1  # stepsize 0.1 kpc
+            r = np.arange(0., rmax + stepsize, stepsize)
+
+            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
+
+    @abc.abstractmethod
+    def plot_results(self, *args, **kwargs):
+        """
+        Method to produce all of the necessary plots showing the results of the fitting.
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
+        """Plot/replot the bestfit for the MCMC fitting"""
+        if fileout is None:
+            fileout = self.f_plot_bestfit
+        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
+                              oversample=oversample, oversize=oversize, fileout=fileout)
+
+    def reload_results(self, filename=None):
+        """Reload MCMC results saved earlier: the whole object"""
+        if filename is None:
+            filename = self.f_results
+        resultsSaved = load_pickle(filename)
+        for key in self.__dict__.keys():
+            try:
+                self.__dict__[key] = resultsSaved.__dict__[key]
+            except:
+                pass
+
+
+class MCMCResults(FitResults):
+    """
+    Class to hold results of MCMC fitting to DYSMALPY models.
+    
+    Note: emcee sampler object is ported to a dictionary in 
+            mcmcResults.sampler
+        
+        The name of the free parameters in the chain are accessed through:
+            mcmcResults.chain_param_names, 
+                or more generally (separate model + parameter names) through
+                mcmcResults.free_param_names
+    """
+    def __init__(self, model=None,
+                 sampler=None,
+                 f_plot_trace_burnin=None,
+                 f_plot_trace=None,
+                 f_burn_sampler=None,
+                 f_sampler=None,
+                 f_plot_param_corner=None,
+                 f_plot_bestfit=None,
+                 f_results=None,
+                 f_chain_ascii=None,
+                 linked_posterior_names=None):
+
+        self.sampler = sampler
+        self.linked_posterior_names = linked_posterior_names
+
+        self.bestfit_parameters_l68_err = None
+        self.bestfit_parameters_u68_err = None
+        self.bestfit_parameters_l68 = None
+        self.bestfit_parameters_u68 = None
+
+        # Filenames that are specific to MCMC fitting
+        self.f_plot_trace_burnin = f_plot_trace_burnin
+        self.f_plot_trace = f_plot_trace
+        self.f_burn_sampler = f_burn_sampler
+        self.f_sampler = f_sampler
+        self.f_plot_param_corner = f_plot_param_corner
+        self.f_chain_ascii = f_chain_ascii
+
+        super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
+                                          f_results=f_results)
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
         """
         Default analysis of posterior distributions from MCMC fitting:
-            look at marginalized posterior distributions, and extract the best-fit value (peak of KDE),
-            and extract the +- 1 sigma uncertainty bounds (eg, the 16%/84% distribution of posteriors)
+            look at marginalized posterior distributions, and
+            extract the best-fit value (peak of KDE), and extract the +- 1 sigma uncertainty bounds
+            (eg, the 16%/84% distribution of posteriors)
 
         Optional input:
-                    linked_posterior_names:  indicate if best-fit of parameters
-                                             should be measured in multi-D histogram space
-                                format:  set of linked parameter sets, with each linked parameter set
-                                         consisting of len-2 tuples/lists of the component+parameter names.
+        linked_posterior_names: indicate if best-fit of parameters
+                                should be measured in multi-D histogram space
+                                format: set of linked parameter sets, with each linked parameter set
+                                        consisting of len-2 tuples/lists of the
+                                        component+parameter names.
                                 
                                 
-                        Structure explanation:
-                        (1) Want to analyze component+param 1 and 2 together, and then 
-                                3 and 4 together.
+        Structure explanation:
+        (1) Want to analyze component+param 1 and 2 together, and then
+            3 and 4 together.
                                 
-                            Input structure would be:
-                            linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
-                            with 
-                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-                            jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
-                            for a full array of:
-                            linked_posterior_names = 
-                                [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+            Input structure would be:
+                linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
+                with
+                join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+                jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
+                for a full array of:
+                linked_posterior_names =
+                    [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
                             
-                        (2) Want to analyze component+param 1 and 2 together:
-                            linked_posterior_names = [ joint_param_bundle1 ]
-                            with 
-                            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
+        (2) Want to analyze component+param 1 and 2 together:
+            linked_posterior_names = [ joint_param_bundle1 ]
+            with
+            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
                             
-                            for a full array of:
-                                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
+            for a full array of:
+                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
                             
-                        eg:  look at halo: mvirial and disk+bulge: total_mass together
-                            linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
-                         or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
+                eg: look at halo: mvirial and disk+bulge: total_mass together
+                    linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
+                    or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
 
         """
 
@@ -695,13 +862,7 @@ class MCMCResults(object):
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
         self.bestfit_redchisq = None
-        
-        
-        
-        
-    def save_results(self, filename=None):
-        if filename is not None:
-            dump_pickle(self, filename=filename) # Save mcmcResults class
+
             
     def save_chain_ascii(self, filename=None):
         if filename is not None:
@@ -728,39 +889,15 @@ class MCMCResults(object):
                     if blobset:
                         datstr += '  {}'.format(self.sampler['flatblobs'][i])
                     f.write(datstr+'\n')
-                    
-    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge','r_eff_disk']):
-        if filename is not None:
-            try:
-                # RE needs to be in kpc
-                comp = gal.model.components.__getitem__(model_key_re[0])
-                param_i = comp.param_names.index(model_key_re[1])
-                r_eff = comp.parameters[param_i]
-            except:
-                r_eff = 10./3.
-            rmax = np.max([3.*r_eff, 10.])
-            stepsize = 0.1 # stepsize 0.1 kpc
-            r = np.arange(0., rmax+stepsize, stepsize)
-            
-            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
-            
-            
-    def reload_mcmc_results(self, filename=None):
-        """Reload MCMC results saved earlier: the whole object"""
-        if filename is None:
-            filename = self.f_mcmc_results
-        mcmcSaved = load_pickle(filename)
-        for key in self.__dict__.keys():
-            try:
-                self.__dict__[key] = mcmcSaved.__dict__[key]
-            except:
-                pass
+
+
 
     def reload_sampler(self, filename=None):
         """Reload the MCMC sampler saved earlier"""
         if filename is None:
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
+
 
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
@@ -769,22 +906,57 @@ class MCMCResults(object):
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
+
+
     def plot_corner(self, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
         plotting.plot_corner(self, fileout=fileout)
-    def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
-        """Plot/replot the bestfit for the MCMC fitting"""
-        if fileout is None:
-            fileout = self.f_plot_bestfit
-        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
-                              oversample=oversample, oversize=oversize, fileout=fileout)
+
+
     def plot_trace(self, fileout=None):
         """Plot/replot the trace for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_trace
         plotting.plot_trace(self, fileout=fileout)
+
+
+class MPFITResults(FitResults):
+    """
+    Class to hold results of using MPFIT to fit to DYSMALPY models.
+    """
+    def __init__(self, model=None, f_plot_bestfit=None, f_results=None):
+
+        self._mpfit_object = None
+
+        super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
+                                         f_results=f_results)
+
+    def input_results(self, mpfit_obj):
+        """
+        Save the best fit results from MPFIT in the MPFITResults object
+        """
+
+        self._mpfit_object = mpfit_obj
+        self.status = mpfit_obj.status
+        self.errmsg = mpfit_obj.errmsg
+        self.niter = mpfit_obj.niter
+
+        # Populate the self.bestfit_parameters attribute with the bestfit values for the
+        # free parameters
+        self.bestfit_parameters = mpfit_obj.params
+        self.bestfit_parameters_err = mpfit_obj.perror
+
+        if mpfit_obj.status > 0:
+            self.bestfit_redchisq = mpfit_obj.fnorm/mpfit_obj.dof
+
+
+    def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
+                     f_plot_bestfit=None):
+        """Plot/replot the corner plot and bestfit for the MCMC fitting"""
+        self.plot_bestfit(gal, fitdispersion=fitdispersion,
+                          oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
 
 
 def log_prob(theta, gal,
@@ -910,7 +1082,7 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
     else:
         return llike
         
-#
+
 def chisq_red(gal, fitdispersion=True, 
                 compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
@@ -984,10 +1156,11 @@ def chisq_red(gal, fitdispersion=True,
         return redchsq
 
 
-def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube'):
+def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube',
+                oversample=1, oversize=1):
 
     gal.model.update_parameters(theta)
-    gal.create_model_data(profile1d_type=profile1d_type)
+    gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize, oversample=oversample)
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
@@ -1020,7 +1193,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
 
         chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err)
         if fitdispersion:
-            chisq_arr_raw_disp = (((disp_dat - disp_mod) / disp_err))
+            chisq_arr_raw_disp = ((disp_dat - disp_mod) / disp_err)
             chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
                                        chisq_arr_raw_disp.flatten()])
         else:
@@ -1054,7 +1227,6 @@ def initialize_walkers(model, nWalkers=None):
                 stack_rand.append(param_rand)
     pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos
-
 
 
 def create_default_mcmc_options():
@@ -1091,7 +1263,6 @@ def create_default_mcmc_options():
     return mcmc_options
 
 
-
 def getPeakKDE(flatchain, guess):
     """
     Return chain pars that give peak of posterior PDF, using KDE.
@@ -1110,6 +1281,7 @@ def getPeakKDE(flatchain, guess):
             peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
         return peakKDE
         
+
 def getPeakKDEmultiD(flatchain, inds, guess):
     """
     Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
@@ -1179,6 +1351,7 @@ def get_linked_posterior_peak_values(flatchain,
 
     return bestfit_theta_linked
 
+
 def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     """
     Convert the input set of linked posterior names to set of indices:
@@ -1239,6 +1412,7 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
         
     return linked_posterior_ind_arr
 
+
 def make_arr_cmp_params(mcmcResults):
     arr = np.array([])
     for cmp in mcmcResults.free_param_names.keys():
@@ -1247,6 +1421,7 @@ def make_arr_cmp_params(mcmcResults):
             arr = np.append( arr, cmp.strip().lower()+':'+param.strip().lower() )
 
     return arr
+
 
 def make_emcee_sampler_dict(sampler, nBurn=0):
     """
@@ -1284,6 +1459,40 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
 
     return df
 
+
+def mpfit_printer(fcn, x, iter, fnorm, functkw=None,
+                  quiet=0, parinfo=None,
+                  pformat='%.10g', dof=None,
+                  logger=None):
+
+        if quiet:
+            return
+
+        # Determine which parameters to print
+        nprint = len(x)
+        iter_line = "Iter {}  CHI-SQUARE = {:.10g}  DOF = {:}".format(iter, fnorm, dof)
+        param_lines = '\n'
+        for i in range(nprint):
+            if (parinfo is not None) and ('parname' in parinfo[i]):
+                p = '   ' + parinfo[i]['parname'] + ' = '
+            else:
+                p = '   P' + str(i) + ' = '
+            if (parinfo is not None) and ('mpprint' in parinfo[i]):
+                iprint = parinfo[i]['mpprint']
+            else:
+                iprint = 1
+            if iprint:
+
+                param_lines += p + (pformat % x[i]) + '  ' + '\n'
+
+        if logger is None:
+            print(iter_line+param_lines)
+        else:
+            logger.info(iter_line+param_lines)
+
+        return 0
+
+
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
@@ -1291,16 +1500,17 @@ def ensure_dir(dir):
         os.makedirs(dir)
     return None
 
+
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
     data = _pickle.load(open(filename, "rb"))
     return data
 
+
 def dump_pickle(data, filename=None):
     """ Small wrapper function to pickle a structure """
     _pickle.dump(data, open(filename, "wb") )
     return None
-
 
 
 def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
@@ -1309,11 +1519,12 @@ def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
     
     mcmcResults = MCMCResults() #model=gal.model
     
-    mcmcResults.reload_mcmc_results(filename=filename_mcmc_results)
+    mcmcResults.reload_results(filename=filename_mcmc_results)
     #mcmcResults.reload_sampler(filename=filename_sampler)
     
     return gal, mcmcResults
 
-
+def norm(x): # Euclidean norm
+    return np.sqrt(np.sum(x**2))
 
 
