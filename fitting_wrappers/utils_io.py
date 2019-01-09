@@ -385,7 +385,9 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
     if params['{}_fixed'.format(param_name)] is False:
         if '{}_prior'.format(param_name) in list(params.keys()):
             if params['{}_prior'.format(param_name)].lower() == 'flat':
-                pass
+                
+                comp.prior[param_name] = parameters.UniformPrior()
+
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
                 comp.prior[param_name] = parameters.BoundedGaussianPrior(center=params[param_name],
                                                                         stddev=params['{}_stddev'.format(param_name)])
