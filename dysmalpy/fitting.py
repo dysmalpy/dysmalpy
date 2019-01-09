@@ -85,7 +85,7 @@ def fit(gal, nWalkers=10,
            f_vel_ascii = None, 
            f_log = None ):
     """
-    Fit observed kinematics using DYSMALPY model set.
+    Fit observed kinematics using MCMC and a DYSMALPY model set.
 
     Input:
             gal:            observed galaxy, including kinematics.
@@ -164,7 +164,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
-    logger.info(" Fitting: {}".format(gal.name))
+    logger.info(" Fitting: {} with MCMC".format(gal.name))
     if gal.data.filename_velocity is not None:
         logger.info("    velocity file: {}".format(gal.data.filename_velocity))
     if gal.data.filename_dispersion is not None:
@@ -457,17 +457,48 @@ def fit(gal, nWalkers=10,
     return mcmcResults
 
 
-
-def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
+def fit_mpfit(gal,
+              oversample=1,
+              oversize=1,
+              fitdispersion=True,
+              profile1d_type='circ_ap_cube',
+              model_key_re = ['disk+bulge','r_eff_disk'],
+              maxiter=200,
+              do_plotting=True,
+              save_model=True,
+              save_data=True,
+              outdir='mpfit_fit_results/',
+              f_model = None,
+              f_plot_bestfit = None,
+              f_results = None,
+              f_vel_ascii = None,
+              f_log = None):
     """
-    A real simple function for fitting with least squares instead of MCMC.
-    Right now being used for testing.
+    Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
 
+    # Create output directory
+    if len(outdir) > 0:
+        if outdir[-1] != '/': outdir += '/'
+    ensure_dir(outdir)
+
+    # If the output filenames aren't defined: use default output filenames
+    if save_model and (f_model is None): f_model = outdir + 'galaxy_model.pickle'
+    if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
+    if f_results is None:                f_results = outdir + 'mcmc_results.pickle'
+    if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
+
+    # Setup file redirect logging:
+    if f_log is not None:
+        loggerfile = logging.FileHandler(f_log)
+        loggerfile.setLevel(logging.INFO)
+        logger.addHandler(loggerfile)
+
+    # Setup the parinfo dictionary that mpfit needs
     p_initial = gal.model.get_free_parameters_values()
     pkeys = gal.model.get_free_parameter_keys()
     nparam = len(p_initial)
-    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0} for i in
+    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0, 'parname':''} for i in
                range(nparam)]
 
     for cmp in pkeys:
@@ -480,11 +511,92 @@ def fit_mpfit(gal, fit_dispersion=True, profile1d_type='circ_ap_cube'):
                 parinfo[k]['limits'][0] = bounds[0]
                 parinfo[k]['limits'][1] = bounds[1]
                 parinfo[k]['value'] = p_initial[k]
+                parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
 
-    fa = {'gal':gal, 'fitdispersion':fit_dispersion, 'profile1d_type':profile1d_type}
-    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa)
+    # Setup dictionary of arguments that mpfit_chisq needs
+    fa = {'gal':gal, 'fitdispersion':fitdispersion, 'profile1d_type':profile1d_type,
+          'oversample':oversample, 'oversize':oversize}
 
-    return m
+    # Run mpfit
+    # Output some fitting info to logger:
+    logger.info("*************************************")
+    logger.info(" Fitting: {} using MPFIT".format(gal.name))
+    if gal.data.filename_velocity is not None:
+        logger.info("    velocity file: {}".format(gal.data.filename_velocity))
+    if gal.data.filename_dispersion is not None:
+        logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
+
+    logger.info('\nMPFIT Fitting:\n'
+                'Start: {}\n'.format(datetime.datetime.now()))
+    start = time.time()
+
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=maxiter)
+
+    end = time.time()
+    elapsed = end - start
+    endtime = str(datetime.datetime.now())
+    timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed / 60.),
+                                                                  (elapsed / 60. - np.floor(
+                                                                      elapsed / 60.)) * 60.)
+    statusmsg = 'MPFIT Status = {}'.format(m.status)
+    if m.status <= 0:
+        errmsg = 'MPFIT Error/Warning Message = {}'.format(m.errmsg)
+    elif m.status == 5:
+        errmsg = 'MPFIT Error/Warning Message = Maximum number of iterations reached. Fit may not have converged!'
+    else:
+        errmsg = 'MPFIT Error/Warning Message = None'
+
+    logger.info('\nEnd: ' + endtime + '\n'
+                '\n******************\n'
+                '' + timemsg + '\n'
+                '' + statusmsg + '\n'
+                '' + errmsg + '\n'
+                '******************')
+
+    # Save all of the fitting results in an MPFITResults object
+    mpfitResults = MPFITResults(model=gal.model,
+                                f_plot_bestfit=f_plot_bestfit,
+                                f_results=f_results)
+
+    mpfitResults.input_results(m)
+
+    # Update theta to best-fit:
+    gal.model.update_parameters(mpfitResults.bestfit_parameters)
+
+    gal.create_model_data(oversample=oversample, oversize=oversize,
+                          line_center=gal.model.line_center, profile1d_type=profile1d_type)
+
+
+    # Get vmax and vrot
+    if model_key_re is not None:
+        comp = gal.model.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        mpfitResults.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
+
+    mpfitResults.vmax_bestfit = gal.model.get_vmax()
+
+    if f_results is not None:
+        mpfitResults.save_results(filename=f_results)
+
+    if f_model is not None:
+        # Save model w/ updated theta equal to best-fit:
+        gal.preserve_self(filename=f_model, save_data=save_data)
+
+    if do_plotting & (f_plot_bestfit is not None):
+        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion,
+                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+
+    # Save velocity / other profiles to ascii file:
+    if f_vel_ascii is not None:
+        mpfitResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+
+        # Clean up logger:
+    if f_log is not None:
+        logger.removeHandler(loggerfile)
+
+
+    return mpfitResults
 
 
 class FitResults(object):
@@ -500,6 +612,7 @@ class FitResults(object):
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
         self.bestfit_redchisq = None
+        self._fixed = None
 
         if model is not None:
             self.set_model(model)
@@ -514,7 +627,6 @@ class FitResults(object):
 
         self.f_plot_bestfit = f_plot_bestfit
         self.f_results = f_results
-
 
     def set_model(self, model):
 
@@ -556,11 +668,9 @@ class FitResults(object):
 
         self.chain_param_names = make_arr_cmp_params(self)
 
-
     def save_results(self, filename=None):
         if filename is not None:
-            dump_pickle(self, filename=filename) # Save FitResults class to a pickle file
-
+            dump_pickle(self, filename=filename)  # Save FitResults class to a pickle file
 
     def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk']):
         if filename is not None:
@@ -577,7 +687,6 @@ class FitResults(object):
 
             gal.model.write_vrot_vcirc_file(r=r, filename=filename)
 
-
     @abc.abstractmethod
     def plot_results(self, *args, **kwargs):
         """
@@ -587,14 +696,12 @@ class FitResults(object):
         :return:
         """
 
-
     def plot_bestfit(self, gal, fitdispersion=True, oversample=1, oversize=1, fileout=None):
         """Plot/replot the bestfit for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_bestfit
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
                               oversample=oversample, oversize=oversize, fileout=fileout)
-
 
     def reload_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -649,8 +756,7 @@ class MCMCResults(FitResults):
         self.f_chain_ascii = f_chain_ascii
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                                         f_results=f_results)
-        
+                                          f_results=f_results)
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
         """
@@ -662,8 +768,9 @@ class MCMCResults(FitResults):
         Optional input:
         linked_posterior_names: indicate if best-fit of parameters
                                 should be measured in multi-D histogram space
-                                format:  set of linked parameter sets, with each linked parameter set
-                                         consisting of len-2 tuples/lists of the component+parameter names.
+                                format: set of linked parameter sets, with each linked parameter set
+                                        consisting of len-2 tuples/lists of the
+                                        component+parameter names.
                                 
                                 
         Structure explanation:
@@ -687,9 +794,9 @@ class MCMCResults(FitResults):
             for a full array of:
                 linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
                             
-                eg:  look at halo: mvirial and disk+bulge: total_mass together
-                    linked_posterior_names = [ [ ['halo', 'mvirial'], ['disk+bulge', 'total_mass'] ] ]
-                    or linked_posterior_names = [ [ ('halo', 'mvirial'), ('disk+bulge', 'total_mass') ] ]
+                eg: look at halo: mvirial and disk+bulge: total_mass together
+                    linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
+                    or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
 
         """
 
@@ -838,22 +945,8 @@ class MPFITResults(FitResults):
 
         # Populate the self.bestfit_parameters attribute with the bestfit values for the
         # free parameters
-        mpfit_param_bestfit = np.zeros(self.nparams_free)
-        mpfit_uncertainties_1sig = np.zeros(self.nparams_free)
-
-        ind = 0
-        for cmp in self._fixed:
-            for param_name in self._fixed[cmp]:
-
-                if not self._fixed[cmp][param_name]:
-
-                    mpfit_param_bestfit[ind] = mpfit_obj.params[ind]
-                    mpfit_uncertainties_1sig[ind] = mpfit_obj.perror[ind]
-
-                ind += 1
-
-        self.bestfit_parameters = mpfit_param_bestfit
-        self.bestfit_parameters_err = mpfit_uncertainties_1sig
+        self.bestfit_parameters = mpfit_obj.params
+        self.bestfit_parameters_err = mpfit_obj.perror
 
         if mpfit_obj.status > 0:
             self.bestfit_redchisq = mpfit_obj.fnorm/mpfit_obj.dof
@@ -1063,10 +1156,11 @@ def chisq_red(gal, fitdispersion=True,
         return redchsq
 
 
-def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube'):
+def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube',
+                oversample=1, oversize=1):
 
     gal.model.update_parameters(theta)
-    gal.create_model_data(profile1d_type=profile1d_type)
+    gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize, oversample=oversample)
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value
@@ -1365,6 +1459,7 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
 
     return df
 
+
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""
     if not os.path.exists(dir):
@@ -1396,6 +1491,7 @@ def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
     
     return gal, mcmcResults
 
-
+def norm(x): # Euclidean norm
+    return np.sqrt(np.sum(x**2))
 
 
