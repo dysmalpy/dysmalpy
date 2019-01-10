@@ -201,19 +201,19 @@ inc_stddev,          0.1
 
 # **************************** Fitting Settings ********************************
 
-fit_method,       mcmc     # mcmc or mpfit
+fit_method,      mpfit     # mcmc or mpfit
 do_plotting,     True      # Produce all output plots?
 fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 
 
 # MCMC Settings
 #---------------
-nWalkers,         500      # Number of walkers. Must be even and >= 2x
+nWalkers,         50      # Number of walkers. Must be even and >= 2x
                            # the number of free parameters
 nCPUs,            190      # Number of CPUs to use for parallelization
 scale_param_a,      3.
-nBurn,            100      # Number of steps during burn-in
-nSteps,           100      # Number of steps for sampling
+nBurn,            10      # Number of steps during burn-in
+nSteps,           10      # Number of steps for sampling
 minAF,           None      # Minimum acceptance fraction
 maxAF,           None      # Maximum acceptance fraction
 nEff,              10      # Number of auto-correlation times before convergence
