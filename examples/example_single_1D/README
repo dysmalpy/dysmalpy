@@ -28,13 +28,14 @@ the progress of the fit.
 Output Files
 ------------
 Within the output directory that you specify in fitting_1D.params, you should
-find the following files with the only difference being the name at the front
-of the files will be the name of your object:
+find the following files depending on which fitting method you used:
 
+Both MCMC and MPFIT (with only difference being replace 'mcmc' with 'mpfit'
+in the filenames and 'COS3_18434' with the name of your galaxy)
+-------------------
 1.) COS3_18434_mcmc_best_fit_results.info
     -- Contains a nice human readable output of the best fit parameters of your
-       model with uncertainties determined from the 68th percentile of the
-       posterior distribution
+       model with uncertainties
 
 2.) COS3_18434_mcmc_best_fit_results.dat
     -- Results of the fitting in a machine readable format with the following
@@ -43,10 +44,16 @@ of the files will be the name of your object:
         -- param_name: String with the parameter name
         -- fixed: True/False for whether model parameter was fixed or not
         -- best_value: Best fit value for the model parameter or the fixed value
+
+        If MCMC:
         -- l68_err: lower uncertainty determined from the 16th %tile of the posterior
                     distribution; -99 if the parameter was fixed
         -- u68_err: upper uncertainty determined from the 84th %tile of the posterior
                     distribution; -99 if the parameter was fixed
+        If MPFIT:
+        -- 1sig_err: 1 sigma uncertainty returned from MPFIT and based on the
+                     covariance matrix
+
     -- The last line of the table contains the reduced chi-square of the fit
        with the value in the "best_value" column.
 
@@ -56,11 +63,31 @@ of the files will be the name of your object:
 4.) COS3_18434_mcmc_besfit_model_cube.fits
     -- FITS file containing the best fit model cube
 
-5.) COS3_18434_mcmc_param_corner.pdf
+5.) COS3_18434_galaxy_bestfit_vel_profile.dat
+    -- Best fit circular and rotational velocity profile as a function of radius
+       with steps of 0.1 kpc and a maximum of 3 effective radii
+
+6.) COS3_18434_galaxy_model.pickle
+    -- Python pickle file containing the setup for the model and the instrument
+
+7.) COS3_18434_mcmc_results.pickle
+     -- Python pickle file containing the fitting results of the run
+
+8.) COS3_18434_info.log
+     -- Log file that records the output during the run and will show if any
+        errors occurred
+
+9.) fitting_1D.params
+     -- Copy of the parameter file that was used for the fit
+
+
+Only MCMC
+---------
+1.) COS3_18434_mcmc_param_corner.pdf
     -- "Corner" plot showing the joint 2D and marginalized posterior distributions
        for each free parameter
            
-6.) COS3_18434_mcmc_burnin_trace.pdf
+2.) COS3_18434_mcmc_burnin_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "burnin" phase
 
@@ -69,7 +96,7 @@ of the files will be the name of your object:
        different than at the start. I.e the walkers should have "walked" away
        from their initial distribution.
 
-7.) COS3_18434_mcmc_trace.pdf
+3.) COS3_18434_mcmc_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "sampling" phase. These are the values that are used to define
        the posterior distribution of each free parameter.
@@ -77,29 +104,15 @@ of the files will be the name of your object:
     -- Use this plot to assess visually whether the parameters have converged
        on a distribution or whether more steps are needed.
 
-8.) COS3_18434_mcmc_chain_blobs.dat
+4.) COS3_18434_mcmc_chain_blobs.dat
     -- Table of the values contained in the posterior distribution for each
        free parameter
 
-9.) COS3_18434_galaxy_bestfit_vel_profile.dat
-    -- Best fit circular and rotational velocity profile as a function of radius
-       with steps of 0.1 kpc and a maximum of 3 effective radii
 
-10.) COS3_18434_galaxy_model.pickle
-    -- Python pickle file containing the setup for the model and the instrument
-
-11.) COS3_18434_mcmc_results.pickle
-     -- Python pickle file containing the MCMC fitting results of the run
-
-12.) COS3_18434_mcmc_sampler.pickle
+6.) COS3_18434_mcmc_sampler.pickle
      -- Python pickle file containing the MCMC setup and chains from the fit
 
-13.) COS3_18434_info.log
-     -- Log file that records the output during the run and will show if any
-        errors occurred
 
-14.) fitting_1D.params
-     -- Copy of the parameter file that was used for the fit
 
 
 
