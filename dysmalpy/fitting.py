@@ -432,7 +432,7 @@ def fit(gal, nWalkers=10,
         gal.preserve_self(filename=f_model, save_data=save_data)
 
     if save_bestfit_cube:
-        gal.model_cube.write(f_cube, overwrite=True)
+        gal.model_cube.data.write(f_cube, overwrite=True)
         
     # --------------------------------
     # Plot trace, if output file set
@@ -593,7 +593,7 @@ def fit_mpfit(gal,
         gal.preserve_self(filename=f_model, save_data=save_data)
 
     if save_bestfit_cube:
-        gal.model_cube.write(f_cube, overwrite=True)
+        gal.model_cube.data.write(f_cube, overwrite=True)
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion,
