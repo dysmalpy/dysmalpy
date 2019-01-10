@@ -119,11 +119,11 @@ halo_conc,           5.0        # Halo concentration parameter
 
 # Fixed?
 mvirial_fixed,       False
-halo_conc,           True
+halo_conc_fixed,     True
 
 # Prior Bounds
 mvirial_bounds,      9.0 13.0
-halo_conc,           1.0 20.0
+halo_conc_bounds,           1.0 20.0
 
 # Prior Type
 mvirial_prior,       flat

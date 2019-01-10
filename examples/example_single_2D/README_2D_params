@@ -230,11 +230,11 @@ halo_conc: Halo concentration parameter
 
 # Fixed? True if its a fixed parameter, False otherwise
 mvirial_fixed,       False
-halo_conc,           True
+halo_conc_fixed,           True
 
 # Prior bounds. Lower and upper bounds on the prior
 mvirial_bounds,      9.0 13.0
-halo_conc,           1.0 20.0
+halo_conc_bounds,    1.0 20.0
 
 # Prior type. 'flat' or 'gaussian'
 mvirial_prior,       flat
