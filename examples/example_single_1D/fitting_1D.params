@@ -207,7 +207,7 @@ fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 
 
 # MCMC Settings
----------------
+#---------------
 nWalkers,         500      # Number of walkers. Must be even and >= 2x
                            # the number of free parameters
 nCPUs,            190      # Number of CPUs to use for parallelization
@@ -220,5 +220,5 @@ nEff,              10      # Number of auto-correlation times before convergence
 
 
 # MPFIT Settings
-----------------
+#----------------
 maxiter,         200       # Maximum number of iterations before mpfit quits
