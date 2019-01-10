@@ -348,6 +348,7 @@ def setup_mcmc_dict(params=None):
     f_plot_trace_burnin = outdir+'{}_mcmc_burnin_trace.pdf'.format(galID)
     f_plot_trace = outdir+'{}_mcmc_trace.pdf'.format(galID)
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
+    f_cube = outdir+'{}_mcmc_bestfit_model_cube.fits'.format(galID)
     f_sampler = outdir+'{}_mcmc_sampler.pickle'.format(galID)
     f_burn_sampler = outdir+'{}_mcmc_burn_sampler.pickle'.format(galID)
     f_plot_param_corner = outdir+'{}_mcmc_param_corner.pdf'.format(galID)
@@ -361,7 +362,8 @@ def setup_mcmc_dict(params=None):
     mcmc_dict = {'outdir': outdir, 
                 'f_plot_trace_burnin':  f_plot_trace_burnin,
                 'f_plot_trace':  f_plot_trace,
-                'f_model': f_model, 
+                'f_model': f_model,
+                'f_cube': f_cube,
                 'f_sampler':  f_sampler,
                 'f_burn_sampler':  f_burn_sampler,
                 'f_plot_param_corner':  f_plot_param_corner,
@@ -386,6 +388,7 @@ def setup_mpfit_dict(params=None):
     outdir = params['outdir']
     galID = params['galID']
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
+    f_cube = outdir+'{}_mpfit_bestfit_model_cube.fits'.format(galID)
     f_plot_bestfit = outdir+'{}_mpfit_best_fit.pdf'.format(galID)
     f_results = outdir+'{}_mpfit_results.pickle'.format(galID)
     f_plot_bestfit_multid = outdir+'{}_mpfit_best_fit_multid.pdf'.format(galID)
@@ -394,6 +397,7 @@ def setup_mpfit_dict(params=None):
 
     mpfit_dict = {'outdir': outdir,
                   'f_model': f_model,
+                  'f_cube': f_cube,
                   'f_plot_bestfit':  f_plot_bestfit,
                   'f_plot_bestfit_multid': f_plot_bestfit_multid,
                   'f_results':  f_results,
