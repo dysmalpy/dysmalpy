@@ -65,7 +65,8 @@ def fit(gal, nWalkers=10,
            model_key_re = ['disk+bulge','r_eff_disk'],  
            do_plotting = True,
            save_burn = False,
-           save_model = True, 
+           save_model = True,
+           save_bestfit_cube=True,
            save_data = True, 
            outdir = 'mcmc_fit_results/',
            linked_posterior_names= None,
@@ -74,7 +75,8 @@ def fit(gal, nWalkers=10,
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
-           f_model = None, 
+           f_model = None,
+           f_cube = None,
            f_sampler = None,
            f_burn_sampler = None,
            f_plot_param_corner = None,
@@ -124,6 +126,7 @@ def fit(gal, nWalkers=10,
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.pdf'
     if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
+    if save_bestfit_cube and (f_cube is None): f_model = outdir+'mcmc_bestfit_cube.fits'
     if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.pickle'
     if save_burn and (f_burn_sampler is None):  f_burn_sampler = outdir+'mcmc_burn_sampler.pickle'
     if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.pdf'
@@ -427,6 +430,9 @@ def fit(gal, nWalkers=10,
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
         # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model, save_data=save_data)
+
+    if save_bestfit_cube:
+        gal.model_cube.write(f_cube, overwrite=True)
         
     # --------------------------------
     # Plot trace, if output file set
@@ -465,9 +471,11 @@ def fit_mpfit(gal,
               maxiter=200,
               do_plotting=True,
               save_model=True,
+              save_bestfit_cube=True,
               save_data=True,
               outdir='mpfit_fit_results/',
               f_model = None,
+              f_cube=None,
               f_plot_bestfit = None,
               f_results = None,
               f_vel_ascii = None,
@@ -483,6 +491,7 @@ def fit_mpfit(gal,
 
     # If the output filenames aren't defined: use default output filenames
     if save_model and (f_model is None): f_model = outdir + 'galaxy_model.pickle'
+    if save_bestfit_cube and (f_cube is None): f_model = outdir+'mcmc_bestfit_cube.fits'
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
     if f_results is None:                f_results = outdir + 'mcmc_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
@@ -582,6 +591,9 @@ def fit_mpfit(gal,
     if f_model is not None:
         # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model, save_data=save_data)
+
+    if save_bestfit_cube:
+        gal.model_cube.write(f_cube, overwrite=True)
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion,
