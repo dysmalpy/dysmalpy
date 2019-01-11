@@ -326,6 +326,7 @@ def setup_gal_inst_mod_1D(params=None):
         sig_inst = params['sig_inst_res'] * u.km / u.s  # Instrumental spectral resolution  [km/s]
         lsf = instrument.LSF(sig_inst)
         inst.lsf = lsf
+        inst.set_lsf_kernel()
 
     inst.beam = beam
     inst.pixscale = pixscale
@@ -337,7 +338,6 @@ def setup_gal_inst_mod_1D(params=None):
     
     # Set the beam kernel so it doesn't have to be calculated every step
     inst.set_beam_kernel(support_scaling=12.)   # ORIGINAL: support_scaling=8.
-    inst.set_lsf_kernel()
     
     # Add the model set and instrument to the Galaxy
     gal.model = mod_set
