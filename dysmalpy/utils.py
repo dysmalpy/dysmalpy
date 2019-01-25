@@ -15,6 +15,9 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
 from scipy import interpolate
+from scipy.optimize import minimize
+from scipy.stats import norm
+
 
 from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
@@ -306,7 +309,7 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
             vel = sp_sig.medfilt(vel, kernel_size=smoothing_npix)
             disp = sp_sig.medfilt(disp, kernel_size=smoothing_npix)
         else:
-            message("Smoothing type={} not supported".format(smoothing_type))
+            print("Smoothing type={} not supported".format(smoothing_type))
             
         return vel, disp
 
@@ -325,7 +328,7 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
             #cube = cube.spatial_smooth_median(smoothing_npix)
             
         else:
-            message("Smoothing type={} not supported".format(smoothing_type))
+            print("Smoothing type={} not supported".format(smoothing_type))
 
         return cube
 
@@ -565,4 +568,32 @@ def symmetrize_1D_profile(rin, vin, errin, sym=1):
     errsym = np.sqrt(np.nansum(errOut**2, axis=0))/err_count
     
     return rout, vsym, errsym
+
+
+def fit_truncated_gaussian(trace, truncate_value):
+    """
+    Find the best fitting mean and standard deviation of a sample assuming the distribution
+    is a truncated Gaussian with the truncation occurring at low values.
+
+    :param trace: Sample to fit
+    :param truncate_value: The value for where the truncation occurs
+    :return: mean, standard deviation of the best fitting truncated Gaussian
+    """
+
+    # First adjust so that the truncation occurs at 0
+    trace_adjust = trace - truncate_value
+
+    mean_guess = np.mean(trace_adjust)
+    std_guess = np.std(trace_adjust)
+    p = minimize(lnlike_truncnorm, np.array([mean_guess, std_guess]),
+                 method='Nelder-Mead', args=(trace_adjust))
+    mean_fit = p.x[0] + truncate_value
+    std_fit = p.x[1]
+
+    return mean_fit, std_fit
+
+
+def lnlike_truncnorm(params, x):
+    # Function for the negative log-likelihood of a truncated Gaussian
+    return -np.sum(np.log(norm.pdf(x, loc=params[0], scale=params[1])) - np.log(1.0 - norm.cdf(0, loc=params[0], scale=params[1])))
 
