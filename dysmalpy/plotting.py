@@ -326,6 +326,13 @@ def plot_data_model_comparison_2D(gal,
     cmap =  cm.Spectral_r #cm.nipy_spectral
     cmap.set_bad(color='k')
     
+    
+    gamma = 1.5 #1.2 # 1. # 1.5 # 3. # 2. 
+    cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5, 
+                gamma_lower=gamma, gamma_upper=gamma, 
+                name_new='RdBu_r_stretch')
+    
+    
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
     
@@ -344,20 +351,23 @@ def plot_data_model_comparison_2D(gal,
             im = gal.data.data['velocity'].copy()
             im -= vel_shift
             im[~gal.data.mask] = np.nan
+            cmaptmp = cmap
         elif k == 'model':
             im = gal.model_data.data['velocity'].copy()
             im -= vel_shift
             im[~gal.data.mask] = np.nan
+            cmaptmp = cmap
         elif k == 'residual':
             im = gal.data.data['velocity'] - gal.model_data.data['velocity']
             im[~gal.data.mask] = np.nan
             if symmetric_residuals:
                 vel_vmin = -max_residual
                 vel_vmax = max_residual
+            cmaptmp = cmap_resid
         else:
             raise ValueError("key not supported.")
 
-        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+        imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                          vmin=vel_vmin, vmax=vel_vmax, origin=origin)
 
         if k == 'data':
