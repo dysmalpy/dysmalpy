@@ -18,7 +18,7 @@ import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam
 
-__all__ = ["Instrument", "Beam", "LSF", "DoubleBeam"]
+__all__ = ["Instrument", "GaussianBeam", "LSF", "DoubleBeam", "Moffat"]
 
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
