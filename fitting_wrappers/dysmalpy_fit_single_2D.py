@@ -85,6 +85,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
                                   red_chisq=fit_dict['red_chisq'],
                                   oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
+                                  compute_dm=fit_dict['compute_dm'],
                                   outdir=fit_dict['outdir'],
                                   f_plot_trace_burnin=fit_dict['f_plot_trace_burnin'],
                                   f_plot_trace=fit_dict['f_plot_trace'],
