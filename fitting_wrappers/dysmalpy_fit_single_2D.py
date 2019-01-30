@@ -309,6 +309,22 @@ def setup_gal_inst_mod_2D(params=None):
         beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
         beta = params['psf_beta']
         beam = instrument.Moffat(major_fwhm=beamsize, beta=beta)
+    elif params['psf_type'].lower().strip() == 'doublegaussian':
+        # Kernel of both components multipled by: self._scaleN / np.sum(kernelN.array)
+        #    -- eg, scaleN controls the relative amount of flux in each component.
+        
+        beamsize1 = params['psf_fwhm1']*u.arcsec              # FWHM of beam, Gaussian
+        beamsize2 = params['psf_fwhm2']*u.arcsec              # FWHM of beam, Gaussian
+        
+        try:
+            scale1 = params['psf_scale1']                     # Flux scaling of component 1
+        except:
+            scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
+        scale2 = params['psf_scale2']                         # Flux scaling of component 2
+        
+        beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2, 
+                        scale1=scale1, scale2=scale2)
+    
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
 
