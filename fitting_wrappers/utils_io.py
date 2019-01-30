@@ -378,6 +378,14 @@ def setup_mcmc_dict(params=None):
     for key in params.keys():
         # Copy over all various fitting options
         mcmc_dict[key] = params[key]
+
+    if mcmc_dict['include_halo']:
+
+        mcmc_dict['compute_dm'] = True
+
+    else:
+
+        mcmc_dict['compute_dm'] = False
         
     return mcmc_dict
 
