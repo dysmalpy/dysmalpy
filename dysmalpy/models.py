@@ -480,13 +480,17 @@ class ModelSet:
             
             
         ## Get DM frac:
-        vel, vdm = self.velocity_profile(rgal, compute_dm=True)
         
-        if self.kinematic_options.pressure_support:
-            # Correct for pressure support to get circular velocity:
-            vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
-        else:
-            vc = vel.copy()
+        # vel, vdm = self.velocity_profile(rgal, compute_dm=True)
+        # 
+        # if self.kinematic_options.pressure_support:
+        #     # Correct for pressure support to get circular velocity:
+        #     vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
+        # else:
+        #     vc = vel.copy()
+        
+        
+        vc, vdm = self.circular_velocity(rgal, compute_dm=True)
         
         # Not generally true if a term is oblate; to be updated
         # r_eff is the last (or only) entry:
