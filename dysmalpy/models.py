@@ -476,7 +476,7 @@ class ModelSet:
         if makearr:
             nstep = np.floor_divide(r,rstep) 
             rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-            rgal = np.append(rgal, r_eff)
+            rgal = np.append(rgal, r)
             
             
         ## Get DM frac:
@@ -493,7 +493,7 @@ class ModelSet:
         if (lnin <= 1):
             dm_frac = vdm[-1]**2/vc[-1]**2
             if lnin == 1:
-                dm_frac = np.array([df_frac])
+                dm_frac = np.array([dm_frac])
         else:
             dm_frac = vdm**2/vc**2
         
@@ -761,8 +761,7 @@ class ModelSet:
                 u.km / u.s).value
 
         cube_final = np.zeros((nspec, ny_sky_samp, nx_sky_samp))
-        
-        v_sys = self.geometry.vel_shift.value  # systemic velocity
+
 
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
@@ -796,6 +795,7 @@ class ModelSet:
             # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
+            v_sys = self.geometry.vel_shift.value  # systemic velocity
             vobs_mass = v_sys + (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
             vobs_mass[rgal == 0] = 0.
@@ -850,6 +850,7 @@ class ModelSet:
                 fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
                 # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+                v_sys = self.outflow_geometry.vel_shift.value  # systemic velocity
                 vobs = v_sys -vout * zsky/rout
                 vobs[rout == 0] = vout[rout == 0]
 
