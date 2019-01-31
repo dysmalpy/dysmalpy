@@ -506,7 +506,7 @@ class ModelSet:
         r_eff = comp.parameters[param_i]
         
         
-        dm_frac = self.get_dm_aper(self, r_eff, rstep=rstep)
+        dm_frac = self.get_dm_aper(r_eff, rstep=rstep)
         
         
         # # Get DM frac:
