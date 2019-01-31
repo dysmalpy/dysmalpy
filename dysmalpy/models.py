@@ -509,26 +509,6 @@ class ModelSet:
         dm_frac = self.get_dm_aper(self, r_eff, rstep=rstep)
         
         
-        # # Get DM frac:
-        # if self.kinematic_options.adiabatic_contract:
-        #     nstep = np.floor_divide(r_eff,rstep) 
-        #     rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-        #     rgal = np.append(rgal, r_eff)
-        # else:
-        #     rgal = np.array([r_eff])
-        # 
-        # vel, vdm = self.velocity_profile(rgal, compute_dm=True)
-        # 
-        # if self.kinematic_options.pressure_support:
-        #     # Correct for pressure support to get circular velocity:
-        #     vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
-        # else:
-        #     vc = vel.copy()
-        # 
-        # # Not generally true if a term is oblate; to be updated
-        # # r_eff is the last (or only) entry:
-        # dm_frac = vdm[-1]**2/vc[-1]**2
-        
         return dm_frac
         
 
@@ -576,12 +556,11 @@ class ModelSet:
 
         return enc_mass, enc_bary, enc_dm
 
-
-
-    def velocity_profile(self, r, compute_dm=False, skip_bulge=False):
+        
+    def circular_velocity(self, r, compute_dm=False, skip_bulge=False):
         """
-        Method to calculate the 1D velocity profile
-        as a function of radius
+        Method to calculate the 1D circular velocity profile
+        as a function of radius, from the enclosed mass
         """
 
         # First check to make sure there is at least one mass component in the
@@ -625,18 +604,30 @@ class ModelSet:
             else:
 
                 vel = vels
-
-            vel = self.kinematic_options.apply_pressure_support(r, self, vel)
             
             if compute_dm:
                 return vel, vdm
             else:
                 return vel
                 
-    def circular_velocity(self, r):
-        vel = self.velocity_profile(r, compute_dm=False)
-        vcirc = self.kinematic_options.correct_for_pressure_support(r, self, vel)
-        return vcirc
+    def velocity_profile(self, r, compute_dm=False, skip_bulge=False):
+        """
+        Method to calculate the 1D velocity profile
+        as a function of radius
+        """
+        vels = self.circular_velocity(r, compute_dm=compute_dm, skip_bulge=skip_bulge)
+        if compute_dm:
+            vcirc = vels[0]
+            vdm = vels[1]
+        else:
+            vcirc = vels
+            
+        vel = self.kinematic_options.apply_pressure_support(r, self, vcirc)
+        
+        if compute_dm:
+            return vel, vdm
+        else:
+            return vel
     
     def get_vmax(self, r=None):
         if r is None:
