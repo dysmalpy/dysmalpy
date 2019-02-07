@@ -336,11 +336,12 @@ def plot_data_model_comparison_2D(gal,
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
     
-    # try:
-    #     vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
-    # except:
-    #     vel_shift = 0
-    vel_shift = gal.model.geometry.vel_shift.value
+    try:
+        vel_shift = gal.model.geometry.vel_shift.value
+    except:
+        vel_shift = 0
+
+    #vel_shift = gal.model.geometry.vel_shift.value
     
     #
     vel_vmin -= vel_shift
