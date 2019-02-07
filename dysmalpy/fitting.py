@@ -61,8 +61,8 @@ def fit(gal, nWalkers=10,
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
-           compute_dm = False, 
-           model_key_re = ['disk+bulge','r_eff_disk'],  
+           compute_dm = False,
+           model_key_re = ['disk+bulge','r_eff_disk'],
            do_plotting = True,
            save_burn = False,
            save_model = True,
@@ -126,7 +126,7 @@ def fit(gal, nWalkers=10,
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.pdf'
     if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
-    if save_bestfit_cube and (f_cube is None): f_model = outdir+'mcmc_bestfit_cube.fits'
+    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mcmc_bestfit_cube.fits'
     if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.pickle'
     if save_burn and (f_burn_sampler is None):  f_burn_sampler = outdir+'mcmc_burn_sampler.pickle'
     if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.pdf'
@@ -490,8 +490,8 @@ def fit_mpfit(gal,
     ensure_dir(outdir)
 
     # If the output filenames aren't defined: use default output filenames
-    if save_model and (f_model is None): f_model = outdir + 'galaxy_model.pickle'
-    if save_bestfit_cube and (f_cube is None): f_model = outdir+'mcmc_bestfit_cube.fits'
+    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
+    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mpfit_bestfit_cube.fits'
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
     if f_results is None:                f_results = outdir + 'mcmc_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
