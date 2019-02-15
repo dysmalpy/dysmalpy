@@ -303,8 +303,19 @@ def setup_gal_inst_mod_2D(params=None):
     nspec = params['nspec']                               # Number of spectral pixels
 
     if params['psf_type'].lower().strip() == 'gaussian':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
-        beam = instrument.GaussianBeam(major=beamsize)
+        beam_major = params['psf_major']*u.arcsec              # FWHM of beam, Gaussian
+        try:
+            beam_minor  = params['psf_minor']*u.arcsec
+        except:
+            beam_minor = beam_major
+
+        try:
+            beam_pa = params['psf_pa']*u.deg
+        except:
+            beam_pa = 0*u.deg
+
+        beam = instrument.GaussianBeam(major=beam_major, minor=beam_minor, pa=beam_pa)
+
     elif params['psf_type'].lower().strip() == 'moffat':
         beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
         beta = params['psf_beta']
