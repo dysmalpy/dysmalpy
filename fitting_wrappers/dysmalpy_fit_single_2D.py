@@ -321,9 +321,19 @@ def setup_gal_inst_mod_2D(params=None):
         except:
             scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
         scale2 = params['psf_scale2']                         # Flux scaling of component 2
+
+        try:
+            theta1 = params['psf_theta1']
+        except:
+            theta1 = 0*u.deg
+
+        try:
+            theta2 = params['psf_theta2']
+        except:
+            theta2 = theta1
         
         beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2, 
-                        scale1=scale1, scale2=scale2)
+                        scale1=scale1, scale2=scale2, pa1=theta1, pa2=theta2)
     
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
