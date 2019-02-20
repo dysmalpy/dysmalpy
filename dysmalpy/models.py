@@ -598,8 +598,9 @@ class ModelSet:
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-            vels = self.kinematic_options.apply_adiabatic_contract(r,
-                                            vbaryon, vdm,compute_dm=compute_dm)
+            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
+                                                                   compute_dm=compute_dm,
+                                                                   skip_bulge=skip_bulge)
 
             if compute_dm:
                 vel = vels[0]
@@ -1414,23 +1415,24 @@ class KinematicOptions:
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
 
-    def apply_adiabatic_contract(self, r, vbaryon, vhalo, compute_dm=False):
+    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, compute_dm=False,
+                                 skip_bulge=False):
 
         if self.adiabatic_contract:
             logger.info("Applying adiabatic contraction.")
             
             # Define 1d radius array for calculation
             step1d = 0.2  # kpc
-            r1d = np.arange(0., np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
+            r1d = np.arange(step1d, np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
             rprime_all_1d = np.zeros(len(r1d))
             
             # Calculate vhalo, vbaryon on this 1D radius array [note r is a 3D array]
             vhalo1d = r1d * 0.
             vbaryon1d = r1d * 0.
-            for cmp in self.mass_components:
+            for cmp in model.mass_components:
                 
-                if self.mass_components[cmp]:
-                    mcomp = self.components[cmp]
+                if model.mass_components[cmp]:
+                    mcomp = model.components[cmp]
                     if isinstance(mcomp, DiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r1d, skip_bulge=skip_bulge)
                     else:
@@ -1667,7 +1669,7 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
 
-    if rprime < 0.:
+    if rprime <= 0.:
         rprime = 0.1
     if rprime < adia_x_dm[1]:
         rprime = adia_x_dm[1]
