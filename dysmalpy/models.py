@@ -795,12 +795,12 @@ class ModelSet:
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
-            vcirc = self.velocity_profile(rgal)
-            # L.O.S. velocity is then just vcirc*sin(i)*cos(theta) where theta
+            vrot = self.velocity_profile(rgal)
+            # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
             v_sys = self.geometry.vel_shift.value  # systemic velocity
-            vobs_mass = v_sys + (vcirc * np.sin(np.radians(self.geometry.inc.value)) *
+            vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
             vobs_mass[rgal == 0] = 0.
 
