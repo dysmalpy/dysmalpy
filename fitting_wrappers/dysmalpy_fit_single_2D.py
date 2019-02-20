@@ -303,8 +303,19 @@ def setup_gal_inst_mod_2D(params=None):
     nspec = params['nspec']                               # Number of spectral pixels
 
     if params['psf_type'].lower().strip() == 'gaussian':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
-        beam = instrument.GaussianBeam(major=beamsize)
+        beam_major = params['psf_major']*u.arcsec              # FWHM of beam, Gaussian
+        try:
+            beam_minor  = params['psf_minor']*u.arcsec
+        except:
+            beam_minor = beam_major
+
+        try:
+            beam_pa = params['psf_pa']*u.deg
+        except:
+            beam_pa = 0*u.deg
+
+        beam = instrument.GaussianBeam(major=beam_major, minor=beam_minor, pa=beam_pa)
+
     elif params['psf_type'].lower().strip() == 'moffat':
         beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
         beta = params['psf_beta']
@@ -321,9 +332,19 @@ def setup_gal_inst_mod_2D(params=None):
         except:
             scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
         scale2 = params['psf_scale2']                         # Flux scaling of component 2
+
+        try:
+            theta1 = params['psf_theta1']
+        except:
+            theta1 = 0*u.deg
+
+        try:
+            theta2 = params['psf_theta2']
+        except:
+            theta2 = theta1
         
         beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2, 
-                        scale1=scale1, scale2=scale2)
+                        scale1=scale1, scale2=scale2, pa1=theta1, pa2=theta2)
     
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
