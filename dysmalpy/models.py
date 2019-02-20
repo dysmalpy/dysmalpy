@@ -1418,17 +1418,52 @@ class KinematicOptions:
 
         if self.adiabatic_contract:
             logger.info("Applying adiabatic contraction.")
-            rprime_all = np.zeros(len(r))
-            for i in range(len(r)):
-                result = scp_opt.newton(_adiabatic, r[i] + 1.,
-                                        args=(r[i], vhalo, r, vbaryon[i]))
-                rprime_all[i] = result
-
-            vhalo_adi_interp = scp_interp.interp1d(r, vhalo,
-                                                   fill_value='extrapolate')
-            vhalo_adi = vhalo_adi_interp(rprime_all)
+            
+            # Define 1d radius array for calculation
+            step1d = 0.2  # kpc
+            r1d = np.arange(0., np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
+            rprime_all_1d = np.zeros(len(r1d))
+            
+            # Calculate vhalo, vbaryon on this 1D radius array [note r is a 3D array]
+            vhalo1d = r1d * 0.
+            vbaryon1d = r1d * 0.
+            for cmp in self.mass_components:
+                
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    if isinstance(mcomp, DiskBulge):
+                        cmpnt_v = mcomp.circular_velocity(r1d, skip_bulge=skip_bulge)
+                    else:
+                        cmpnt_v = mcomp.circular_velocity(r1d)
+                    if mcomp._subtype == 'dark_matter':
+                        
+                        vhalo1d = np.sqrt(vhalo1d ** 2 + cmpnt_v ** 2)
+                        
+                    elif mcomp._subtype == 'baryonic':
+                        
+                        vbaryon1d = np.sqrt(vbaryon1d ** 2 + cmpnt_v ** 2)
+                        
+                    else:
+                        raise TypeError("{} mass model subtype not recognized"
+                                        " for {} component. Only 'dark_matter'"
+                                        " or 'baryonic' accepted.".format(mcomp._subtype, cmp))
+            
+            
+            for i in range(len(r1d)):
+                result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
+                                        args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]))
+                rprime_all_1d[i] = result
+                
+            
+            vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
+            vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
+            
+            vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
+            
+            vhalo_adi = vhalo_adi_interp_map_3d(r)
+            
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
-
+            
         else:
 
             vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
