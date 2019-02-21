@@ -27,7 +27,8 @@ import astropy.units as u
 from astropy.modeling import Model
 import astropy.cosmology as apy_cosmo
 import pyximport; pyximport.install(setup_args={'include_dirs':['/Users/ttshimiz/Github/dysmalpy/dysmalpy/']})
-from . import cutils
+#from . import cutils
+from . import cutils_py as cutils
 
 # Local imports
 from .parameters import DysmalParameter
