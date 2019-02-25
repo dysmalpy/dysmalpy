@@ -1,18 +1,13 @@
-This file outlines how to fit a single galaxy's 2D velocity and dispersion
+This file outlines how to fit a single galaxy's 3D velocity and dispersion
 maps using the DYSMALPY wrappers and provides a description of all of the
 parameters that can be tuned in the modelling and fitting procedure.
 
-The following files should be provided in this example_single_2D directory:
--- dysmalpy_fit_2d.sh: Bash shell script to run everything
--- fitting_2D.params: Example parameter file that is input to the shell script
+The following files should be provided in this example_single_3D directory:
+-- fitting_3D.params: Example parameter file that is input to the shell script
 -- README: This file!
--- README_2D_params: Description of all parameters in fitting_2D.params
--- COS3_18434.vel_gau_sm3.fits: Example velocity map
--- COS3_18434.vel_gau_err_sm3.fits: Example velocity error map
--- COS3_18434.disp_gau_sm3.fits: Example dispersion map
--- COS3_18434.disp_gau_err_sm3.fits: Example dispersion error map
--- COS3_18434_mask_gau_esw0_sm3.fits: Example mask
--- COS3_18434_2D_out/: Example output directory for fitting in 2D
+-- README_3D_params: Description of all parameters in fitting_3D.params
+-- CUBE FILES: NEED TO PUT THEM HERE!
+-- COS3_18434_3D_out/: Example output directory for fitting in 3D
 
 Overview
 --------
@@ -20,18 +15,20 @@ Fitting a single object requires the following steps:
 1.) Copy this directory from AFS to the machine you will be using. Please
     do NOT perform fits that save to the DYSMALPY directory on AFS.
 
-2.) Edit the parameters in fitting_2D.params to match your own object and needs.
-    See README_2D_params for a description of each one.
+2.) Edit the parameters in fitting_3D.params to match your own object and needs.
+    See README_3D_params for a description of each one.
+    
+3.) Edit dysmalpy_fit_single_3D.py to have method to load your cube.
 
-3.) Start the fitting by typing the following in your terminal:
-    ./dysmalpy_fit_2d.sh fitting_2D.params
+4.) Start the fitting by typing the following in your terminal:
+    ./dysmalpy_fit_3d.sh fitting_3D.params
 
 The fitting should begin and you should start seeing messages appear updating
 the progress of the fit.
 
 Output Files
 ------------
-Within the output directory that you specify in fitting_2D.params, you should
+Within the output directory that you specify in fitting_3D.params, you should
 find the following files depending on which fitting method you used:
 
 Both MCMC and MPFIT (with only difference being replace 'mcmc' with 'mpfit'
@@ -81,14 +78,14 @@ in the filenames and 'COS3_18434' with the name of your galaxy)
      -- Log file that records the output during the run and will show if any
         errors occurred
 
-9.) fitting_2D.params
+9.) fitting_3D.params
      -- Copy of the parameter file that was used for the fit
 
 
 Only MCMC
 ---------
 1.) COS3_18434_mcmc_param_corner.pdf
-    -- "Corner" plot showing the joint 2D and marginalized posterior distributions
+    -- "Corner" plot showing the joint 3D and marginalized posterior distributions
        for each free parameter
 
 2.) COS3_18434_mcmc_burnin_trace.pdf

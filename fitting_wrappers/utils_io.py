@@ -538,6 +538,16 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     return data2d
     
 #
+def load_single_object_3D_data(params=None):
+    
+    raise ValueError("Not generically supported for now: will need to write your own wrapper to load cubes.")
+    
+    
+    data3d = None
+    
+    return data3d
+    
+#
 def set_comp_param_prior(comp=None, param_name=None, params=None):
     
     if params['{}_fixed'.format(param_name)] is False:
