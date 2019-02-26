@@ -95,12 +95,6 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None):
     params['outdir'] = outdir
     
     fitting.ensure_dir(params['outdir'])
-    
-    # Copy paramfile into outdir for posterity:
-    #os.system('cp {} {}'.format(param_filename, outdir))
-
-    # Copy paramfile that is OS independent
-    shutil.copy(param_filename, outdir)
 
     # Check if fitting already done:
     if params['fit_method'] == 'mcmc':
@@ -125,6 +119,12 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None):
         print('------------------------------------------------------------------')
         print(" ")
     else:
+        # Copy paramfile into outdir for posterity:
+        #os.system('cp {} {}'.format(param_filename, outdir))
+
+        # Copy paramfile that is OS independent
+        shutil.copy(param_filename, outdir)
+        
         #######################
         # Setup
         gal, fit_dict = setup_single_object_3D(params=params, data=data)
