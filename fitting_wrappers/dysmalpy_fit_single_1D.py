@@ -126,8 +126,9 @@ def setup_single_object_1D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup galaxy, instrument, model:
     
-    if (params['profile1d_type'].lower() != 'circ_ap_cube'):
-        raise ValueError(" Are you really sure the data is extracted as {}? Everything tested for 'circ_ap_cube'.".format(params['profile1d_type']))
+    # if (params['profile1d_type'].lower() != 'circ_ap_cube'):
+    #     raise ValueError(" Are you really sure the data is extracted as {}? Everything tested for 'circ_ap_cube'.".format(params['profile1d_type']))
+    # 
     
     gal = setup_gal_inst_mod_1D(params=params)
     
@@ -136,8 +137,14 @@ def setup_single_object_1D(params=None, data=None):
     if data is None:
         gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], params=params)
         gal.data.filename_velocity = params['fdata']
+        gal.data.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
+        #params['profile1d_type']
     else:
         gal.data = data
+        if gal.data.apertures is None:
+            gal.data.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
+        
+    
     
     # ------------------------------------------------------------
     # Setup fitting dict:

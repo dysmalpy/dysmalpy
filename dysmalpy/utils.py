@@ -18,7 +18,7 @@ from scipy import interpolate
 from scipy.optimize import minimize
 from scipy.stats import norm
 
-
+from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
 
@@ -195,6 +195,9 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
           contain the errors on those parameters.
     """
     # profile_direction = 'negative'
+    
+    raise ValueError("This function is depreciated, and we should switch any other calls to it.\n Please let codewriters know.")
+    
     
     ny = cube.shape[1]
     nx = cube.shape[2]
@@ -396,21 +399,28 @@ def extract_1D_moments_from_cube(gal,
     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
     
     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
-    aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(gal.data.data.unmasked_data[:]*gal.data.mask, 
-                                        rpix, slit_pa,vel_arr,
-                                        dr=aper_dist_pix,
-                                        ap_centers=aper_centers_pix,
-                                        center_pixel=center_pixel)
-                                        
-    aper_centers = aper_centers_pixout*rstep
-                                                              
-
+    # aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(gal.data.data.unmasked_data[:]*gal.data.mask, 
+    #                                     rpix, slit_pa, vel_arr,
+    #                                     dr=aper_dist_pix,
+    #                                     ap_centers=aper_centers_pix,
+    #                                     center_pixel=center_pixel)
+    #                                     
+    # aper_centers = aper_centers_pixout*rstep
+    
+    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+    
+    
+    aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr, 
+                    cube=gal.data.data.unmasked_data[:]*gal.data.mask, 
+                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+    
     # Remove points where the fit was bad
     ind = np.isfinite(vel1d) & np.isfinite(disp1d)
-
+    
     gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
                              vel_disp=disp1d[ind], slit_width=slit_width,
-                             slit_pa=slit_pa)
+                             slit_pa=slit_pa, apertures=apertures)
     
     return gal
     
@@ -420,7 +430,7 @@ def extract_2D_moments_from_cube(gal):
     raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
     
     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
-   
+    
     
     data_cube = SpectralCube(data=gal.data.data.unmasked_data[:].value, 
                 mask=mask, wcs=gal.data.data.wcs)

@@ -30,7 +30,8 @@ import dill as _pickle
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
-from dysmalpy.utils import measure_1d_profile_apertures, apply_smoothing_2D, apply_smoothing_3D
+from dysmalpy.utils import apply_smoothing_2D, apply_smoothing_3D
+# from dysmalpy.utils import measure_1d_profile_apertures
 
 __all__ = ['Galaxy']
 
@@ -359,40 +360,48 @@ class Galaxy:
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
 
-            elif profile1d_type == 'circ_ap_cube':
-
-                rpix = slit_width/rstep/2.
-
-                if aper_dist is None:
-                    aper_dist_pix = 2*rpix
-                else:
-                    aper_dist_pix = aper_dist/rstep
-
-                aper_centers_pix = aper_centers/rstep
-                
-                
-                ##########
-
-                if from_data:
-                    if (self.data.aper_center_pix_shift is not None):
-                        center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-                                        np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
-                    else:
-                        center_pixel = None
-                else:
-                    center_pixel = None
-                
-                aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
-                                                                          vel_arr,
-                                                                          dr=aper_dist_pix,
-                                                                          ap_centers=aper_centers_pix,
-                                                                          center_pixel=center_pixel, 
-                                                                          debug=debug)
-                aper_centers = aper_centers_pixout*rstep
-                                                                          
-
+            # elif profile1d_type == 'circ_ap_cube':
+            # 
+            #     rpix = slit_width/rstep/2.
+            # 
+            #     if aper_dist is None:
+            #         aper_dist_pix = 2*rpix
+            #     else:
+            #         aper_dist_pix = aper_dist/rstep
+            # 
+            #     aper_centers_pix = aper_centers/rstep
+            #     
+            #     
+            #     ##########
+            # 
+            #     if from_data:
+            #         if (self.data.aper_center_pix_shift is not None):
+            #             center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
+            #                             np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+            #         else:
+            #             center_pixel = None
+            #     else:
+            #         center_pixel = None
+            #     
+            #     aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
+            #                                                               vel_arr,
+            #                                                               dr=aper_dist_pix,
+            #                                                               ap_centers=aper_centers_pix,
+            #                                                               center_pixel=center_pixel, 
+            #                                                               debug=debug)
+            #     aper_centers = aper_centers_pixout*rstep
+            #                                                               
+            # 
+            # else:
+            #     raise TypeError('Unknown method for measuring the 1D profiles.')
+            
             else:
-                raise TypeError('Unknown method for measuring the 1D profiles.')
+                try:
+                    aper_centers, flux1d, vel1d, disp1d = gal.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
+                                    cube=cube_data, center_pixel = center_pixel, pixscale=center_pixel)
+                    
+                except:
+                    raise TypeError('Unknown method for measuring the 1D profiles.')
 
 
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
