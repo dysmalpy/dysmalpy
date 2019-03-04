@@ -22,7 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-__all__ = ["Aperture", "EllipAperture", "RectAperture", "FlaredAperture"]
+__all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures", 
+            "EllipApertures", "CircApertures", "RectApertures", "SquareApertures" ]
 
 deg2rad = np.pi / 180.
 
@@ -114,15 +115,40 @@ class EllipAperture(Aperture):
         apmask = ( (yslits/self.pix_parallel)**2 + (xslits/self.pix_perp)**2 <= 1. )
 
         return apmask
+        
+#
+class RectAperture(Aperture):
+    """
+    Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
+    """
 
-        
-        
-        
-        
-        
-        
-        
-        
+    def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
+            aper_center=None, nx=None, ny=None):
+
+        # set things here
+        self.pix_perp = pix_perp
+        self.pix_parallel = pix_parallel
+        self.slit_PA = slit_PA
+
+
+        super(RectAperture, self).__init__(aper_center=aper_center, 
+                                            nx=nx, ny=ny)
+
+
+    def define_aperture_mask(self):
+        seps_sky, pa_sky = calc_pixel_distance(self.nx, self.ny, self.aper_center)
+
+        xskys = seps_sky * -1 * np.sin(pa_sky*deg2rad)
+        yskys = seps_sky * np.cos(pa_sky*deg2rad)
+
+        xslits = xskys * np.cos(self.slit_PA*deg2rad)       + yskys * np.sin(self.slit_PA*deg2rad)
+        yslits = xskys * -1. * np.sin(self.slit_PA*deg2rad) + yskys * np.cos(self.slit_PA*deg2rad)
+
+        apmask = ( (xslits <= self.pix_perp/2.) & (yslits <= self.pix_parallel/2.) )
+
+        return apmask
+
+
         
 class Apertures(object):
     """
@@ -229,35 +255,81 @@ class CircApertures(EllipApertures):
                 pix_perp=rpix, pix_parallel=rpix, nx=nx, ny=ny, 
                 center_pixel=center_pixel, pixscale=pixscale)
     
+#
+class RectApertures(Apertures):
+    """
+    Generic case. Should be array of Aperture objects. Needs the loop.
+    Uses same generic extract_1d_kinematics as Apertures.
+    Sizes can vary. -- depending on if pix_perp and pix_parallel are arrays or scalar.
+    
+    FOR THIS CASE: aper_centers are along the slit.
+    
+    rarr should be in *** ARCSEC ***
+    
+    Note here that pix_perp and pix_parallel are the *WIDTHS* of the rectangular apertures
+    
+    """
+    def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
+             nx=None, ny=None, center_pixel=None, pixscale=None):
+        
+        #aper_center_pix_shift = None
+        
+        # Assume the default central pixel is the center of the cube
+        if center_pixel is None:
+            center_pixel = ((nx - 1) / 2., (ny - 1) / 2.)
+        
+        try: 
+            if len(pix_perp) > 1:
+                pix_perp = np.array(pix_perp)
+            else:
+                pix_perp = np.repeat(pix_perp[0], len(rarr))
+        except:
+            pix_perp = np.repeat(pix_perp, len(rarr))
+            
+        try: 
+            if len(pix_parallel) > 1:
+                pix_parallel = np.array(pix_parallel)
+            else:
+                pix_parallel = np.repeat(pix_parallel[0], len(rarr))
+        except:
+            pix_parallel = np.repeat(pix_parallel, len(rarr))
+            
+        self.pix_perp = pix_perp
+        self.pix_parallel = pix_parallel
+        self.slit_PA = slit_PA
+        self.rarr = rarr
+        self.nx = nx
+        self.ny = ny
+        self.center_pixel = center_pixel
+        self.pixscale = pixscale
+        
+        aper_centers_pix = np.zeros((2,len(self.rarr)))
+        apertures = []
+        for i in range(len(rarr)):
+            aper_cent_pix = [rarr[i]*np.sin(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[0], 
+                            rarr[i]*-1.*np.cos(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
+            aper_centers_pix[:,i] = aper_cent_pix
+            apertures.append(RectAperture(slit_PA=self.slit_PA, 
+                        pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
+                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny))
+        
+        self.aper_centers_pix = aper_centers_pix
+        
+        super(RectApertures, self).__init__(apertures=apertures)
 
-# #
-# elif profile1d_type == 'circ_ap_cube':
-# 
-#     rpix = slit_width/rstep/2.
-# 
-#     if aper_dist is None:
-#         aper_dist_pix = 2*rpix
-#     else:
-#         aper_dist_pix = aper_dist/rstep
-# 
-#     aper_centers_pix = aper_centers/rstep
-#     
-#     
-#     ##########
-# 
-#     if from_data:
-#         if (self.data.aper_center_pix_shift is not None):
-#             center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-#                             np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
-#         else:
-#             center_pixel = None
-#     else:
-#         center_pixel = None
-#     
-#     aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
-#                                                               vel_arr,
-#                                                               dr=aper_dist_pix,
-#                                                               ap_centers=aper_centers_pix,
-#                                                               center_pixel=center_pixel, 
-#                                                               debug=debug)
-#     aper_centers = aper_centers_pixout*rstep
+class SquareApertures(RectApertures):
+    """
+    Note here that pix_perp and pix_parallel are the *WIDTHS* of the rectangular apertures
+    
+    """
+    def __init__(self, rarr=None, slit_PA=None, pix_length=None, 
+             nx=None, ny=None, center_pixel=None, pixscale=None):
+             
+        super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
+                pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny, 
+                center_pixel=center_pixel, pixscale=pixscale)
+                
+                
+                
+                
+                
