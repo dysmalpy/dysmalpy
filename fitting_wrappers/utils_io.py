@@ -418,6 +418,71 @@ def setup_mpfit_dict(params=None):
         mpfit_dict[key] = params[key]
 
     return mpfit_dict
+    
+    
+def setup_basic_aperture_types(gal=None, params=None):
+    
+    if (params['profile1d_type'].lower() == 'circ_ap_cube'):
+        
+        slit_width = gal.data.slit_width
+        rstep = gal.instrument.pixscale.value
+        aper_centers = gal.data.rarr
+        slit_pa = gal.data.slit_pa
+        nx = gal.instrument.fov[0]
+        ny = gal.instrument.fov[1]
+        
+        if ('aperture_radius' in params.keys()):
+            rpix = params['aperture_radius']/rstep
+        else:
+            rpix = slit_width/rstep/2.
+        
+    
+        aper_centers_pix = aper_centers/rstep
+        
+        
+        if (gal.data.aper_center_pix_shift is not None):
+            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
+                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+            
+        apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+                 
+    elif (params['profile1d_type'].lower() == 'rect_ap_cube'):
+        
+        raise ValueError('Write me!')
+        
+        
+        rstep = gal.instrument.pixscale.value
+        aper_centers = gal.data.rarr
+        slit_pa = gal.data.slit_pa
+        nx = gal.instrument.fov[0]
+        ny = gal.instrument.fov[1]
+        
+        rpix = slit_width/rstep/2.
+        
+        
+        
+    
+        aper_centers_pix = aper_centers/rstep
+        
+        
+        if (gal.data.aper_center_pix_shift is not None):
+            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
+                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+        
+        
+        apertures = RectApertures(rarr=aper_centers_pix, slit_PA=slit_pa, pix_perp=pix_perp, pix_parallel=pix_parallel, 
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+        
+    else:
+        raise TypeError('Unknown method for measuring the 1D profiles.')
+        
+        
+    return apertures
 
     
 def load_single_object_1D_data(fdata=None, params=None):

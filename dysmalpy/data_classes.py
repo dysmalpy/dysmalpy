@@ -134,6 +134,9 @@ class Data1D(Data):
         self.slit_width = slit_width
         self.slit_pa = slit_pa
         self.rarr = r
+        
+        self.apertures = None
+        
         super(Data1D, self).__init__(data=data, error=error, ndim=1,
                                      shape=shape, mask=mask,
                                      filename_velocity=filename_velocity, 

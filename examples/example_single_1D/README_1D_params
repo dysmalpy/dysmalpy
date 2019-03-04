@@ -35,7 +35,10 @@ slit_pa: Position angle in degrees that the apertures were placed on.
 
 symmetrize_data: True/False for whether you want the data to be symmetrized.
 
-profile1d_type: For now, do NOT change this parameter in the file.
+profile1d_type: Default 1D aperture extraction shape. For now, we recommend to NOT change this parameter in the file.
+aperture_radius: Circular aperture radius. Have used half slit width in past 
+                   -- Eg, aperture diam = slit width
+                   * If this kwarg is missing, set equal to half of the slit width by default.
 
 
 
