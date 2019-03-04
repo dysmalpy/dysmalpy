@@ -359,41 +359,6 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
-
-            # elif profile1d_type == 'circ_ap_cube':
-            # 
-            #     rpix = slit_width/rstep/2.
-            # 
-            #     if aper_dist is None:
-            #         aper_dist_pix = 2*rpix
-            #     else:
-            #         aper_dist_pix = aper_dist/rstep
-            # 
-            #     aper_centers_pix = aper_centers/rstep
-            #     
-            #     
-            #     ##########
-            # 
-            #     if from_data:
-            #         if (self.data.aper_center_pix_shift is not None):
-            #             center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-            #                             np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
-            #         else:
-            #             center_pixel = None
-            #     else:
-            #         center_pixel = None
-            #     
-            #     aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(cube_data, rpix, slit_pa,
-            #                                                               vel_arr,
-            #                                                               dr=aper_dist_pix,
-            #                                                               ap_centers=aper_centers_pix,
-            #                                                               center_pixel=center_pixel, 
-            #                                                               debug=debug)
-            #     aper_centers = aper_centers_pixout*rstep
-            #                                                               
-            # 
-            # else:
-            #     raise TypeError('Unknown method for measuring the 1D profiles.')
             
             else:
                 try:
