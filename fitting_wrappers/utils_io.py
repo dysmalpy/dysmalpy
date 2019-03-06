@@ -459,14 +459,14 @@ def setup_basic_aperture_types(gal=None, params=None):
         
         rpix = slit_width/rstep/2.
         
-        if ('pix_perp' in params.keys():
+        if ('pix_perp' in params.keys()):
             pix_perp = params['pix_perp']
         else:
             # Default to slit width
             pix_perp = slit_width/rstep
             
         #
-        if ('pix_parallel' in params.keys():
+        if ('pix_parallel' in params.keys()):
             pix_parallel = params['pix_parallel']
         else:
             # Default to slit width
@@ -496,7 +496,7 @@ def setup_basic_aperture_types(gal=None, params=None):
         
         rpix = slit_width/rstep/2.
         
-        if ('pix_length' in params.keys():
+        if ('pix_length' in params.keys()):
             pix_length = params['pix_length']
         else:
             # Default to slit width
