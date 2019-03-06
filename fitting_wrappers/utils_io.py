@@ -18,6 +18,8 @@ from dysmalpy import parameters
 from dysmalpy import fitting
 from dysmalpy import utils as dysmalpy_utils
 
+from dysmalpy import aperture_classes
+
 from astropy.table import Table
 
 import astropy.io.fits as fits
@@ -446,7 +448,7 @@ def setup_basic_aperture_types(gal=None, params=None):
         else:
             center_pixel = None
             
-        apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
+        apertures = aperture_classes.CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
     elif (params['profile1d_type'].lower() == 'rect_ap_cube'):
@@ -483,7 +485,7 @@ def setup_basic_aperture_types(gal=None, params=None):
             center_pixel = None
         
         
-        apertures = RectApertures(rarr=aper_centers_pix, slit_PA=slit_pa, 
+        apertures = aperture_classes.RectApertures(rarr=aper_centers_pix, slit_PA=slit_pa, 
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
@@ -512,7 +514,7 @@ def setup_basic_aperture_types(gal=None, params=None):
             center_pixel = None
         
         
-        apertures = SquareApertures(rarr=aper_centers_pix, slit_PA=slit_pa, pix_length = pix_length, 
+        apertures = aperture_classes.SquareApertures(rarr=aper_centers_pix, slit_PA=slit_pa, pix_length = pix_length, 
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
     else:
