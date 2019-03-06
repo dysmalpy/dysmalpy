@@ -361,6 +361,16 @@ class Galaxy:
                 disp1d = disp_interp(aper_centers)
             
             else:
+                
+                if from_data:
+                    if (self.data.aper_center_pix_shift is not None):
+                        center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
+                                        np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                    else:
+                        center_pixel = None
+                else:
+                    center_pixel = None
+                
                 try:
                     aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
                                 cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
