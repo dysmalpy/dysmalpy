@@ -30,7 +30,10 @@ from matplotlib import colorbar
 import corner
 
 from .utils import calc_pix_position
-from .utils import extract_1D_2D_data_moments_from_cube
+
+from .aperture_classes import CircApertures
+
+#from .utils import extract_1D_2D_data_moments_from_cube
 
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
@@ -1621,4 +1624,167 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
             ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
     
     return ax
+    
+    
+    
+    
+    
+#
+
+def extract_1D_2D_data_moments_from_cube(gal, 
+            slit_width=None, slit_pa=None, 
+            aper_dist=None):
+    try:
+        if gal.data2d is not None:
+            extract = False
+        else:
+            extract = True
+    except:
+        extract = True
+    
+        
+    if extract:
+        gal = extract_2D_moments_from_cube(gal)
+        
+        
+    #
+    try:
+        if gal.data1d is not None:
+            extract = False
+        else:
+            extract = True
+    except:
+        extract = True
+    
+    if extract:
+        gal = extract_1D_moments_from_cube(gal, 
+                slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist)
+    
+    
+    return gal
+    
+def extract_1D_moments_from_cube(gal, 
+            slit_width=None, slit_pa=None, 
+            aper_dist=None):
+    
+    if slit_width is None:
+        slit_width = gal.instrument.beam.major.to(u.arcsec).value
+    if slit_pa is None:
+        slit_pa = gal.model.geometry.pa.value
+    
+    
+    rstep = gal.instrument.pixscale.value
+    
+    
+    rpix = slit_width/rstep/2.
+    
+    if aper_dist is None:
+        aper_dist_pix = rpix #2*rpix
+    else:
+        aper_dist_pix = aper_dist/rstep
+        
+    
+    # Aper centers: pick roughly number fitting into size:
+    nx = gal.data.shape[2]
+    ny = gal.data.shape[1]
+    center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift, 
+                    np.int(ny / 2) + gal.model.geometry.yshift)
+                    
+    aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2) 
+    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
+    
+    vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
+    # aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(gal.data.data.unmasked_data[:]*gal.data.mask, 
+    #                                     rpix, slit_pa, vel_arr,
+    #                                     dr=aper_dist_pix,
+    #                                     ap_centers=aper_centers_pix,
+    #                                     center_pixel=center_pixel)
+    #                                     
+    # aper_centers = aper_centers_pixout*rstep
+    
+    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+    
+    
+    aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr, 
+                    cube=gal.data.data.unmasked_data[:]*gal.data.mask, 
+                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+    
+    # Remove points where the fit was bad
+    ind = np.isfinite(vel1d) & np.isfinite(disp1d)
+    
+    gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
+                             vel_disp=disp1d[ind], slit_width=slit_width,
+                             slit_pa=slit_pa, apertures=apertures)
+    
+    return gal
+    
+    
+def extract_2D_moments_from_cube(gal):
+    
+    raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+    
+    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+    
+    
+    data_cube = SpectralCube(data=gal.data.data.unmasked_data[:].value, 
+                mask=mask, wcs=gal.data.data.wcs)
+    
+    #
+    if gal.data.smoothing_type is not None:
+        data_cube = apply_smoothing_3D(data_cube,
+                    smoothing_type=self.data.smoothing_type,
+                    smoothing_npix=self.data.smoothing_npix)
+        smoothing_type=gal.data.smoothing_type
+        smoothing_npix=gal.data.smoothing_npix
+    else:
+        smoothing_type = None
+        smoothing_npix = None
+    
+    vel = data_cube.moment1().to(u.km/u.s).value
+    disp = data_cube.linewidth_sigma().to(u.km/u.s).value
+    
+    msk3d_coll = np.sum(gal.data.mask, axis=0)
+    whmsk = np.where(msk3d_coll == 0)
+    mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+    mask[whmsk] = 0
+    
+    
+    # if gal.data.smoothing_type is not None:
+    #     vel, disp = apply_smoothing_2D(vel, disp,
+    #                 smoothing_type=gal.data.smoothing_type,
+    #                 smoothing_npix=gal.data.smoothing_npix)
+    #     smoothing_type=gal.data.smoothing_type
+    #     smoothing_npix=gal.data.smoothing_npix
+    # else:
+    #     smoothing_type = None
+    #     smoothing_npix = None
+    
+    
+    # Artificially mask the bad stuff:
+    vel[~np.isfinite(vel)] = 0
+    disp[~np.isfinite(disp)] = 0
+    mask[~np.isfinite(vel)] = 0
+    mask[~np.isfinite(disp)] = 0
+    
+    
+    
+    # # Also really crazy values:
+    # vabsmax = 600
+    # dispabsmax = 500
+    # mask[np.abs(vel) > vabsmax] = 0
+    # vel[np.abs(vel) > vabsmax] = 0
+    # mask[np.abs(disp) > dispabsmax] = 0
+    # disp[np.abs(disp) > dispabsmax] = 0
+    
+    
+    
+    # setup data2d:
+    gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask, 
+                        vel_err=None, vel_disp_err=None, 
+                        smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+                        inst_corr = True)
+    
+    return gal
+
 
