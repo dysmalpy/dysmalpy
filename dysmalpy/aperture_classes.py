@@ -15,7 +15,7 @@ import numpy as np
 import astropy.modeling as apy_mod
 import astropy.units as u
 
-from dysmalpy.utils import calc_pixel_distance
+from .utils import calc_pixel_distance
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
