@@ -361,12 +361,12 @@ class Galaxy:
                 disp1d = disp_interp(aper_centers)
             
             else:
-                # try:
-                aper_centers, flux1d, vel1d, disp1d = gal.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
-                                cube=cube_data, center_pixel = center_pixel, pixscale=center_pixel)
+                try:
+                    aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
+                                cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
                     
-                # except:
-                #     raise TypeError('Unknown method for measuring the 1D profiles.')
+                except:
+                    raise TypeError('Unknown method for measuring the 1D profiles.')
 
 
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
