@@ -237,10 +237,10 @@ class EllipApertures(Apertures):
         aper_centers_pix = np.zeros((2,len(self.rarr)))
         apertures = []
         for i in range(len(rarr)):
-            aper_cent_pix = [rarr[i]*np.sin(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[0], 
-                            rarr[i]*-1.*np.cos(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
+            aper_cent_pix = [rarr[i]*np.sin(slit_PA*deg2rad)/self.pixscale + self.center_pixel[0],
+                            rarr[i]*-1.*np.cos(slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
             aper_centers_pix[:,i] = aper_cent_pix
-            apertures.append(EllipAperture(slit_PA=self.slit_PA, 
+            apertures.append(EllipAperture(slit_PA=slit_PA,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
                         aper_center=aper_cent_pix, nx=self.nx, ny=self.ny))
         
@@ -307,10 +307,10 @@ class RectApertures(Apertures):
         aper_centers_pix = np.zeros((2,len(self.rarr)))
         apertures = []
         for i in range(len(rarr)):
-            aper_cent_pix = [rarr[i]*np.sin(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[0], 
-                            rarr[i]*-1.*np.cos(self.slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
+            aper_cent_pix = [rarr[i]*np.sin(slit_PA*deg2rad)/self.pixscale + self.center_pixel[0],
+                            rarr[i]*-1.*np.cos(slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
             aper_centers_pix[:,i] = aper_cent_pix
-            apertures.append(RectAperture(slit_PA=self.slit_PA, 
+            apertures.append(RectAperture(slit_PA=slit_PA,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
                         aper_center=aper_cent_pix, nx=self.nx, ny=self.ny))
         
