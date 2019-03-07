@@ -183,7 +183,7 @@ class Apertures(object):
                     cube=cube, err=err, mask=mask, spec_mask=spec_mask)
             aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
                        (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
-                       np.sign(-np.sin(self.slit_PA*deg2rad)*(self.apertures[i].aper_center[1]-center_pixel[1])))
+                       np.sign(-np.sin((self.slit_PA+90.)*deg2rad)*(self.apertures[i].aper_center[1]-center_pixel[1])))
 
         
         return aper_centers_pixout*pixscale, flux1d, vel1d, disp1d
