@@ -438,21 +438,18 @@ def setup_basic_aperture_types(gal=None, params=None):
         else:
             rpix = slit_width/rstep/2.
         
-    
-        aper_centers_pix = aper_centers/rstep
-        
-        
         if (gal.data.aper_center_pix_shift is not None):
             center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
                             np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
         else:
             center_pixel = None
             
-        apertures = aperture_classes.CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
+        apertures = aperture_classes.CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
     elif (params['profile1d_type'].lower() == 'rect_ap_cube'):
-        
+
+        slit_width = gal.data.slit_width
         rstep = gal.instrument.pixscale.value
         aper_centers = gal.data.rarr
         slit_pa = gal.data.slit_pa
@@ -473,9 +470,7 @@ def setup_basic_aperture_types(gal=None, params=None):
         else:
             # Default to slit width
             pix_parallel = slit_width/rstep
-            
-        
-        
+
         aper_centers_pix = aper_centers/rstep
         
         if (gal.data.aper_center_pix_shift is not None):
@@ -485,11 +480,13 @@ def setup_basic_aperture_types(gal=None, params=None):
             center_pixel = None
         
         
-        apertures = aperture_classes.RectApertures(rarr=aper_centers_pix, slit_PA=slit_pa, 
+        apertures = aperture_classes.RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
     elif (params['profile1d_type'].lower() == 'square_ap_cube'):
+
+        slit_width = gal.data.slit_widths
         rstep = gal.instrument.pixscale.value
         aper_centers = gal.data.rarr
         slit_pa = gal.data.slit_pa
@@ -514,7 +511,7 @@ def setup_basic_aperture_types(gal=None, params=None):
             center_pixel = None
         
         
-        apertures = aperture_classes.SquareApertures(rarr=aper_centers_pix, slit_PA=slit_pa, pix_length = pix_length, 
+        apertures = aperture_classes.SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
                  
     else:
