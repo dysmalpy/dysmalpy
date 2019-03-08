@@ -1451,17 +1451,33 @@ class KinematicOptions:
                                         " or 'baryonic' accepted.".format(mcomp._subtype, cmp))
             
             
+            converged = np.zeros(len(r1d), dtype=np.bool)
             for i in range(len(r1d)):
-                #try:
-                result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
+                try:
+                    result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
                                         args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]),
                                         maxiter=200, disp=False)
-                #except:
+                    converged[i] = True
+                except:
+                    result = r1d[i]
+                    converged[i] = False
                     
                 rprime_all_1d[i] = result
                 
             
             vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
+            
+            
+            ## TEST:
+            if converged.sum() < len(r1d):
+                if converged.sum() >= 0.9 *len(r1d):
+                    rprime_all_1d = rprime_all_1d[converged]
+                    r1d = r1d[converged]
+                    logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
+                else:
+                    logger.warning("More than 10% of radii newton values not converged!")
+            
+            
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
             
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
@@ -1469,6 +1485,7 @@ class KinematicOptions:
             vhalo_adi = vhalo_adi_interp_map_3d(r)
             
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
+            
             
         else:
 
