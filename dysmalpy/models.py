@@ -1419,7 +1419,7 @@ class KinematicOptions:
                                  skip_bulge=False):
 
         if self.adiabatic_contract:
-            logger.info("Applying adiabatic contraction.")
+            #logger.info("Applying adiabatic contraction.")
             
             # Define 1d radius array for calculation
             step1d = 0.2  # kpc
