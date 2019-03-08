@@ -1452,8 +1452,12 @@ class KinematicOptions:
             
             
             for i in range(len(r1d)):
+                #try:
                 result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
-                                        args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]))
+                                        args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]),
+                                        maxiter=200)
+                #except:
+                    
                 rprime_all_1d[i] = result
                 
             
