@@ -404,7 +404,8 @@ class Galaxy:
 
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, slit_width=slit_width,
-                                     slit_pa=slit_pa, apertures=aper_model)
+                                     slit_pa=slit_pa)
+            self.model_data.apertures = aper_model
 
     #
     def preserve_self(self, filename=None, save_data=True):
