@@ -31,6 +31,7 @@ from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
 from dysmalpy.data_classes import Data1D, Data2D, Data3D
 from dysmalpy.utils import apply_smoothing_2D, apply_smoothing_3D
+from dysmalpy import aperture_classes
 # from dysmalpy.utils import measure_1d_profile_apertures
 
 __all__ = ['Galaxy']
@@ -117,7 +118,9 @@ class Galaxy:
                           spec_unit=(u.km/u.s), aper_centers=None, aper_dist=None,
                           slit_width=None, slit_pa=None, profile1d_type='circ_ap_cube',
                           from_instrument=True, from_data=True,
-                          oversample=1, oversize=1, debug=False):
+                          oversample=1, oversize=1, debug=False,
+                          aperture_radius=None, pix_perp=None, pix_parallel=None,
+                          pix_length=None):
 
         """
         Simulate an IFU cube then optionally collapse it down to a 2D
@@ -371,17 +374,37 @@ class Galaxy:
                 else:
                     center_pixel = None
                 
-                try:
+                
+                #----------------------------------------------------------
+                #try:
+                if from_data:
                     aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
-                                cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+                    aper_model = None
                     
-                except:
-                    raise TypeError('Unknown method for measuring the 1D profiles.')
+                # except:
+                #     raise TypeError('Unknown method for measuring the 1D profiles.')
+                
+                #----------------------------------------------------------
+                else:
+                    
+                    aper_model = aperture_classes.setup_aperture_types(gal=self, 
+                                profile1d_type=profile1d_type, 
+                                slit_width = slit_width, aper_centers=aper_centers, slit_pa=slit_pa, 
+                                aperture_radius=aperture_radius, 
+                                pix_perp=pix_perp, pix_parallel=pix_parallel,
+                                pix_length=pix_length, 
+                                from_data=False)
+                    
+                    
+                    aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr, 
+                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+
 
 
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, slit_width=slit_width,
-                                     slit_pa=slit_pa)
+                                     slit_pa=slit_pa, apertures=aper_model)
 
     #
     def preserve_self(self, filename=None, save_data=True):

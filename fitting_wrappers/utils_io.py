@@ -422,102 +422,38 @@ def setup_mpfit_dict(params=None):
     return mpfit_dict
     
     
+    
+
+    
+    
 def setup_basic_aperture_types(gal=None, params=None):
     
-    if (params['profile1d_type'].lower() == 'circ_ap_cube'):
-        
-        slit_width = gal.data.slit_width
-        rstep = gal.instrument.pixscale.value
-        aper_centers = gal.data.rarr
-        slit_pa = gal.data.slit_pa
-        nx = gal.instrument.fov[0]
-        ny = gal.instrument.fov[1]
-        
-        if ('aperture_radius' in params.keys()):
-            rpix = params['aperture_radius']/rstep
-        else:
-            rpix = slit_width/rstep/2.
-        
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
-        else:
-            center_pixel = None
-            
-        apertures = aperture_classes.CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
-                 
-    elif (params['profile1d_type'].lower() == 'rect_ap_cube'):
-
-        slit_width = gal.data.slit_width
-        rstep = gal.instrument.pixscale.value
-        aper_centers = gal.data.rarr
-        slit_pa = gal.data.slit_pa
-        nx = gal.instrument.fov[0]
-        ny = gal.instrument.fov[1]
-        
-        rpix = slit_width/rstep/2.
-        
-        if ('pix_perp' in params.keys()):
-            pix_perp = params['pix_perp']
-        else:
-            # Default to slit width
-            pix_perp = slit_width/rstep
-            
-        #
-        if ('pix_parallel' in params.keys()):
-            pix_parallel = params['pix_parallel']
-        else:
-            # Default to slit width
-            pix_parallel = slit_width/rstep
-
-        aper_centers_pix = aper_centers/rstep
-        
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
-        else:
-            center_pixel = None
-        
-        
-        apertures = aperture_classes.RectApertures(rarr=aper_centers, slit_PA=slit_pa,
-                pix_perp=pix_perp, pix_parallel=pix_parallel, 
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
-                 
-    elif (params['profile1d_type'].lower() == 'square_ap_cube'):
-
-        slit_width = gal.data.slit_widths
-        rstep = gal.instrument.pixscale.value
-        aper_centers = gal.data.rarr
-        slit_pa = gal.data.slit_pa
-        nx = gal.instrument.fov[0]
-        ny = gal.instrument.fov[1]
-        
-        rpix = slit_width/rstep/2.
-        
-        if ('pix_length' in params.keys()):
-            pix_length = params['pix_length']
-        else:
-            # Default to slit width
-            pix_length = slit_width/rstep
-            
-        
-        aper_centers_pix = aper_centers/rstep
-        
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
-        else:
-            center_pixel = None
-        
-        
-        apertures = aperture_classes.SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
-                 
+    if ('aperture_radius' in params.keys()):
+        aperture_radius=params['aperture_radius']
     else:
-        raise TypeError('Unknown method for measuring the 1D profiles.')
-        
-        
+        aperture_radius = None
+    #
+    if ('pix_perp' in params.keys()):
+        pix_perp=params['pix_perp']
+    else:
+        pix_perp = None
+    #
+    if ('pix_parallel' in params.keys()):
+        pix_parallel=params['pix_parallel']
+    else:
+        pix_parallel = None
+    #
+    if ('pix_length' in params.keys()):
+        pix_length=params['pix_length']
+    else:
+        pix_length = None
+    
+    apertures = aperture_classes.setup_aperture_types(gal=gal, 
+                profile1d_type=params['profile1d_type'], 
+                aperture_radius=aperture_radius, 
+                pix_perp=pix_perp, pix_parallel=pix_parallel
+                pix_length=pix_length, from_data=True):
+    
     return apertures
 
     
