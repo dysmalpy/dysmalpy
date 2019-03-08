@@ -1476,6 +1476,7 @@ class KinematicOptions:
                     logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
                 else:
                     logger.warning("More than 10% of radii newton values not converged!")
+                    logger.warning("theta = {}".format(model.components))
             else:
                 logger.warning("All N={} converged!".format(len(r1d)))
             
