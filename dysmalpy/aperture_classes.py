@@ -365,7 +365,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         else:
             center_pixel = None
 
-        apertures = aperture_classes.CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
+        apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
@@ -386,7 +386,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             center_pixel = None
 
 
-        apertures = aperture_classes.RectApertures(rarr=aper_centers, slit_PA=slit_pa,
+        apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
 
@@ -404,7 +404,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             center_pixel = None
 
 
-        apertures = aperture_classes.SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
+        apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
 
     else:
