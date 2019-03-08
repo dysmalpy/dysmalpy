@@ -1456,7 +1456,7 @@ class KinematicOptions:
                 try:
                     result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
                                         args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]),
-                                        maxiter=200, disp=False)
+                                        maxiter=200)
                     converged[i] = True
                 except:
                     result = r1d[i]
