@@ -122,16 +122,33 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
         f_ascii_machine = outdir+'{}_mcmc_best_fit_results.dat'.format(galID)
 
         f_ascii_pretty = outdir+'{}_mcmc_best_fit_results.info'.format(galID)
-
-
+        
+        
+        # --------------------------------------------
+        # get fdm_best, lfdm, ufdm
+        if params['include_halo']:
+            flatblobs = np.hstack(np.stack(fit_results.sampler['blobs'], axis=1))
+            
+            lfdm, ufdm = np.percentile(flatblobs, [15.865, 84.135])
+            
+            nPostBins=40
+            yb, xb = np.histogram(flatblobs, bins=nPostBins)
+            wh_pk = np.where(yb == yb.max())[0][0]
+            peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
+            
+            ## Use max prob as guess to get peakKDE value,
+            ##      the peak of the marginalized posterior distributions (following M. George's speclens)
+            fdm_best = fitting.getPeakKDE(flatblobs, peak_hist)
+        # --------------------------------------------
+        
+        
         with open(f_ascii_machine, 'w') as f:
             namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
             f.write(namestr+'\n')
-
-
+            
             for cmp_n in gal.model.param_names.keys():
                 for param_n in gal.model.param_names[cmp_n]:
-
+                    
                     if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
                         whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
                         best = fit_results.bestfit_parameters[whparam]
@@ -141,16 +158,25 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                         best = getattr(gal.model.components[cmp_n], param_n).value
                         l68 = -99.
                         u68 = -99.
-
+                        
                     datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
                                 "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
                     f.write(datstr+'\n')
-
-            #
+                    
+            ###
+            
+            #fdm_best, lfdm, ufdm
+            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('f_DM_RE', '-----',
+                        '-----', fdm_best, lfdm, ufdm)
+            f.write(datstr+'\n')
+            
+            
+            ###
             datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
                         '-----', fit_results.bestfit_redchisq, -99, -99)
             f.write(datstr+'\n')
-
+            
+            #
         #
         with open(f_ascii_pretty, 'w') as f:
             f.write('###############################'+'\n')
@@ -178,7 +204,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
 
             f.write('\n')
-            f.write('Fitting method: MPFIT')
+            f.write('Fitting method: {}'.format(params['fit_method'].upper()))
             f.write('\n')
             f.write('###############################'+'\n')
             f.write(' Fitting results'+'\n')
@@ -209,7 +235,15 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                         datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
                         f.write(datstr+'\n')
 
-            #
+            
+            ####
+            f.write('\n')
+            f.write('-----------'+'\n')
+            datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format('f_DM(R_E)', 
+                        fdm_best, lfdm, ufdm)
+            f.write(datstr+'\n')
+            
+            ####
             f.write('\n')
             f.write('-----------'+'\n')
             datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
