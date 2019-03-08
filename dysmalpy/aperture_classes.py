@@ -334,3 +334,85 @@ class SquareApertures(RectApertures):
                 
                 
                 
+                
+#
+
+def setup_aperture_types(gal=None, profile1d_type=None, 
+            slit_width = None, aper_centers=None, slit_pa=None, 
+            aperture_radius=None, pix_perp=None, pix_parallel=None,
+            pix_length=None, from_data=True):
+            
+    if from_data:
+        slit_width = gal.data.slit_width
+        aper_centers = gal.data.rarr
+        slit_pa = gal.data.slit_pa
+
+    rstep = gal.instrument.pixscale.value
+    nx = gal.instrument.fov[0]
+    ny = gal.instrument.fov[1]
+
+    if (profile1d_type.lower() == 'circ_ap_cube'):
+
+
+        if (aperture_radius is not None):
+            rpix = aperture_radius/rstep
+        else:
+            rpix = slit_width/rstep/2.
+
+        if (gal.data.aper_center_pix_shift is not None):
+            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
+                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+
+        apertures = aperture_classes.CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+
+    elif (profile1d_type.lower() == 'rect_ap_cube'):
+
+        if (pix_perp is None):
+            pix_perp = slit_width/rstep
+
+        #
+        if (pix_parallel is None):
+            pix_parallel = slit_width/rstep
+
+        aper_centers_pix = aper_centers/rstep
+
+        if (gal.data.aper_center_pix_shift is not None):
+            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
+                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+
+
+        apertures = aperture_classes.RectApertures(rarr=aper_centers, slit_PA=slit_pa,
+                pix_perp=pix_perp, pix_parallel=pix_parallel, 
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+
+    elif (profile1d_type.lower() == 'square_ap_cube'):
+
+        if ('pix_length' is None):
+            pix_length = slit_width/rstep
+
+        aper_centers_pix = aper_centers/rstep
+
+        if (gal.data.aper_center_pix_shift is not None):
+            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
+                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
+        else:
+            center_pixel = None
+
+
+        apertures = aperture_classes.SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+
+    else:
+        raise TypeError('Unknown method for measuring the 1D profiles.')
+
+    return apertures
+
+
+                
+                
+                
