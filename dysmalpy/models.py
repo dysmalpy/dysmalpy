@@ -1476,7 +1476,8 @@ class KinematicOptions:
                     logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
                 else:
                     logger.warning("More than 10% of radii newton values not converged!")
-            
+            else:
+                logger.warning("All N={} converged!".format(len(r1d)))
             
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
             
