@@ -1471,9 +1471,9 @@ class KinematicOptions:
             ## TEST:
             if converged.sum() < len(r1d):
                 if converged.sum() >= 0.9 *len(r1d):
+                    logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
                     rprime_all_1d = rprime_all_1d[converged]
                     r1d = r1d[converged]
-                    logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
                 else:
                     logger.warning("More than 10% of radii newton values not converged!")
                     logger.warning("theta = {}".format(model.components))
