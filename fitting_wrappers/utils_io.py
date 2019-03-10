@@ -138,7 +138,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             
             ## Use max prob as guess to get peakKDE value,
             ##      the peak of the marginalized posterior distributions (following M. George's speclens)
-            fdm_best = fitting.getPeakKDE(flatblobs, peak_hist)
+            fdm_best = fitting.getPeakKDE(flatblobs, peak_hist)[0]
         # --------------------------------------------
         
         
@@ -166,9 +166,10 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             ###
             
             #fdm_best, lfdm, ufdm
-            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('f_DM_RE', '-----',
-                        '-----', fdm_best, lfdm, ufdm)
-            f.write(datstr+'\n')
+            if params['include_halo']:
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('f_DM_RE', '-----',
+                            '-----', fdm_best, lfdm, ufdm)
+                f.write(datstr+'\n')
             
             
             ###
@@ -237,12 +238,13 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
 
             
             ####
-            f.write('\n')
-            f.write('-----------'+'\n')
-            datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format('f_DM(R_E)', 
-                        fdm_best, lfdm, ufdm)
-            f.write(datstr+'\n')
-            
+            if params['include_halo']:
+                f.write('\n')
+                f.write('-----------'+'\n')
+                datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format('f_DM(R_E)',
+                            fdm_best, lfdm, ufdm)
+                f.write(datstr+'\n')
+
             ####
             f.write('\n')
             f.write('-----------'+'\n')
