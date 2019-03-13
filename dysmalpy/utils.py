@@ -39,7 +39,7 @@ def calc_pixel_distance(nx, ny, center_coord):
     # Calculate the separation
     seps = np.sqrt(dx**2 + dy**2)
 
-    pa = -np.arctan(dx/dy)*180./np.pi
+    pa = np.arctan2(-dx, dy)*180./np.pi
 
     return seps, pa
 

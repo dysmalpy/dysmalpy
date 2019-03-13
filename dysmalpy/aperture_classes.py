@@ -144,7 +144,7 @@ class RectAperture(Aperture):
         xslits = xskys * np.cos(self.slit_PA*deg2rad)       + yskys * np.sin(self.slit_PA*deg2rad)
         yslits = xskys * -1. * np.sin(self.slit_PA*deg2rad) + yskys * np.cos(self.slit_PA*deg2rad)
 
-        apmask = ( (xslits <= self.pix_perp/2.) & (yslits <= self.pix_parallel/2.) )
+        apmask = ( (np.abs(xslits) <= self.pix_perp/2.) & (np.abs(yslits) <= self.pix_parallel/2.) )
 
         return apmask
 
