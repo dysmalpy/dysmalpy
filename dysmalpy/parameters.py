@@ -64,7 +64,7 @@ class Prior:
 class UniformPrior(Prior):
     # TODO: Do we need to scale the uniform priors?
     @staticmethod
-    def log_prior(param):
+    def log_prior(param, modelset):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -103,7 +103,7 @@ class GaussianPrior(Prior):
         self.center = center
         self.stddev = stddev
 
-    def log_prior(self, param):
+    def log_prior(self, param, modelset):
         return norm.pdf(param.value, loc=self.center,
                         scale=self.stddev)
 
@@ -119,7 +119,7 @@ class BoundedGaussianPrior(Prior):
         self.center = center
         self.stddev = stddev
 
-    def log_prior(self, param):
+    def log_prior(self, param, modelset):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -171,7 +171,7 @@ class BoundedSineGaussianPrior(Prior):
         
         self.center_sine = np.sin(self.center*np.pi/180.)
 
-    def log_prior(self, param):
+    def log_prior(self, param, modelset):
 
         if param.bounds[0] is None:
             pmin = -np.inf
