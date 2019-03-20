@@ -457,7 +457,8 @@ class ModelSet:
             for paramn in params_names:
                 if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: add to total prior
-                    log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn))
+                    #if self.prior_func is not None:
+                    log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn), self)
         return log_prior_model
         
     def get_dm_aper(self, r, rstep=0.2):
