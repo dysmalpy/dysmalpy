@@ -666,7 +666,7 @@ def tie_sigz_reff(model_set):
 
 class TiedUniformPrior(parameters.UniformPrior):
 
-    def log_prior(param, modelset):
+    def log_prior(self, param, modelset):
 
         pmin = modelset.components['disk+bulge'].total_mass.value
 
