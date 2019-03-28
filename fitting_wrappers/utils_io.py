@@ -636,6 +636,15 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
                 comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=params[param_name],
                                                                         stddev=params['{}_stddev'.format(param_name)])
+
+            elif params['{}_prior'.format(param_name)].lower() == 'tied_flat':
+                comp.prior[param_name] = TiedUniformPrior()
+
+            elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian':
+                comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
+                                                                  stddev=params['{}_stddev'.format(
+                                                                                 param_name)])
+
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
@@ -653,13 +662,43 @@ def tie_sigz_reff(model_set):
     sigz = 2.0*reff/invq/2.35482
 
     return sigz
-    
-    
+
+
+class TiedUniformPrior(parameters.UniformPrior):
+
+    def log_prior(param, modelset):
+
+        pmin = modelset.components['disk+bulge'].total_mass.value
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (param.value >= pmin) & (param.value <= pmax):
+            return 0.
+        else:
+            return -np.inf
+
+
+class TiedBoundedGaussianPrior(parameters.BoundedGaussianPrior):
+
+    def log_prior(self, param, modelset):
+
+        pmin = modelset.components['disk+bulge'].total_mass.value
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (param.value >= pmin) & (param.value <= pmax):
+            return parameters.norm.pdf(param.value, loc=self.center, scale=self.stddev)
+        else:
+            return -np.inf
+
+
 def ensure_path_trailing_slash(path):
     if (path[-1] != '/'):
         path += '/'
     return path
-    
-    
-    
-    
