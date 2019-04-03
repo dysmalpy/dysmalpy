@@ -1279,6 +1279,7 @@ def getPeakKDE(flatchain, guess):
     """
     Return chain pars that give peak of posterior PDF, using KDE.
     From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
+    By Matt George
     """
     if(len(flatchain.shape)==1):
         nPars=1
@@ -1298,6 +1299,7 @@ def getPeakKDEmultiD(flatchain, inds, guess):
     """
     Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
     From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
+    By Matt George
     """
     nPars = len(inds)
     
