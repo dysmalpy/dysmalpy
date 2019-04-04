@@ -337,7 +337,7 @@ def fit(gal, nWalkers=10,
     # Check if it failed to converge before the max number of steps, if doing convergence testing
     finishedSteps= ii+1
     if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        logger.info(" Caution: no convergence within nSteps.")
+        logger.info(" Caution: no convergence within nSteps={}.".format(nSteps))
 
     # --------------------------------
     # Finishing info for fitting:
