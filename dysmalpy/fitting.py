@@ -4,6 +4,10 @@
 # Main classes and functions for fitting DYSMALPY kinematic models
 #   to the observed data using MCMC
 
+# Some handling of MCMC / posterior distribution analysis inspired by speclens, 
+#    with thanks to Matt George: 
+#    https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -292,7 +296,7 @@ def fit(gal, nWalkers=10,
         pos_cur = pos.copy()    # copy just in case things are set strangely
 
         # --------------------------------
-        # 1: only do one step at a time.
+        # Only do one step at a time:
         if compute_dm:
             pos, prob, state, dm_frac = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
                         rstate0=state, blobs0 = dm_frac)
@@ -307,7 +311,6 @@ def fit(gal, nWalkers=10,
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
         try:
-            #acor_time = sampler.acor
             acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
@@ -317,21 +320,24 @@ def fit(gal, nWalkers=10,
                      
         # --------------------------------
         # Case: test for convergence and truncate early:
-        if((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-            if(minAF < np.mean(sampler.acceptance_fraction) < maxAF):
-                if acor_time is not None:
-                    if ( ii > np.max(acor_time) * nEff ):
-                        if ii == acor_force_min:
-                            logger.info(" Enforced min step limit: {}.".format(ii+1))
-                        if ii >= acor_force_min:
-                            logger.info(" Breaking chain at step {}.".format(ii+1))
-                            break
+        # Criteria checked: whether acceptance fraction within (minAF, maxAF), 
+        #                   and whether total number of steps > nEff * average autocorrelation time:
+        #                   to make sure the paramter space is well explored.
+        if ((minAF is not None) & (maxAF is not None) & \
+                (nEff is not None) & (acor_time is not None)):
+            if ((minAF < np.mean(sampler.acceptance_fraction) < maxAF) & \
+                ( ii > np.max(acor_time) * nEff )):
+                    if ii == acor_force_min:
+                        logger.info(" Enforced min step limit: {}.".format(ii+1))
+                    if ii >= acor_force_min:
+                        logger.info(" Finishing calculations early at step {}.".format(ii+1))
+                        break
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
     finishedSteps= ii+1
     if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        logger.info(" Warning: chain did not converge after nSteps.")
+        logger.info(" Caution: no convergence within nSteps.")
 
     # --------------------------------
     # Finishing info for fitting:
@@ -342,7 +348,7 @@ def fit(gal, nWalkers=10,
         #acor_time = sampler.acor
         acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
     except:
-        acor_time = "Undefined, chain did not converge"
+        acor_time = "Undefined, chain not converged"
 
     #######################################################################################
     # ***********
@@ -825,9 +831,8 @@ class MCMCResults(FitResults):
             wh_pk = np.where(yb == yb.max())[0][0]
             mcmc_peak_hist[i] = np.average([xb[wh_pk], xb[wh_pk+1]])
 
-        ## Use max prob as guess to get peakKDE value,
-        ##      the peak of the marginalized posterior distributions (following M. George's speclens)
-        mcmc_param_bestfit = getPeakKDE(self.sampler['flatchain'], mcmc_peak_hist)
+        ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
+        mcmc_param_bestfit = find_peak_gaussian_KDE(self.sampler['flatchain'], mcmc_peak_hist)
 
         # --------------------------------------------
         if linked_posterior_names is not None:
@@ -1010,8 +1015,7 @@ def log_prob(theta, gal,
             lprob = lprior + llike
 
         if not np.isfinite(lprob):
-            # Make sure the non-finite ln_prob is -Inf,
-            #    as this can be escaped in the next step
+            # Make sure the non-finite ln_prob is -Inf, for emcee handling
             lprob = -np.inf
             
         if compute_dm:
@@ -1275,38 +1279,45 @@ def create_default_mcmc_options():
     return mcmc_options
 
 
-def getPeakKDE(flatchain, guess):
+def gaussian_KDE_kernel_func(flatchain):
     """
-    Return chain pars that give peak of posterior PDF, using KDE.
-    From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
-    By Matt George
+    Return negative of gaussian KDE estimated from parameter chain -- to find distribution peak 
+        using scipy.optimize.fmin
     """
-    if(len(flatchain.shape)==1):
-        nPars=1
-        kern=gaussian_kde(flatchain)
-        peakKDE=fmin(lambda x: -kern(x), guess,disp=False)
-        return peakKDE
-    else:
-        nPars=flatchain.shape[1]
-        peakKDE=np.zeros(nPars)
-        for ii in range(nPars):
-            kern=gaussian_kde(flatchain[:,ii])
-            peakKDE[ii]=fmin(lambda x: -kern(x), guess[ii],disp=False)
-        return peakKDE
-        
+    return -gaussian_kde(flatchain)
 
-def getPeakKDEmultiD(flatchain, inds, guess):
+def find_peak_gaussian_KDE(flatchain, initval):
     """
-    Return chain pars that give peak of posterior PDF *FOR LINKED PARAMETERS, using KDE.
-    From speclens: https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
-    By Matt George
+    Return chain parameters that give peak of the posterior PDF, using KDE.
     """
-    nPars = len(inds)
-    
-    kern = gaussian_kde(flatchain[:,inds].T)
-    peakKDE = fmin(lambda x: -kern(x), guess, disp=False)
-    
-    return peakKDE
+    try:
+        nparams = flatchain.shape[1]
+    except:
+        nparams = 1
+
+    if nparams > 1:
+        peakvals = np.zeros(nparams)
+        for i in six.moves.xrange(nparams):
+            neg_kernel = gaussian_KDE_kernel_func(flatchain[:,i])
+            peakvals[i] = fmin(neg_kernel, initval[i], disp=False)
+        return peakvals
+    else:
+        neg_kernel = gaussian_KDE_kernel_func(flatchain)
+        peakval = fmin(neg_kernel, initval, disp=False)
+
+        return peakval
+
+
+def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
+    """
+    Return chain parameters that give peak of the posterior PDF *FOR LINKED PARAMETERS, using KDE.
+    """
+
+    nparams = len(linked_inds)
+    neg_kern = gaussian_KDE_kernel_func(flatchain[:,inds].T)
+    peakvals = fmin(neg_kernel, initval, disp=False)
+
+    return peakvals
     
 
 def get_linked_posterior_peak_values(flatchain,
@@ -1331,31 +1342,12 @@ def get_linked_posterior_peak_values(flatchain,
                                     eg:
                                     bestfit_theta_linked = [ [best1, best2], [best3, best4] ]
     """
-    # if nPostBins % 2 == 0:
-    #     nPostBinsOdd = nPostBins+1
-    # else:
-    #     nPostBinsOdd = nPostBins
-    # 
-    # bestfit_theta_linked = np.array([])
-    # 
-    # for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-    #     H, edges = np.histogramdd(flatchain[:,linked_posterior_ind_arr[k]], bins=nPostBinsOdd)
-    #     wh_H_peak = np.column_stack(np.where(H == H.max()))[0]
-    # 
-    #     bestfit_thetas = np.array([])
-    #     for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
-    #         bestfit_thetas = np.append(bestfit_thetas, np.average([edges[j][wh_H_peak[j]],
-    #                                                         edges[j][wh_H_peak[j]+1]]))
-    #     if len(bestfit_theta_linked) >= 1:
-    #         bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
-    #     else:
-    #         bestfit_theta_linked = np.array([bestfit_thetas])
 
-    # Use KDE to get bestfit linked:
+    # Use gaussian KDE to get bestfit linked:
     bestfit_theta_linked = np.array([])
 
     for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-        bestfit_thetas = getPeakKDEmultiD(flatchain, linked_posterior_ind_arr[k], 
+        bestfit_thetas = find_peak_gaussian_KDE_multiD(flatchain, linked_posterior_ind_arr[k], 
                 guess[linked_posterior_ind_arr[k]])
         if len(bestfit_theta_linked) >= 1:
             bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )

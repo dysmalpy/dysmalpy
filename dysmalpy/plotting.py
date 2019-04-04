@@ -33,7 +33,8 @@ from .utils import calc_pix_position
 
 from .aperture_classes import CircApertures
 
-#from .utils import extract_1D_2D_data_moments_from_cube
+from dysmalpy.extern.altered_colormaps import new_diverging_cmap
+
 
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
@@ -319,10 +320,6 @@ def plot_data_model_comparison_2D(gal,
     keyxtitlearr = ['Data', 'Model', 'Residual']
     keyytitlearr = [r'$V$', r'$\sigma$']
 
-    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
-    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
-
-
 
     int_mode = "nearest"
     origin = 'lower'
@@ -330,7 +327,7 @@ def plot_data_model_comparison_2D(gal,
     cmap.set_bad(color='k')
     
     
-    gamma = 1.5 #1.2 # 1. # 1.5 # 3. # 2. 
+    gamma = 1.5 
     cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5, 
                 gamma_lower=gamma, gamma_upper=gamma, 
                 name_new='RdBu_r_stretch')
@@ -343,8 +340,6 @@ def plot_data_model_comparison_2D(gal,
         vel_shift = gal.model.geometry.vel_shift.value
     except:
         vel_shift = 0
-
-    #vel_shift = gal.model.geometry.vel_shift.value
     
     #
     vel_vmin -= vel_shift
@@ -911,13 +906,11 @@ def plot_model_multid_base(gal,
     
         int_mode = "nearest"
         origin = 'lower'
-        cmap =  cm.Spectral_r #cm.nipy_spectral
+        cmap =  cm.Spectral_r 
         cmap.set_bad(color='k')
         
         
-        # cmap_resid = cm.RdBu_r
-        
-        gamma = 1.5 #1.2 # 1. # 1.5 # 3. # 2. 
+        gamma = 1.5 
         cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5, 
                     gamma_lower=gamma, gamma_upper=gamma, 
                     name_new='RdBu_r_stretch')
@@ -1446,109 +1439,7 @@ def make_clean_mcmc_plot_names(mcmcResults):
     return names
 
 
-#
-def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
-    gamma_upper=1.0, excise_middle=False, bad=None, over=None, under=None,
-    name_new=None):
-  """
-  Provides functions for altering colormaps to make them more suitable for
-  particular use cases.
 
-  From Drummond Fielding and Chris White GSPS talk 2016-17
-  
-  ++++++++++++++++
-  
-  Creates a recentered and/or stretched and/or sharper version of the given
-  colormap.
-
-  Inputs:
-
-    name_original: String naming existing colormap, which should be diverging
-    and must have an anchor point at 0.5.
-
-    diverge: Location of new center from which colors diverge. Defaults to 0.5.
-
-    gamma_lower, gamma_upper: Stretch parameters for values below and above the
-    diverging point. Must be positive. Values greater than 1 compress colors
-    near the diverging point, providing more color resolution there. Values less
-    than 1 do the same at the extremes of the range. Default to no stretching.
-
-    excise_middle: Flag indicating the middle point should be removed, with the
-    two color ranges joined sharply instead. Defaults to False.
-
-    bad, over, under: Colors to be used for invalid values, values above the
-    upper limit, and values below the lower limit. Default to values from
-    original map.
-
-    name_new: String under which new colormap will be registered. Defaults to
-    prepending 'New' to original name.
-
-  Returns new colormap.
-  
-  
-  
-  """
-
-  # Get original colormap
-  cmap_original_data = cm.datad[name_original]
-  cmap_original = cm.get_cmap(name_original)
-
-  # Define new colormap data
-  cmap_new_data = {}
-  for color in ('red', 'green', 'blue'):
-
-    # Get original definition
-    new_data = np.array(cmap_original._segmentdata[color])
-    midpoint = np.where(new_data[:,0] == 0.5)[0][0]
-
-    # Excise middle value if desired
-    if excise_middle:
-      anchor_lower = new_data[midpoint-1,0]
-      anchors_lower = new_data[:midpoint,0]
-      anchors_lower = 1.0/(2.0*anchor_lower) * anchors_lower
-      anchor_upper = new_data[midpoint+1,0]
-      anchors_upper = new_data[midpoint+1:,0]
-      anchors_upper = 1.0/(2.0-2.0*anchor_upper) * (anchors_upper-1.0) + 1.0
-      anchors = np.concatenate((anchors_lower[:-1], [0.5], anchors_upper[1:]))
-      vals_below = \
-          np.concatenate((new_data[:midpoint,1], new_data[midpoint+2:,1]))
-      vals_above = \
-          np.concatenate((new_data[:midpoint-1,2], new_data[midpoint+1:,2]))
-      new_data = np.vstack((anchors, vals_below, vals_above)).T
-      midpoint -= 1
-
-    # Apply shift and stretch if desired
-    anchors_lower = new_data[:midpoint,0]
-    if diverge != 0.5 or gamma_lower != 1.0:
-      anchors_lower = diverge * (1.0 - (1.0-2.0*anchors_lower) ** gamma_lower)
-    anchors_upper = new_data[midpoint+1:,0]
-    if diverge != 0.5 or gamma_upper != 1.0:
-      anchors_upper = \
-          diverge + (1.0-diverge) * (2.0*anchors_upper-1.0) ** gamma_upper
-    anchors = np.concatenate((anchors_lower, [diverge], anchors_upper))
-    anchors[0] = 0.0
-    anchors[-1] = 1.0
-    new_data[:,0] = anchors
-
-    # Record changes
-    cmap_new_data[color] = new_data
-
-  # Create new colormap
-  if name_new is None:
-    name_new = 'New' + name_original
-  cmap_new = mplcolors.LinearSegmentedColormap(name_new, cmap_new_data)
-  bad = cmap_original(np.nan) if bad is None else bad
-  over = cmap_original(np.inf) if over is None else over
-  under = cmap_original(-np.inf) if under is None else under
-  cmap_new.set_bad(bad)
-  cmap_new.set_over(over)
-  cmap_new.set_under(under)
-
-  # Register and return new colormap
-  cm.register_cmap(name=name_new, cmap=cmap_new)
-  return cmap_new
-
-#
 def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
 
     aper_centers = data1d.rarr
@@ -1694,13 +1585,6 @@ def extract_1D_moments_from_cube(gal,
     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
     
     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
-    # aper_centers_pixout, flux1d, vel1d, disp1d = measure_1d_profile_apertures(gal.data.data.unmasked_data[:]*gal.data.mask, 
-    #                                     rpix, slit_pa, vel_arr,
-    #                                     dr=aper_dist_pix,
-    #                                     ap_centers=aper_centers_pix,
-    #                                     center_pixel=center_pixel)
-    #                                     
-    # aper_centers = aper_centers_pixout*rstep
     
     apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix, 
              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
