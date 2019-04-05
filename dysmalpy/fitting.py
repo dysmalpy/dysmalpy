@@ -911,6 +911,15 @@ class MCMCResults(FitResults):
 
         ## location of peaks of *marginalized histograms* for each parameter
         yb, xb = np.histogram(blobs, bins=nPostBins)
+        if logspace:
+            whgood = np.where(xb < -0.1)[0]
+            xb = xb[whgood]
+            yb = yb[whgood]
+        else:
+            whgood = np.where((xb < 0.8) & (xb > 0.15))[0]
+            xb = xb[whgood]
+            yb = yb[whgood]
+            
         wh_pk = np.where(yb == yb.max())[0][0]
         fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
         
