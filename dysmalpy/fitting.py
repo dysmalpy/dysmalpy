@@ -1371,7 +1371,7 @@ def gaussian_KDE_kernel_func(flatchain):
     Return negative of gaussian KDE estimated from parameter chain -- to find distribution peak 
         using scipy.optimize.fmin
     """
-    return -gaussian_kde(flatchain)
+    return -1.*gaussian_kde(flatchain)
 
 def find_peak_gaussian_KDE(flatchain, initval):
     """
