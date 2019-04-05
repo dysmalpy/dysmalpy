@@ -1366,12 +1366,12 @@ def create_default_mcmc_options():
     return mcmc_options
 
 
-def gaussian_KDE_kernel_func(flatchain):
-    """
-    Return negative of gaussian KDE estimated from parameter chain -- to find distribution peak 
-        using scipy.optimize.fmin
-    """
-    return -1.*gaussian_kde(flatchain)
+# def gaussian_KDE_kernel_func(flatchain):
+#     """
+#     Return negative of gaussian KDE estimated from parameter chain -- to find distribution peak 
+#         using scipy.optimize.fmin
+#     """
+#     return -1.*gaussian_kde(flatchain)
 
 def find_peak_gaussian_KDE(flatchain, initval):
     """
@@ -1385,12 +1385,17 @@ def find_peak_gaussian_KDE(flatchain, initval):
     if nparams > 1:
         peakvals = np.zeros(nparams)
         for i in six.moves.xrange(nparams):
-            neg_kernel = gaussian_KDE_kernel_func(flatchain[:,i])
-            peakvals[i] = fmin(neg_kernel, initval[i], disp=False)
+            # neg_kernel = gaussian_KDE_kernel_func(flatchain[:,i])
+            # peakvals[i] = fmin(neg_kernel, initval[i], disp=False)
+            kern = gaussian_kde(flatchain[:,i])
+            peakvals[i] = fmin(lambda x: -kern(x), initval[i],disp=False)
         return peakvals
     else:
-        neg_kernel = gaussian_KDE_kernel_func(flatchain)
-        peakval = fmin(neg_kernel, initval, disp=False)
+        # neg_kernel = gaussian_KDE_kernel_func(flatchain)
+        # peakval = fmin(neg_kernel, initval, disp=False)
+        
+        kern = gaussian_kde(flatchain)
+        peakval = fmin(lambda x: -kern(x), initval,disp=False)
 
         return peakval
 
@@ -1400,10 +1405,14 @@ def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
     Return chain parameters that give peak of the posterior PDF *FOR LINKED PARAMETERS, using KDE.
     """
 
+    # nparams = len(linked_inds)
+    # neg_kern = gaussian_KDE_kernel_func(flatchain[:,inds].T)
+    # peakvals = fmin(neg_kernel, initval, disp=False)
+    
     nparams = len(linked_inds)
-    neg_kern = gaussian_KDE_kernel_func(flatchain[:,inds].T)
-    peakvals = fmin(neg_kernel, initval, disp=False)
-
+    kern = gaussian_kde(flatchain[:,inds].T)
+    peakvals = fmin(lambda x: -kern(x), initval,disp=False)
+    
     return peakvals
     
 
