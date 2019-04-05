@@ -404,6 +404,9 @@ def fit(gal, nWalkers=10,
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
+                
+    if compute_dm:
+        mcmcResults.analyze_dm_posterior_dist(nPostBins=nPostBins, logspace=True)
 
             
     # Update theta to best-fit:
@@ -879,7 +882,91 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
         self.bestfit_redchisq = None
+        
+    # 
+    def analyze_dm_posterior_dist(self, nPostBins=40, logspace=True):
+        """
+        Default analysis of posterior distributions of fDM from MCMC fitting:
+            look at marginalized posterior distributions, and
+            extract the best-fit value (peak of KDE), and extract the +- 1 sigma uncertainty bounds
+            (eg, the 16%/84% distribution of posteriors)
 
+        """
+
+        if self.sampler is None:
+            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
+        #
+        if ('flatblobs' not in self.sampler.keys()):
+            self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+            
+        if logspace:
+            blobs = np.log10(self.sampler['flatblobs'])
+            
+        else:
+            blobs = self.sampler['flatblobs']
+            
+            
+        # Unpack MCMC samples: lower, upper 1, 2 sigma
+        fdm_mcmc_limits = np.percentile(blobs, [15.865, 84.135], axis=0)
+
+        ## location of peaks of *marginalized histograms* for each parameter
+        yb, xb = np.histogram(blobs, bins=nPostBins)
+        wh_pk = np.where(yb == yb.max())[0][0]
+        fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
+        
+
+        ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
+        fdm_mcmc_param_bestfit = find_peak_gaussian_KDE(blobs, fdm_mcmc_peak_hist)
+
+
+        # --------------------------------------------
+        # Uncertainty bounds are currently determined from marginalized posteriors
+        #   (even if the best-fit is found from linked posterior).
+
+        fdm_mcmc_stack = np.concatenate(([fdm_mcmc_param_bestfit], fdm_mcmc_limits), axis=0)
+        # Order: best fit value, lower 1sig bound, upper 1sig bound
+
+        fdm_mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
+                            list(zip(*mcmc_stack)))))
+
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        if logspace:
+            self.bestfit_fdm_log = fdm_mcmc_param_bestfit
+
+            # Separate 1sig l, u uncertainty, for utility:
+            self.bestfit_fdm_log_l68_err = self.bestfit_fdm_log - fdm_mcmc_limits[0]
+            self.bestfit_fdm_log_u68_err = fdm_mcmc_limits[1] - self.bestfit_fdm_log
+            
+            
+            
+            self.bestfit_fdm = np.power(10., fdm_mcmc_param_bestfit)
+
+            # Separate 1sig l, u uncertainty, for utility:
+            self.bestfit_fdm_l68_err = self.bestfit_fdm - np.power(10., fdm_mcmc_limits[0])
+            self.bestfit_fdm_u68_err = np.power(10., fdm_mcmc_limits[1]) - self.bestfit_fdm
+        else:
+            self.bestfit_fdm_log = np.log10(fdm_mcmc_param_bestfit)
+
+            # Separate 1sig l, u uncertainty, for utility:
+            self.bestfit_fdm_log_l68_err = self.bestfit_fdm_log - np.log10(fdm_mcmc_limits[0])
+            self.bestfit_fdm_log_u68_err = np.log10(fdm_mcmc_limits[1]) - self.bestfit_fdm_log
+            
+            
+            self.bestfit_fdm = fdm_mcmc_param_bestfit
+
+            # # 1sig lower, upper uncertainty
+            # self.bestfit_fdm_err = fdm_mcmc_uncertainties_1sig
+            # 
+            # # Bound limits (in case it's useful)
+            # self.bestfit_fdm_l68 = fdm_mcmc_limits[0]
+            # self.bestfit_fdm_u68 = fdm_mcmc_limits[1]
+
+            # Separate 1sig l, u uncertainty, for utility:
+            self.bestfit_fdm_l68_err = fdm_mcmc_param_bestfit - fdm_mcmc_limits[0]
+            self.bestfit_fdm_u68_err = fdm_mcmc_limits[1] - fdm_mcmc_param_bestfit
+        
+        
             
     def save_chain_ascii(self, filename=None):
         if filename is not None:
