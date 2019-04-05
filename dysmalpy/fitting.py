@@ -921,7 +921,10 @@ class MCMCResults(FitResults):
             yb = yb[whgood]
             
         wh_pk = np.where(yb == yb.max())[0][0]
-        fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
+        try:
+            fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
+        except:
+            fdm_mcmc_peak_hist =  xb[wh_pk]
         
 
         ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
