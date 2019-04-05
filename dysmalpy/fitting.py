@@ -923,11 +923,11 @@ class MCMCResults(FitResults):
         # Uncertainty bounds are currently determined from marginalized posteriors
         #   (even if the best-fit is found from linked posterior).
 
-        fdm_mcmc_stack = np.concatenate(([fdm_mcmc_param_bestfit], fdm_mcmc_limits), axis=0)
-        # Order: best fit value, lower 1sig bound, upper 1sig bound
+        # fdm_mcmc_stack = np.concatenate(([fdm_mcmc_param_bestfit], fdm_mcmc_limits), axis=0)
+        # # Order: best fit value, lower 1sig bound, upper 1sig bound
 
-        fdm_mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
-                            list(zip(*mcmc_stack)))))
+        # fdm_mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
+        #                     list(zip(*fdm_mcmc_stack)))))
 
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
