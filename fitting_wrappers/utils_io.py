@@ -138,7 +138,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             
             ## Use max prob as guess to get peakKDE value,
             ##      the peak of the marginalized posterior distributions (following M. George's speclens)
-            fdm_best = fitting.getPeakKDE(flatblobs, peak_hist)[0]
+            fdm_best = fitting.find_peak_gaussian_KDE(flatblobs, peak_hist)[0]
         # --------------------------------------------
         
         
