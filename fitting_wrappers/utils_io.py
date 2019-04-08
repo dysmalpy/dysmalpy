@@ -127,18 +127,13 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
         # --------------------------------------------
         # get fdm_best, lfdm, ufdm
         if params['include_halo']:
-            flatblobs = np.hstack(np.stack(fit_results.sampler['blobs'], axis=1))
             
-            lfdm, ufdm = np.percentile(flatblobs, [15.865, 84.135])
+            fit_results.analyze_dm_posterior_dist(logspace=True)
             
-            nPostBins=40
-            yb, xb = np.histogram(flatblobs, bins=nPostBins)
-            wh_pk = np.where(yb == yb.max())[0][0]
-            peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
+            fdm_best = fit_results.bestfit_fdm
+            lfdm = fit_results.bestfit_fdm_l68_err
+            ufdm = fit_results.bestfit_fdm_u68_err
             
-            ## Use max prob as guess to get peakKDE value,
-            ##      the peak of the marginalized posterior distributions (following M. George's speclens)
-            fdm_best = fitting.find_peak_gaussian_KDE(flatblobs, peak_hist)[0]
         # --------------------------------------------
         
         
