@@ -1409,7 +1409,10 @@ def find_peak_gaussian_KDE(flatchain, initval):
         kern = gaussian_kde(flatchain)
         peakval = fmin(lambda x: -kern(x), initval,disp=False)
 
-        return peakval
+        try:
+            return peakval[0]
+        except:
+            return peakval
 
 
 def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
