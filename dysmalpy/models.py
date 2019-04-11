@@ -1469,17 +1469,23 @@ class KinematicOptions:
             vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
             
             
-            ## TEST:
+            # Just calculations:
             if converged.sum() < len(r1d):
                 if converged.sum() >= 0.9 *len(r1d):
-                    logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
                     rprime_all_1d = rprime_all_1d[converged]
                     r1d = r1d[converged]
-                else:
-                    logger.warning("More than 10% of radii newton values not converged!")
-                    logger.warning("theta = {}".format(model.components))
-            else:
-                logger.warning("All N={} converged!".format(len(r1d)))
+            
+            # ## Calculations + ERROR WARNINGS
+            # if converged.sum() < len(r1d):
+            #     if converged.sum() >= 0.9 *len(r1d):
+            #         logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
+            #         rprime_all_1d = rprime_all_1d[converged]
+            #         r1d = r1d[converged]
+            #     else:
+            #         logger.warning("More than 10% of radii newton values not converged!")
+            #         logger.warning("theta = {}".format(model.components))
+            # else:
+            #     logger.warning("All N={} converged!".format(len(r1d)))
             
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
             
