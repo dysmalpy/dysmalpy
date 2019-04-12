@@ -406,7 +406,7 @@ def fit(gal, nWalkers=10,
                 nPostBins=nPostBins)
                 
     if compute_dm:
-        mcmcResults.analyze_dm_posterior_dist(nPostBins=nPostBins, logspace=True)
+        mcmcResults.analyze_dm_posterior_dist(logspace=False)
 
             
     # Update theta to best-fit:
@@ -884,7 +884,7 @@ class MCMCResults(FitResults):
         self.bestfit_redchisq = None
         
     # 
-    def analyze_dm_posterior_dist(self, nPostBins=40, logspace=True):
+    def analyze_dm_posterior_dist(self, logspace=False):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -892,6 +892,7 @@ class MCMCResults(FitResults):
             (eg, the 16%/84% distribution of posteriors)
 
         """
+        nPostBins=1000    # Force to do fine sampling
 
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
@@ -900,6 +901,8 @@ class MCMCResults(FitResults):
             self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
             
         if logspace:
+            raise ValueErorr("We made the decision to do finely sampled hist in linear space")
+            
             blobs = np.log10(self.sampler['flatblobs'])
             
         else:

@@ -128,7 +128,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
         # get fdm_best, lfdm, ufdm
         if params['include_halo']:
             
-            fit_results.analyze_dm_posterior_dist(logspace=True)
+            fit_results.analyze_dm_posterior_dist(logspace=False)
             
             fdm_best = fit_results.bestfit_fdm
             lfdm = fit_results.bestfit_fdm_l68_err
