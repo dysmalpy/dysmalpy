@@ -51,7 +51,7 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
     
     cat = pd.DataFrame({})
     
-    for galID in gal:
+    for galID in galIDs:
         
         aper_types = ['flared_rect', 'circ']
         data = None
