@@ -43,7 +43,8 @@ def read_gal_list_from_file(f_gallist=None):
     
     return galIDs
 
-def gather_catalog(f_gallist=None, cat_outname_base=None, fitting_path=None, galdirect_base=None):
+def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
+            fitting_path=None, galdirect_base=None):
     
     
     galIDs = read_gal_list_from_file(f_gallist=f_gallist)
@@ -93,12 +94,14 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, fitting_path=None, gal
 if __name__ == "__main__":
     
     f_gallist = sys.argv[1]
-    cat_outname_base = sys.argv[2]
-    fitting_path = sys.argv[3]
-    galdirect_base = sys.argv[4]
+    cat_outpath = sys.argv[2]
+    cat_outname_base = sys.argv[3]
+    fitting_path = sys.argv[4]
+    galdirect_base = sys.argv[5]
     
     
-    gather_catalog(f_gallist=f_gallist, cat_outname_base=cat_outname_base, 
+    gather_catalog(f_gallist=f_gallist, cat_outpath=cat_outpath, 
+                    cat_outname_base=cat_outname_base, 
                     fitting_path=fitting_path, galdirect_base=galdirect_base)
     
     
