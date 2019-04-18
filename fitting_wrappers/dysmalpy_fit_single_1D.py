@@ -26,7 +26,7 @@ import astropy.units as u
 try:
     import utils_io
 except:
-    import .utils_io
+    from . import utils_io
 #import plotting_wrappers
 
 
