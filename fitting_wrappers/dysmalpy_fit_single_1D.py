@@ -23,7 +23,10 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 
-import utils_io
+try:
+    import utils_io
+except:
+    import .utils_io
 #import plotting_wrappers
 
 
