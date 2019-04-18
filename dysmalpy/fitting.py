@@ -921,8 +921,10 @@ class MCMCResults(FitResults):
         else:
             whgood = np.where((xb < 0.8) & (xb > 0.15))[0]
             xb = xb[whgood]
+            if (whgood[-1] == nPostBins):
+                whgood = whgood[:-1]
             yb = yb[whgood]
-            
+
         wh_pk = np.where(yb == yb.max())[0][0]
         try:
             fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
