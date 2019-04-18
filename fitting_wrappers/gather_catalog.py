@@ -44,7 +44,7 @@ def read_gal_list_from_file(f_gallist=None):
     return galIDs
 
 def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
-            fitting_path=None, galdirect_base=None):
+            fitting_path=None, galdirect_base=None, truncate=False):
     
     
     galIDs = read_gal_list_from_file(f_gallist=f_gallist)
@@ -62,7 +62,10 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
                     galdirect = "{}_{}_{}_aps".format(galID, galdirect_base, aper_type)
                     galfilename = "{}_mcmc_best_fit_results.dat".format(galID)
         
-                    fname = fitting_path+'/'+galdirect+'/'+galfilename
+                    if not truncate:
+                        fname = fitting_path+'/'+galdirect+'/'+galfilename
+                    else:
+                        fname = fitting_path+'/'+galfilename
         
                     ascii_data = utils_io.read_results_ascii_file(fname=fname)
                     data = utils_io.make_catalog_row_entry(ascii_data=ascii_data, galID=galID)
@@ -100,9 +103,18 @@ if __name__ == "__main__":
     fitting_path = sys.argv[4]
     galdirect_base = sys.argv[5]
     
-    
+    try:
+        trunc_tmp = sys.argv[6]
+        if trunc_tmp.strip().lower() == 'true':
+            truncate=True
+        elif trunc_tmp.strip().lower() == 'false':
+            truncate=False
+    except:
+        truncate=False
+
     gather_catalog(f_gallist=f_gallist, cat_outpath=cat_outpath, 
                     cat_outname_base=cat_outname_base, 
-                    fitting_path=fitting_path, galdirect_base=galdirect_base)
+                    fitting_path=fitting_path, galdirect_base=galdirect_base,
+                    truncate=truncate)
     
     
