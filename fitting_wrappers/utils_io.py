@@ -373,7 +373,8 @@ def make_catalog_row_entry(ascii_data=None, galID=None):
     params = ['total_mass', 'r_eff_disk', 'bt', 'mvirial', 'conc', 'sigma0']
     extra_params = ['f_DM_RE']
     
-    data = pd.DataFrame({'galID': galID})
+    data = pd.DataFrame({'galID': galID}, 
+                         index=[0])
     
     for par in params:
         whrow = np.where((ascii_data['param_name'].str.strip()==par))[0][0]

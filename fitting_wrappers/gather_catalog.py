@@ -55,6 +55,7 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
         
         aper_types = ['flared_rect', 'circ']
         data = None
+        
         for aper_type in aper_types:
             if data is None:
                 try:
@@ -63,8 +64,8 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
         
                     fname = fitting_path+'/'+galdirect+'/'+galfilename
         
-                    ascii_data = read_results_ascii_file(fname=fname)
-                    data = make_catalog_row_entry(ascii_data=ascii_data, galID=galID)
+                    ascii_data = utils_io.read_results_ascii_file(fname=fname)
+                    data = utils_io.make_catalog_row_entry(ascii_data=ascii_data, galID=galID)
                 except:
                     pass
                 
@@ -72,11 +73,11 @@ def gather_catalog(f_gallist=None, cat_outname_base=None, cat_outpath=None,
         cat = cat.append(data, ignore_index = True) 
         
         
-        
     # Save to file:
     # outdir
-    f_FITS = cat_outname_base+'.fits'
-    f_CSV = cat_outname_base+'.csv'
+    fitting.ensure_dir(cat_outpath)
+    f_FITS = cat_outpath+'/'+cat_outname_base+'.fits'
+    f_CSV = cat_outpath+'/'+cat_outname_base+'.csv'
     
     
     cat.to_csv(f_CSV)
