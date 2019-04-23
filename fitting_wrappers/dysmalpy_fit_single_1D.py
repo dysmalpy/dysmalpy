@@ -157,7 +157,7 @@ def setup_single_object_1D(params=None, data=None):
     
     
     
-def setup_gal_inst_mod_1D(params=None):
+def setup_gal_inst_mod_1D(params=None, no_baryons=False):
     # ------------------------------------------------------------
     # Initialize the Galaxy, Instrument, and Model Set
     gal = galaxy.Galaxy(z=params['z'], name=params['galID'])
@@ -296,7 +296,10 @@ def setup_gal_inst_mod_1D(params=None):
     
     # --------------------------------------
     # Add all of the model components to the ModelSet
-    mod_set.add_component(bary, light=True)
+    if no_baryons:
+        print("Note: you are not including any baryons.")
+    else:
+        mod_set.add_component(bary, light=True)
     if params['include_halo']:
         mod_set.add_component(halo)
     mod_set.add_component(disp_prof)
