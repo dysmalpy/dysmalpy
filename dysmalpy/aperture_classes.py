@@ -181,9 +181,16 @@ class Apertures(object):
         for i in range(naps):
             flux1d[i], vel1d[i], disp1d[i] = self.apertures[i].extract_aper_kin(spec_arr=spec_arr, 
                     cube=cube, err=err, mask=mask, spec_mask=spec_mask)
-            aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
-                       (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
-                       np.sign(-np.sin((self.slit_PA+90.)*deg2rad)*(self.apertures[i].aper_center[1]-center_pixel[1])))
+
+            if (self.apertures[i].aper_center[1] != center_pixel[1]):
+                aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
+                           (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
+                           np.sign(-np.sin((self.slit_PA+90.)*deg2rad)*(self.apertures[i].aper_center[1]-center_pixel[1])))
+            else:
+                aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
+                           (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
+                           np.sign(-np.cos((self.slit_PA+90.)*deg2rad)*(self.apertures[i].aper_center[0]-center_pixel[0])))
+
 
         
         return aper_centers_pixout*pixscale, flux1d, vel1d, disp1d
