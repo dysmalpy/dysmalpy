@@ -297,7 +297,7 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
     # --------------------------------------
     # Add all of the model components to the ModelSet
     if no_baryons:
-        print("Note: you are not including any baryons.")
+        raise ValueError("You must include baryons, they are the light tracers.")
     else:
         mod_set.add_component(bary, light=True)
     if params['include_halo']:
