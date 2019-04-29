@@ -102,7 +102,8 @@ def read_fitting_params(fname=None):
               'oversample': 1,
               'fitdispersion': True,
               'include_halo': False, 
-              'red_chisq': True }
+              'red_chisq': True, 
+              'linked_posteriors': None }
 
     # param_filename
     fname_split = fname.split('/')
@@ -450,6 +451,24 @@ def setup_mcmc_dict(params=None):
     for key in params.keys():
         # Copy over all various fitting options
         mcmc_dict[key] = params[key]
+        
+    #
+    if mcmc_dict['linked_posteriors'] is not None:
+        linked_post_arr = []
+        for lpost in mcmc_dict['linked_posteriors']:
+            if lpost.strip().lower() == 'total_mass':
+                linked_post_arr.append(['disk+bulge', 'total_mass'])
+            elif lpost.strip().lower() == 'mvirial':
+                linked_post_arr.append(['halo', 'mvirial'])
+            else:
+                raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
+            
+        # "Bundle of linked posteriors"
+        linked_posterior_names = [ linked_post_arr ] 
+        
+        
+        mcmc_dict['linked_posterior_names'] = linked_posterior_names
+        
 
     if mcmc_dict['include_halo']:
 
