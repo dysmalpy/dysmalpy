@@ -406,7 +406,9 @@ def fit(gal, nWalkers=10,
                 nPostBins=nPostBins)
                 
     if compute_dm:
-        mcmcResults.analyze_dm_posterior_dist(logspace=False)
+        mcmcResults.analyze_dm_posterior_dist(logspace=False, 
+                linked_posterior_names=linked_posterior_names, 
+                nPostBins=nPostBins)
 
             
     # Update theta to best-fit:
@@ -884,7 +886,8 @@ class MCMCResults(FitResults):
         self.bestfit_redchisq = None
         
     # 
-    def analyze_dm_posterior_dist(self, logspace=False):
+    def analyze_dm_posterior_dist(self, linked_posterior_names=None, 
+                    nPostBins=50, logspace=False):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -1430,7 +1433,7 @@ def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
     # peakvals = fmin(neg_kernel, initval, disp=False)
     
     nparams = len(linked_inds)
-    kern = gaussian_kde(flatchain[:,inds].T)
+    kern = gaussian_kde(flatchain[:,linked_inds].T)
     peakvals = fmin(lambda x: -kern(x), initval,disp=False)
     
     return peakvals
@@ -1494,6 +1497,10 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
         for a full array of:
         linked_posterior_names = 
             [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
+            
+            
+        Also if doing single bundle must have:
+        linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ] 
     
     Output:
         linked_posterior_inds = [ joint_bundle1_inds, joint_bundle2_inds ]
