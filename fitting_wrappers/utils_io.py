@@ -380,14 +380,14 @@ def make_catalog_row_entry(ascii_data=None, galID=None):
     for par in params:
         whrow = np.where((ascii_data['param_name'].str.strip()==par))[0][0]
         data[par] = ascii_data['best_value'].iloc[whrow]
-        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
         data[par+"_u68_err"] = ascii_data['u68_err'].iloc[whrow]
+        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
     
     for par in extra_params:
         whrow = np.where((ascii_data['component'].str.strip()==par))[0][0]
         data[par] = ascii_data['best_value'].iloc[whrow]
-        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
         data[par+"_u68_err"] = ascii_data['u68_err'].iloc[whrow]
+        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
     
     
     
