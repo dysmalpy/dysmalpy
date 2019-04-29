@@ -731,7 +731,7 @@ class FitResults(object):
         if filename is None:
             filename = self.f_results
         resultsSaved = load_pickle(filename)
-        for key in self.__dict__.keys():
+        for key in resultsSaved.__dict__.keys():
             try:
                 self.__dict__[key] = resultsSaved.__dict__[key]
             except:
