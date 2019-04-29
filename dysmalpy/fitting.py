@@ -405,14 +405,14 @@ def fit(gal, nWalkers=10,
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
                 
-    if compute_dm:
-        mcmcResults.analyze_dm_posterior_dist(logspace=False, 
-                linked_posterior_names=linked_posterior_names, 
-                nPostBins=nPostBins)
+    
 
-            
     # Update theta to best-fit:
     gal.model.update_parameters(mcmcResults.bestfit_parameters)
+                
+    if compute_dm:
+        mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
+
     
     gal.create_model_data(oversample=oversample, oversize=oversize, 
                               line_center=gal.model.line_center)
@@ -886,8 +886,7 @@ class MCMCResults(FitResults):
         self.bestfit_redchisq = None
         
     # 
-    def analyze_dm_posterior_dist(self, linked_posterior_names=None, 
-                    nPostBins=50, logspace=False):
+    def analyze_dm_posterior_dist(self, gal=None, model_key_re=None):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -895,7 +894,8 @@ class MCMCResults(FitResults):
             (eg, the 16%/84% distribution of posteriors)
 
         """
-        nPostBins=1000    # Force to do fine sampling
+        fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        
 
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
@@ -903,88 +903,22 @@ class MCMCResults(FitResults):
         if ('flatblobs' not in self.sampler.keys()):
             self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
             
-        if logspace:
-            raise ValueErorr("We made the decision to do finely sampled hist in linear space")
-            
-            blobs = np.log10(self.sampler['flatblobs'])
-            
-        else:
-            blobs = self.sampler['flatblobs']
+        blobs = self.sampler['flatblobs']
             
             
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         fdm_mcmc_limits = np.percentile(blobs, [15.865, 84.135], axis=0)
 
-        ## location of peaks of *marginalized histograms* for each parameter
-        yb, xb = np.histogram(blobs, bins=nPostBins)
-        if logspace:
-            whgood = np.where(xb < -0.1)[0]
-            xb = xb[whgood]
-            yb = yb[whgood]
-        else:
-            whgood = np.where((xb < 0.8) & (xb > 0.15))[0]
-            xb = xb[whgood]
-            if (whgood[-1] == nPostBins):
-                whgood = whgood[:-1]
-            yb = yb[whgood]
-
-        wh_pk = np.where(yb == yb.max())[0][0]
-        try:
-            fdm_mcmc_peak_hist = np.average([xb[wh_pk], xb[wh_pk+1]])
-        except:
-            fdm_mcmc_peak_hist =  xb[wh_pk]
-        
-
-        ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
-        fdm_mcmc_param_bestfit = find_peak_gaussian_KDE(blobs, fdm_mcmc_peak_hist)
-
-
-        # --------------------------------------------
-        # Uncertainty bounds are currently determined from marginalized posteriors
-        #   (even if the best-fit is found from linked posterior).
-
-        # fdm_mcmc_stack = np.concatenate(([fdm_mcmc_param_bestfit], fdm_mcmc_limits), axis=0)
-        # # Order: best fit value, lower 1sig bound, upper 1sig bound
-
-        # fdm_mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
-        #                     list(zip(*fdm_mcmc_stack)))))
 
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
-        if logspace:
-            self.bestfit_fdm_log = fdm_mcmc_param_bestfit
+        
+        
+        self.bestfit_fdm = fdm_mcmc_param_bestfit
 
-            # Separate 1sig l, u uncertainty, for utility:
-            self.bestfit_fdm_log_l68_err = self.bestfit_fdm_log - fdm_mcmc_limits[0]
-            self.bestfit_fdm_log_u68_err = fdm_mcmc_limits[1] - self.bestfit_fdm_log
-            
-            
-            
-            self.bestfit_fdm = np.power(10., fdm_mcmc_param_bestfit)
-
-            # Separate 1sig l, u uncertainty, for utility:
-            self.bestfit_fdm_l68_err = self.bestfit_fdm - np.power(10., fdm_mcmc_limits[0])
-            self.bestfit_fdm_u68_err = np.power(10., fdm_mcmc_limits[1]) - self.bestfit_fdm
-        else:
-            self.bestfit_fdm_log = np.log10(fdm_mcmc_param_bestfit)
-
-            # Separate 1sig l, u uncertainty, for utility:
-            self.bestfit_fdm_log_l68_err = self.bestfit_fdm_log - np.log10(fdm_mcmc_limits[0])
-            self.bestfit_fdm_log_u68_err = np.log10(fdm_mcmc_limits[1]) - self.bestfit_fdm_log
-            
-            
-            self.bestfit_fdm = fdm_mcmc_param_bestfit
-
-            # # 1sig lower, upper uncertainty
-            # self.bestfit_fdm_err = fdm_mcmc_uncertainties_1sig
-            # 
-            # # Bound limits (in case it's useful)
-            # self.bestfit_fdm_l68 = fdm_mcmc_limits[0]
-            # self.bestfit_fdm_u68 = fdm_mcmc_limits[1]
-
-            # Separate 1sig l, u uncertainty, for utility:
-            self.bestfit_fdm_l68_err = fdm_mcmc_param_bestfit - fdm_mcmc_limits[0]
-            self.bestfit_fdm_u68_err = fdm_mcmc_limits[1] - fdm_mcmc_param_bestfit
+        # Separate 1sig l, u uncertainty, for utility:
+        self.bestfit_fdm_l68_err = fdm_mcmc_param_bestfit - fdm_mcmc_limits[0]
+        self.bestfit_fdm_u68_err = fdm_mcmc_limits[1] - fdm_mcmc_param_bestfit
         
         
             
