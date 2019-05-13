@@ -321,7 +321,7 @@ class Data3D(Data):
         else:
             error = None
         shape = cube.shape
-        flux_map = flux_map
+        self.flux_map = flux_map
 
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
                                      shape=shape, mask=mask)
