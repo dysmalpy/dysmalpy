@@ -276,7 +276,7 @@ class Galaxy:
             #   M/L ratio information from model.
             # collapse in spectral dimension only: axis 0
 
-            if self.data.flux_map is not None:
+            if self.data.flux_map is None:
                 num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
                                  sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
                 den = np.sum(self.data.mask*
