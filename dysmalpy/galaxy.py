@@ -300,6 +300,7 @@ class Galaxy:
                 model_peak = np.nanmax(sim_cube_obs, axis=0)
                 scale = self.data.flux_map/model_peak
                 scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
+                scale3D[0, :, :] = scale
                 sim_cube_obs *= scale3D
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
