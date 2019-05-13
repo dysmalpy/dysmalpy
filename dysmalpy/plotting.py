@@ -1602,7 +1602,8 @@ def extract_1D_moments_from_cube(gal,
     
     gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
                              vel_disp=disp1d[ind], slit_width=slit_width,
-                             slit_pa=slit_pa, apertures=apertures)
+                             slit_pa=slit_pa)
+    gal.data1d.apertures = apertures
     
     return gal
     
