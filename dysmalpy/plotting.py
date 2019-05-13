@@ -1559,7 +1559,10 @@ def extract_1D_moments_from_cube(gal,
             aper_dist=None):
     
     if slit_width is None:
-        slit_width = gal.instrument.beam.major.to(u.arcsec).value
+        try:
+            slit_width = gal.instrument.beam.major.to(u.arcsec).value
+        except:
+            slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
     if slit_pa is None:
         slit_pa = gal.model.geometry.pa.value
     
