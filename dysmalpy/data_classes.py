@@ -238,7 +238,7 @@ class Data3D(Data):
     def __init__(self, cube, pixscale, spec_type, spec_arr,
                  err_cube=None, mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
-                 ref_pixel=None, spec_unit=None):
+                 ref_pixel=None, spec_unit=None, flux_map=None):
 
         if mask_sky is not None:
             if mask_sky.shape != cube.shape[1:]:
@@ -321,6 +321,7 @@ class Data3D(Data):
         else:
             error = None
         shape = cube.shape
+        flux_map = flux_map
 
         super(Data3D, self).__init__(data=data, error=error, ndim=3,
                                      shape=shape, mask=mask)
