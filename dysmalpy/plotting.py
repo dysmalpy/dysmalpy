@@ -28,13 +28,13 @@ from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 from matplotlib import colorbar
 
 import corner
+from spectral_cube import SpectralCube, BooleanArrayMask
 
-from .utils import calc_pix_position
-
+# Package imports
+from .utils import calc_pix_position, apply_smoothing_3D
 from .aperture_classes import CircApertures
-
+from .data_classes import Data1D, Data2D
 from dysmalpy.extern.altered_colormaps import new_diverging_cmap
-
 
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
@@ -1606,7 +1606,7 @@ def extract_1D_moments_from_cube(gal,
     
 def extract_2D_moments_from_cube(gal):
     
-    raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+    #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
     
     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
     
@@ -1617,8 +1617,8 @@ def extract_2D_moments_from_cube(gal):
     #
     if gal.data.smoothing_type is not None:
         data_cube = apply_smoothing_3D(data_cube,
-                    smoothing_type=self.data.smoothing_type,
-                    smoothing_npix=self.data.smoothing_npix)
+                    smoothing_type=gal.data.smoothing_type,
+                    smoothing_npix=gal.data.smoothing_npix)
         smoothing_type=gal.data.smoothing_type
         smoothing_npix=gal.data.smoothing_npix
     else:
