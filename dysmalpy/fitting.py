@@ -177,6 +177,7 @@ def fit(gal, nWalkers=10,
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
     
     logger.info('\n  nCPUs: {}'.format(nCPUs))
+    logger.info('\n  nWalkers: {}'.format(nWalkers))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
