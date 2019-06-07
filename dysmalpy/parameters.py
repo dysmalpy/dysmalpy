@@ -226,7 +226,6 @@ class DysmalParameter(Parameter):
 
         if prior is None:
             prior = UniformPrior
-        self._prior = prior
 
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,
@@ -239,7 +238,8 @@ class DysmalParameter(Parameter):
                                               min=min,
                                               max=max,
                                               bounds=bounds,
-                                              model=model)
+                                              model=model,
+                                              prior=prior)
 
     @property
     def prior(self):
