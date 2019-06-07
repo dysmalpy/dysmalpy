@@ -276,32 +276,33 @@ class Galaxy:
             #   M/L ratio information from model.
             # collapse in spectral dimension only: axis 0
 
-            if self.data.flux_map is None:
-                num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
-                                 sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
-                den = np.sum(self.data.mask*
-                                (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
-                scale = np.abs(num/den)
-                scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
-                scale3D[0, :, :] = scale
-                sim_cube_obs *= scale3D
-                # else:
-                #     scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
-                #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
-                #     sim_cube_obs *= scale
+            if from_data:
+                if self.data.flux_map is None:
+                    num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
+                                     sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                    den = np.sum(self.data.mask*
+                                    (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                    scale = np.abs(num/den)
+                    scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
+                    scale3D[0, :, :] = scale
+                    sim_cube_obs *= scale3D
+                    # else:
+                    #     scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
+                    #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
+                    #     sim_cube_obs *= scale
 
-                # Throw a non-implemented error if smoothing + 3D model:
-                if from_data:
-                    if self.data.smoothing_type is not None:
-                        raise NotImplementedError('Smoothing for 3D output not implemented yet!')
+                    # Throw a non-implemented error if smoothing + 3D model:
+                    if from_data:
+                        if self.data.smoothing_type is not None:
+                            raise NotImplementedError('Smoothing for 3D output not implemented yet!')
 
-            else:
+                else:
 
-                model_peak = np.nanmax(sim_cube_obs, axis=0)
-                scale = self.data.flux_map/model_peak
-                scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
-                scale3D[0, :, :] = scale
-                sim_cube_obs *= scale3D
+                    model_peak = np.nanmax(sim_cube_obs, axis=0)
+                    scale = self.data.flux_map/model_peak
+                    scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
+                    scale3D[0, :, :] = scale
+                    sim_cube_obs *= scale3D
             
             self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
