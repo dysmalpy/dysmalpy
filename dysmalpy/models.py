@@ -230,6 +230,7 @@ class ModelSet:
         self.outflow_geometry = None
         self.outflow_dispersion = None
         self.outflow_flux = None
+        self.extinction = None
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -313,10 +314,16 @@ class ModelSet:
                 self.outflow = model
                 self.mass_components[model.name] = False
 
+            elif model._type == 'extinction':
+                if self.extinction is not None:
+                    logger.warning('Current extinction model is being overwritten!')
+                self.extinction = model
+                self.mass_components[model.name] = False
+
             else:
                 raise TypeError("This model type is not known. Must be one of"
                                 "'mass', 'geometry', 'dispersion', 'zheight',"
-                                " or 'outflow'.")
+                                "'outflow', or 'extinction'.")
 
             if light:
                 self.light_components[model.name] = True
@@ -815,6 +822,11 @@ class ModelSet:
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
                     flux_mass += self.components[cmp].mass_to_light(rgal) * zscale
 
+            # Apply extinction if a component exists
+            if self.extinction is not None:
+
+                flux_mass *= self.extinction(xsky, ysky, zsky)
+
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
@@ -854,6 +866,11 @@ class ModelSet:
                 rout = np.sqrt(xout**2 + yout**2 + zout**2)
                 vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
                 fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+
+                # Apply extinction if it exists
+                if self.extinction is not None:
+
+                    fout *= self.extinction(xsky, ysky, zsky)
 
                 # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
                 v_sys = self.outflow_geometry.vel_shift.value  # systemic velocity
@@ -1640,12 +1657,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
             amp = vmax/rend**n
             vel[r <= rend] = amp*r[r <= rend]**n
+            vel[r == 0] = 0
 
         elif self.profile_type == 'decrease':
 
             amp = -vmax/rend**n
             vel[r <= rend] = vmax + amp*r[r <= rend]** n
-            vel[r == 0] = 0
+
 
         elif self.profile_type == 'both':
 
@@ -1695,6 +1713,40 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
     def evaluate(v, vcenter, fwhm, amplitude):
 
         return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
+
+
+class DustExtinction(_DysmalFittable3DModel):
+    """
+    Model for extinction due to a thin plane of dust
+    """
+
+    inc = DysmalParameter(default=45.0, bounds=(0, 90))
+    pa = DysmalParameter(default=0.0, bounds=(-180, 180))
+    xshift = DysmalParameter(default=0.0)
+    yshift = DysmalParameter(default=0.0)
+    amp_extinct = DysmalParameter(default=0.0, bounds=(0., 1.))  # default: none
+
+    _type = 'extinction'
+    outputs = ('yp',)
+
+    @staticmethod
+    def evaluate(x, y, z, inc, pa, xshift, yshift, amp_extinct):
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        xsky = x - xshift
+        ysky = y - yshift
+        zsky = z
+
+        ytmp = -xsky * np.sin(pa) + ysky * np.cos(pa)
+
+        ydust = ytmp * np.cos(inc) - zsky * np.sin(inc)
+
+        zsky_dust = ydust * np.sin(-inc)
+        extinction = np.ones(x.shape)
+        extinction[zsky <= zsky_dust] = amp_extinct
+
+        return extinction
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
