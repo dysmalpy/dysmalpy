@@ -177,7 +177,7 @@ def fit(gal, nWalkers=10,
             
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
                             kwargs_dict=kwargs_dict, 
-                            scale_param_a=scale_param_a):
+                            scale_param_a=scale_param_a)
             
         initial_pos = input_sampler['chain'][:,-1,:]
         if compute_dm:
