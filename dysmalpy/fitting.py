@@ -1634,13 +1634,15 @@ def ensure_dir(dir):
 
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
-    data = _pickle.load(open(filename, "rb"))
+    with open(filename, 'rb') as f:
+        data = _pickle.load(f)
     return data
 
 
 def dump_pickle(data, filename=None):
     """ Small wrapper function to pickle a structure """
-    _pickle.dump(data, open(filename, "wb") )
+    with open(filename, 'wb') as f:
+        _pickle.dump(data, f )
     return None
 
 
