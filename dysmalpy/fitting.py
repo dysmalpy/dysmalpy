@@ -183,6 +183,8 @@ def fit(gal, nWalkers=10,
         if compute_dm:
             dm_frac = input_sampler['blobs']
             
+        # Close things
+        input_sampler = None
             
     # --------------------------------
     # Output some fitting info to logger:
@@ -1552,11 +1554,11 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                     log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
                     threads=sampler_dict['nCPU'])
                     
-        sampler._chain = sampler_dict['chain']
-        sampler._blobs = sampler_dict['blobs']
-        sampler._lnprob = sampler_dict['lnprobability']
+        sampler._chain = copy.deepcopy(sampler_dict['chain'])
+        sampler._blobs = copy.deepcopy(sampler_dict['blobs'])
+        sampler._lnprob = copy.deepcopy(sampler_dict['lnprobability'])
         sampler.iterations = sampler_dict['nIter']
-        sampler.naccepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
+        sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
                             dtype=np.int64)
     else:
         try:
