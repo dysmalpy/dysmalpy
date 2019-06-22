@@ -1637,7 +1637,7 @@ def ensure_dir(dir):
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
     with open(filename, 'rb') as f:
-        data = _pickle.load(f)
+        data = copy.deepcopy(_pickle.load(f))
     return data
 
 
