@@ -146,16 +146,6 @@ def fit(gal, nWalkers=10,
         logger.addHandler(loggerfile)
     
     # ++++++++++++++++++++++++++++++
-
-    if not continue_steps:
-        # --------------------------------
-        # Initialize walker starting positions
-        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
-    else:
-        nBurn = 0
-        if input_sampler is None:
-            raise ValueError("Must set input_sampler if you will restart the sampler.")
-        initial_pos = input_sampler['chain'][:,-1,:]
         
 
     # --------------------------------
@@ -163,10 +153,39 @@ def fit(gal, nWalkers=10,
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
                     'compute_dm':compute_dm, 'model_key_re':model_key_re, 
                     'red_chisq': red_chisq, 'profile1d_type':profile1d_type}
-    sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                args=[gal], kwargs=kwargs_dict,
-                a = scale_param_a, threads = nCPUs)
 
+    
+    
+    if not continue_steps:
+        sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+                    args=[gal], kwargs=kwargs_dict,
+                    a = scale_param_a, threads = nCPUs)
+        
+        # --------------------------------
+        # Initialize walker starting positions
+        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+    else:
+        nBurn = 0
+        if input_sampler is None:
+            try:
+                input_sampler = load_pickle(f_sampler)
+            except:
+                message = "Couldn't find existing sampler in {}.".format(f_sampler)
+                message += '\n'
+                message += "Must set input_sampler if you will restart the sampler."
+                raise ValueError(message)
+            
+        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
+                            kwargs_dict=kwargs_dict, 
+                            scale_param_a=scale_param_a)
+            
+        initial_pos = input_sampler['chain'][:,-1,:]
+        if compute_dm:
+            dm_frac = input_sampler['blobs']
+            
+        # Close things
+        input_sampler = None
+            
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
@@ -278,7 +297,9 @@ def fit(gal, nWalkers=10,
         pos = np.array(initial_pos)
         prob = None
         state = None
-        dm_frac = None
+        
+        if not continue_steps:
+            dm_frac = None
 
 
 
@@ -294,8 +315,15 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Run sampler: output info at each step
     for ii in six.moves.xrange(nSteps):
+        
+        # --------------------------------
+        # If continuing chain, only start past existing chain length:
+        if continue_steps:
+            if ii < sampler.chain.shape[1]:
+                continue
+        
         pos_cur = pos.copy()    # copy just in case things are set strangely
-
+        
         # --------------------------------
         # Only do one step at a time:
         if compute_dm:
@@ -1507,6 +1535,62 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
         df['flatblobs'] = np.hstack(np.stack(sampler.blobs, axis=1))
 
     return df
+    
+def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None, 
+                    scale_param_a=None):
+    """
+    Re-setup emcee sampler, using existing chain / etc, so more steps can be run.
+    """
+    
+    sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
+                log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
+                threads=sampler_dict['nCPU'])
+    
+    # This will break for updated version of emcee
+    # works for emcee v2.2.1
+    if emcee.__version__ == '2.2.1':
+        
+        sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
+                    log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
+                    threads=sampler_dict['nCPU'])
+                    
+        sampler._chain = copy.deepcopy(sampler_dict['chain'])
+        sampler._blobs = copy.deepcopy(sampler_dict['blobs'])
+        sampler._lnprob = copy.deepcopy(sampler_dict['lnprobability'])
+        sampler.iterations = sampler_dict['nIter']
+        sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
+                            dtype=np.int64)
+    else:
+        try:
+            backend = emcee.Backend()
+            backend.nwalkers = sampler_dict['nWalkers']
+            backend.iteration = sampler_dict['nParam']
+            backend.iteration = sampler_dict['nIter']
+            backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
+                                dtype=np.int64)
+            backend.chain = sampler_dict['chain']
+            backend.log_prob = sampler_dict['lnprobability']
+            backend.blobs = sampler_dict['blobs']
+            backend.initialized = True
+            
+            
+            sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
+                        sampler_dict['nParam'],
+                        log_prob, 
+                        args=[gal], kwargs=kwargs_dict, 
+                        backend=backend, 
+                        a=scale_param_a, 
+                        threads=sampler_dict['nCPU'])
+            
+            
+        except:
+            raise ValueError
+    
+    # sampler._last_run_mcmc_result
+    
+    
+    return sampler
+    
 
 
 def mpfit_printer(fcn, x, iter, fnorm, functkw=None,
@@ -1552,13 +1636,15 @@ def ensure_dir(dir):
 
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
-    data = _pickle.load(open(filename, "rb"))
+    with open(filename, 'rb') as f:
+        data = copy.deepcopy(_pickle.load(f))
     return data
 
 
 def dump_pickle(data, filename=None):
     """ Small wrapper function to pickle a structure """
-    _pickle.dump(data, open(filename, "wb") )
+    with open(filename, 'wb') as f:
+        _pickle.dump(data, f )
     return None
 
 
