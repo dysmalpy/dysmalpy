@@ -430,12 +430,14 @@ def fit(gal, nWalkers=10,
                               f_results= f_mcmc_results,
                               f_chain_ascii = f_chain_ascii)
 
+    if f_chain_ascii is not None:
+        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        
+
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
     mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
                 nPostBins=nPostBins)
                 
-    
-
     # Update theta to best-fit:
     gal.model.update_parameters(mcmcResults.bestfit_parameters)
                 
@@ -449,7 +451,6 @@ def fit(gal, nWalkers=10,
     mcmcResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
                     compute_dm=False, model_key_re=model_key_re)
     
-    #
     if model_key_re is not None:
         comp = gal.model.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
@@ -462,9 +463,6 @@ def fit(gal, nWalkers=10,
     
     if f_mcmc_results is not None:
         mcmcResults.save_results(filename=f_mcmc_results)
-        
-    if f_chain_ascii is not None:
-        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
         
     if f_model is not None:
         #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
