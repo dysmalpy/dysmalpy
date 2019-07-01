@@ -689,17 +689,17 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
                 comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=params[param_name],
                                                                         stddev=params['{}_stddev'.format(param_name)])
+            #
+            elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
+                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=params[param_name],
+                                                                   stddev=params['{}_stddev'.format(
+                                                                                  param_name)])
 
             elif params['{}_prior'.format(param_name)].lower() == 'tied_flat':
                 comp.prior[param_name] = TiedUniformPrior()
 
             elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian':
                 comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
-                                                                  stddev=params['{}_stddev'.format(
-                                                                                 param_name)])
-                                                                                 
-            elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
-                comp.prior[param_name] = BoundedGaussianLinearPrior(center=params[param_name],
                                                                   stddev=params['{}_stddev'.format(
                                                                                  param_name)])
             
