@@ -158,7 +158,55 @@ class BoundedGaussianPrior(Prior):
                 rvs.append(test_v)
 
         return rvs
+        
+        
 
+class BoundedGaussianLinearPrior(Prior):
+
+    def __init__(self, center=0, stddev=1.0):
+
+        self.center = center
+        self.stddev = stddev
+
+    def log_prior(self, param, modelset):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (np.power(10., param.value) >= pmin) & (np.power(10., param.value) <= pmax):
+            return norm.pdf(np.power(10., param.value), loc=self.center, scale=self.stddev)
+        else:
+            return -np.inf
+
+    def sample_prior(self, param, N=1):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        rvs = []
+        while len(rvs) < N:
+
+            test_v = np.random.normal(loc=self.center, scale=self.stddev,
+                                      size=1)[0]
+            if (test_v >= pmin) & (test_v <= pmax):
+
+                rvs.append(np.log10(test_v))
+
+        return rvs
 
 class BoundedSineGaussianPrior(Prior):
 

@@ -697,7 +697,13 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
                 comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
                                                                   stddev=params['{}_stddev'.format(
                                                                                  param_name)])
-
+                                                                                 
+            elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
+                comp.prior[param_name] = BoundedGaussianLinearPrior(center=params[param_name],
+                                                                  stddev=params['{}_stddev'.format(
+                                                                                 param_name)])
+            
+            
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
