@@ -752,7 +752,7 @@ class TiedBoundedGaussianPrior(parameters.BoundedGaussianPrior):
             pmax = param.bounds[1]
 
         if (param.value >= pmin) & (param.value <= pmax):
-            return parameters.norm.pdf(param.value, loc=self.center, scale=self.stddev)
+            return np.log(parameters.norm.pdf(param.value, loc=self.center, scale=self.stddev))
         else:
             return -np.inf
 

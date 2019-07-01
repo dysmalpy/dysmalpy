@@ -104,8 +104,8 @@ class GaussianPrior(Prior):
         self.stddev = stddev
 
     def log_prior(self, param, modelset):
-        return norm.pdf(param.value, loc=self.center,
-                        scale=self.stddev)
+        return np.log(norm.pdf(param.value, loc=self.center,
+                        scale=self.stddev))
 
     def sample_prior(self, param, N=1):
         return np.random.normal(loc=self.center, 
@@ -132,7 +132,7 @@ class BoundedGaussianPrior(Prior):
             pmax = param.bounds[1]
 
         if (param.value >= pmin) & (param.value <= pmax):
-            return norm.pdf(param.value, loc=self.center, scale=self.stddev)
+            return np.log(norm.pdf(param.value, loc=self.center, scale=self.stddev))
         else:
             return -np.inf
 
@@ -181,7 +181,7 @@ class BoundedGaussianLinearPrior(Prior):
             pmax = param.bounds[1]
 
         if (np.power(10., param.value) >= pmin) & (np.power(10., param.value) <= pmax):
-            return norm.pdf(np.power(10., param.value), loc=self.center, scale=self.stddev)
+            return np.log(norm.pdf(np.power(10., param.value), loc=self.center, scale=self.stddev))
         else:
             return -np.inf
 
@@ -232,7 +232,7 @@ class BoundedSineGaussianPrior(Prior):
             pmax = param.bounds[1]
 
         if (param.value >= pmin) & (param.value <= pmax):
-            return norm.pdf(np.sin(param.value*np.pi/180.), loc=self.center_sine, scale=self.stddev)
+            return np.log(norm.pdf(np.sin(param.value*np.pi/180.), loc=self.center_sine, scale=self.stddev))
         else:
             return -np.inf
 
