@@ -1353,10 +1353,12 @@ def find_peak_gaussian_KDE(flatchain, initval):
     """
     try:
         nparams = flatchain.shape[1]
+        nrows = nparams
     except:
         nparams = 1
+        nrows = 0
 
-    if nparams > 1:
+    if nrows > 0s:
         peakvals = np.zeros(nparams)
         for i in six.moves.xrange(nparams):
             kern = gaussian_kde(flatchain[:,i])
