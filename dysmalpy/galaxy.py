@@ -373,6 +373,8 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
+                
+                aper_model = None
             
             else:
                 
