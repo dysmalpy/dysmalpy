@@ -446,7 +446,7 @@ def fit(gal, nWalkers=10,
 
     
     gal.create_model_data(oversample=oversample, oversize=oversize, 
-                              line_center=gal.model.line_center)
+                          line_center=gal.model.line_center, profile1d_type=profile1d_type)
     
     mcmcResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
                     compute_dm=False, model_key_re=model_key_re)
