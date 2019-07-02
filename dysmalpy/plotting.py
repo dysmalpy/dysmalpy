@@ -1415,6 +1415,7 @@ def plot_bestfit(mcmcResults, gal,
                  show_1d_apers=False,
                  fileout=None,
                  vcrop=False,
+                 profile1d_type='circ_ap_cube',
                  vcrop_value=800.,
                  remove_shift=False):
     """
@@ -1422,7 +1423,8 @@ def plot_bestfit(mcmcResults, gal,
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
             oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout,
-            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift)
+            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift,
+                               profile1d_type=profile1d_type)
                 
     return None
 
