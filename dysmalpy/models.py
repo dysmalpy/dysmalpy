@@ -739,7 +739,7 @@ class ModelSet:
     
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s, line_center=None, oversample=1, oversize=1,
+                      spec_unit=u.km/u.s, oversample=1, oversize=1,
                       debug=False):
 
         """Simulate an IFU cube of this model set"""
@@ -766,10 +766,10 @@ class ModelSet:
         if spec_type == 'velocity':
             vx = (spec * spec_unit).to(u.km / u.s).value
         elif spec_type == 'wavelength':
-            if line_center is None:
+            if self.line_center is None:
                 raise ValueError("line_center must be provided if spec_type is "
                                  "'wavelength.'")
-            line_center_conv = line_center.to(spec_unit).value
+            line_center_conv = self.line_center.to(spec_unit).value
             vx = (spec - line_center_conv) / line_center_conv * apy_con.c.to(
                 u.km / u.s).value
 
