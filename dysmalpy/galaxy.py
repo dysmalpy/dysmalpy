@@ -449,6 +449,7 @@ class Galaxy:
 
                 # Normalize to the maximum of the spectrum
                 flux /= np.nanmax(flux)
+                flux = flux.value
 
             else:
 
