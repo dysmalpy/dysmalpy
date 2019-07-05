@@ -1157,6 +1157,28 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
             else:
                 invnu = 1.
             llike = -0.5*chisq_arr_raw_vel.sum() * invnu
+
+    elif gal.data.ndim == 0:
+
+        msk = gal.data.mask
+        data = gal.data.data
+        mod = gal.model_data.data
+        err = gal.data.error
+
+        chisq_arr = (((data - mod)/err)**2 +
+                               np.log(2.*np.pi*err**2))
+        if red_chisq:
+            if gal.model.nparams_free > np.sum(msk):
+                raise ValueError("More free parameters than data points!")
+
+            invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free))
+
+        else:
+            invnu = 1.
+
+        llike = -0.5*chisq_arr.sum() * invnu
+
+
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
@@ -1230,6 +1252,26 @@ def chisq_red(gal, fitdispersion=True,
             else:
                 invnu = 1.
             redchsq = chisq_arr_raw_vel.sum() * invnu
+
+    elif gal.data.ndim == 0:
+
+        msk = gal.data.mask
+        data = gal.data.data
+        mod = gal.model_data.data
+        err = gal.data.error
+
+        chisq_arr = ((data - mod)/err)**2
+        if red_chisq:
+            if gal.model.nparams_free > np.sum(msk):
+                raise ValueError("More free parameters than data points!")
+
+            invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free))
+
+        else:
+            invnu = 1.
+
+        redchsq = -0.5*chisq_arr.sum() * invnu
+
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
