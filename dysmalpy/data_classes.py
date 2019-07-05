@@ -327,6 +327,55 @@ class Data3D(Data):
                                      shape=shape, mask=mask)
 
 
+class Data0D(Data):
+    """
+    Data class for storing a single spectrum
+    """
+
+    def __init__(self, x, flux, flux_err=None,
+                 mask=None, integrate_cube=True, slit_width=None,
+                 slit_pa=None, estimate_err=False, error_frac=0.2):
+
+        if x.shape != flux.shape:
+            raise ValueError("r and velocity are not the same size.")
+
+        if mask is not None:
+            if mask.shape != x.shape:
+                raise ValueError("mask and velocity are not the same size.")
+
+        else:
+            mask = np.ones(len(x))
+
+        data = flux
+
+        # Override any array given to vel_err if estimate_err is True
+        if estimate_err:
+            flux_err = error_frac * flux
+
+        if flux_err is None:
+
+            error = flux_err
+
+        else:
+
+            if flux_err.shape != x.shape:
+                raise ValueError("vel_err and velocity are not the "
+                                 "same size.")
+
+            error = flux_err
+
+        ############
+        self.integrate_cube = integrate_cube
+        self.slit_width = slit_width
+        self.slit_pa = slit_pa
+        self.x = x
+        shape = x.shape
+
+        super(Data0D, self).__init__(data=data, error=error, ndim=0,
+                                     shape=shape, mask=mask)
+
+
+
 def _create_cube_mask(mask_sky=None, mask_spec=None):
     """Create a 3D mask from a 2D sky mask and 1D spectral mask"""
 
