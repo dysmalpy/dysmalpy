@@ -155,7 +155,59 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
         plt.show()
 
     return None
-    
+
+
+def plot_data_model_comparison_0D(gal,
+            data = None,
+            oversample=1,
+            oversize=1,
+            fileout=None):
+
+    ######################################
+    # Setup data/model comparison: if this isn't the fit dimension
+    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
+    if data is not None:
+
+        # Setup the model with the correct dimensionality:
+        galnew = copy.deepcopy(gal)
+        galnew.data = data
+        galnew.create_model_data(oversample=oversample, oversize=oversize,
+                              line_center=galnew.model.line_center)
+        model_data = galnew.model_data
+
+    else:
+        # Default: fit in 1D, compare to 1D data:
+        data = gal.data
+        model_data = gal.model_data
+
+
+    ######################################
+    # Setup plot:
+    scale = 3.5
+    f = plt.figure(figsize=(2.2 * scale, scale))
+    ax = f.add_subplot(111)
+
+    # Plot the observed spectrum with error shading
+    ax.plot(data.x, data.data, color='black', lw=1.5)
+    ax.fill_between(data.x, data.data - data.error, data.data + data.error, color='black', alpha=0.2)
+
+    # Plot the model spectrum
+    ax.plot(model_data.x, model_data.data, color='red', lw=1.5)
+
+    # Plot the residuals
+    ax.plot(model_data.x, data.data - model_data.data, color='blue', lw=1.0)
+
+    ax.set_ylabel('Normalized Flux')
+    ax.set_xlabel(gal.instrument.spec_type.capitalize() + ' [' + gal.instrument.spec_step.unit.name + ']')
+
+    # Save to file:
+    if fileout is not None:
+        f.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close(f)
+    else:
+        plt.show()
+
+
 def plot_data_model_comparison_1D(gal, 
             data = None,
             theta = None, 
@@ -1402,9 +1454,16 @@ def plot_data_model_comparison(gal,
                     
         
         # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
+
+    elif gal.data.ndim == 0:
+        plot_data_model_comparison_0D(dummy_gal,
+                                      oversample=oversample,
+                                      oversize=oversize,
+                                      fileout=fileout,
+                                      )
     else:
         logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
-        raise ValueError
+        raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
     
     return None
 
