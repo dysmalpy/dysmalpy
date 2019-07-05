@@ -29,7 +29,7 @@ import dill as _pickle
 # Package imports
 from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile
-from dysmalpy.data_classes import Data1D, Data2D, Data3D
+from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.utils import apply_smoothing_2D, apply_smoothing_3D
 from dysmalpy import aperture_classes
 # from dysmalpy.utils import measure_1d_profile_apertures
@@ -185,9 +185,29 @@ class Galaxy:
                     if ny_sky is None:
                         ny_sky = int(np.ceil(maxr/rstep))
 
+            elif ndim_final == 0:
+
+                if from_instrument:
+                    nx_sky = self.instrument.fov[0]
+                    ny_sky = self.instrument.fov[1]
+                    spec_type = self.instrument.spec_type
+                    spec_start = self.instrument.spec_start.value
+                    spec_step = self.instrument.spec_step.value
+                    spec_unit = self.instrument.spec_start.unit
+                    nspec = self.instrument.nspec
+                    rstep = self.instrument.pixscale.value
+
+                else:
+
+                    if (nx_sky is None) | (ny_sky is None) | (rstep is None):
+
+                        raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
+                                         "be set if from_instrument and/or from_data"
+                                         " is False.")
+
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
-                aper_centers = self.data.rarr
+                xarr = self.data.x
 
         # Pull parameters from the instrument
         elif from_instrument:
@@ -279,13 +299,13 @@ class Galaxy:
             if from_data:
                 if self.data.flux_map is None:
                     num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
-                                     sim_cube_obs/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                                     sim_cube_final/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     den = np.sum(self.data.mask*
-                                    (sim_cube_obs**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                                    (sim_cube_final**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     scale = np.abs(num/den)
                     scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
                     scale3D[0, :, :] = scale
-                    sim_cube_obs *= scale3D
+                    sim_cube_final *= scale3D
                     # else:
                     #     scale = np.sum( mask_flat*(data_cube_flat*sim_cube_flat / errsq_cube_flat) )/\
                     #                 np.sum( mask_flat*(sim_cube_flat**2 / errsq_cube_flat) )
@@ -298,13 +318,13 @@ class Galaxy:
 
                 else:
 
-                    model_peak = np.nanmax(sim_cube_obs, axis=0)
+                    model_peak = np.nanmax(sim_cube_final, axis=0)
                     scale = self.data.flux_map/model_peak
                     scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
                     scale3D[0, :, :] = scale
-                    sim_cube_obs *= scale3D
+                    sim_cube_final *= scale3D
             
-            self.model_data = Data3D(cube=sim_cube_obs, pixscale=rstep,
+            self.model_data = Data3D(cube=sim_cube_final, pixscale=rstep,
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)
 
@@ -419,6 +439,27 @@ class Galaxy:
                                      vel_disp=disp1d, slit_width=slit_width,
                                      slit_pa=slit_pa)
             self.model_data.apertures = aper_model
+
+        elif ndim_final == 0:
+
+            if self.data.integrate_cube:
+
+                # Integrate over the spatial dimensions of the cube
+                flux = np.nansum(np.nansum(self.model_cube.data.unmasked_data[:], axis=2), axis=1)
+
+                # Normalize to the maximum of the spectrum
+                flux /= np.nanmax(flux)
+
+            else:
+
+                # Place slit down on cube
+                raise NotImplementedError('Using slits to create spectrum not implemented yet!')
+
+            self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
+                                     slit_width=self.data.slit_width, integrate_cube=self.data.integrate_cube,
+                                    )
+
+
 
     #
     def preserve_self(self, filename=None, save_data=True):

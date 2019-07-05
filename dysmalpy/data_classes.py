@@ -354,7 +354,7 @@ class Data0D(Data):
 
         if flux_err is None:
 
-            error = flux_err
+            error = None
 
         else:
 
