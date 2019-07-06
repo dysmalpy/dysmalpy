@@ -243,7 +243,6 @@ class Galaxy:
                                                   nspec=nspec,
                                                   spec_start=spec_start,
                                                   spec_unit=spec_unit,
-                                                  line_center=line_center,
                                                   oversample=oversample,
                                                   oversize=oversize)
                                                   
