@@ -187,6 +187,7 @@ class Galaxy:
 
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
+                aper_centers = self.data.rarr
 
             elif ndim_final == 0:
 
