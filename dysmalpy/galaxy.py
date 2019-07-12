@@ -185,6 +185,9 @@ class Galaxy:
                     if ny_sky is None:
                         ny_sky = int(np.ceil(maxr/rstep))
 
+                slit_width = self.data.slit_width
+                slit_pa = self.data.slit_pa
+
             elif ndim_final == 0:
 
                 if from_instrument:
