@@ -1622,14 +1622,15 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     thetain = DysmalParameter(bounds=(0, 90))
     dtheta = DysmalParameter(default=20.0, bounds=(0, 90))
     rend = DysmalParameter(default=1.0, min=0)
-    norm_flux = DysmalParameter(default=0.0)
+    norm_flux = DysmalParameter(default=0.0, fixed=True)
+    tau_flux = DysmalParameter(default=5.0, fixed=True)
 
     _type = 'outflow'
     _spatial_type = 'resolved'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux,
-                 profile_type='both', tau_flux=5.0, **kwargs):
+    def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux,
+                 profile_type='both', **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both', 'constant']
 
@@ -1639,13 +1640,13 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             logger.error("Invalid profile type. Must be one of 'increase',"
                          "'decrease', 'constant', or 'both.'")
 
-        self.tau_flux = tau_flux
+        #self.tau_flux = tau_flux
         #self.norm_flux = norm_flux
 
         super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               dtheta, rend, norm_flux, **kwargs)
+                                               dtheta, rend, norm_flux, tau_flux, **kwargs)
 
-    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux):
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
