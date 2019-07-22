@@ -219,23 +219,56 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
     
     if params['include_halo']:
         # Halo component
-        mvirial = params['mvirial']     # log Msun
-        conc = params['halo_conc']      
+        if not halo_inner_slope_fit:
+            # NFW halo fit:
+            mvirial = params['mvirial']     # log Msun
+            conc = params['halo_conc']      
         
-        halo_fixed = {'mvirial': params['mvirial_fixed'],       
-                      'conc': params['halo_conc_fixed']}       
+            halo_fixed = {'mvirial': params['mvirial_fixed'],       
+                          'conc': params['halo_conc_fixed']}       
                       
-        halo_bounds = {'mvirial': (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),    
-                       'conc': (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1])}  
+            halo_bounds = {'mvirial': (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),    
+                           'conc': (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1])}  
                        
-        halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
-                          fixed=halo_fixed, bounds=halo_bounds, name='halo')
+            halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
         
-        halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-        halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
-        
-        
-        
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
+        else:
+            # Two-power halo fit:
+            
+            # Add values needed:
+            bary.lmstar = params['lmstar']
+            bary.fgas =   params['fgas']
+            
+            # Setup parameters:
+            mvirial =  params['mvirial']
+            conc =     params['halo_conc']
+            alpha =    params['alpha']
+            beta =     params['beta']
+            
+            halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                          'conc':       params['halo_conc_fixed'],
+                          'alpha':      params['alpha_fixed'],
+                          'beta':       params['beta_fixed']}
+                          
+            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                           'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]), 
+                           'alpha':     (params['alpha_bounds'][0], params['alpha_bounds'][1]), 
+                           'beta':      (params['beta_bounds'][0], params['beta_bounds'][1]) }
+                           
+            halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc, 
+                                alpha=alpha, beta=beta, z=gal.z,
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+            
+            # Tie the virial mass to Mstar
+            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='alpha', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='beta', params=params)
         
     # ------------------------------------------------------------
     # Dispersion profile

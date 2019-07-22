@@ -20,6 +20,8 @@ from dysmalpy import utils as dysmalpy_utils
 
 from dysmalpy import aperture_classes
 
+import scipy.optimize as scp_opt
+
 from astropy.table import Table
 
 import astropy.io.fits as fits
@@ -721,6 +723,59 @@ def tie_sigz_reff(model_set):
     sigz = 2.0*reff/invq/2.35482
 
     return sigz
+
+
+
+def m13_lshfm(lMh, z):
+    # Moster + 2013, MNRAS 428, 3121
+    # Table 1, Best fit
+    M10 = 11.590
+    M11 = 1.195
+    N10 = 0.0351
+    N11 = -0.0247
+    b10 = 1.376
+    b11 = -0.826
+    g10 = 0.608
+    g11 = 0.329
+    
+    zarg = z/(1.+z)
+    M1 = np.power(10., M10 + M11*zarg)
+    Nz = N10 + N11*zarg
+    bz = b10 + b11*zarg
+    gz = g10 + g11*zarg
+    
+    Mh = np.power(10., lMh)
+    lmSMh = np.log10(2*Nz) - np.log10(np.power(Mh/M1 , -bz)  + np.power( Mh/M1, gz))
+    
+    return lmSMh
+    
+def lmstar_solver(lMh, z, lmass):
+    
+    return m13_lshfm(lMh, z) - lmass + lMh
+    
+
+def moster13_halo_mass(z=None, lmass=None):
+    # Do zpt solver to get lmhalo given lmass:
+    lmhalo = scp_opt.newton(lmstar_solver, lmass + 2.,
+                        args=(z, lmass),
+                        maxiter=200)
+    
+    return lmhalo
+    
+
+
+def tied_mhalo_mstar(model_set):
+    z = model_set.components['halo'].z
+    
+    lmbar = model_set.components['disk+bulge'].total_mass.value
+    fgas = model_set.components['disk+bulge'].fgas
+    Mbar = np.power(10., lmbar)
+    Mstar = (1.-fgas)*Mbar
+    
+    lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar))
+    
+    return lmhalo
+
 
 
 class TiedUniformPrior(parameters.UniformPrior):
