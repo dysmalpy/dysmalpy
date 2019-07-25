@@ -105,7 +105,8 @@ def read_fitting_params(fname=None):
               'fitdispersion': True,
               'include_halo': False, 
               'red_chisq': True, 
-              'linked_posteriors': None }
+              'linked_posteriors': None, 
+              'halo_profile_type': 'NFW'}
 
     # param_filename
     fname_split = fname.split('/')

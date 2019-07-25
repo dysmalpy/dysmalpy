@@ -523,7 +523,37 @@ class ModelSet:
         
         return dm_frac
         
-
+    def get_encl_mass_effrad(self, rstep=0.2, model_key_re=None):
+        # RE needs to be in kpc
+        comp = self.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        r = r_eff
+        
+        lnin = 0
+        try:
+            lnin = len(r)
+            if lnin == 1:
+                r = r[0]
+                makearr = True
+            else:
+                rgal = r
+                makearr = False
+        except:
+            makearr = True
+            
+        if makearr:
+            nstep = np.floor_divide(r,rstep) 
+            rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
+            rgal = np.append(rgal, r)
+            
+            
+        vc, vdm = self.circular_velocity(rgal, compute_dm=True)
+        
+        enc_mass = menc_from_vcirc(vc[-1], r_eff)
+        
+        return enc_mass
+        
     def enclosed_mass(self, r):
         """
         Method to calculate the total enclosed mass for the whole model
@@ -559,7 +589,7 @@ class ModelSet:
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
 
-                vcirc, vhalo_adi = self.velocity_profile(r, compute_dm=True)
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True)
                 # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
                 #               (G.cgs.value * Msun.cgs.value))
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
