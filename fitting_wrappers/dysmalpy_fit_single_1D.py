@@ -216,10 +216,9 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                 
     # ------------------------------------------------------------
     # Halo Component: (if added)
-    
     if params['include_halo']:
         # Halo component
-        if not halo_inner_slope_fit:
+        if (params['halo_profile_type'].strip().upper() == 'NFW'):
             # NFW halo fit:
             mvirial = params['mvirial']     # log Msun
             conc = params['halo_conc']      
@@ -235,7 +234,8 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
         
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
-        else:
+            
+        elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
             # Two-power halo fit:
             
             # Add values needed:
@@ -269,7 +269,11 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='alpha', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='beta', params=params)
-        
+        #
+        elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
+            raise ValueError("Burkert halo profile not implemented yet!")
+        else:
+            raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
     # ------------------------------------------------------------
     # Dispersion profile
     sigma0 = params['sigma0']       # km/s
