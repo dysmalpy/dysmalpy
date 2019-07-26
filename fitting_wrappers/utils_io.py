@@ -114,7 +114,16 @@ def read_fitting_params(fname=None):
 
     for key in param_input.keys():
         params[key] = param_input[key]
-
+    
+    #
+    # Catch depreciated case:
+    if 'halo_inner_slope_fit' in params.keys():
+        if params['halo_inner_slope_fit']:
+            if params['halo_profile_type'] == 'NFW':
+                print("using depreciated param setting 'halo_inner_slope_fit=True'.")
+                print("Assuming 'halo_profile_type=TwoPowerHalo' halo form.")
+                params['halo_profile_type'] = 'TwoPowerHalo'
+                
     return params
     
 def save_results_ascii_files(fit_results=None, gal=None, params=None):
