@@ -1296,6 +1296,75 @@ class TwoPowerHalo(MassModel):
                  (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+        
+
+class Burkert(MassModel):
+    """
+    Class for Burkert density model for a dark matter halo.
+    Eg see Burkert, 1995, ApJL, 447, L25
+    """
+
+    # Powerlaw slopes for the density model
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    rB = DysmalParameter(default=1.0)
+
+    _subtype = 'dark_matter'
+
+    def __init__(self, mvirial, rB, z=0, cosmo=_default_cosmo,
+                 **kwargs):
+        self.z = z
+        self.cosmo = cosmo
+        super(Burkert, self).__init__(mvirial, rB, **kwargs)
+
+    def evaluate(self, r, mvirial, rB):
+
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+
+        return rho0 / ( (1 + r/rB) * ( 1 + (r/rB)**2 ) ) 
+        
+    def I(self, r):
+        Ival = 0.25 * (np.log(r**2 + self.rB**2) + 2.*np.log(r + self.rB) \
+                    - 2.*np.arctan(r/self.rB) - 4.*np.log(self.rB))
+        return Ival
+    
+    def enclosed_mass(self, r):
+
+        rvir = self.calc_rvir()
+        Irvir = self.I(rvir)
+        
+        aa = 10**self.mvirial / Irvir
+        bb = self.I(r)
+        return aa*bb
+        
+    def calc_rho0(self):
+
+        rvir = self.calc_rvir()
+        Irvir = self.I(rvir)
+        
+        aa = 10**self.mvirial / (4*np.pi* self.rB**3)
+        bb = 1./Irvir
+        
+        return aa*bb
+        
+    def calc_conc(self):
+        rvir = self.calc_rvir()
+        conc = rvir/self.rB
+        self.conc = conc
+        return conc
+
+    def calc_rvir(self):
+        """
+        Calculate the virial radius based on virial mass and redshift
+        M_vir = 100*H(z)^2/G * R_vir^3
+        """
+
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
+                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
 
 
 class NFW(DarkMatterHalo):
