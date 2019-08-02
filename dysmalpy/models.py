@@ -1786,6 +1786,11 @@ class KinematicOptions:
                     elif mcomp._subtype == 'baryonic':
                         
                         vbaryon1d = np.sqrt(vbaryon1d ** 2 + cmpnt_v ** 2)
+
+                    elif mcomp._subtype == 'combined':
+
+                        raise ValueError('Adiabatic contraction cannot be turned on when'
+                                         'using a combined baryonic and halo mass model!')
                         
                     else:
                         raise TypeError("{} mass model subtype not recognized"
@@ -1858,8 +1863,8 @@ class KinematicOptions:
                 for cmp in model.mass_components:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
-                        if mcomp._subtype == 'baryonic':
-                            if isinstance(mcomp, DiskBulge):
+                        if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
+                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
@@ -1901,8 +1906,8 @@ class KinematicOptions:
                 for cmp in model.mass_components:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
-                        if mcomp._subtype == 'baryonic':
-                            if isinstance(mcomp, DiskBulge):
+                        if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
+                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
