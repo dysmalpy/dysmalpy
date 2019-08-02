@@ -619,11 +619,12 @@ class ModelSet:
 
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
+
                     if isinstance(mcomp, DiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r, skip_bulge=skip_bulge)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r)
-                    if mcomp._subtype == 'dark_matter':
+                    if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
 
                         vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
 
