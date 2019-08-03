@@ -1622,7 +1622,7 @@ class DiskBulgeNFW(MassModel):
 
         return mvirial
 
-    def _minfunc_vdm(mass, vtarget, conc, z, r_eff_disk):
+    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff_disk):
 
         halo = NFW(mvirial=mass, conc=conc, z=z)
         return halo.circular_velocity(r_eff_disk) ** 2 - vtarget
