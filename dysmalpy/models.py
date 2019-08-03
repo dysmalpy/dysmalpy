@@ -1583,7 +1583,7 @@ class DiskBulgeNFW(MassModel):
         return vcirc
 
     def velocity_profile_baryons(self, r, modelset):
-        vcirc = self.circular_velocity(r)
+        vcirc = self.circular_velocity_baryons(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
@@ -1597,10 +1597,15 @@ class DiskBulgeNFW(MassModel):
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
+    def velocity_profile_halo(self, r, modelset):
+        vcirc = self.circular_velocity_halo(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
 
-    def velocity_profile(self, r, modelset, skip_bulge=False):
-        vrot_bary = self.circular_velocity_baryons(r, skip_bulge=skip_bulge)
-
+    def velocity_profile(self, r, modelset):
+        vcirc = self.circular_velocity(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
 
     def mvirial(self):
 
@@ -1608,23 +1613,19 @@ class DiskBulgeNFW(MassModel):
         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
         mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target) for m in mtest])
+        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk) for m in mtest])
 
         a = mtest[vtest < 0][-1]
         b = mtest[vtest > 0][0]
 
-        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_bar_re))
+        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk))
 
         return mvirial
 
+    def _minfunc_vdm(mass, vtarget, conc, z, r_eff_disk):
 
-
-    def _minfunc_vdm(self, mass, vtarget):
-
-        halo = NFW(mvirial=mass, conc=self.conc, z=self.z)
-        return halo.circular_velocity(self.r_eff_disk)**2 - vtarget
-
-
+        halo = NFW(mvirial=mass, conc=conc, z=z)
+        return halo.circular_velocity(r_eff_disk) ** 2 - vtarget
 
     def mass_to_light(self, r):
 
