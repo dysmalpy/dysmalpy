@@ -809,7 +809,7 @@ class MCMCResults(FitResults):
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                           f_results=f_results)
 
-    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=40):
+    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
         """
         Default analysis of posterior distributions from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -866,17 +866,25 @@ class MCMCResults(FitResults):
 
         ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
         mcmc_param_bestfit = find_peak_gaussian_KDE(self.sampler['flatchain'], mcmc_peak_hist)
-
+        
         # --------------------------------------------
         if linked_posterior_names is not None:
             # Make sure the param of self is updated
             #   (for ref. when reloading saved mcmcResult objects)
+            
             self.linked_posterior_names = linked_posterior_names
             linked_posterior_ind_arr = get_linked_posterior_indices(self,
                             linked_posterior_names=linked_posterior_names)
-
+            
+            guess = mcmc_param_bestfit.copy()
+            # ## TESTING NEW HERE:
+            # if True:
+            #     for k in six.moves.xrange(len(linked_posterior_ind_arr)):
+            #         guess[linked_posterior_ind_arr[k]] = find_multiD_pk_hist(self.sampler['flatchain'], 
+            #                 linked_posterior_ind_arr[k], nPostBins=nPostBins/2) 
+            
             bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
-                            guess=mcmc_param_bestfit, 
+                            guess=guess, 
                             linked_posterior_ind_arr=linked_posterior_ind_arr,
                             nPostBins=nPostBins)
 
@@ -1429,6 +1437,33 @@ def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
     
     return peakvals
     
+
+def find_multiD_pk_hist(flatchain, linked_inds, nPostBins=25):
+    H2, edges = np.histogramdd(flatchain[:,linked_inds], bins=nPostBins)
+    
+    wh_pk = np.where(H2 == H2.max())[0][0]
+    
+    pk_vals = np.zeros(len(linked_inds))
+    
+    for k in six.moves.xrange(len(linked_inds)):
+        pk_vals[k] = np.average([edges[k][wh_pk], edges[k][wh_pk+1]])
+    
+    return pk_vals
+
+
+def find_shortest_conf_interval(xarr, percentile_frac):
+    # Canonical 1sigma: 0.6827
+    xsort = np.sort(xarr)
+    
+    N = len(xarr)
+    i_max = np.int64(np.round(percentile_frac*N)) 
+    len_arr = xsort[i_max:] - xsort[0:N-i_max]
+    
+    argmin = np.argmin(len_arr)
+    l_val, u_val = xsort[argmin], xsort[argmin+i_max-1]
+    
+    return l_val, u_val
+
 
 def get_linked_posterior_peak_values(flatchain,
                 guess = None, 
