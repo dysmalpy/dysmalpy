@@ -530,17 +530,19 @@ class ModelSet:
         r_eff = comp.parameters[param_i]
         r = r_eff
         
-        lnin = 0
-        try:
-            lnin = len(r)
-            if lnin == 1:
-                r = r[0]
-                makearr = True
-            else:
-                rgal = r
-                makearr = False
-        except:
-            makearr = True
+        makearr = True
+        
+        # lnin = 0
+        # try:
+        #     lnin = len(r)
+        #     if lnin == 1:
+        #         r = r[0]
+        #         makearr = True
+        #     else:
+        #         rgal = r
+        #         makearr = False
+        # except:
+        #     makearr = True
             
         if makearr:
             nstep = np.floor_divide(r,rstep) 
@@ -1208,7 +1210,7 @@ class DarkMatterHalo(MassModel):
 
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    conc = DysmalParameter(default=5.0, bounds=(6, 20))
+    conc = DysmalParameter(default=5.0, bounds=(2, 20))
 
     _subtype = 'dark_matter'
 
@@ -1235,7 +1237,7 @@ class DarkMatterHalo(MassModel):
             return self.circular_velocity(r)
 
 
-class TwoPowerHalo(MassModel):
+class TwoPowerHalo(DarkMatterHalo):
     """
     Class for a generic two power law density model for a dark matter halo
     See Equation 2.64 of Binney & Tremaine 'Galactic Dynamics'
@@ -1243,7 +1245,7 @@ class TwoPowerHalo(MassModel):
 
     # Powerlaw slopes for the density model
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    conc = DysmalParameter(default=5.0, bounds=(6, 20))
+    conc = DysmalParameter(default=5.0, bounds=(2, 20))
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
 
@@ -1298,7 +1300,7 @@ class TwoPowerHalo(MassModel):
         return rvir
         
 
-class Burkert(MassModel):
+class Burkert(DarkMatterHalo):
     """
     Class for Burkert density model for a dark matter halo.
     Eg see Burkert, 1995, ApJL, 447, L25
