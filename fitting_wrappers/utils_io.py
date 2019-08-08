@@ -767,7 +767,7 @@ def lmstar_solver(lMh, z, lmass):
 def moster13_halo_mass(z=None, lmass=None):
     # Do zpt solver to get lmhalo given lmass:
 
-    lmstar = max(lmass, 11.2)
+    lmstar = min(lmass, 11.2)
     lmhalo = scp_opt.newton(lmstar_solver, lmstar + 2.,
                         args=(z, lmstar),
                         maxiter=200)

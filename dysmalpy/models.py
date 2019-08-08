@@ -1465,7 +1465,7 @@ class DiskBulgeNFW(MassModel):
     def enclosed_mass(self, r):
 
         mbary = self.enclosed_mass_baryon(r)
-        mdm = self.enclosed_mass_halo((r))
+        mdm = self.enclosed_mass_halo(r)
 
         return mbary + mdm
 
