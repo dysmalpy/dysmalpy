@@ -148,9 +148,9 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
             names_nice.append(blob_name)
         
         if step_slice is None:
-            blobs = fit_results.sampler['flatblobs']
+            blobs = mcmcResults.sampler['flatblobs']
         else:
-            blobs = fit_results.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+            blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
             
         sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
         
