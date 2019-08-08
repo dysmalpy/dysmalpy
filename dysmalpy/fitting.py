@@ -109,7 +109,7 @@ def fit(gal, nWalkers=10,
     # Check option validity:
     
     valid_blobnames = ['fdm', 'lmvir', 'alpha', 'rb']
-    if blob_name.lower().strip() is not in valid_blobnames:
+    if blob_name.lower().strip() not in valid_blobnames:
         raise ValueError("blob_name={} not recognized as option!".format(blob_name))
     
     
@@ -223,7 +223,7 @@ def fit(gal, nWalkers=10,
         pos = initial_pos
         prob = None
         state = None
-        dm_frac = None
+        blob = None
         for k in six.moves.xrange(nBurn):
             #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             # Temp for debugging:
@@ -1239,7 +1239,7 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
         return llike, mvirial
     elif blob_name.lower() == 'alpha':
-        alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo):
+        alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
         return llike, alpha
     else:
         return llike
