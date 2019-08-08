@@ -104,9 +104,10 @@ def read_fitting_params(fname=None):
               'oversample': 1,
               'fitdispersion': True,
               'include_halo': False, 
+              'halo_profile_type': 'NFW',
+              'blob_name': None, 
               'red_chisq': True, 
-              'linked_posteriors': None, 
-              'halo_profile_type': 'NFW'}
+              'linked_posteriors': None, }
 
     # param_filename
     fname_split = fname.split('/')
@@ -119,11 +120,44 @@ def read_fitting_params(fname=None):
     # Catch depreciated case:
     if 'halo_inner_slope_fit' in params.keys():
         if params['halo_inner_slope_fit']:
-            if params['halo_profile_type'] == 'NFW':
+            if params['halo_profile_type'].upper() == 'NFW':
                 print("using depreciated param setting 'halo_inner_slope_fit=True'.")
                 print("Assuming 'halo_profile_type=TwoPowerHalo' halo form.")
                 params['halo_profile_type'] = 'TwoPowerHalo'
                 
+    # Catch other cases:
+    if params['include_halo']:
+        if params['blob_name'] is None:
+            if 'fdm_fixed' in params.keys():
+                if not params['fdm_fixed']:
+                    if params['halo_profile_type'].upper() == 'NFW':
+                        params['blob_name'] = 'lmvir'
+                    elif params['halo_profile_type'].lower() == 'twopowerhalo':
+                        params['blob_name'] = 'alpha'
+                    elif params['halo_profile_type'].lower() == 'burkert':
+                        params['blob_name'] = 'rb'
+                else:
+                    params['blob_name'] = 'fdm'
+                    
+            # if params['halo_profile_type'].lower() == 'diskbulgenfw':
+            #     params['blob_name'] = 'lmvir'
+            # elif params['halo_profile_type'].lower() == 'diskbulgetwopowerhalo':
+            #     params['blob_name'] = 'alpha'
+            # elif params['halo_profile_type'].upper() == 'NFW':
+            #     params['blob_name'] = 'fdm'
+        
+        if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
+            if params['mvirial_fixed'] is True:
+                params['fdm'] = 0.5
+                params['fdm_fixed'] = False
+                params['fdm_bounds'] = [0, 1]
+                
+            else:
+                params['fdm'] = None
+                params['fdm_fixed'] = True
+                params['fdm_bounds'] = [0, 1]
+            
+        
     return params
     
 def save_results_ascii_files(fit_results=None, gal=None, params=None):
@@ -482,13 +516,8 @@ def setup_mcmc_dict(params=None):
         mcmc_dict['linked_posterior_names'] = linked_posterior_names
         
 
-    if mcmc_dict['include_halo']:
 
-        mcmc_dict['compute_dm'] = True
-
-    else:
-
-        mcmc_dict['compute_dm'] = False
+        
         
     return mcmc_dict
 
@@ -714,8 +743,6 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
                 comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
                                                                   stddev=params['{}_stddev'.format(
                                                                                  param_name)])
-            
-            
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
@@ -774,8 +801,6 @@ def moster13_halo_mass(z=None, lmass=None):
     
     return lmhalo
     
-
-
 def tied_mhalo_mstar(model_set):
     z = model_set.components['halo'].z
     

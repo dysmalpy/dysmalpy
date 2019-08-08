@@ -88,7 +88,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
                                   oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
                                   linked_posterior_names=fit_dict['linked_posterior_names'], 
-                                  compute_dm=fit_dict['compute_dm'],
+                                  blob_name=fit_dict['blob_name'],
                                   outdir=fit_dict['outdir'],
                                   f_plot_trace_burnin=fit_dict['f_plot_trace_burnin'],
                                   f_plot_trace=fit_dict['f_plot_trace'],
