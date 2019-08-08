@@ -212,7 +212,35 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
         circaper_disp[pvec] = 0.
 
     return xvec, circaper_vel, circaper_disp
+    
+############################################################################
+# Tied functions for halo fitting:
+def tie_lmvirial_NFW(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    
+    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
+    return mvirial
 
+#
+def tie_alpha_TwoPower(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+
+    alpha = comp_halo.calc_alpha_from_fdm(comp_baryons)
+    return alpha
+
+def tie_rB_Burkert(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+
+    rB = comp_halo.calc_rB_from_fdm(comp_baryons)
+    return rB
+
+def tie_r_fdm(model_set):
+    reff = model_set.components['disk+bulge'].r_eff_disk.value
+    return reff
+############################################################################
 
 # Generic model container which tracks all components, parameters,
 # parameter settings, model settings, etc.
@@ -523,6 +551,32 @@ class ModelSet:
         
         return dm_frac
         
+    def get_mvirial(self, model_key_halo=None):
+        comp = self.components.__getitem__(model_key_halo[0])
+        mvirial = comp.mvirial
+        return mvirial
+        
+    def get_halo_alpha(self, model_key_halo=None):
+        comp = self.components.__getitem__(model_key_halo[0])
+        
+        try:
+            alpha = comp.alpha
+        except:
+            alpha = None
+        
+        return alpha
+        
+    def get_halo_rb(self, model_key_halo=None):
+        comp = self.components.__getitem__(model_key_halo[0])
+        
+        try:
+            rB = comp.rB
+        except:
+            rB = None
+        
+        return rB
+        
+        
     def get_encl_mass_effrad(self, rstep=0.2, model_key_re=None):
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
@@ -601,7 +655,7 @@ class ModelSet:
         return enc_mass, enc_bary, enc_dm
 
         
-    def circular_velocity(self, r, compute_dm=False, skip_bulge=False):
+    def circular_velocity(self, r, compute_dm=False):
         """
         Method to calculate the 1D circular velocity profile
         as a function of radius, from the enclosed mass
@@ -623,7 +677,7 @@ class ModelSet:
                     mcomp = self.components[cmp]
 
                     if isinstance(mcomp, DiskBulge):
-                        cmpnt_v = mcomp.circular_velocity(r, skip_bulge=skip_bulge)
+                        cmpnt_v = mcomp.circular_velocity(r)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r)
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
@@ -639,9 +693,7 @@ class ModelSet:
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
-                                                                   compute_dm=compute_dm,
-                                                                   skip_bulge=skip_bulge)
+            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm, compute_dm=compute_dm)
 
             if compute_dm:
                 vel = vels[0]
@@ -656,12 +708,12 @@ class ModelSet:
             else:
                 return vel
                 
-    def velocity_profile(self, r, compute_dm=False, skip_bulge=False):
+    def velocity_profile(self, r, compute_dm=False):
         """
         Method to calculate the 1D velocity profile
         as a function of radius
         """
-        vels = self.circular_velocity(r, compute_dm=compute_dm, skip_bulge=skip_bulge)
+        vels = self.circular_velocity(r, compute_dm=compute_dm)
         if compute_dm:
             vcirc = vels[0]
             vdm = vels[1]
@@ -1134,31 +1186,12 @@ class DiskBulge(MassModel):
 
         return vcirc
         
-    def circular_velocity(self, r, skip_bulge=False):
+    def circular_velocity(self, r):
 
-        #if self.noord_flat:
-        # mbulge_total = 10**self.total_mass*self.bt
-        # mdisk_total = 10**self.total_mass*(1-self.bt)
-        # 
-        # vbulge = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-        #                          self.n_bulge, self.invq_bulge)
-        # vdisk = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-        #                          self.n_disk, self.invq_disk)
-        # 
-        
-        if skip_bulge:
-            vdisk = self.circular_velocity_disk(r)
-        
-            vcirc = vdisk
-        else:
-            vbulge = self.circular_velocity_bulge(r)
-            vdisk = self.circular_velocity_disk(r)
-        
-            vcirc = np.sqrt(vbulge**2 + vdisk**2)
-
-        # else:
-        # 
-        #     vcirc = super(DiskBulge, self).circular_velocity(r)
+        vbulge = self.circular_velocity_bulge(r)
+        vdisk = self.circular_velocity_disk(r)
+    
+        vcirc = np.sqrt(vbulge**2 + vdisk**2)
 
         return vcirc
         
@@ -1203,6 +1236,7 @@ class DiskBulge(MassModel):
 
         return flux
 
+#
 
 class DarkMatterHalo(MassModel):
     """
@@ -1212,7 +1246,8 @@ class DarkMatterHalo(MassModel):
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
-
+    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
@@ -1236,7 +1271,7 @@ class DarkMatterHalo(MassModel):
             raise NotImplementedError("Adiabatic contraction not currently supported!")
         else:
             return self.circular_velocity(r)
-
+        
 
 class TwoPowerHalo(DarkMatterHalo):
     """
@@ -1249,18 +1284,20 @@ class TwoPowerHalo(DarkMatterHalo):
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
+    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alpha, beta, z=0, cosmo=_default_cosmo,
-                 **kwargs):
+    def __init__(self, mvirial, conc, alpha, beta, 
+            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
+            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            cosmo=_default_cosmo, **kwargs):
         self.z = z
-        #self.alpha = alpha
-        #self.beta = beta
         self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, **kwargs)
+        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, r_fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, conc, alpha, beta):
+    def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -1299,6 +1336,29 @@ class TwoPowerHalo(DarkMatterHalo):
                  (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+
+    def calc_alpha_from_fdm(self, baryons):
+    
+        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+    
+        alphtest = np.arange(-10, 10, 1.0)
+        vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
+                                self.beta, self.z, self.r_fdm) for alph in alphtest])
+    
+        a = alphtest[vtest < 0][-1]
+        b = alphtest[vtest > 0][0]
+    
+        alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
+                                    self.beta, self.z, self.r_fdm))
+    
+        return alpha
+    
+    def _minfunc_vdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
+    
+        halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
+        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        
         
 
 class Burkert(DarkMatterHalo):
@@ -1310,14 +1370,18 @@ class Burkert(DarkMatterHalo):
     # Powerlaw slopes for the density model
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
+    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, rB, z=0, cosmo=_default_cosmo,
-                 **kwargs):
+    def __init__(self, mvirial, rB, 
+            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
+            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(Burkert, self).__init__(mvirial, rB, **kwargs)
+        super(Burkert, self).__init__(mvirial, rB, fdm, r_fdm, **kwargs)
 
     def evaluate(self, r, mvirial, rB):
 
@@ -1368,6 +1432,28 @@ class Burkert(DarkMatterHalo):
                  (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+        
+    def calc_rB_from_fdm(self, baryons):
+    
+        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+    
+        rBtest = np.arange(-10, 10, 1.0)
+        vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, self.r_fdm) for rBt in rBtest])
+    
+        a = rBtest[vtest < 0][-1]
+        b = rBtest[vtest > 0][0]
+    
+        rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, self.r_fdm))
+    
+        return rB
+    
+    def _minfunc_vdm(self, rB, vtarget, mass, z, r_eff):
+    
+        halo = Burkert(mvirial=mass, rB=rB, z=z)
+        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        
+    
 
 
 class NFW(DarkMatterHalo):
@@ -1376,11 +1462,13 @@ class NFW(DarkMatterHalo):
     concentration.
     """
 
-    def __init__(self, mvirial, conc, z=0, cosmo=_default_cosmo,
-                 **kwargs):
+    def __init__(self, mvirial, conc, 
+            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
+            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(NFW, self).__init__(mvirial, conc, **kwargs)
+        super(NFW, self).__init__(mvirial, conc, fdm, r_fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc):
         """3D mass density profile"""
@@ -1427,232 +1515,27 @@ class NFW(DarkMatterHalo):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
+        
+    def calc_mvirial_from_fdm(self, baryons):
 
-
-class DiskBulgeNFW(MassModel):
-
-    baryonic_mass = DysmalParameter(default=10, bounds=(5, 14))
-    r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
-    n_disk = DysmalParameter(default=1, fixed=True, bounds=(0, 8))
-    r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
-    n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
-    bt = DysmalParameter(default=0.2, bounds=(0, 1))
-    fdm = DysmalParameter(default=0.5, bounds=(0,1))
-
-    _subtype = 'combined'
-
-    def __init__(self, baryonic_mass=10., r_eff_disk=1, n_disk=1., r_eff_bulge=1.,
-                 n_bulge=4., bt=0.2, fdm=0.5, invq_disk=5, invq_bulge=1, noord_flat=False,
-                 light_component='disk', conc=6., z=2., cosmo=_default_cosmo, **kwargs):
-
-        self.invq_disk = invq_disk
-        self.invq_bulge = invq_bulge
-        self.noord_flat = noord_flat
-        self.light_component = light_component
-        self.conc = conc
-        self.z = z
-        self.cosmo = cosmo
-
-        super(DiskBulgeNFW, self).__init__(baryonic_mass, r_eff_disk, n_disk,
-                                           r_eff_bulge, n_bulge, bt, fdm, **kwargs)
-
-    @staticmethod
-    def evaluate(self, *args, **kwargs):
-
-        return None
-
-
-    def enclosed_mass(self, r):
-
-        mbary = self.enclosed_mass_baryon(r)
-        mdm = self.enclosed_mass_halo(r)
-
-        return mbary + mdm
-
-    def enclosed_mass_baryon(self, r):
-        mbulge_total = 10 ** self.baryonic_mass * self.bt
-        mdisk_total = 10 ** self.baryonic_mass * (1 - self.bt)
-
-        menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge,
-                                 self.r_eff_bulge)
-        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
-                                self.r_eff_disk)
-
-        return menc_disk + menc_bulge
-
-    def enclosed_mass_disk(self, r):
-        mdisk_total = 10 ** self.baryonic_mass * (1 - self.bt)
-
-        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
-                                self.r_eff_disk)
-        return menc_disk
-
-    def enclosed_mass_bulge(self, r):
-        mbulge_total = 10 ** self.baryonic_mass * self.bt
-
-        menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge,
-                                 self.r_eff_bulge)
-        return menc_bulge
-
-    def enclosed_mass_halo(self, r):
-        """
-        Calculate the enclosed mass as a function of radius
-        :param r: Radii at which to calculate the enclosed mass
-        :return: 1D enclosed mass profile
-        """
-
-        mvirial = self.mvirial()
-        rho0 = self.calc_rho0(mvirial)
-        rvirial = self.calc_rvir(mvirial)
-        rs = rvirial/self.conc
-        aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
-
-        # For very small r, bb can be negative.
-        bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
-
-        return aa*bb
-
-    def calc_rho0(self, mvirial):
-
-        rvirial = self.calc_rvir(mvirial)
-        aa = 10**mvirial/(4.*np.pi*rvirial**3)*self.conc**3
-        bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
-
-        return aa * bb
-
-    def calc_rvir(self, mvirial):
-        """
-        Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
-        """
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** mvirial * (g_new_unit * 1e-3) /
-                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
-
-    def circular_velocity(self, r):
-
-        vcirc_bary = self.circular_velocity_baryons(r)
-        vhalo = self.circular_velocity_halo(r)
-
-        return np.sqrt(vcirc_bary**2 + vhalo**2)
-
-    def circular_velocity_halo(self, r):
-
-        mass_enc = self.enclosed_mass_halo(r)
-
-        vcirc_halo = v_circular(mass_enc, r)
-
-        return vcirc_halo
-
-    def circular_velocity_disk(self, r):
-        if self.noord_flat:
-            mdisk_total = 10 ** self.baryonic_mass * (1 - self.bt)
-            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-                                     self.n_disk, self.invq_disk)
-
-        else:
-            mass_enc = self.enclosed_mass_disk(r)
-            vcirc = v_circular(mass_enc, r)
-
-        return vcirc
-
-    def circular_velocity_bulge(self, r):
-        if self.noord_flat:
-            mbulge_total = 10 ** self.baryonic_mass * self.bt
-            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                                     self.n_bulge, self.invq_bulge)
-        else:
-            mass_enc = self.enclosed_mass_bulge(r)
-            vcirc = v_circular(mass_enc, r)
-
-        return vcirc
-
-    def circular_velocity_baryons(self, r, skip_bulge=False):
-
-        if skip_bulge:
-            vdisk = self.circular_velocity_disk(r)
-
-            vcirc = vdisk
-        else:
-            vbulge = self.circular_velocity_bulge(r)
-            vdisk = self.circular_velocity_disk(r)
-
-            vcirc = np.sqrt(vbulge ** 2 + vdisk ** 2)
-
-        return vcirc
-
-    def velocity_profile_baryons(self, r, modelset):
-        vcirc = self.circular_velocity_baryons(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
-        return vrot
-
-    def velocity_profile_disk(self, r, modelset):
-        vcirc = self.circular_velocity_disk(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
-        return vrot
-
-    def velocity_profile_bulge(self, r, modelset):
-        vcirc = self.circular_velocity_bulge(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
-        return vrot
-
-    def velocity_profile_halo(self, r, modelset):
-        vcirc = self.circular_velocity_halo(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
-        return vrot
-
-    def velocity_profile(self, r, modelset):
-        vcirc = self.circular_velocity(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
-        return vrot
-
-    def mvirial(self):
-
-        vsqr_bar_re = self.circular_velocity_baryons(self.r_eff_disk)**2
+        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
         mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk) for m in mtest])
+        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_fdm) for m in mtest])
 
         a = mtest[vtest < 0][-1]
         b = mtest[vtest > 0][0]
 
-        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk))
+        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_fdm))
 
         return mvirial
 
-    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff_disk):
+    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
 
         halo = NFW(mvirial=mass, conc=conc, z=z)
-        return halo.circular_velocity(r_eff_disk) ** 2 - vtarget
+        return halo.circular_velocity(r_eff) ** 2 - vtarget
 
-    def mass_to_light(self, r):
-
-        if self.light_component == 'disk':
-
-            flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
-
-        elif self.light_component == 'bulge':
-
-            flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
-
-        elif self.light_component == 'total':
-
-            flux_disk = sersic_mr(r, 1.0-self.bt,
-                                  self.n_disk, self.r_eff_disk)
-            flux_bulge = sersic_mr(r, self.bt,
-                                   self.n_bulge, self.r_eff_bulge)
-            flux = flux_disk + flux_bulge
-
-        else:
-
-            raise ValueError("light_component can only be 'disk', 'bulge', "
-                             "or 'total.'")
-
-        return flux
 
 
 # ****** Geometric Model ********
@@ -1760,8 +1643,7 @@ class KinematicOptions:
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
 
-    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, compute_dm=False,
-                                 skip_bulge=False):
+    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, compute_dm=False):
 
         if self.adiabatic_contract:
             #logger.info("Applying adiabatic contraction.")
@@ -1779,7 +1661,7 @@ class KinematicOptions:
                 if model.mass_components[cmp]:
                     mcomp = model.components[cmp]
                     if isinstance(mcomp, DiskBulge):
-                        cmpnt_v = mcomp.circular_velocity(r1d, skip_bulge=skip_bulge)
+                        cmpnt_v = mcomp.circular_velocity(r1d)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r1d)
                     if mcomp._subtype == 'dark_matter':
