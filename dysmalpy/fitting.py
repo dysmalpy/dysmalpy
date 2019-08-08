@@ -443,7 +443,7 @@ def fit(gal, nWalkers=10,
                               f_chain_ascii = f_chain_ascii)
 
     if f_chain_ascii is not None:
-        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        mcmcResults.save_chain_ascii(filename=f_chain_ascii, blob_name=blob_name)
         
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
@@ -991,7 +991,7 @@ class MCMCResults(FitResults):
         self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='rb')
         
         
-    def save_chain_ascii(self, filename=None):
+    def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
             try:
                 blobs = self.sampler['blobs']
@@ -1007,7 +1007,7 @@ class MCMCResults(FitResults):
                 namestr += '  '.join(map(str, self.chain_param_names))
                 if blobset:
                     # Currently assuming blob only returns DM fraction
-                    namestr += '  f_DM'
+                    namestr += '  {}'.format(blob_name)
                 f.write(namestr+'\n')
                 
                 # flatchain shape: (flat)step, params

@@ -553,14 +553,14 @@ class ModelSet:
         
     def get_mvirial(self, model_key_halo=None):
         comp = self.components.__getitem__(model_key_halo[0])
-        mvirial = comp.mvirial
+        mvirial = comp.mvirial.value
         return mvirial
         
     def get_halo_alpha(self, model_key_halo=None):
         comp = self.components.__getitem__(model_key_halo[0])
         
         try:
-            alpha = comp.alpha
+            alpha = comp.alpha.value
         except:
             alpha = None
         
@@ -570,7 +570,7 @@ class ModelSet:
         comp = self.components.__getitem__(model_key_halo[0])
         
         try:
-            rB = comp.rB
+            rB = comp.rB.value
         except:
             rB = None
         
