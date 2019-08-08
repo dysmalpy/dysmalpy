@@ -1247,7 +1247,7 @@ class DarkMatterHalo(MassModel):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
+    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
@@ -1285,7 +1285,7 @@ class TwoPowerHalo(DarkMatterHalo):
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
+    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
@@ -1370,7 +1370,7 @@ class Burkert(DarkMatterHalo):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50))
+    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
