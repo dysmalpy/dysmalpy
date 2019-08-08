@@ -131,7 +131,7 @@ def read_fitting_params(fname=None):
             if 'fdm_fixed' in params.keys():
                 if not params['fdm_fixed']:
                     if params['halo_profile_type'].upper() == 'NFW':
-                        params['blob_name'] = 'lmvir'
+                        params['blob_name'] = 'mvirial'
                     elif params['halo_profile_type'].lower() == 'twopowerhalo':
                         params['blob_name'] = 'alpha'
                     elif params['halo_profile_type'].lower() == 'burkert':
