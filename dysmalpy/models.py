@@ -1337,19 +1337,22 @@ class TwoPowerHalo(DarkMatterHalo):
         return rvir
 
     def calc_alpha_from_fdm(self, baryons):
+        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
+                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+            alpha = np.NaN
+        else:
+            vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
     
-        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
-        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+            alphtest = np.arange(-10, 10, 1.0)
+            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
+                                    self.beta, self.z, self.r_fdm) for alph in alphtest])
     
-        alphtest = np.arange(-10, 10, 1.0)
-        vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
-                                self.beta, self.z, self.r_fdm) for alph in alphtest])
+            a = alphtest[vtest < 0][-1]
+            b = alphtest[vtest > 0][0]
     
-        a = alphtest[vtest < 0][-1]
-        b = alphtest[vtest > 0][0]
-    
-        alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
-                                    self.beta, self.z, self.r_fdm))
+            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
+                                        self.beta, self.z, self.r_fdm))
     
         return alpha
     
@@ -1433,16 +1436,20 @@ class Burkert(DarkMatterHalo):
         
     def calc_rB_from_fdm(self, baryons):
     
-        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
-        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
+                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+            rB = np.NaN
+        else:
+            vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
     
-        rBtest = np.arange(-10, 10, 1.0)
-        vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, self.r_fdm) for rBt in rBtest])
+            rBtest = np.arange(-10, 10, 1.0)
+            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, self.r_fdm) for rBt in rBtest])
     
-        a = rBtest[vtest < 0][-1]
-        b = rBtest[vtest > 0][0]
+            a = rBtest[vtest < 0][-1]
+            b = rBtest[vtest > 0][0]
     
-        rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, self.r_fdm))
+            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, self.r_fdm))
     
         return rB
     
@@ -1514,21 +1521,25 @@ class NFW(DarkMatterHalo):
         return rvir
         
     def calc_mvirial_from_fdm(self, baryons):
-
-        vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
-        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-
-        mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_fdm) for m in mtest])
         
-        try:
-            a = mtest[vtest < 0][-1]
-            b = mtest[vtest > 0][0]
-        except:
-            print(mtest, vtest)
-            raise ValueError
+        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
+                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+            mvirial = np.NaN
+        else:
+            vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
-        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_fdm))
+            mtest = np.arange(-5, 50, 1.0)
+            vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_fdm) for m in mtest])
+        
+            try:
+                a = mtest[vtest < 0][-1]
+                b = mtest[vtest > 0][0]
+            except:
+                print(mtest, vtest)
+                raise ValueError
+
+            mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_fdm))
 
         return mvirial
 
