@@ -1290,8 +1290,7 @@ class TwoPowerHalo(DarkMatterHalo):
     _subtype = 'dark_matter'
 
     def __init__(self, mvirial, conc, alpha, beta, 
-            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
-            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            fdm = None, r_fdm = None, 
             cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
@@ -1376,8 +1375,7 @@ class Burkert(DarkMatterHalo):
     _subtype = 'dark_matter'
 
     def __init__(self, mvirial, rB, 
-            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
-            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            fdm = None, r_fdm=None, 
             z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
@@ -1461,10 +1459,9 @@ class NFW(DarkMatterHalo):
     1D NFW mass model parameterized by the virial radius, virial mass, and
     concentration.
     """
-
+    
     def __init__(self, mvirial, conc, 
-            fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1)), 
-            r_fdm = DysmalParameter(default=2., fixed=True, tied=tie_r_fdm, bounds=(0, 50)), 
+            fdm = None, r_fdm = None, 
             z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
@@ -1749,7 +1746,8 @@ class KinematicOptions:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
                         if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
-                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
+                            #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
+                            if (isinstance(mcomp, DiskBulge)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
