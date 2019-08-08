@@ -1520,9 +1520,13 @@ class NFW(DarkMatterHalo):
 
         mtest = np.arange(-5, 50, 1.0)
         vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_fdm) for m in mtest])
-
-        a = mtest[vtest < 0][-1]
-        b = mtest[vtest > 0][0]
+        
+        try:
+            a = mtest[vtest < 0][-1]
+            b = mtest[vtest > 0][0]
+        except:
+            print(mtest, vtest)
+            raise ValueError
 
         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_fdm))
 
