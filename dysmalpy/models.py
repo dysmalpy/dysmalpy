@@ -514,7 +514,6 @@ class ModelSet:
             rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
             rgal = np.append(rgal, r)
             
-        
         vc, vdm = self.circular_velocity(rgal, compute_dm=True)
         
         # Not generally true if a term is oblate; to be updated
@@ -1629,12 +1628,15 @@ class DiskBulgeNFW(MassModel):
 
         return rvir
 
-    def circular_velocity(self, r):
-
+    def circular_velocity(self, r, compute_dm=False):
+        
         vcirc_bary = self.circular_velocity_baryons(r)
         vhalo = self.circular_velocity_halo(r)
-
-        return np.sqrt(vcirc_bary**2 + vhalo**2)
+        
+        if compute_dm:
+            return np.sqrt(vcirc_bary**2 + vhalo**2), vhalo
+        else:
+            return np.sqrt(vcirc_bary**2 + vhalo**2)
 
     def circular_velocity_halo(self, r):
 
