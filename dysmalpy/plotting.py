@@ -132,16 +132,16 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
         blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blob_name)]
         
         if blob_name.lower() == 'fdm':
-            names.append('fDM(RE)')
+            names.append('Blob: fDM(RE)')
             names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
         elif blob_name.lower() == 'alpha':
-            names.append('alpha')
+            names.append('Blob: alpha')
             names_nice.append(r'$\alpha$')
         elif blob_name.lower() == 'mvirial':
-            names.append('Mvirial')
+            names.append('Blob: Mvirial')
             names_nice.append(r'$\log_{10}(M_{\rm vir})$')
         elif blob_name.lower() == 'rb':
-            names.append('rB')
+            names.append('Blob: rB')
             names_nice.append(r'$R_B$')
         else:
             names.append(blob_name)
