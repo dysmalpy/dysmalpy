@@ -514,17 +514,6 @@ class ModelSet:
             rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
             rgal = np.append(rgal, r)
             
-            
-        ## Get DM frac:
-        
-        # vel, vdm = self.velocity_profile(rgal, compute_dm=True)
-        # 
-        # if self.kinematic_options.pressure_support:
-        #     # Correct for pressure support to get circular velocity:
-        #     vc = self.kinematic_options.correct_for_pressure_support(rgal, self, vel)
-        # else:
-        #     vc = vel.copy()
-        
         
         vc, vdm = self.circular_velocity(rgal, compute_dm=True)
         
