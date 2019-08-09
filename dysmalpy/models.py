@@ -1272,7 +1272,7 @@ class TwoPowerHalo(DarkMatterHalo):
         self.cosmo = cosmo
         super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, r_fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
+    def evaluate(self, r, mvirial, conc, alpha, beta, fdm, r_fdm):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -1360,7 +1360,7 @@ class Burkert(DarkMatterHalo):
         self.cosmo = cosmo
         super(Burkert, self).__init__(mvirial, rB, fdm, r_fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, rB):
+    def evaluate(self, r, mvirial, rB, fdm, r_dm):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -1450,7 +1450,7 @@ class NFW(DarkMatterHalo):
         self.cosmo = cosmo
         super(NFW, self).__init__(mvirial, conc, fdm, r_fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, conc):
+    def evaluate(self, r, mvirial, conc, fdm, r_fdm):
         """3D mass density profile"""
 
         rvirial = self.calc_rvir()
@@ -1666,17 +1666,12 @@ class DiskBulgeNFW(MassModel):
 
         return vcirc
 
-    def circular_velocity_baryons(self, r, skip_bulge=False):
+    def circular_velocity_baryons(self, r):
 
-        if skip_bulge:
-            vdisk = self.circular_velocity_disk(r)
+        vbulge = self.circular_velocity_bulge(r)
+        vdisk = self.circular_velocity_disk(r)
 
-            vcirc = vdisk
-        else:
-            vbulge = self.circular_velocity_bulge(r)
-            vdisk = self.circular_velocity_disk(r)
-
-            vcirc = np.sqrt(vbulge ** 2 + vdisk ** 2)
+        vcirc = np.sqrt(vbulge ** 2 + vdisk ** 2)
 
         return vcirc
 
