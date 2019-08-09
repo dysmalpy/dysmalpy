@@ -714,45 +714,45 @@ def load_single_object_3D_data(params=None):
     
     return data3d
     
-#
+
 def set_comp_param_prior(comp=None, param_name=None, params=None):
-    
     if params['{}_fixed'.format(param_name)] is False:
         if '{}_prior'.format(param_name) in list(params.keys()):
+            # OLD! Problematic for case w/ catalog + params diff...
+            # center = params[param_name] 
+            
+            # Default to using pre-set value!
+            center = comp.prior[param_name].center
+            
+            # Default to using pre-set value, if already specified!!!
+            try:
+                try:
+                    stddev = comp.prior[param_name].stddev
+                except:
+                    stddev = params['{}_stddev'.format(param_name)]
+            except:
+                stddev = None
+            
             if params['{}_prior'.format(param_name)].lower() == 'flat':
-                
                 comp.prior[param_name] = parameters.UniformPrior()
-
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
-                comp.prior[param_name] = parameters.BoundedGaussianPrior(center=params[param_name],
-                                                                        stddev=params['{}_stddev'.format(param_name)])
-                                                                        
+                comp.prior[param_name] = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
-                comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=params[param_name],
-                                                                        stddev=params['{}_stddev'.format(param_name)])
-            #
+                comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
-                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=params[param_name],
-                                                                   stddev=params['{}_stddev'.format(
-                                                                                  param_name)])
-
+                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'tied_flat':
                 comp.prior[param_name] = TiedUniformPrior()
-
             elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian':
-                comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
-                                                                  stddev=params['{}_stddev'.format(
-                                                                                 param_name)])
+                comp.prior[param_name] = TiedBoundedGaussianPrior(center=center, stddev=stddev)
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
                 pass
     
-    
     return comp
 
-    
-#
+
 def tie_sigz_reff(model_set):
  
     reff = model_set.components['disk+bulge'].r_eff_disk.value
