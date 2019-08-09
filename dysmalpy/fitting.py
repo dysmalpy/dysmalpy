@@ -108,13 +108,11 @@ def fit(gal, nWalkers=10,
     """
     # --------------------------------
     # Check option validity:
-    
-    valid_blobnames = ['fdm', 'mvirial', 'alpha', 'rb']
-    if blob_name.lower().strip() not in valid_blobnames:
-        raise ValueError("blob_name={} not recognized as option!".format(blob_name))
-    
-    
-    
+    if blob_name is not None:
+        valid_blobnames = ['fdm', 'mvirial', 'alpha', 'rb']
+        if blob_name.lower().strip() not in valid_blobnames:
+            raise ValueError("blob_name={} not recognized as option!".format(blob_name))
+            
     # --------------------------------
     # Basic setup:
     
