@@ -452,14 +452,15 @@ def fit(gal, nWalkers=10,
     # Update theta to best-fit:
     gal.model.update_parameters(mcmcResults.bestfit_parameters)
                 
-    if blob_name.lower() == 'fdm':
-        mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
-    elif blob_name.lower() == 'mvirial':
-        mcmcResults.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-    elif blob_name.lower() == 'alpha':
-        mcmcResults.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-    elif blob_name.lower() == 'rb':
-        mcmcResults.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+    if blob_name is not None:
+        if blob_name.lower() == 'fdm':
+            mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
+        elif blob_name.lower() == 'mvirial':
+            mcmcResults.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+        elif blob_name.lower() == 'alpha':
+            mcmcResults.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+        elif blob_name.lower() == 'rb':
+            mcmcResults.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
     
     gal.create_model_data(oversample=oversample, oversize=oversize, 
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
