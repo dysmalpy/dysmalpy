@@ -968,27 +968,19 @@ class MCMCResults(FitResults):
 
         """
         fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        
         self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm')
-        
         
     def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None):
         mvirial_mcmc_param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
-        
         self.analyze_blob_posterior_dist(bestfit=mvirial_mcmc_param_bestfit, parname='mvirial')
-        
-        
         
     def analyze_alpha_posterior_dist(self, gal=None, model_key_halo=None):
         alpha_mcmc_param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-        
         self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='alpha')
         
     def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None):
         rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-        
         self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='rb')
-        
         
     def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
@@ -1231,15 +1223,19 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         raise ValueError
         
     ####
-    if blob_name.lower() == 'fdm':
-        dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        return llike, dm_frac
-    elif blob_name.lower() == 'mvirial':
-        mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
-        return llike, mvirial
-    elif blob_name.lower() == 'alpha':
-        alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-        return llike, alpha
+    if blob_name is not None:
+        if blob_name.lower() == 'fdm':
+            dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+            return llike, dm_frac
+        elif blob_name.lower() == 'mvirial':
+            mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
+            return llike, mvirial
+        elif blob_name.lower() == 'alpha':
+            alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+            return llike, alpha
+        elif blob_name.lower() == 'rb':
+            rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+            return llike, rB
     else:
         return llike
         
