@@ -539,7 +539,7 @@ class ModelSet:
         
         return dm_frac
             
-    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=None):
+    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=['disk+bulge', 'r_eff_disk']):
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
@@ -551,12 +551,12 @@ class ModelSet:
         
         return dm_frac
         
-    def get_mvirial(self, model_key_halo=None):
+    def get_mvirial(self, model_key_halo=['halo']):
         comp = self.components.__getitem__(model_key_halo[0])
         mvirial = comp.mvirial.value
         return mvirial
         
-    def get_halo_alpha(self, model_key_halo=None):
+    def get_halo_alpha(self, model_key_halo=['halo']):
         comp = self.components.__getitem__(model_key_halo[0])
         
         try:
@@ -566,7 +566,7 @@ class ModelSet:
         
         return alpha
         
-    def get_halo_rb(self, model_key_halo=None):
+    def get_halo_rb(self, model_key_halo=['halo']):
         comp = self.components.__getitem__(model_key_halo[0])
         
         try:
@@ -577,7 +577,7 @@ class ModelSet:
         return rB
         
         
-    def get_encl_mass_effrad(self, rstep=0.2, model_key_re=None):
+    def get_encl_mass_effrad(self, rstep=0.2, model_key_re=['disk+bulge', 'r_eff_disk']):
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
@@ -585,18 +585,6 @@ class ModelSet:
         r = r_eff
         
         makearr = True
-        
-        # lnin = 0
-        # try:
-        #     lnin = len(r)
-        #     if lnin == 1:
-        #         r = r[0]
-        #         makearr = True
-        #     else:
-        #         rgal = r
-        #         makearr = False
-        # except:
-        #     makearr = True
             
         if makearr:
             nstep = np.floor_divide(r,rstep) 
