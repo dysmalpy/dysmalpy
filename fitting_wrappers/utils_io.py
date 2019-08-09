@@ -723,7 +723,10 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
             
             # Default to using pre-set value!
             try:
-                center = comp.prior[param_name].center
+                try:
+                    center = comp.prior[param_name].center
+                except:
+                    center = params[param_name] 
             except:
                 # eg, UniformPrior
                 center = None
