@@ -1621,7 +1621,7 @@ class DiskBulgeNFW(MassModel):
         :return: 1D enclosed mass profile
         """
 
-        self.mvirial = self.calc_mvirial()
+        mvirial = self.mvirial()
         rho0 = self.calc_rho0(mvirial)
         rvirial = self.calc_rvir(mvirial)
         rs = rvirial/self.conc
@@ -1690,12 +1690,17 @@ class DiskBulgeNFW(MassModel):
 
         return vcirc
 
-    def circular_velocity_baryons(self, r):
-        
-        vbulge = self.circular_velocity_bulge(r)
-        vdisk = self.circular_velocity_disk(r)
+    def circular_velocity_baryons(self, r, skip_bulge=False):
 
-        vcirc = np.sqrt(vbulge ** 2 + vdisk ** 2)
+        if skip_bulge:
+            vdisk = self.circular_velocity_disk(r)
+
+            vcirc = vdisk
+        else:
+            vbulge = self.circular_velocity_bulge(r)
+            vdisk = self.circular_velocity_disk(r)
+
+            vcirc = np.sqrt(vbulge ** 2 + vdisk ** 2)
 
         return vcirc
 
@@ -1724,7 +1729,7 @@ class DiskBulgeNFW(MassModel):
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
-    def calc_mvirial(self):
+    def mvirial(self):
 
         vsqr_bar_re = self.circular_velocity_baryons(self.r_eff_disk)**2
         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
@@ -1736,7 +1741,7 @@ class DiskBulgeNFW(MassModel):
         b = mtest[vtest > 0][0]
 
         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk))
-        
+
         return mvirial
 
     def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff_disk):
