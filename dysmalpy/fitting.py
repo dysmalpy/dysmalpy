@@ -67,7 +67,7 @@ def fit(gal, nWalkers=10,
            fitdispersion = True,
            blob_name=None, 
            model_key_re = ['disk+bulge','r_eff_disk'],
-           model_key_halo=['disk+bulge+halo'], 
+           model_key_halo=['halo'], 
            do_plotting = True,
            save_burn = False,
            save_model = True,
@@ -1086,7 +1086,7 @@ def log_prob(theta, gal,
              blob_name = None, 
              profile1d_type='circ_ap_cube',
              model_key_re=['disk+bulge','r_eff_disk'], 
-             model_key_halo=['disk+bulge+halo']):
+             model_key_halo=['halo']):
     """
     Evaluate the log probability of the given model
     """
@@ -1134,7 +1134,7 @@ def log_prob(theta, gal,
 def log_like(gal, red_chisq=False, fitdispersion=True, 
                 blob_name=None, 
                 model_key_re=['disk+bulge','r_eff_disk'], 
-                model_key_halo=['disk+bulge+halo']):
+                model_key_halo=['halo']):
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
