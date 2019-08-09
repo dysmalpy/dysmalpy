@@ -216,51 +216,65 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                 
     # ------------------------------------------------------------
     # Halo Component: (if added)
+    # ------------------------------------------------------------
     if params['include_halo']:
         # Halo component
         if (params['halo_profile_type'].strip().upper() == 'NFW'):
+            
             # NFW halo fit:
-            mvirial = params['mvirial']     # log Msun
-            conc = params['halo_conc']      
-        
-            halo_fixed = {'mvirial': params['mvirial_fixed'],       
-                          'conc': params['halo_conc_fixed']}       
-                      
-            halo_bounds = {'mvirial': (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),    
-                           'conc': (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1])}  
-                       
-            halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
+            mvirial =                   params['mvirial']  
+            conc =                      params['halo_conc']
+            fdm =                       params['fdm']
+            
+            halo_fixed = {'mvirial':    params['mvirial_fixed'], 
+                          'conc':       params['halo_conc_fixed'], 
+                          'fdm':        params['fdm_fixed']}
+                          
+            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                           'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]), 
+                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1])}
+                           
+            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
-        
+            
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
+            
+            if params['fdm_fixed'] is False:
+                # Tie the virial mass to fDM
+                halo.mvirial.tied = models.tie_lmvirial_NFW
+                halo.mvirial.fixed = False
+                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
             
         elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
             # Two-power halo fit:
             
             # Add values needed:
             bary.lmstar = params['lmstar']
-            bary.fgas =   params['fgas']
+            bary.fgas =  params['fgas']
             
             # Setup parameters:
             mvirial =  params['mvirial']
             conc =     params['halo_conc']
             alpha =    params['alpha']
             beta =     params['beta']
+            fdm =      params['fdm']
             
             halo_fixed = {'mvirial':    params['mvirial_fixed'],
                           'conc':       params['halo_conc_fixed'],
                           'alpha':      params['alpha_fixed'],
-                          'beta':       params['beta_fixed']}
+                          'beta':       params['beta_fixed'],
+                          'fdm':        params['fdm_fixed']}
                           
-            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]), 
                            'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]), 
                            'alpha':     (params['alpha_bounds'][0], params['alpha_bounds'][1]), 
-                           'beta':      (params['beta_bounds'][0], params['beta_bounds'][1]) }
+                           'beta':      (params['beta_bounds'][0], params['beta_bounds'][1]),
+                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
                            
             halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc, 
-                                alpha=alpha, beta=beta, z=gal.z,
-                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z,
+                                fixed=halo_fixed, bounds=halo_bounds, name='halo')
             
             # Tie the virial mass to Mstar
             halo.mvirial.tied = utils_io.tied_mhalo_mstar
@@ -269,11 +283,45 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='alpha', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='beta', params=params)
-        #
+            
+            if params['fdm_fixed'] is False:
+                # Tie the virial mass to fDM
+                halo.alpha.tied = models.tie_alpha_TwoPower
+                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+            
         elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
-            raise ValueError("Burkert halo profile not implemented yet!")
+            # Burkert halo profile:
+            
+            # Setup parameters:
+            mvirial =  params['mvirial']
+            rB =       params['rB']
+            fdm =      params['fdm']
+            
+            halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                          'rB':         params['rB_fixed'],
+                          'fdm':        params['fdm_fixed']}
+                          
+            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]), 
+                           'rB':        (params['rB_bounds'][0], params['rB_bounds'][1]),
+                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
+                           
+            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z,
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+                              
+            # Tie the virial mass to Mstar
+            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
+            
+            if params['fdm_fixed'] is False:
+                # Tie the virial mass to fDM
+                halo.rB.tied = models.tie_rB_Burkert
+                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+            
         else:
             raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
+    # ------------------------------------------------------------
     # ------------------------------------------------------------
     # Dispersion profile
     sigma0 = params['sigma0']       # km/s
