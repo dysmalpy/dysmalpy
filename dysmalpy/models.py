@@ -1291,7 +1291,7 @@ class TwoPowerHalo(DarkMatterHalo):
 
     def __init__(self, mvirial, conc, alpha, beta, 
             fdm = None, r_fdm = None, 
-            cosmo=_default_cosmo, **kwargs):
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
         super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, r_fdm, **kwargs)
