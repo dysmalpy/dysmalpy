@@ -173,13 +173,13 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
                             title_kwargs=title_kwargs)
                             
     axes = fig.axes
-    nFreeParam = len(mcmcResults.bestfit_parameters)
+    nFreeParam = len(truths)
     for i in six.moves.xrange(nFreeParam):
         ax = axes[i*nFreeParam + i]
         # Format the quantile display.
-        best = mcmcResults.bestfit_parameters[i]
-        q_m = mcmcResults.bestfit_parameters_l68_err[i]
-        q_p = mcmcResults.bestfit_parameters_u68_err[i]
+        best = truths[i] #fit_results.bestfit_parameters[i]
+        q_m = truths_l68[i]
+        q_p = truths_u68[i]
         title_fmt=".2f"
         fmt = "{{0:{0}}}".format(title_fmt).format
         title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
