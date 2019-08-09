@@ -541,7 +541,10 @@ class ModelSet:
         
     def get_mvirial(self, model_key_halo=['halo']):
         comp = self.components.__getitem__(model_key_halo[0])
-        mvirial = comp.mvirial.value
+        try:
+            mvirial = comp.mvirial.value
+        except:
+            mvirial = comp.mvirial()
         return mvirial
         
     def get_halo_alpha(self, model_key_halo=['halo']):
