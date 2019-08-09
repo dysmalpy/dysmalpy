@@ -89,7 +89,8 @@ def fit(gal, nWalkers=10,
            f_mcmc_results = None,
            f_chain_ascii = None,
            f_vel_ascii = None, 
-           f_log = None ):
+           f_log = None,
+           **kwargs ):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
 
