@@ -1628,15 +1628,12 @@ class DiskBulgeNFW(MassModel):
 
         return rvir
 
-    def circular_velocity(self, r, compute_dm=False):
+    def circular_velocity(self, r):
         
         vcirc_bary = self.circular_velocity_baryons(r)
         vhalo = self.circular_velocity_halo(r)
         
-        if compute_dm:
-            return np.sqrt(vcirc_bary**2 + vhalo**2), vhalo
-        else:
-            return np.sqrt(vcirc_bary**2 + vhalo**2)
+        return np.sqrt(vcirc_bary**2 + vhalo**2)
 
     def circular_velocity_halo(self, r):
 
