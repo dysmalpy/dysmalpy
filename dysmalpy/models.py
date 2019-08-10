@@ -1504,6 +1504,8 @@ class NFW(DarkMatterHalo):
         if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
                 ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
             mvirial = np.NaN
+        elif (self.__getattribute__('fdm').value == 1.):
+            mvirial = np.inf
         else:
             vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
@@ -1704,17 +1706,28 @@ class DiskBulgeNFW(MassModel):
         return vrot
 
     def mvirial(self):
+        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
+                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+            mvirial = np.NaN
+        elif (self.__getattribute__('fdm').value == 1.):
+            mvirial = np.inf
+            
+        else:
 
-        vsqr_bar_re = self.circular_velocity_baryons(self.r_eff_disk)**2
-        vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+            vsqr_bar_re = self.circular_velocity_baryons(self.r_eff_disk)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
-        mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk) for m in mtest])
+            mtest = np.arange(-5, 50, 1.0)
+            vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk) for m in mtest])
 
-        a = mtest[vtest < 0][-1]
-        b = mtest[vtest > 0][0]
+            try:
+                a = mtest[vtest < 0][-1]
+                b = mtest[vtest > 0][0]
+            except:
+                print(mtest, vtest)
+                raise ValueError
 
-        mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk))
+            mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc, self.z, self.r_eff_disk))
 
         return mvirial
 
