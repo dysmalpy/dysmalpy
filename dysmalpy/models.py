@@ -518,30 +518,47 @@ class ModelSet:
         return dm_frac
         
     def get_mvirial(self, model_key_halo=['halo']):
-        comp = self.components.__getitem__(model_key_halo[0])
         try:
-            mvirial = comp.mvirial.value
+            mvirial = self.components[model_key_halo[0]].mvirial.value
         except:
-            mvirial = comp.mvirial()
+            mvirial = self.components[model_key_halo[0]].mvirial
+        
+        # comp = self.components.__getitem__(model_key_halo[0])
+        # try:
+        #     mvirial = comp.mvirial.value
+        # except:
+        #     mvirial = comp.mvirial
+        #     #comp.mvirial()
         return mvirial
         
     def get_halo_alpha(self, model_key_halo=['halo']):
-        comp = self.components.__getitem__(model_key_halo[0])
-        
         try:
-            alpha = comp.alpha.value
+            alpha = self.components[model_key_halo[0]].alpha.value
         except:
             alpha = None
+            
+            
+        # comp = self.components.__getitem__(model_key_halo[0])
+        # 
+        # try:
+        #     alpha = comp.alpha.value
+        # except:
+        #     alpha = None
         
         return alpha
         
     def get_halo_rb(self, model_key_halo=['halo']):
-        comp = self.components.__getitem__(model_key_halo[0])
-        
         try:
-            rB = comp.rB.value
+            rB = self.components[model_key_halo[0]].rB.value
         except:
             rB = None
+            
+        # comp = self.components.__getitem__(model_key_halo[0])
+        # 
+        # try:
+        #     rB = comp.rB.value
+        # except:
+        #     rB = None
         
         return rB
         
@@ -1580,7 +1597,7 @@ class DiskBulgeNFW(MassModel):
         :return: 1D enclosed mass profile
         """
 
-        mvirial = self.mvirial()
+        self.mvirial = self.calc_mvirial()
         rho0 = self.calc_rho0(mvirial)
         rvirial = self.calc_rvir(mvirial)
         rs = rvirial/self.conc
@@ -1683,7 +1700,7 @@ class DiskBulgeNFW(MassModel):
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
-    def mvirial(self):
+    def calc_mvirial(self):
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             mvirial = np.NaN
