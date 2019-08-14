@@ -1598,8 +1598,8 @@ class DiskBulgeNFW(MassModel):
         """
 
         self.mvirial = self.calc_mvirial()
-        rho0 = self.calc_rho0(mvirial)
-        rvirial = self.calc_rvir(mvirial)
+        rho0 = self.calc_rho0(self.mvirial)
+        rvirial = self.calc_rvir(self.mvirial)
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
 
