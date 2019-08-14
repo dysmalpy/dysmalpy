@@ -1139,8 +1139,8 @@ def log_prob(theta, gal,
 
 def log_like(gal, red_chisq=False, fitdispersion=True, 
                 blob_name=None, 
-                model_key_re=['disk+bulge','r_eff_disk'], 
-                model_key_halo=['halo']):
+                model_key_re=None, 
+                model_key_halo=None):
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
