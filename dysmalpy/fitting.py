@@ -121,7 +121,7 @@ def fit(gal, nWalkers=10,
     gal.model = mod_in
     
     # DEBUG
-    logger.info("check: BEGINNING: r_fdm={}".format(gal.model.components[model_key_halo[0]].r_fdm.value))
+    logger.info("check: BEGINNING: r_fdm={}".format(gal.model.components[model_key_halo[0]].r_fdm))
     
     #if nCPUs is None:
     if cpuFrac is not None:
