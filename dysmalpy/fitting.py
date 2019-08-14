@@ -1093,7 +1093,13 @@ def log_prob(theta, gal,
     # profile1d_type='circ_ap_cube',
     # model_key_re=['disk+bulge','r_eff_disk'], 
     # model_key_halo=['halo']):
-
+    
+    # DEBUG
+    try:
+        gal.model.components[model_key_halo[0]].mvirial = -99.9
+    except:
+        pass
+    
     # Update the parameters
     gal.model.update_parameters(theta)
     logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial))
