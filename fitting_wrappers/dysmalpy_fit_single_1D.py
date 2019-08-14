@@ -234,7 +234,7 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                            'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]), 
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1])}
                            
-            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
+            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
             
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
@@ -273,7 +273,7 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
                            
             halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc, 
-                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
+                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z, 
                                 fixed=halo_fixed, bounds=halo_bounds, name='halo')
             
             # Tie the virial mass to Mstar
@@ -305,7 +305,7 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                            'rB':        (params['rB_bounds'][0], params['rB_bounds'][1]),
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
                            
-            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
+            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
                               
             # Tie the virial mass to Mstar
