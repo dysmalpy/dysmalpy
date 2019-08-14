@@ -822,52 +822,12 @@ def tied_mhalo_mstar(model_set):
     return lmhalo
     
 ############################################################################
-# # Tied functions for halo fitting:
-# def tie_r_fdm(model_set):
-#     reff = model_set.components['disk+bulge'].r_eff_disk.value
-#     return reff
-#     
-
-
 # Tied functions for halo fitting:
 def tie_lmvirial_NFW(model_set):
     comp_halo = model_set.components.__getitem__('halo')
     comp_baryons = model_set.components.__getitem__('disk+bulge')
-    
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm)
-    
-    # # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    # # mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'], r_fdm)
-    # 
-    # 
-    # fdm = model_set.components['halo'].fdm.value
-    # 
-    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    # 
-    # 
-    # conc = model_set.components['halo'].conc.value
-    # z = model_set.components['halo'].z
-    # 
-    # # Debug
-    # total_mass = model_set.components['disk+bulge'].total_mass.value
-    # sigma0 = model_set.components['dispprof'].sigma0.value
-    # 
-    # vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(r_fdm)**2
-    # 
-    # 
-    # mvirial = models.calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, 
-    #                         bounds_fdm = model_set.components['halo'].bounds['fdm'], 
-    #                         total_mass=total_mass, sigma0=sigma0)
-    # 
-    # # Debug
-    # print("fdm={}, total_mass={}, mvirial={}, r_fdm={}".format(fdm, total_mass, mvirial, r_fdm))
-    # 
-    # 
-    # # # # Horrible test:
-    # # # mvirial = model_set.components['disk+bulge'].total_mass.value
-    # # 
-    
     return mvirial
 
 def tie_alpha_TwoPower(model_set):
