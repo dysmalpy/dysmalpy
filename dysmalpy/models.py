@@ -764,25 +764,6 @@ class ModelSet:
         if len(cols) >= 1:
             self.write_profile_file(r=r, filename=filename, 
                 cols=cols, prettycolnames=colnames, colunits=colunits)
-        
-        # self.write_profile_file(r=r, filename=filename, 
-        #     cols=['velocity_profile', 'circular_velocity'], 
-        #     colnames=['vrot', 'vcirc'], colunits=['[km/s]', '[km/s]'])
-                
-        # if r is None:     r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
-        #     
-        # vrot = self.velocity_profile(r)
-        # vcirc = self.circular_velocity(r)
-        #     
-        # with open(filename, 'w') as f:
-        #     namestr = '#    r      vrot      vcirc'
-        #     f.write(namestr+'\n')
-        #     unitstr = '#   [kpc]    [km/s]      [km/s]'
-        #     f.write(unitstr+'\n')
-        #     
-        #     for i in six.moves.xrange(len(r)):
-        #         datastr = '{:0.1f}  {:0.3f}   {:0.3f}'.format(r[i], vrot[i], vcirc[i])
-        #         f.write(datstr+'\n')
                 
         
     def write_profile_file(self, r=None, filename=None, 

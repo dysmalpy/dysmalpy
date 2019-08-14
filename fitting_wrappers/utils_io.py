@@ -831,10 +831,14 @@ def tie_lmvirial_NFW(model_set):
     
     #mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
     
-    vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(model_set.components['halo'].r_fdm)**2
-    mvirial = models.calc_mvirial_from_fdm(model_set.components['halo'].fdm, model_set.components['halo'].r_fdm, 
-                        vsqr_bar_re, model_set.components['halo'].conc, model_set.components['halo'].z, 
-                            bounds_fdm = model_set.components['halo'].bounds['fdm'])
+    # vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(model_set.components['halo'].r_fdm)**2
+    # mvirial = models.calc_mvirial_from_fdm(model_set.components['halo'].fdm, model_set.components['halo'].r_fdm, 
+    #                     vsqr_bar_re, model_set.components['halo'].conc, model_set.components['halo'].z, 
+    #                         bounds_fdm = model_set.components['halo'].bounds['fdm'])
+    # 
+    
+    # Horrible test:
+    mvirial = model_set.components['disk+bulge'].total_mass.value
     
     return mvirial
 
