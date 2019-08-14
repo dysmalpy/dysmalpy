@@ -87,11 +87,10 @@ def read_fitting_params_input(fname=None):
 def read_fitting_params(fname=None):
     if fname is None:
         raise ValueError("parameter filename {} not found!".format(fname))
-
+        
     # READ FILE HERE!
     param_input = read_fitting_params_input(fname=fname)
     
-
     # Set some defaults if not otherwise specified
     params = {'nWalkers': 20, 
               'nCPUs': 4, 
@@ -117,7 +116,6 @@ def read_fitting_params(fname=None):
     for key in param_input.keys():
         params[key] = param_input[key]
     
-    #
     # Catch depreciated case:
     if 'halo_inner_slope_fit' in params.keys():
         if params['halo_inner_slope_fit']:
@@ -139,13 +137,6 @@ def read_fitting_params(fname=None):
                         params['blob_name'] = 'rb'
                 else:
                     params['blob_name'] = 'fdm'
-                    
-            # if params['halo_profile_type'].lower() == 'diskbulgenfw':
-            #     params['blob_name'] = 'lmvir'
-            # elif params['halo_profile_type'].lower() == 'diskbulgetwopowerhalo':
-            #     params['blob_name'] = 'alpha'
-            # elif params['halo_profile_type'].upper() == 'NFW':
-            #     params['blob_name'] = 'fdm'
         
         if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
             if params['mvirial_fixed'] is True:
@@ -154,7 +145,7 @@ def read_fitting_params(fname=None):
                 params['fdm_bounds'] = [0, 1]
                 
             else:
-                params['fdm'] = None
+                params['fdm'] = -99.9
                 params['fdm_fixed'] = True
                 params['fdm_bounds'] = [0, 1]
             
@@ -516,9 +507,6 @@ def setup_mcmc_dict(params=None):
         
         mcmc_dict['linked_posterior_names'] = linked_posterior_names
         
-
-
-        
         
     return mcmc_dict
 
@@ -551,10 +539,6 @@ def setup_mpfit_dict(params=None):
         mpfit_dict[key] = params[key]
 
     return mpfit_dict
-    
-    
-    
-
     
     
 def setup_basic_aperture_types(gal=None, params=None):
