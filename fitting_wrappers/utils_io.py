@@ -828,14 +828,10 @@ def tie_lmvirial_NFW(model_set):
     # 
     # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
     
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
-    
     mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
     
     return mvirial
 
-#
 def tie_alpha_TwoPower(model_set):
     comp_halo = model_set.components.__getitem__('halo')
     comp_baryons = model_set.components.__getitem__('disk+bulge')
