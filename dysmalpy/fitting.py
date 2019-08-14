@@ -1095,14 +1095,11 @@ def log_prob(theta, gal,
     # model_key_halo=['halo']):
     
     # DEBUG
-    try:
-        gal.model.components[model_key_halo[0]].mvirial = -99.9
-    except:
-        pass
+    gal.model.components[model_key_halo[0]].mvirial = -99.9
     
     # Update the parameters
     gal.model.update_parameters(theta)
-    logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial))
+    logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial.value))
 
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()
