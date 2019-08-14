@@ -849,7 +849,7 @@ def tie_lmvirial_NFW(model_set):
                             total_mass=total_mass, sigma0=sigma0)
     
     # Debug
-    print("fdm={}, total_mass={}, mvirial={}".format(fdm, total_mass, mvirial))
+    print("fdm={}, total_mass={}, mvirial={}, r_fdm={}".format(fdm, total_mass, mvirial, r_fdm))
     
     
     # # # Horrible test:
