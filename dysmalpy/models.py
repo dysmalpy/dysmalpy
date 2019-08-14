@@ -245,7 +245,7 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None):
     return mvirial
     
 #
-def _minfunc_vdm_NFW(self, mass, vtarget, conc, z, r_eff):
+def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff):
     halo = NFW(mvirial=mass, conc=conc, z=z)
     return halo.circular_velocity(r_eff) ** 2 - vtarget
     
