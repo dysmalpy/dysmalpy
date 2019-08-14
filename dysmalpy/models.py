@@ -1901,8 +1901,8 @@ class KinematicOptions:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
                         if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
-                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
-                            #if (isinstance(mcomp, DiskBulge)):
+                            #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
+                            if (isinstance(mcomp, DiskBulge)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
@@ -1945,7 +1945,8 @@ class KinematicOptions:
                     if model.mass_components[cmp]:
                         mcomp = model.components[cmp]
                         if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
-                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
+                            #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
+                            if (isinstance(mcomp, DiskBulge)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
