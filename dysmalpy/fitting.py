@@ -120,6 +120,7 @@ def fit(gal, nWalkers=10,
     mod_in = copy.deepcopy(gal.model)
     gal.model = mod_in
     
+    # DEBUG
     logger.info("check: BEGINNING: r_fdm={}".format(gal.model.components[model_key_halo[0]].r_fdm.value))
     
     #if nCPUs is None:
