@@ -252,7 +252,8 @@ def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None,
     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
     
     if not quiet:
-        logger.info("mass={}, z={}, total_mass={}, fdm={}, sigma0={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
+        if mass == 13.:
+            logger.info("mass={}, z={}, total_mass={}, fdm={}, sigma0={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
                 halo.z, total_mass, fdm, sigma0, r_eff, conc, vtarget, vout))
         
     return vout
@@ -1243,7 +1244,7 @@ class DarkMatterHalo(MassModel):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
+    r_fdm = DysmalParameter(default=2.0, fixed=False, tied=tie_r_fdm, bounds=(0, 50))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
