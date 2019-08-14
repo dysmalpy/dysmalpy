@@ -1116,7 +1116,7 @@ def log_prob(theta, gal,
                     blob_name=blob_name, \
                     model_key_re=model_key_re, model_key_halo=model_key_halo)
                     
-        print("llike={}".format(llike))
+        logger.info("llike={}".format(llike))
                     
                     
         if blob_name is not None:
