@@ -834,17 +834,17 @@ def tie_lmvirial_NFW(model_set):
     # comp_halo = model_set.components.__getitem__('halo')
     # comp_baryons = model_set.components.__getitem__('disk+bulge')
     # 
-    # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm)
     
-    #mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'], r_fdm)
     
     
     fdm = model_set.components['halo'].fdm.value
     
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     
-    #r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    
-    r_fdm = model_set.components['halo'].r_fdm
     
     conc = model_set.components['halo'].conc.value
     z = model_set.components['halo'].z

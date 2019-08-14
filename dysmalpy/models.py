@@ -1237,7 +1237,6 @@ class DarkMatterHalo(MassModel):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    #r_fdm = DysmalParameter(default=2.0, fixed=True, bounds=(0, 50))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
@@ -1275,12 +1274,11 @@ class TwoPowerHalo(DarkMatterHalo):
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    #r_fdm = DysmalParameter(default=2., fixed=True, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
     def __init__(self, mvirial, conc, alpha, beta, fdm = None, 
-            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
         super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, **kwargs)
@@ -1325,23 +1323,23 @@ class TwoPowerHalo(DarkMatterHalo):
 
         return rvir
 
-    def calc_alpha_from_fdm(self, baryons):
+    def calc_alpha_from_fdm(self, baryons, r_fdm):
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             alpha = np.NaN
         else:
-            vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
     
             alphtest = np.arange(-10, 10, 1.0)
             vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
-                                    self.beta, self.z, self.r_fdm) for alph in alphtest])
+                                    self.beta, self.z, r_fdm) for alph in alphtest])
     
             a = alphtest[vtest < 0][-1]
             b = alphtest[vtest > 0][0]
     
             alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
-                                        self.beta, self.z, self.r_fdm))
+                                        self.beta, self.z, r_fdm))
     
         return alpha
     
@@ -1362,15 +1360,13 @@ class Burkert(DarkMatterHalo):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    #r_fdm = DysmalParameter(default=2., fixed=True, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
     def __init__(self, mvirial, rB, fdm = None, 
-            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        self.r_fdm = r_fdm
         super(Burkert, self).__init__(mvirial, rB, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, rB, fdm):
@@ -1429,16 +1425,16 @@ class Burkert(DarkMatterHalo):
                 ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
         else:
-            vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
     
             rBtest = np.arange(-10, 10, 1.0)
-            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, self.r_fdm) for rBt in rBtest])
+            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, r_fdm) for rBt in rBtest])
     
             a = rBtest[vtest < 0][-1]
             b = rBtest[vtest > 0][0]
     
-            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, self.r_fdm))
+            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, r_fdm))
     
         return rB
     
@@ -1457,10 +1453,9 @@ class NFW(DarkMatterHalo):
     """
     
     def __init__(self, mvirial, conc, fdm = None, 
-            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
+            z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        self.r_fdm = r_fdm
         super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
@@ -1509,7 +1504,7 @@ class NFW(DarkMatterHalo):
 
         return rvir
         
-    # def calc_mvirial_from_fdm(self, baryons):
+    # def calc_mvirial_from_fdm(self, baryons, r_fdm):
     #     
     #     if (self.fdm.value > self.bounds['fdm'][1]) | \
     #             ((self.fdm.value < self.bounds['fdm'][0])):
@@ -1517,11 +1512,11 @@ class NFW(DarkMatterHalo):
     #     elif (self.fdm.value == 1.):
     #         mvirial = np.inf
     #     else:
-    #         vsqr_bar_re = baryons.circular_velocity(self.r_fdm.value)**2
+    #         vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
     #         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
     # 
     #         mtest = np.arange(-5, 50, 1.0)
-    #         vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value) for m in mtest])
+    #         vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
     #     
     #         try:
     #             a = mtest[vtest < 0][-1]
@@ -1530,7 +1525,7 @@ class NFW(DarkMatterHalo):
     #             print(mtest, vtest)
     #             raise ValueError
     # 
-    #         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value))
+    #         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
     # 
     #     return mvirial
     # 
