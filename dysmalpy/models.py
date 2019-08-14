@@ -231,7 +231,7 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None):
         vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
 
         mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm) for m in mtest])
+        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False) for m in mtest])
     
         try:
             a = mtest[vtest < 0][-1]
@@ -245,9 +245,15 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None):
     return mvirial
     
 #
-def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff):
+def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True):
     halo = NFW(mvirial=mass, conc=conc, z=z)
-    return halo.circular_velocity(r_eff) ** 2 - vtarget
+    #return halo.circular_velocity(r_eff) ** 2 - vtarget
+    vout = halo.circular_velocity(r_eff) ** 2 - vtarget
+    
+    if not quiet:
+        logger.info("mass={}, z={}, vout={}".format(halo.mvirial.value, halo.z, vout))
+        
+    return vout
     
     
     
@@ -1508,35 +1514,35 @@ class NFW(DarkMatterHalo):
 
         return rvir
         
-    def calc_mvirial_from_fdm(self, baryons):
-        
-        if (self.fdm.value > self.bounds['fdm'][1]) | \
-                ((self.fdm.value < self.bounds['fdm'][0])):
-            mvirial = np.NaN
-        elif (self.fdm.value == 1.):
-            mvirial = np.inf
-        else:
-            vsqr_bar_re = baryons.circular_velocity(self.r_fdm.value)**2
-            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-    
-            mtest = np.arange(-5, 50, 1.0)
-            vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value) for m in mtest])
-        
-            try:
-                a = mtest[vtest < 0][-1]
-                b = mtest[vtest > 0][0]
-            except:
-                print(mtest, vtest)
-                raise ValueError
-    
-            mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value))
-    
-        return mvirial
-    
-    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
-    
-        halo = NFW(mvirial=mass, conc=conc, z=z)
-        return halo.circular_velocity(r_eff) ** 2 - vtarget
+    # def calc_mvirial_from_fdm(self, baryons):
+    #     
+    #     if (self.fdm.value > self.bounds['fdm'][1]) | \
+    #             ((self.fdm.value < self.bounds['fdm'][0])):
+    #         mvirial = np.NaN
+    #     elif (self.fdm.value == 1.):
+    #         mvirial = np.inf
+    #     else:
+    #         vsqr_bar_re = baryons.circular_velocity(self.r_fdm.value)**2
+    #         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
+    # 
+    #         mtest = np.arange(-5, 50, 1.0)
+    #         vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value) for m in mtest])
+    #     
+    #         try:
+    #             a = mtest[vtest < 0][-1]
+    #             b = mtest[vtest > 0][0]
+    #         except:
+    #             print(mtest, vtest)
+    #             raise ValueError
+    # 
+    #         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, self.r_fdm.value))
+    # 
+    #     return mvirial
+    # 
+    # def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
+    # 
+    #     halo = NFW(mvirial=mass, conc=conc, z=z)
+    #     return halo.circular_velocity(r_eff) ** 2 - vtarget
 
 #
 class DiskBulgeNFW(MassModel):
