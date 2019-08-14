@@ -120,9 +120,6 @@ def fit(gal, nWalkers=10,
     mod_in = copy.deepcopy(gal.model)
     gal.model = mod_in
     
-    # DEBUG
-    logger.info("check: BEGINNING: r_fdm={}".format(gal.model.components[model_key_halo[0]].r_fdm.value))
-    
     #if nCPUs is None:
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(cpu_count()*cpuFrac))
@@ -1099,9 +1096,8 @@ def log_prob(theta, gal,
     
     # Update the parameters
     gal.model.update_parameters(theta)
-    logger.info("check: th={}, mvir={}, r_fdm={}".format(theta, 
-                gal.model.components[model_key_halo[0]].mvirial.value, 
-                gal.model.components[model_key_halo[0]].r_fdm.value))
+    logger.info("check: th={}, mvir={}".format(theta, 
+                gal.model.components[model_key_halo[0]].mvirial.value))
 
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()
