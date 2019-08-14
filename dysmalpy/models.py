@@ -215,28 +215,6 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
     
 ############################################################################
 # Tied functions for halo fitting:
-def tie_lmvirial_NFW(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
-    
-    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
-    return mvirial
-
-#
-def tie_alpha_TwoPower(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
-
-    alpha = comp_halo.calc_alpha_from_fdm(comp_baryons)
-    return alpha
-
-def tie_rB_Burkert(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
-
-    rB = comp_halo.calc_rB_from_fdm(comp_baryons)
-    return rB
-
 def tie_r_fdm(model_set):
     reff = model_set.components['disk+bulge'].r_eff_disk.value
     return reff
@@ -1316,8 +1294,8 @@ class TwoPowerHalo(DarkMatterHalo):
         return rvir
 
     def calc_alpha_from_fdm(self, baryons):
-        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
-                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
             alpha = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
@@ -1415,8 +1393,8 @@ class Burkert(DarkMatterHalo):
         
     def calc_rB_from_fdm(self, baryons):
     
-        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
-                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
@@ -1501,10 +1479,10 @@ class NFW(DarkMatterHalo):
         
     def calc_mvirial_from_fdm(self, baryons):
         
-        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
-                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
             mvirial = np.NaN
-        elif (self.__getattribute__('fdm').value == 1.):
+        elif (self.fdm.value == 1.):
             mvirial = np.inf
         else:
             vsqr_bar_re = baryons.circular_velocity(self.r_fdm)**2
@@ -1706,10 +1684,10 @@ class DiskBulgeNFW(MassModel):
         return vrot
 
     def mvirial(self):
-        if (self.__getattribute__('fdm').value > self.bounds['fdm'][1]) | \
-                ((self.__getattribute__('fdm').value < self.bounds['fdm'][0])):
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
             mvirial = np.NaN
-        elif (self.__getattribute__('fdm').value == 1.):
+        elif (self.fdm.value == 1.):
             mvirial = np.inf
             
         else:
