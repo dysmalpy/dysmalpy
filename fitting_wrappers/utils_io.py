@@ -839,12 +839,14 @@ def tie_lmvirial_NFW(model_set):
     
     # Debug
     total_mass = model_set.components['disk+bulge'].total_mass.value
+    sigma0 = model_set.components['dispprof'].sigma0.value
     
     vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(r_fdm)**2
     
     
     mvirial = models.calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, 
-                            bounds_fdm = model_set.components['halo'].bounds['fdm'], total_mass=total_mass)
+                            bounds_fdm = model_set.components['halo'].bounds['fdm'], 
+                            total_mass=total_mass, sigma0=sigma0)
     
     # Debug
     print("fdm={}, total_mass={}, mvirial={}".format(fdm, total_mass, mvirial))
