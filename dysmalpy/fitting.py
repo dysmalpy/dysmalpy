@@ -1096,7 +1096,7 @@ def log_prob(theta, gal,
 
     # Update the parameters
     gal.model.update_parameters(theta)
-    logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial)
+    logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial))
 
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()
