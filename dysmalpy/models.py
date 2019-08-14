@@ -222,7 +222,7 @@ def tie_r_fdm(model_set):
     
     
 # Functions for determining tied param from fDM:
-def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None):
+def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None, sigma0=None):
     if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
         mvirial = np.NaN
     elif (fdm == 1.):
@@ -231,7 +231,7 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, t
         vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
 
         mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, total_mass=total_mass) for m in mtest])
+        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, total_mass=total_mass, sigma0=sigma0) for m in mtest])
     
         try:
             a = mtest[vtest < 0][-1]
@@ -245,14 +245,14 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, t
     return mvirial
     
 #
-def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None):
+def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None, sigma0=None):
     halo = NFW(mvirial=mass, conc=conc, z=z)
     #return halo.circular_velocity(r_eff) ** 2 - vtarget
     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
     
     if not quiet:
-        logger.info("mass={}, z={}, total_mass={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
-                halo.z, total_mass, r_eff, conc, vtarget, vout))
+        logger.info("mass={}, z={}, total_mass={}, r_eff={}, conc={}, sigma0={}, vtarget={}, vout={}".format(halo.mvirial.value, 
+                halo.z, total_mass, r_eff, conc, sigma0, vtarget, vout))
         
     return vout
     
