@@ -274,7 +274,7 @@ def setup_gal_inst_mod_3D(params=None):
                            'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]), 
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1])}
 
-            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, 
+            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
@@ -282,7 +282,7 @@ def setup_gal_inst_mod_3D(params=None):
 
             if params['fdm_fixed'] is False:
                 # Tie the virial mass to fDM
-                halo.mvirial.tied = models.tie_lmvirial_NFW
+                halo.mvirial.tied = utils_io.tie_lmvirial_NFW
                 halo.mvirial.fixed = False
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
@@ -313,7 +313,7 @@ def setup_gal_inst_mod_3D(params=None):
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
 
             halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc, 
-                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z,
+                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
                                 fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
             # Tie the virial mass to Mstar
@@ -326,7 +326,7 @@ def setup_gal_inst_mod_3D(params=None):
 
             if params['fdm_fixed'] is False:
                 # Tie the virial mass to fDM
-                halo.alpha.tied = models.tie_alpha_TwoPower
+                halo.alpha.tied = utils_io.tie_alpha_TwoPower
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
         elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
@@ -345,7 +345,7 @@ def setup_gal_inst_mod_3D(params=None):
                            'rB':        (params['rB_bounds'][0], params['rB_bounds'][1]),
                            'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) } 
 
-            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z,
+            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z, r_fdm=r_eff_disk, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
             # Tie the virial mass to Mstar
@@ -356,7 +356,7 @@ def setup_gal_inst_mod_3D(params=None):
 
             if params['fdm_fixed'] is False:
                 # Tie the virial mass to fDM
-                halo.rB.tied = models.tie_rB_Burkert
+                halo.rB.tied = utils_io.tie_rB_Burkert
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
         else:

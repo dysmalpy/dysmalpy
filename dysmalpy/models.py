@@ -214,13 +214,6 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
     return xvec, circaper_vel, circaper_disp
     
 ############################################################################
-# Tied functions for halo fitting:
-def tie_r_fdm(model_set):
-    reff = model_set.components['disk+bulge'].r_eff_disk.value
-    return reff
-    
-    
-    
 # Functions for determining tied param from fDM:
 def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None, sigma0=None):
     if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
@@ -1244,7 +1237,7 @@ class DarkMatterHalo(MassModel):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2.0, fixed=False, tied=tie_r_fdm, bounds=(0, 50))
+    #r_fdm = DysmalParameter(default=2.0, fixed=True, bounds=(0, 50))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
@@ -1282,18 +1275,17 @@ class TwoPowerHalo(DarkMatterHalo):
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
+    #r_fdm = DysmalParameter(default=2., fixed=True, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alpha, beta, 
-            fdm = None, r_fdm = None, 
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, mvirial, conc, alpha, beta, fdm = None, 
+            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, r_fdm, **kwargs)
+        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, conc, alpha, beta, fdm, r_fdm):
+    def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -1370,18 +1362,18 @@ class Burkert(DarkMatterHalo):
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
     fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
-    r_fdm = DysmalParameter(default=2., fixed=False, tied=tie_r_fdm, bounds=(0, 50))
+    #r_fdm = DysmalParameter(default=2., fixed=True, bounds=(0, 50))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, rB, 
-            fdm = None, r_fdm=None, 
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, mvirial, rB, fdm = None, 
+            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(Burkert, self).__init__(mvirial, rB, fdm, r_fdm, **kwargs)
+        self.r_fdm = r_fdm
+        super(Burkert, self).__init__(mvirial, rB, fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, rB, fdm, r_dm):
+    def evaluate(self, r, mvirial, rB, fdm):
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -1464,14 +1456,14 @@ class NFW(DarkMatterHalo):
     concentration.
     """
     
-    def __init__(self, mvirial, conc, 
-            fdm = None, r_fdm = None, 
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, mvirial, conc, fdm = None, 
+            z=0, r_fdm=None, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(NFW, self).__init__(mvirial, conc, fdm, r_fdm, **kwargs)
+        self.r_fdm = r_fdm
+        super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
 
-    def evaluate(self, r, mvirial, conc, fdm, r_fdm):
+    def evaluate(self, r, mvirial, conc, fdm):
         """3D mass density profile"""
 
         rvirial = self.calc_rvir()
