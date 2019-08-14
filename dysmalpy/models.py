@@ -213,6 +213,9 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
 
     return xvec, circaper_vel, circaper_disp
 
+# ############################################################################
+# def tie_r_fdm(model_set):
+#     return model_set.components['disk+bulge'].r_eff_disk.value
 
 ############################################################################
 
