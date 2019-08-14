@@ -222,7 +222,7 @@ def tie_r_fdm(model_set):
     
     
 # Functions for determining tied param from fDM:
-def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None):
+def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None):
     if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
         mvirial = np.NaN
     elif (fdm == 1.):
@@ -231,7 +231,7 @@ def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None):
         vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
 
         mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False) for m in mtest])
+        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, total_mass=total_mass) for m in mtest])
     
         try:
             a = mtest[vtest < 0][-1]
@@ -251,7 +251,7 @@ def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True):
     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
     
     if not quiet:
-        logger.info("mass={}, z={}, vout={}".format(halo.mvirial.value, halo.z, vout))
+        logger.info("mass={}, z={}, total_mass={}, vout={}".format(halo.mvirial.value, halo.z, total_mass, vout))
         
     return vout
     
