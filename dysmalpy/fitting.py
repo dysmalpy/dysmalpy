@@ -1084,12 +1084,15 @@ def log_prob(theta, gal,
              red_chisq=False, 
              fitdispersion=True,
              blob_name = None, 
-             profile1d_type='circ_ap_cube',
-             model_key_re=['disk+bulge','r_eff_disk'], 
-             model_key_halo=['halo']):
+             profile1d_type=None,
+             model_key_re=None, 
+             model_key_halo=None):
     """
     Evaluate the log probability of the given model
     """
+    # profile1d_type='circ_ap_cube',
+    # model_key_re=['disk+bulge','r_eff_disk'], 
+    # model_key_halo=['halo']):
 
     # Update the parameters
     gal.model.update_parameters(theta)
@@ -1112,7 +1115,10 @@ def log_prob(theta, gal,
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
                     blob_name=blob_name, \
                     model_key_re=model_key_re, model_key_halo=model_key_halo)
-
+                    
+        print("llike={}".format(llike))
+                    
+                    
         if blob_name is not None:
             lprob = lprior + llike[0]
         else:
