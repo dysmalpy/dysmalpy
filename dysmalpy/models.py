@@ -213,44 +213,44 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
 
     return xvec, circaper_vel, circaper_disp
     
-############################################################################
-# Functions for determining tied param from fDM:
-def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None, sigma0=None):
-    if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
-        mvirial = np.NaN
-    elif (fdm == 1.):
-        mvirial = np.inf
-    else:
-        vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
-
-        mtest = np.arange(-5, 50, 1.0)
-        vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, 
-                        total_mass=total_mass, sigma0=sigma0, fdm=fdm) for m in mtest])
-    
-        try:
-            a = mtest[vtest < 0][-1]
-            b = mtest[vtest > 0][0]
-        except:
-            print(mtest, vtest)
-            raise ValueError
-
-        mvirial = scp_opt.brentq(_minfunc_vdm_NFW, a, b, args=(vsqr_dm_re_target, conc, z, r_fdm))
-
-    return mvirial
-    
-#
-def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None, sigma0=None, fdm=None):
-    halo = NFW(mvirial=mass, conc=conc, z=z)
-    #return halo.circular_velocity(r_eff) ** 2 - vtarget
-    vout = halo.circular_velocity(r_eff) ** 2 - vtarget
-    
-    if not quiet:
-        if mass == 13.:
-            logger.info("mass={}, z={}, total_mass={}, fdm={}, sigma0={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
-                halo.z, total_mass, fdm, sigma0, r_eff, conc, vtarget, vout))
-        
-    return vout
-    
+# ############################################################################
+# # Functions for determining tied param from fDM:
+# def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None, sigma0=None):
+#     if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
+#         mvirial = np.NaN
+#     elif (fdm == 1.):
+#         mvirial = np.inf
+#     else:
+#         vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
+# 
+#         mtest = np.arange(-5, 50, 1.0)
+#         vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, 
+#                         total_mass=total_mass, sigma0=sigma0, fdm=fdm) for m in mtest])
+#     
+#         try:
+#             a = mtest[vtest < 0][-1]
+#             b = mtest[vtest > 0][0]
+#         except:
+#             print(mtest, vtest)
+#             raise ValueError
+# 
+#         mvirial = scp_opt.brentq(_minfunc_vdm_NFW, a, b, args=(vsqr_dm_re_target, conc, z, r_fdm))
+# 
+#     return mvirial
+#     
+# #
+# def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None, sigma0=None, fdm=None):
+#     halo = NFW(mvirial=mass, conc=conc, z=z)
+#     #return halo.circular_velocity(r_eff) ** 2 - vtarget
+#     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
+#     
+#     if not quiet:
+#         if mass == 13.:
+#             logger.info("mass={}, z={}, total_mass={}, fdm={}, sigma0={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
+#                 halo.z, total_mass, fdm, sigma0, r_eff, conc, vtarget, vout))
+#         
+#     return vout
+#     
     
     
 ############################################################################
@@ -1236,7 +1236,7 @@ class DarkMatterHalo(MassModel):
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
-    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
     _subtype = 'dark_matter'
 
     @abc.abstractmethod
@@ -1273,7 +1273,7 @@ class TwoPowerHalo(DarkMatterHalo):
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     alpha = DysmalParameter(default=1.0)
     beta = DysmalParameter(default=3.0)
-    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     _subtype = 'dark_matter'
 
@@ -1359,7 +1359,7 @@ class Burkert(DarkMatterHalo):
     # Powerlaw slopes for the density model
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
-    fdm = DysmalParameter(default=0.5, fixed=True, bounds=(0,1))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     _subtype = 'dark_matter'
 
@@ -1504,35 +1504,35 @@ class NFW(DarkMatterHalo):
 
         return rvir
         
-    # def calc_mvirial_from_fdm(self, baryons, r_fdm):
-    #     
-    #     if (self.fdm.value > self.bounds['fdm'][1]) | \
-    #             ((self.fdm.value < self.bounds['fdm'][0])):
-    #         mvirial = np.NaN
-    #     elif (self.fdm.value == 1.):
-    #         mvirial = np.inf
-    #     else:
-    #         vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
-    #         vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-    # 
-    #         mtest = np.arange(-5, 50, 1.0)
-    #         vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
-    #     
-    #         try:
-    #             a = mtest[vtest < 0][-1]
-    #             b = mtest[vtest > 0][0]
-    #         except:
-    #             print(mtest, vtest)
-    #             raise ValueError
-    # 
-    #         mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
-    # 
-    #     return mvirial
-    # 
-    # def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
-    # 
-    #     halo = NFW(mvirial=mass, conc=conc, z=z)
-    #     return halo.circular_velocity(r_eff) ** 2 - vtarget
+    def calc_mvirial_from_fdm(self, baryons, r_fdm):
+        
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
+            mvirial = np.NaN
+        elif (self.fdm.value == 1.):
+            mvirial = np.inf
+        else:
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
+    
+            mtest = np.arange(-5, 50, 1.0)
+            vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+        
+            try:
+                a = mtest[vtest < 0][-1]
+                b = mtest[vtest > 0][0]
+            except:
+                print(mtest, vtest)
+                raise ValueError
+    
+            mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
+    
+        return mvirial
+    
+    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
+    
+        halo = NFW(mvirial=mass, conc=conc, z=z)
+        return halo.circular_velocity(r_eff) ** 2 - vtarget
 
 #
 class DiskBulgeNFW(MassModel):
@@ -1543,7 +1543,7 @@ class DiskBulgeNFW(MassModel):
     r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
     n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
     bt = DysmalParameter(default=0.2, bounds=(0, 1))
-    fdm = DysmalParameter(default=0.5, bounds=(0,1))
+    fdm = DysmalParameter(default=-99.9, bounds=(0,1))
 
     _subtype = 'combined'
 
