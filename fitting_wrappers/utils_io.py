@@ -16,6 +16,7 @@ import astropy.units as u
 from dysmalpy import data_classes
 from dysmalpy import parameters
 from dysmalpy import fitting
+from dysmalpy import models
 from dysmalpy import utils as dysmalpy_utils
 
 from dysmalpy import aperture_classes
@@ -828,7 +829,12 @@ def tie_lmvirial_NFW(model_set):
     # 
     # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
     
-    mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
+    #mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
+    
+    vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(model_set.components['halo'].r_fdm)**2
+    mvirial = calc_mvirial_from_fdm(model_set.components['halo'].fdm, model_set.components['halo'].r_fdm, 
+                        vsqr_bar_re, model_set.components['halo'].conc, model_set.components['halo'].z, 
+                            bounds_fdm = model_set.components['halo'].bounds['fdm'])
     
     return mvirial
 
