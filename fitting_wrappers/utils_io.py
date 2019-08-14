@@ -822,6 +822,13 @@ def tied_mhalo_mstar(model_set):
     return lmhalo
     
 ############################################################################
+# # Tied functions for halo fitting:
+# def tie_r_fdm(model_set):
+#     reff = model_set.components['disk+bulge'].r_eff_disk.value
+#     return reff
+#     
+
+
 # Tied functions for halo fitting:
 def tie_lmvirial_NFW(model_set):
     # comp_halo = model_set.components.__getitem__('halo')
@@ -833,7 +840,12 @@ def tie_lmvirial_NFW(model_set):
     
     
     fdm = model_set.components['halo'].fdm.value
-    r_fdm = model_set.components['halo'].r_fdm.value
+    
+    
+    #r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    
+    r_fdm = model_set.components['halo'].r_fdm
+    
     conc = model_set.components['halo'].conc.value
     z = model_set.components['halo'].z
     
