@@ -212,47 +212,8 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
         circaper_disp[pvec] = 0.
 
     return xvec, circaper_vel, circaper_disp
-    
-# ############################################################################
-# # Functions for determining tied param from fDM:
-# def calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, bounds_fdm = None, total_mass=None, sigma0=None):
-#     if (fdm > bounds_fdm[1]) | ((fdm < bounds_fdm[0])):
-#         mvirial = np.NaN
-#     elif (fdm == 1.):
-#         mvirial = np.inf
-#     else:
-#         vsqr_dm_re_target = vsqr_bar_re / (1./fdm - 1)
-# 
-#         mtest = np.arange(-5, 50, 1.0)
-#         vtest = np.array([_minfunc_vdm_NFW(m, vsqr_dm_re_target, conc, z, r_fdm, quiet=False, 
-#                         total_mass=total_mass, sigma0=sigma0, fdm=fdm) for m in mtest])
-#     
-#         try:
-#             a = mtest[vtest < 0][-1]
-#             b = mtest[vtest > 0][0]
-#         except:
-#             print(mtest, vtest)
-#             raise ValueError
-# 
-#         mvirial = scp_opt.brentq(_minfunc_vdm_NFW, a, b, args=(vsqr_dm_re_target, conc, z, r_fdm))
-# 
-#     return mvirial
-#     
-# #
-# def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None, sigma0=None, fdm=None):
-#     halo = NFW(mvirial=mass, conc=conc, z=z)
-#     #return halo.circular_velocity(r_eff) ** 2 - vtarget
-#     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
-#     
-#     if not quiet:
-#         if mass == 13.:
-#             logger.info("mass={}, z={}, total_mass={}, fdm={}, sigma0={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
-#                 halo.z, total_mass, fdm, sigma0, r_eff, conc, vtarget, vout))
-#         
-#     return vout
-#     
-    
-    
+
+
 ############################################################################
 
 # Generic model container which tracks all components, parameters,
@@ -546,57 +507,28 @@ class ModelSet:
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
         
-        
-        dm_frac = self.get_dm_aper(r_eff, rstep=rstep)
-        
-        
-        return dm_frac
+        return self.get_dm_aper(r_eff, rstep=rstep)
         
     def get_mvirial(self, model_key_halo=['halo']):
+        comp = self.components.__getitem__(model_key_halo[0])
         try:
-            mvirial = self.components[model_key_halo[0]].mvirial.value
+            return comp.mvirial.value
         except:
-            mvirial = self.components[model_key_halo[0]].mvirial
-        
-        # comp = self.components.__getitem__(model_key_halo[0])
-        # try:
-        #     mvirial = comp.mvirial.value
-        # except:
-        #     mvirial = comp.mvirial
-        #     #comp.mvirial()
-        return mvirial
+            return comp.mvirial
         
     def get_halo_alpha(self, model_key_halo=['halo']):
+        comp = self.components.__getitem__(model_key_halo[0])
         try:
-            alpha = self.components[model_key_halo[0]].alpha.value
+            return comp.alpha.value
         except:
-            alpha = None
-            
-            
-        # comp = self.components.__getitem__(model_key_halo[0])
-        # 
-        # try:
-        #     alpha = comp.alpha.value
-        # except:
-        #     alpha = None
-        
-        return alpha
+            return None
         
     def get_halo_rb(self, model_key_halo=['halo']):
+        comp = self.components.__getitem__(model_key_halo[0])
         try:
-            rB = self.components[model_key_halo[0]].rB.value
+            return comp.rB.value
         except:
-            rB = None
-            
-        # comp = self.components.__getitem__(model_key_halo[0])
-        # 
-        # try:
-        #     rB = comp.rB.value
-        # except:
-        #     rB = None
-        
-        return rB
-        
+            return None
         
     def get_encl_mass_effrad(self, rstep=0.2, model_key_re=['disk+bulge', 'r_eff_disk']):
         # RE needs to be in kpc
@@ -605,19 +537,14 @@ class ModelSet:
         r_eff = comp.parameters[param_i]
         r = r_eff
         
-        makearr = True
-            
-        if makearr:
-            nstep = np.floor_divide(r,rstep) 
-            rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-            rgal = np.append(rgal, r)
-            
-            
+        nstep = np.floor_divide(r,rstep) 
+        rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
+        rgal = np.append(rgal, r)
+        
         vc, vdm = self.circular_velocity(rgal, compute_dm=True)
         
-        enc_mass = menc_from_vcirc(vc[-1], r_eff)
+        return menc_from_vcirc(vc[-1], r_eff)
         
-        return enc_mass
         
     def enclosed_mass(self, r):
         """
@@ -1232,13 +1159,12 @@ class DarkMatterHalo(MassModel):
     """
     Generic class for dark matter halo profiles
     """
-
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
     _subtype = 'dark_matter'
-
+    
     @abc.abstractmethod
     def calc_rvir(self, *args, **kwargs):
         """
@@ -1330,21 +1256,20 @@ class TwoPowerHalo(DarkMatterHalo):
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-    
+            
             alphtest = np.arange(-10, 10, 1.0)
             vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
                                     self.beta, self.z, r_fdm) for alph in alphtest])
-    
+            
             a = alphtest[vtest < 0][-1]
             b = alphtest[vtest > 0][0]
-    
+            
             alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
                                         self.beta, self.z, r_fdm))
-    
+        
         return alpha
     
     def _minfunc_vdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
-    
         halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
@@ -1420,31 +1345,27 @@ class Burkert(DarkMatterHalo):
         return rvir
         
     def calc_rB_from_fdm(self, baryons):
-    
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-    
-            rBtest = np.arange(-10, 10, 1.0)
+            
+            rBtest = np.arange(-10., 50., 1.0)
             vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, r_fdm) for rBt in rBtest])
-    
+            
             a = rBtest[vtest < 0][-1]
             b = rBtest[vtest > 0][0]
-    
+            
             rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, r_fdm))
-    
+            
         return rB
-    
+        
     def _minfunc_vdm(self, rB, vtarget, mass, z, r_eff):
-    
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
-    
-
 
 class NFW(DarkMatterHalo):
     """
@@ -1473,15 +1394,15 @@ class NFW(DarkMatterHalo):
         :param r: Radii at which to calculate the enclosed mass
         :return: 1D enclosed mass profile
         """
-
+        
         rho0 = self.calc_rho0()
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
-
+        
         # For very small r, bb can be negative.
         bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
-
+        
         return aa*bb
 
     def calc_rho0(self):
@@ -1530,7 +1451,6 @@ class NFW(DarkMatterHalo):
         return mvirial
     
     def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
-    
         halo = NFW(mvirial=mass, conc=conc, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
