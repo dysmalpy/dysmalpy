@@ -251,7 +251,7 @@ def _minfunc_vdm_NFW(mass, vtarget, conc, z, r_eff, quiet=True, total_mass=None)
     vout = halo.circular_velocity(r_eff) ** 2 - vtarget
     
     if not quiet:
-        logger.info("mass={}, z={}, total_mass={}, r_eff={}, conc={}, vtarget, vout={}".format(halo.mvirial.value, 
+        logger.info("mass={}, z={}, total_mass={}, r_eff={}, conc={}, vtarget={}, vout={}".format(halo.mvirial.value, 
                 halo.z, total_mass, r_eff, conc, vtarget, vout))
         
     return vout
