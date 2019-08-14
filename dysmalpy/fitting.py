@@ -1094,9 +1094,6 @@ def log_prob(theta, gal,
     # model_key_re=['disk+bulge','r_eff_disk'], 
     # model_key_halo=['halo']):
     
-    # DEBUG
-    gal.model.components[model_key_halo[0]].mvirial = -99.9
-    
     # Update the parameters
     gal.model.update_parameters(theta)
     logger.info("check: th={}, mvir={}".format(theta, gal.model.components[model_key_halo[0]].mvirial.value))
@@ -1119,9 +1116,6 @@ def log_prob(theta, gal,
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
                     blob_name=blob_name, \
                     model_key_re=model_key_re, model_key_halo=model_key_halo)
-                    
-        logger.info("llike={}".format(llike))
-                    
                     
         if blob_name is not None:
             lprob = lprior + llike[0]

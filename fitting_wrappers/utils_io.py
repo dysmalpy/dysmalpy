@@ -829,23 +829,30 @@ def tie_lmvirial_NFW(model_set):
     # 
     # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons)
     
-    mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
+    #mvirial = model_set.components['halo'].calc_mvirial_from_fdm(model_set.components['disk+bulge'])
     
     
-    # fdm = model_set.components['halo'].fdm.value
-    # r_fdm = model_set.components['halo'].r_fdm.value
-    # conc = model_set.components['halo'].conc.value
-    # z = model_set.components['halo'].z
+    fdm = model_set.components['halo'].fdm.value
+    r_fdm = model_set.components['halo'].r_fdm.value
+    conc = model_set.components['halo'].conc.value
+    z = model_set.components['halo'].z
+    
+    # Debug
+    total_mass = model_set.components['disk+bulge'].total_mass.value
+    
+    vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(r_fdm)**2
+    
+    
+    mvirial = models.calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, 
+                            bounds_fdm = model_set.components['halo'].bounds['fdm'])
+    
+    # Debug
+    print("fdm={}, total_mass={}, mvirial={}".format(fdm, total_mass, mvirial))
+    
+    
+    # # # Horrible test:
+    # # mvirial = model_set.components['disk+bulge'].total_mass.value
     # 
-    # vsqr_bar_re = model_set.components['disk+bulge'].circular_velocity(r_fdm)**2
-    # 
-    # mvirial = models.calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, 
-    #                         bounds_fdm = model_set.components['halo'].bounds['fdm'])
-    # 
-    # 
-    # # # # Horrible test:
-    # # # mvirial = model_set.components['disk+bulge'].total_mass.value
-    # # 
     
     return mvirial
 
