@@ -844,7 +844,7 @@ def tie_lmvirial_NFW(model_set):
     
     
     mvirial = models.calc_mvirial_from_fdm(fdm, r_fdm, vsqr_bar_re, conc, z, 
-                            bounds_fdm = model_set.components['halo'].bounds['fdm'])
+                            bounds_fdm = model_set.components['halo'].bounds['fdm'], total_mass=total_mass)
     
     # Debug
     print("fdm={}, total_mass={}, mvirial={}".format(fdm, total_mass, mvirial))
