@@ -1261,13 +1261,13 @@ class TwoPowerHalo(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
             
             alphtest = np.arange(-10, 10, 1.0)
-            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, mvirial, self.conc, 
+            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, self.mvirial, self.conc, 
                                     self.beta, self.z, r_fdm) for alph in alphtest])
             
             a = alphtest[vtest < 0][-1]
             b = alphtest[vtest > 0][0]
             
-            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.conc, 
+            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc, 
                                         self.beta, self.z, r_fdm))
         
         return alpha
@@ -1356,12 +1356,12 @@ class Burkert(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
             
             rBtest = np.arange(-10., 50., 1.0)
-            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, mvirial, self.z, r_fdm) for rBt in rBtest])
+            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
             
             a = rBtest[vtest < 0][-1]
             b = rBtest[vtest > 0][0]
             
-            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, mvirial, self.z, r_fdm))
+            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
             
         return rB
         
