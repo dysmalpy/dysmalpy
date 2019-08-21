@@ -1260,12 +1260,20 @@ class TwoPowerHalo(DarkMatterHalo):
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
             
-            alphtest = np.arange(-50, 50, 1.0)
+            alphtest = np.arange(-50, 50, 1.)
             vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, self.mvirial, self.conc, 
                                     self.beta, self.z, r_fdm) for alph in alphtest])
             
-            a = alphtest[vtest < 0][-1]
-            b = alphtest[vtest > 0][0]
+            try:
+                a = alphtest[vtest < 0][-1]
+                try:
+                    b = alphtest[vtest > 0][0]
+                except:
+                    a = alphtest[-2] # Even if not perfect, force in case of no convergence...
+                    b = alphtest[-1]
+            except:
+                a = alphtest[0]    # Even if not perfect, force in case of no convergence...
+                b = alphtest[1]
             
             alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc, 
                                         self.beta, self.z, r_fdm))
