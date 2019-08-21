@@ -65,8 +65,9 @@ def fit(gal, nWalkers=10,
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
-           compute_dm = False,
+           blob_name=None, 
            model_key_re = ['disk+bulge','r_eff_disk'],
+           model_key_halo=['halo'], 
            do_plotting = True,
            save_burn = False,
            save_model = True,
@@ -88,7 +89,8 @@ def fit(gal, nWalkers=10,
            f_mcmc_results = None,
            f_chain_ascii = None,
            f_vel_ascii = None, 
-           f_log = None ):
+           f_log = None,
+           **kwargs ):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
 
@@ -104,6 +106,13 @@ def fit(gal, nWalkers=10,
     Output:
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
+    # --------------------------------
+    # Check option validity:
+    if blob_name is not None:
+        valid_blobnames = ['fdm', 'mvirial', 'alpha', 'rb']
+        if blob_name.lower().strip() not in valid_blobnames:
+            raise ValueError("blob_name={} not recognized as option!".format(blob_name))
+            
     # --------------------------------
     # Basic setup:
     
@@ -151,7 +160,9 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 'fitdispersion':fitdispersion,
-                    'compute_dm':compute_dm, 'model_key_re':model_key_re, 
+                    'blob_name': blob_name, 
+                    'model_key_re':model_key_re, 
+                    'model_key_halo': model_key_halo, 
                     'red_chisq': red_chisq, 'profile1d_type':profile1d_type}
 
     
@@ -180,8 +191,8 @@ def fit(gal, nWalkers=10,
                             scale_param_a=scale_param_a)
             
         initial_pos = input_sampler['chain'][:,-1,:]
-        if compute_dm:
-            dm_frac = input_sampler['blobs']
+        if blob_name is not None:
+            blob = input_sampler['blobs']
             
         # Close things
         input_sampler = None
@@ -211,16 +222,16 @@ def fit(gal, nWalkers=10,
         pos = initial_pos
         prob = None
         state = None
-        dm_frac = None
+        blob = None
         for k in six.moves.xrange(nBurn):
             #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             # Temp for debugging:
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
-            if compute_dm:
-                pos, prob, state, dm_frac = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                    rstate0=state, blobs0=dm_frac)
+            if blob_name is not None:
+                pos, prob, state, blob = sampler.run_mcmc(pos, 1, lnprob0=prob,
+                                                    rstate0=state, blobs0=blob)
             else:
                 pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                     rstate0=state)
@@ -288,7 +299,7 @@ def fit(gal, nWalkers=10,
 
         # Reset sampler after burn-in:
         sampler.reset()
-        if compute_dm:
+        if blob_name is not None:
              sampler.clear_blobs()
 
     else:
@@ -299,7 +310,7 @@ def fit(gal, nWalkers=10,
         state = None
         
         if not continue_steps:
-            dm_frac = None
+            blob = None
 
 
 
@@ -326,9 +337,9 @@ def fit(gal, nWalkers=10,
         
         # --------------------------------
         # Only do one step at a time:
-        if compute_dm:
-            pos, prob, state, dm_frac = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
-                        rstate0=state, blobs0 = dm_frac)
+        if blob_name is not None:
+            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state, blobs0 = blob)
         else:
             pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
         # --------------------------------
@@ -431,7 +442,7 @@ def fit(gal, nWalkers=10,
                               f_chain_ascii = f_chain_ascii)
 
     if f_chain_ascii is not None:
-        mcmcResults.save_chain_ascii(filename=f_chain_ascii)
+        mcmcResults.save_chain_ascii(filename=f_chain_ascii, blob_name=blob_name)
         
 
     # Get the best-fit values, uncertainty bounds from marginalized posteriors
@@ -441,15 +452,21 @@ def fit(gal, nWalkers=10,
     # Update theta to best-fit:
     gal.model.update_parameters(mcmcResults.bestfit_parameters)
                 
-    if compute_dm:
-        mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
-
+    if blob_name is not None:
+        if blob_name.lower() == 'fdm':
+            mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
+        elif blob_name.lower() == 'mvirial':
+            mcmcResults.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+        elif blob_name.lower() == 'alpha':
+            mcmcResults.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+        elif blob_name.lower() == 'rb':
+            mcmcResults.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
     
     gal.create_model_data(oversample=oversample, oversize=oversize, 
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
     
     mcmcResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
-                    compute_dm=False, model_key_re=model_key_re)
+                    model_key_re=model_key_re)
     
     if model_key_re is not None:
         comp = gal.model.components.__getitem__(model_key_re[0])
@@ -480,7 +497,7 @@ def fit(gal, nWalkers=10,
     # --------------------------------
     # Plot results: corner plot, best-fit
     if (do_plotting) & (f_plot_param_corner is not None):
-        plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner)
+        plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner, blob_name=blob_name)
 
     if (do_plotting) & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mcmcResults, gal, fitdispersion=fitdispersion,
@@ -921,7 +938,28 @@ class MCMCResults(FitResults):
         
         self.bestfit_redchisq = None
         
-    # 
+    def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
+        # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
+        if self.sampler is None:
+            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
+        #
+        if ('flatblobs' not in self.sampler.keys()):
+            self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+            
+        blobs = self.sampler['flatblobs']
+            
+        pname = parname.strip()
+            
+        # Unpack MCMC samples: lower, upper 1, 2 sigma
+        mcmc_limits = np.percentile(blobs, [15.865, 84.135], axis=0)
+        
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        self.__dict__['bestfit_{}'.format(pname)] = bestfit
+        self.__dict__['bestfit_{}_l68_err'.format(pname)] = bestfit - mcmc_limits[0]
+        self.__dict__['bestfit_{}_u68_err'.format(pname)] = mcmc_limits[1] - bestfit
+        
+        
     def analyze_dm_posterior_dist(self, gal=None, model_key_re=None):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
@@ -931,34 +969,21 @@ class MCMCResults(FitResults):
 
         """
         fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm')
         
-
-        if self.sampler is None:
-            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
-        #
-        if ('flatblobs' not in self.sampler.keys()):
-            self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
-            
-        blobs = self.sampler['flatblobs']
-            
-            
-        # Unpack MCMC samples: lower, upper 1, 2 sigma
-        fdm_mcmc_limits = np.percentile(blobs, [15.865, 84.135], axis=0)
-
-
-        # --------------------------------------------
-        # Save best-fit results in the MCMCResults instance
+    def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None):
+        mvirial_mcmc_param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
+        self.analyze_blob_posterior_dist(bestfit=mvirial_mcmc_param_bestfit, parname='mvirial')
         
+    def analyze_alpha_posterior_dist(self, gal=None, model_key_halo=None):
+        alpha_mcmc_param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+        self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='alpha')
         
-        self.bestfit_fdm = fdm_mcmc_param_bestfit
-
-        # Separate 1sig l, u uncertainty, for utility:
-        self.bestfit_fdm_l68_err = fdm_mcmc_param_bestfit - fdm_mcmc_limits[0]
-        self.bestfit_fdm_u68_err = fdm_mcmc_limits[1] - fdm_mcmc_param_bestfit
+    def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None):
+        rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+        self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='rb')
         
-        
-            
-    def save_chain_ascii(self, filename=None):
+    def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
             try:
                 blobs = self.sampler['blobs']
@@ -974,7 +999,7 @@ class MCMCResults(FitResults):
                 namestr += '  '.join(map(str, self.chain_param_names))
                 if blobset:
                     # Currently assuming blob only returns DM fraction
-                    namestr += '  f_DM'
+                    namestr += '  {}'.format(blob_name)
                 f.write(namestr+'\n')
                 
                 # flatchain shape: (flat)step, params
@@ -994,9 +1019,9 @@ class MCMCResults(FitResults):
 
 
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
-                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None):
+                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None, blob_name=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
-        self.plot_corner(fileout=f_plot_param_corner)
+        self.plot_corner(fileout=f_plot_param_corner, blob_name=blob_name)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
@@ -1058,13 +1083,17 @@ def log_prob(theta, gal,
              oversize=1,
              red_chisq=False, 
              fitdispersion=True,
-             compute_dm=False,
-             profile1d_type='circ_ap_cube',
-             model_key_re=['disk+bulge','r_eff_disk']):
+             blob_name = None, 
+             profile1d_type=None,
+             model_key_re=None, 
+             model_key_halo=None):
     """
     Evaluate the log probability of the given model
     """
-
+    # profile1d_type='circ_ap_cube',
+    # model_key_re=['disk+bulge','r_eff_disk'], 
+    # model_key_halo=['halo']):
+    
     # Update the parameters
     gal.model.update_parameters(theta)
 
@@ -1073,7 +1102,7 @@ def log_prob(theta, gal,
 
     # First check to see if log prior is finite
     if not np.isfinite(lprior):
-        if compute_dm:
+        if blob_name is not None:
             return -np.inf, -np.inf
         else:
             return -np.inf
@@ -1084,9 +1113,10 @@ def log_prob(theta, gal,
                               
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
-                    compute_dm=compute_dm, model_key_re=model_key_re)
-
-        if compute_dm:
+                    blob_name=blob_name, \
+                    model_key_re=model_key_re, model_key_halo=model_key_halo)
+                    
+        if blob_name is not None:
             lprob = lprior + llike[0]
         else:
             lprob = lprior + llike
@@ -1095,14 +1125,19 @@ def log_prob(theta, gal,
             # Make sure the non-finite ln_prob is -Inf, for emcee handling
             lprob = -np.inf
             
-        if compute_dm:
-            return lprob, llike[1]
+        if blob_name is not None:
+            if len(llike) == 2:
+                return lprob, llike[1]
+            else:
+                return lprob, llike[1:]
         else:
             return lprob
 
 
 def log_like(gal, red_chisq=False, fitdispersion=True, 
-                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
+                blob_name=None, 
+                model_key_re=None, 
+                model_key_halo=None):
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
@@ -1191,15 +1226,26 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
         
-    if compute_dm:
-        dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        return llike, dm_frac
+    ####
+    if blob_name is not None:
+        if blob_name.lower() == 'fdm':
+            dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+            return llike, dm_frac
+        elif blob_name.lower() == 'mvirial':
+            mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
+            return llike, mvirial
+        elif blob_name.lower() == 'alpha':
+            alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+            return llike, alpha
+        elif blob_name.lower() == 'rb':
+            rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+            return llike, rB
     else:
         return llike
         
 
 def chisq_red(gal, fitdispersion=True, 
-                compute_dm=False, model_key_re=['disk+bulge','r_eff_disk']):
+                model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
@@ -1284,12 +1330,13 @@ def chisq_red(gal, fitdispersion=True,
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
         
-    if compute_dm:
-        dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        return redchsq, dm_frac
-    else:
-        return redchsq
+    # if compute_dm:
+    #     dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+    #     return redchsq, dm_frac
+    # else:
+    #     return redchsq
 
+    return redchsq
 
 def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube',
                 oversample=1, oversize=1):

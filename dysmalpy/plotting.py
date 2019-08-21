@@ -105,7 +105,7 @@ def plot_trace(mcmcResults, fileout=None):
     return None
 
 
-def plot_corner(mcmcResults, fileout=None, step_slice=None):
+def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
     """
     Plot corner plot of MCMC result posterior distributions.
     Optional:
@@ -117,12 +117,54 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
         sampler_chain = mcmcResults.sampler['flatchain']
     else:
         sampler_chain = mcmcResults.sampler['chain'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['nParam']))
-
+        
+    truths = mcmcResults.bestfit_parameters
+    truths_l68 = mcmcResults.bestfit_parameters_l68_err
+    truths_u68 = mcmcResults.bestfit_parameters_u68_err
+    
+    ###############
+    if blob_name is not None:
+        
+        names_nice = names[:]
+        
+        blob_true = mcmcResults.__dict__['bestfit_{}'.format(blob_name)]
+        blob_l68_err = mcmcResults.__dict__['bestfit_{}_l68_err'.format(blob_name)]
+        blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blob_name)]
+        
+        if blob_name.lower() == 'fdm':
+            names.append('Blob: fDM(RE)')
+            names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
+        elif blob_name.lower() == 'alpha':
+            names.append('Blob: alpha')
+            names_nice.append(r'$\alpha$')
+        elif blob_name.lower() == 'mvirial':
+            names.append('Blob: Mvirial')
+            names_nice.append(r'$\log_{10}(M_{\rm vir})$')
+        elif blob_name.lower() == 'rb':
+            names.append('Blob: rB')
+            names_nice.append(r'$R_B$')
+        else:
+            names.append(blob_name)
+            names_nice.append(blob_name)
+        
+        if step_slice is None:
+            blobs = mcmcResults.sampler['flatblobs']
+        else:
+            blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+            
+        sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
+        
+        truths = np.append(truths, blob_true)
+        truths_l68 = np.append(truths_l68, blob_l68_err)
+        truths_u68 = np.append(truths_u68, blob_u68_err )
+    ###############
+        
+        
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(sampler_chain,
                             labels=names,
                             quantiles= [.02275, 0.15865, 0.84135, .97725],
-                            truths=mcmcResults.bestfit_parameters,
+                            truths=truths,
                             plot_datapoints=False,
                             show_titles=True,
                             bins=40,
@@ -131,13 +173,13 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None):
                             title_kwargs=title_kwargs)
                             
     axes = fig.axes
-    nFreeParam = len(mcmcResults.bestfit_parameters)
+    nFreeParam = len(truths)
     for i in six.moves.xrange(nFreeParam):
         ax = axes[i*nFreeParam + i]
         # Format the quantile display.
-        best = mcmcResults.bestfit_parameters[i]
-        q_m = mcmcResults.bestfit_parameters_l68_err[i]
-        q_p = mcmcResults.bestfit_parameters_u68_err[i]
+        best = truths[i] #fit_results.bestfit_parameters[i]
+        q_m = truths_l68[i]
+        q_p = truths_u68[i]
         title_fmt=".2f"
         fmt = "{{0:{0}}}".format(title_fmt).format
         title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
