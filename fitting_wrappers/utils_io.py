@@ -16,6 +16,7 @@ import astropy.units as u
 from dysmalpy import data_classes
 from dysmalpy import parameters
 from dysmalpy import fitting
+from dysmalpy import models
 from dysmalpy import utils as dysmalpy_utils
 
 from dysmalpy import aperture_classes
@@ -86,11 +87,10 @@ def read_fitting_params_input(fname=None):
 def read_fitting_params(fname=None):
     if fname is None:
         raise ValueError("parameter filename {} not found!".format(fname))
-
+        
     # READ FILE HERE!
     param_input = read_fitting_params_input(fname=fname)
     
-
     # Set some defaults if not otherwise specified
     params = {'nWalkers': 20, 
               'nCPUs': 4, 
@@ -104,9 +104,10 @@ def read_fitting_params(fname=None):
               'oversample': 1,
               'fitdispersion': True,
               'include_halo': False, 
+              'halo_profile_type': 'NFW',
+              'blob_name': None, 
               'red_chisq': True, 
-              'linked_posteriors': None, 
-              'halo_profile_type': 'NFW'}
+              'linked_posteriors': None, }
 
     # param_filename
     fname_split = fname.split('/')
@@ -115,15 +116,40 @@ def read_fitting_params(fname=None):
     for key in param_input.keys():
         params[key] = param_input[key]
     
-    #
     # Catch depreciated case:
     if 'halo_inner_slope_fit' in params.keys():
         if params['halo_inner_slope_fit']:
-            if params['halo_profile_type'] == 'NFW':
+            if params['halo_profile_type'].upper() == 'NFW':
                 print("using depreciated param setting 'halo_inner_slope_fit=True'.")
                 print("Assuming 'halo_profile_type=TwoPowerHalo' halo form.")
                 params['halo_profile_type'] = 'TwoPowerHalo'
                 
+    # Catch other cases:
+    if params['include_halo']:
+        if params['blob_name'] is None:
+            if 'fdm_fixed' in params.keys():
+                if not params['fdm_fixed']:
+                    if params['halo_profile_type'].upper() == 'NFW':
+                        params['blob_name'] = 'mvirial'
+                    elif params['halo_profile_type'].lower() == 'twopowerhalo':
+                        params['blob_name'] = 'alpha'
+                    elif params['halo_profile_type'].lower() == 'burkert':
+                        params['blob_name'] = 'rb'
+                else:
+                    params['blob_name'] = 'fdm'
+        
+        if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
+            if params['mvirial_fixed'] is True:
+                params['fdm'] = 0.5
+                params['fdm_fixed'] = False
+                params['fdm_bounds'] = [0, 1]
+                
+            else:
+                params['fdm'] = -99.9
+                params['fdm_fixed'] = True
+                params['fdm_bounds'] = [0, 1]
+            
+        
     return params
     
 def save_results_ascii_files(fit_results=None, gal=None, params=None):
@@ -481,14 +507,6 @@ def setup_mcmc_dict(params=None):
         
         mcmc_dict['linked_posterior_names'] = linked_posterior_names
         
-
-    if mcmc_dict['include_halo']:
-
-        mcmc_dict['compute_dm'] = True
-
-    else:
-
-        mcmc_dict['compute_dm'] = False
         
     return mcmc_dict
 
@@ -521,10 +539,6 @@ def setup_mpfit_dict(params=None):
         mpfit_dict[key] = params[key]
 
     return mpfit_dict
-    
-    
-    
-
     
     
 def setup_basic_aperture_types(gal=None, params=None):
@@ -685,47 +699,52 @@ def load_single_object_3D_data(params=None):
     
     return data3d
     
-#
+
 def set_comp_param_prior(comp=None, param_name=None, params=None):
-    
     if params['{}_fixed'.format(param_name)] is False:
         if '{}_prior'.format(param_name) in list(params.keys()):
+            # OLD! Problematic for case w/ catalog + params diff...
+            # center = params[param_name] 
+            
+            # Default to using pre-set value!
+            try:
+                try:
+                    center = comp.prior[param_name].center
+                except:
+                    center = params[param_name] 
+            except:
+                # eg, UniformPrior
+                center = None
+            
+            # Default to using pre-set value, if already specified!!!
+            try:
+                try:
+                    stddev = comp.prior[param_name].stddev
+                except:
+                    stddev = params['{}_stddev'.format(param_name)]
+            except:
+                stddev = None
+            
             if params['{}_prior'.format(param_name)].lower() == 'flat':
-                
                 comp.prior[param_name] = parameters.UniformPrior()
-
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
-                comp.prior[param_name] = parameters.BoundedGaussianPrior(center=params[param_name],
-                                                                        stddev=params['{}_stddev'.format(param_name)])
-                                                                        
+                comp.prior[param_name] = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
-                comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=params[param_name],
-                                                                        stddev=params['{}_stddev'.format(param_name)])
-            #
+                comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
-                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=params[param_name],
-                                                                   stddev=params['{}_stddev'.format(
-                                                                                  param_name)])
-
+                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'tied_flat':
                 comp.prior[param_name] = TiedUniformPrior()
-
             elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian':
-                comp.prior[param_name] = TiedBoundedGaussianPrior(center=params[param_name],
-                                                                  stddev=params['{}_stddev'.format(
-                                                                                 param_name)])
-            
-            
+                comp.prior[param_name] = TiedBoundedGaussianPrior(center=center, stddev=stddev)
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
                 pass
     
-    
     return comp
 
-    
-#
+
 def tie_sigz_reff(model_set):
  
     reff = model_set.components['disk+bulge'].r_eff_disk.value
@@ -774,8 +793,6 @@ def moster13_halo_mass(z=None, lmass=None):
     
     return lmhalo
     
-
-
 def tied_mhalo_mstar(model_set):
     z = model_set.components['halo'].z
     
@@ -787,6 +804,31 @@ def tied_mhalo_mstar(model_set):
     lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar))
     
     return lmhalo
+    
+############################################################################
+# Tied functions for halo fitting:
+def tie_lmvirial_NFW(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm)
+    return mvirial
+
+def tie_alpha_TwoPower(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    alpha = comp_halo.calc_alpha_from_fdm(comp_baryons, r_fdm)
+    return alpha
+
+def tie_rB_Burkert(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    rB = comp_halo.calc_rB_from_fdm(comp_baryons, r_fdm)
+    return rB
+    
+############################################################################
 
 
 
