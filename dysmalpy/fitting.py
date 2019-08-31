@@ -428,86 +428,38 @@ def fit(gal, nWalkers=10,
     ##########################################
     ##########################################
     ##########################################
-
-
+    
+    
     # --------------------------------
     # Bundle the results up into a results class:
     mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
                               f_plot_trace_burnin = f_plot_trace_burnin,
                               f_plot_trace = f_plot_trace,
-                              f_sampler = f_sampler,
+                              f_sampler = f_sampler, 
                               f_plot_param_corner = f_plot_param_corner,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
                               f_chain_ascii = f_chain_ascii)
-
-    if f_chain_ascii is not None:
-        mcmcResults.save_chain_ascii(filename=f_chain_ascii, blob_name=blob_name)
-        
-
-    # Get the best-fit values, uncertainty bounds from marginalized posteriors
-    mcmcResults.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
-                nPostBins=nPostBins)
-                
-    # Update theta to best-fit:
-    gal.model.update_parameters(mcmcResults.bestfit_parameters)
-                
-    if blob_name is not None:
-        if blob_name.lower() == 'fdm':
-            mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
-        elif blob_name.lower() == 'mvirial':
-            mcmcResults.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-        elif blob_name.lower() == 'alpha':
-            mcmcResults.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-        elif blob_name.lower() == 'rb':
-            mcmcResults.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-    
-    gal.create_model_data(oversample=oversample, oversize=oversize, 
-                          line_center=gal.model.line_center, profile1d_type=profile1d_type)
-    
-    mcmcResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
-                    model_key_re=model_key_re)
-    
-    if model_key_re is not None:
-        comp = gal.model.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i] 
-        mcmcResults.vrot_bestfit = gal.model.velocity_profile(1.38*r_eff, compute_dm=False)
-    
-    
-    mcmcResults.vmax_bestfit = gal.model.get_vmax()
-    
-    
-    if f_mcmc_results is not None:
-        mcmcResults.save_results(filename=f_mcmc_results)
-        
-    if f_model is not None:
-        #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
-        # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model, save_data=save_data)
-
-    if save_bestfit_cube:
-        gal.model_cube.data.write(f_cube, overwrite=True)
-        
-    # --------------------------------
-    # Plot trace, if output file set
-    if (do_plotting) & (f_plot_trace is not None) :
-        plotting.plot_trace(mcmcResults, fileout=f_plot_trace)
-
-    # --------------------------------
-    # Plot results: corner plot, best-fit
-    if (do_plotting) & (f_plot_param_corner is not None):
-        plotting.plot_corner(mcmcResults, fileout=f_plot_param_corner, blob_name=blob_name)
-
-    if (do_plotting) & (f_plot_bestfit is not None):
-        plotting.plot_bestfit(mcmcResults, gal, fitdispersion=fitdispersion,
-                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
-                              profile1d_type=profile1d_type)
                               
-    # --------------------------------
-    # Save velocity / other profiles to ascii file:
-    if f_vel_ascii is not None:
-        mcmcResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+                              
+    # Do all analysis, plotting, saving:
+    mcmcResults.analyze_plot_save_results(gal,                           
+                  blob_name=blob_name, 
+                  linked_posterior_names=linked_posterior_names, 
+                  nPostBins=nPostBins, 
+                  model_key_re=model_key_re, 
+                  model_key_halo=model_key_halo, 
+                  oversample=oversample, 
+                  oversize=oversize, 
+                  profile1d_type=profile1d_type, 
+                  fitdispersion=fitdispersion, 
+                  save_data=save_data, 
+                  save_bestfit_cube=save_bestfit_cube,
+                  f_cube=f_cube, 
+                  f_model=f_model, 
+                  f_vel_ascii = f_vel_ascii, 
+                  do_plotting = do_plotting)
+
 
     # Clean up logger:
     if f_log is not None:
@@ -800,6 +752,7 @@ class MCMCResults(FitResults):
                  f_plot_trace_burnin=None,
                  f_plot_trace=None,
                  f_burn_sampler=None,
+                 f_mcmc_results=None, 
                  f_sampler=None,
                  f_plot_param_corner=None,
                  f_plot_bestfit=None,
@@ -825,6 +778,95 @@ class MCMCResults(FitResults):
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                           f_results=f_results)
+                                          
+                                          
+    def analyze_plot_save_results(self, gal, 
+                blob_name=None, 
+                linked_posterior_names=None, 
+                nPostBins=50, 
+                model_key_re=None, 
+                model_key_halo=None, 
+                oversample=None, 
+                oversize=None, 
+                profile1d_type=None, 
+                fitdispersion=True, 
+                save_data=True, 
+                save_bestfit_cube=False,
+                f_cube=None, 
+                f_model=None, 
+                f_vel_ascii = None, 
+                do_plotting = True):
+        """
+        Wrapper for post-sample analysis + plotting -- in case code broke and only have sampler saved.
+        
+        """
+                
+        if self.f_chain_ascii is not None:
+            self.save_chain_ascii(filename=self.f_chain_ascii, blob_name=blob_name)
+
+        # Get the best-fit values, uncertainty bounds from marginalized posteriors
+        self.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
+                    nPostBins=nPostBins)
+                
+        # Update theta to best-fit:
+        gal.model.update_parameters(self.bestfit_parameters)
+                
+        if blob_name is not None:
+            if blob_name.lower() == 'fdm':
+                mcmcResults.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
+            elif blob_name.lower() == 'mvirial':
+                mcmcResults.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+            elif blob_name.lower() == 'alpha':
+                mcmcResults.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+            elif blob_name.lower() == 'rb':
+                mcmcResults.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+    
+        gal.create_model_data(oversample=oversample, oversize=oversize, 
+                              line_center=gal.model.line_center, profile1d_type=profile1d_type)
+    
+        self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
+                        model_key_re=model_key_re)
+    
+        if model_key_re is not None:
+            comp = gal.model.components.__getitem__(model_key_re[0])
+            param_i = comp.param_names.index(model_key_re[1])
+            r_eff = comp.parameters[param_i] 
+            self.vrot_bestfit = gal.model.velocity_profile(1.38*r_eff, compute_dm=False)
+    
+    
+        self.vmax_bestfit = gal.model.get_vmax()
+    
+        if self.f_results is not None:
+            self.save_results(filename=self.f_results)
+        
+        if f_model is not None:
+            #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
+            # Save model w/ updated theta equal to best-fit:
+            gal.preserve_self(filename=f_model, save_data=save_data)
+
+        if save_bestfit_cube:
+            gal.model_cube.data.write(f_cube, overwrite=True)
+        
+        # --------------------------------
+        # Plot trace, if output file set
+        if (do_plotting) & (self.f_plot_trace is not None) :
+            plotting.plot_trace(self, fileout=self.f_plot_trace)
+
+        # --------------------------------
+        # Plot results: corner plot, best-fit
+        if (do_plotting) & (self.f_plot_param_corner is not None):
+            plotting.plot_corner(self, fileout=self.f_plot_param_corner, blob_name=blob_name)
+
+        if (do_plotting) & (self.f_plot_bestfit is not None):
+            plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
+                                  oversample=oversample, oversize=oversize, fileout=self.f_plot_bestfit,
+                                  profile1d_type=profile1d_type)
+                              
+        # --------------------------------
+        # Save velocity / other profiles to ascii file:
+        if f_vel_ascii is not None:
+            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+            
 
     def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
         """
