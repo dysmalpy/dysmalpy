@@ -1363,7 +1363,7 @@ class Burkert(DarkMatterHalo):
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
             
-            rBtest = np.arange(-10., 250., 5.0)
+            rBtest = np.arange(0., 250., 5.0)
             vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
             
             # a = rBtest[vtest < 0][-1]
@@ -1380,8 +1380,14 @@ class Burkert(DarkMatterHalo):
                 a = rBtest[0]    # Even if not perfect, force in case of no convergence...
                 b = rBtest[1]
             
-            rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
-            
+            try:
+                rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
+            except:
+                # SOMETHING, if it's failing...
+                rB = np.average([a,b])
+                
+                
+                
         return rB
         
     def _minfunc_vdm(self, rB, vtarget, mass, z, r_eff):
