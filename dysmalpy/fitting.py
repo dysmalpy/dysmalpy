@@ -981,7 +981,7 @@ class MCMCResults(FitResults):
         
     def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None):
         rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-        self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='rb')
+        self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb')
         
     def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
