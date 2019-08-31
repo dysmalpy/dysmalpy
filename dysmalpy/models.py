@@ -1355,7 +1355,7 @@ class Burkert(DarkMatterHalo):
 
         return rvir
         
-    def calc_rB_from_fdm(self, baryons):
+    def calc_rB_from_fdm(self, baryons, r_fdm):
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
