@@ -1366,8 +1366,19 @@ class Burkert(DarkMatterHalo):
             rBtest = np.arange(-10., 250., 5.0)
             vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
             
-            a = rBtest[vtest < 0][-1]
-            b = rBtest[vtest > 0][0]
+            # a = rBtest[vtest < 0][-1]
+            # b = rBtest[vtest > 0][0]
+            
+            try:
+                a = rBtest[vtest < 0][-1]
+                try:
+                    b = rBtest[vtest > 0][0]
+                except:
+                    a = rBtest[-2] # Even if not perfect, force in case of no convergence...
+                    b = rBtest[-1]
+            except:
+                a = rBtest[0]    # Even if not perfect, force in case of no convergence...
+                b = rBtest[1]
             
             rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
             
