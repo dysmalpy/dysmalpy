@@ -1830,3 +1830,38 @@ def norm(x): # Euclidean norm
     return np.sqrt(np.sum(x**2))
 
 
+
+def shortest_span_bounds(arr, percentile=0.6827):
+    if len(arr.shape) == 1:
+        arr_sort = np.sort(arr)
+        N = len(arr_sort)
+        span = np.round(percentile*N)
+        span_arr = np.ones(N-span) * 99.
+    
+        for i in six.moves.xrange(N-span):
+            span_arr[i] = arr_sort[i+span] - arr_sort[i]
+        
+        argmin = np.argmin(span_arr)
+        limits = np.array([ arr_sort[argmin], arr_sort[argmin+span] ])
+         
+    else:
+        limits = np.ones((2, arr.shape[1]))
+        
+        for j in six.moves.xrange(arr.shape[1]):
+            arr_sort = np.sort(arr[:,j])
+            N = len(arr_sort)
+            span = np.round(percentile*N)
+            span_arr = np.ones(N-span) * 99.
+            
+            for i in six.moves.xrange(N-span):
+                span_arr[i] = arr_sort[i+span] - arr_sort[i]
+                
+            argmin = np.argmin(span_arr)
+            
+            limits[0, j] = arr_sort[argmin]
+            limits[1, j] = arr_sort[argmin+span]
+    
+    return limits
+    
+    
+    
