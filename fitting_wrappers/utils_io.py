@@ -143,12 +143,12 @@ def read_fitting_params(fname=None):
                 params['fdm'] = 0.5
                 params['fdm_fixed'] = False
                 params['fdm_bounds'] = [0, 1]
-                
+                params['blob_name'] = 'mvirial'
             else:
                 params['fdm'] = -99.9
                 params['fdm_fixed'] = True
                 params['fdm_bounds'] = [0, 1]
-            
+                params['blob_name'] = 'fdm'
         
     return params
     
