@@ -1374,11 +1374,11 @@ class Burkert(DarkMatterHalo):
                 try:
                     b = rBtest[vtest > 0][0]
                 except:
-                    a = rBtest[-2] # Even if not perfect, force in case of no convergence...
-                    b = rBtest[-1]
+                    a = rBtest[0]    # Even if not perfect, force in case of no convergence...
+                    b = rBtest[1]
             except:
-                a = rBtest[0]    # Even if not perfect, force in case of no convergence...
-                b = rBtest[1]
+                a = rBtest[-2] # Even if not perfect, force in case of no convergence...
+                b = rBtest[-1]
             
             try:
                 rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
