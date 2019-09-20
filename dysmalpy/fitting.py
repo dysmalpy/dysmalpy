@@ -1141,8 +1141,7 @@ class MPFITResults(FitResults):
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         self.__dict__['bestfit_{}'.format(pname)] = bestfit
-        self.__dict__['bestfit_{}_l68_err'.format(pname)] = err_fill
-        self.__dict__['bestfit_{}_u68_err'.format(pname)] = err_fill
+        self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
         
 
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
