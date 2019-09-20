@@ -476,6 +476,7 @@ def fit_mpfit(gal,
               fitdispersion=True,
               profile1d_type='circ_ap_cube',
               model_key_re = ['disk+bulge','r_eff_disk'],
+              model_key_halo = ['halo'], 
               maxiter=200,
               do_plotting=True,
               save_model=True,
@@ -487,7 +488,8 @@ def fit_mpfit(gal,
               f_plot_bestfit = None,
               f_results = None,
               f_vel_ascii = None,
-              f_log = None):
+              f_log = None, 
+              blob_name=None):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
@@ -575,7 +577,8 @@ def fit_mpfit(gal,
                                 f_plot_bestfit=f_plot_bestfit,
                                 f_results=f_results)
 
-    mpfitResults.input_results(m)
+    mpfitResults.input_results(m, gal=gal, blob_name=blob_name, 
+                model_key_re=model_key_re, model_key_halo=model_key_halo)
 
     # Update theta to best-fit:
     gal.model.update_parameters(mpfitResults.bestfit_parameters)
@@ -1094,7 +1097,8 @@ class MPFITResults(FitResults):
         super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                          f_results=f_results)
 
-    def input_results(self, mpfit_obj):
+    def input_results(self, mpfit_obj, gal=None, 
+                    blob_name=None, model_key_re=None, model_key_halo=None):
         """
         Save the best fit results from MPFIT in the MPFITResults object
         """
@@ -1111,7 +1115,35 @@ class MPFITResults(FitResults):
 
         if mpfit_obj.status > 0:
             self.bestfit_redchisq = mpfit_obj.fnorm/mpfit_obj.dof
-
+            
+            
+        # Add "blob" bestfit:
+        if blob_name is not None:
+            if blob_name.lower() == 'fdm':
+                param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+            elif blob_name.lower() == 'mvirial':
+                param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
+                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+            elif blob_name.lower() == 'alpha':
+                param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+            elif blob_name.lower() == 'rb':
+                param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+                
+                
+    def analyze_blob_value(self, bestfit=None, parname=None):
+        # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
+        pname = parname.strip()
+        # In case ever want to do error propagation here
+        err_fill = -99.
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        self.__dict__['bestfit_{}'.format(pname)] = bestfit
+        self.__dict__['bestfit_{}_l68_err'.format(pname)] = err_fill
+        self.__dict__['bestfit_{}_u68_err'.format(pname)] = err_fill
+        
 
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
                      f_plot_bestfit=None):
