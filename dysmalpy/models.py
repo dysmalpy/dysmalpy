@@ -1471,6 +1471,8 @@ class NFW(DarkMatterHalo):
                 a = mtest[vtest < 0][-1]
                 b = mtest[vtest > 0][0]
             except:
+                print("fdm={}".format(self.fdm.value))
+                print("r_fdm={}".format(r_fdm))
                 print(mtest, vtest)
                 raise ValueError
     
