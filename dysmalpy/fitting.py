@@ -1121,16 +1121,16 @@ class MPFITResults(FitResults):
         if blob_name is not None:
             if blob_name.lower() == 'fdm':
                 param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
             elif blob_name.lower() == 'mvirial':
                 param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
-                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
             elif blob_name.lower() == 'alpha':
                 param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
             elif blob_name.lower() == 'rb':
                 param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-                self.analyze_blob_value(self, bestfit=param_bestfit, parname=blob_name.lower())
+                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
                 
                 
     def analyze_blob_value(self, bestfit=None, parname=None):
