@@ -1460,6 +1460,8 @@ class NFW(DarkMatterHalo):
             mvirial = np.NaN
         elif (self.fdm.value == 1.):
             mvirial = np.inf
+        elif (self.fdm.value == 0.):
+            mvirial = -np.inf #-5.  # as a small but finite value
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
