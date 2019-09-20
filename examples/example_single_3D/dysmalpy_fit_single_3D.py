@@ -172,7 +172,8 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None):
                                         f_plot_bestfit=fit_dict['f_plot_bestfit'],
                                         f_results=fit_dict['f_results'],
                                         f_vel_ascii=fit_dict['f_vel_ascii'],
-                                        f_log=fit_dict['f_log'])
+                                        f_log=fit_dict['f_log'],
+                                        blob_name=fit_dict['blob_name'])
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
