@@ -608,7 +608,8 @@ def fit_mpfit(gal,
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion,
-                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
+                              profile1d_type=profile1d_type)
 
     # Save velocity / other profiles to ascii file:
     if f_vel_ascii is not None:
