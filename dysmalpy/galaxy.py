@@ -439,7 +439,8 @@ class Galaxy:
 
 
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                     vel_disp=disp1d, slit_width=slit_width,
+                                     vel_disp=disp1d, flux=flux1d, 
+                                     slit_width=slit_width,
                                      slit_pa=slit_pa)
             self.model_data.apertures = aper_model
 

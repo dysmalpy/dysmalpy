@@ -394,7 +394,6 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
     return None
     
     
-#
 def read_results_ascii_file(fname=None):
     
     
@@ -406,8 +405,31 @@ def read_results_ascii_file(fname=None):
     
     return data
     
-def make_catalog_row_entry(ascii_data=None, galID=None):
     
+def write_bestfit_1d_obs_file(gal=None, fname=None):
+    """
+    Short function to save *observed* space 1D obs profile for a galaxy (eg, for plotting, etc)
+    Follows form of H.Ü. example.
+    """
+    model_r = gal.model_data.rarr
+    model_flux = gal.model_data.data['flux']
+    model_vel = gal.model_data.data['velocity']
+    model_disp = gal.model_data.data['dispersion']
+    
+    # Write 1D circular aperture plots to text file
+    np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
+               fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
+               header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
+    
+    # # Write 1D circular aperture plots to text file
+    # np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
+    #            fmt='%2.8f\t%2.8f\t%5.16f\t%5.16f',
+    #            header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
+    # 
+    
+    return None
+    
+def make_catalog_row_entry(ascii_data=None, galID=None):
     
     params = ['total_mass', 'r_eff_disk', 'bt', 'mvirial', 'conc', 'sigma0']
     extra_params = ['f_DM_RE']
