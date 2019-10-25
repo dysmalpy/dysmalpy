@@ -429,6 +429,31 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
     
     return None
     
+def read_bestfit_1d_obs_file(fname=None):
+    """
+    Short function to save load space 1D obs profile for a galaxy (eg, for plotting, etc)
+    Follows form of H.Ü. example.
+    """
+    
+    # Load the model file
+    dat_arr =   np.loadtxt(fname)
+    gal_r =     dat_arr[:,0]
+    gal_flux =  dat_arr[:,1]
+    gal_vel =   dat_arr[:,2]
+    gal_disp =  dat_arr[:,3]
+    
+    slit_width = None
+    slit_pa = None
+    
+    #
+    model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,
+                             vel_disp=gal_disp, flux=gal_flux, 
+                             slit_width=slit_width,
+                             slit_pa=slit_pa)
+    model_data.apertures = None
+                                      
+    return model_data
+    
 def make_catalog_row_entry(ascii_data=None, galID=None):
     
     params = ['total_mass', 'r_eff_disk', 'bt', 'mvirial', 'conc', 'sigma0']
