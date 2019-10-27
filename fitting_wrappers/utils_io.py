@@ -429,7 +429,7 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
     
     return None
     
-def read_bestfit_1d_obs_file(fname=None):
+def read_bestfit_1d_obs_file(fname=None, mirror=False):
     """
     Short function to save load space 1D obs profile for a galaxy (eg, for plotting, etc)
     Follows form of H.Ü. example.
@@ -445,6 +445,12 @@ def read_bestfit_1d_obs_file(fname=None):
     slit_width = None
     slit_pa = None
     
+    if mirror:
+        gal_r = np.append(-1.*gal_r[::-1][:-1], gal_r)
+        gal_flux = np.append(1.*gal_flux[::-1][:-1], gal_flux)
+        gal_vel = np.append(-1.*gal_vel[::-1][:-1], gal_vel)
+        gal_disp = np.append(1.*gal_disp[::-1][:-1], gal_disp)
+        
     #
     model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,
                              vel_disp=gal_disp, flux=gal_flux, 

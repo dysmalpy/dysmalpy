@@ -120,7 +120,8 @@ class Galaxy:
                           from_instrument=True, from_data=True,
                           oversample=1, oversize=1, debug=False,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
-                          pix_length=None):
+                          pix_length=None,
+                          skip_downsample=False):
 
         """
         Simulate an IFU cube then optionally collapse it down to a 2D
@@ -251,10 +252,19 @@ class Galaxy:
                                                   oversize=oversize)
                                                   
         # Correct for any oversampling
-        if oversample > 1:
+        if (oversample > 1) & (not skip_downsample): 
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
         else:
             sim_cube_nooversamp = sim_cube
+        
+        if skip_downsample:
+            rstep /= (1.*oversample)
+            nx_sky *= oversample
+            ny_sky *= oversample
+            # Fix instrument:
+            self.instrument.pixscale = rstep * u.arcsec
+            self.instrument.fov = [nx_sky, ny_sky]
+            self.instrument.set_beam_kernel()
 
         #if debug:
         #self.model_cube_no_convolve = sim_cube_nooversamp
@@ -265,6 +275,7 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
+
 
         # Re-size the cube back down
         if oversize > 1:
@@ -464,6 +475,18 @@ class Galaxy:
             self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
                                      slit_width=self.data.slit_width, integrate_cube=self.data.integrate_cube,
                                     )
+                                    
+        #
+        # Reset instrument to orig value
+        if skip_downsample:
+            rstep *= oversample
+            nx_sky /= (1.*oversample)
+            ny_sky /= (1.*oversample)
+            # Fix instrument:
+            self.instrument.pixscale = rstep * u.arcsec
+            self.instrument.fov = [nx_sky, ny_sky]
+            self.instrument.set_beam_kernel()
+
 
 
 
