@@ -157,7 +157,6 @@ class Apertures(object):
     def __init__(self, apertures=None, slit_PA=None):
         self.apertures = apertures
         self.slit_PA = slit_PA
-        
     
     def extract_1d_kinematics(self, spec_arr=None, 
                 cube=None, err=None, mask=None, spec_mask=None, 
@@ -178,10 +177,11 @@ class Apertures(object):
         vel1d = np.zeros(naps)
         disp1d = np.zeros(naps)
         
+        
         for i in range(naps):
             flux1d[i], vel1d[i], disp1d[i] = self.apertures[i].extract_aper_kin(spec_arr=spec_arr, 
                     cube=cube, err=err, mask=mask, spec_mask=spec_mask)
-
+                    
             if (self.apertures[i].aper_center[1] != center_pixel[1]):
                 aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
                            (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
@@ -341,13 +341,11 @@ class SquareApertures(RectApertures):
                 
                 
                 
-                
-#
-
 def setup_aperture_types(gal=None, profile1d_type=None, 
             slit_width = None, aper_centers=None, slit_pa=None, 
             aperture_radius=None, pix_perp=None, pix_parallel=None,
-            pix_length=None, from_data=True):
+            pix_length=None, from_data=True, 
+            oversample=1):
             
     if from_data:
         slit_width = gal.data.slit_width
@@ -357,20 +355,26 @@ def setup_aperture_types(gal=None, profile1d_type=None,
     rstep = gal.instrument.pixscale.value
     nx = gal.instrument.fov[0]
     ny = gal.instrument.fov[1]
+    
+    if (oversample > 1):
+        nx *= oversample
+        ny *= oversample
+        rstep /= (1.* oversample)
+        aper_centers *= oversample
+        
+    if (gal.data.aper_center_pix_shift is not None):
+        center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0]*oversample,
+                        np.int(ny / 2) + gal.data.aper_center_pix_shift[1]*oversample)
+    else:
+        center_pixel = None
+        
 
     if (profile1d_type.lower() == 'circ_ap_cube'):
-
-
+        
         if (aperture_radius is not None):
             rpix = aperture_radius/rstep
         else:
             rpix = slit_width/rstep/2.
-
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
-        else:
-            center_pixel = None
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
@@ -379,37 +383,28 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
         if (pix_perp is None):
             pix_perp = slit_width/rstep
-
-        #
+        else:
+            pix_perp *= oversample
+            
         if (pix_parallel is None):
             pix_parallel = slit_width/rstep
+        else:
+            pix_parallel *= oversample
 
         aper_centers_pix = aper_centers/rstep
-
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
-        else:
-            center_pixel = None
-
-
+        
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
 
         if ('pix_length' is None):
             pix_length = slit_width/rstep
-
-        aper_centers_pix = aper_centers/rstep
-
-        if (gal.data.aper_center_pix_shift is not None):
-            center_pixel = (np.int(nx / 2) + gal.data.aper_center_pix_shift[0],
-                            np.int(ny / 2) + gal.data.aper_center_pix_shift[1])
         else:
-            center_pixel = None
-
+            pix_length *= oversample
+        
+        aper_centers_pix = aper_centers/rstep
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
