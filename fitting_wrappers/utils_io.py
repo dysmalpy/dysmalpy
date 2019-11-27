@@ -664,6 +664,20 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     mask = fits.getdata(params['fdata_mask'])
     
     
+    # Mask NaNs:
+    mask[~np.isfinite(gal_val)] = 0
+    gal_val[~np.isfinite(gal_val)] = 0.
+    
+    mask[~np.isfinite(err_vel)] = 0
+    err_vel[~np.isfinite(err_vel)] = 0.
+    
+    mask[~np.isfinite(gal_disp)] = 0
+    gal_disp[~np.isfinite(gal_disp)] = 0.
+    
+    mask[~np.isfinite(err_disp)] = 0
+    err_disp[~np.isfinite(err_disp)] = 0.
+    
+    
     # Auto mask som bad data
     if automask: 
         indtmp = (gal_disp > dispmax) | (np.abs(gal_vel) > vmax)
