@@ -214,7 +214,7 @@ def fit(gal, nWalkers=10,
     
     logger.info('\n  nCPUs: {}'.format(nCPUs))
     logger.info('\n  nWalkers: {}'.format(nWalkers))
-    logger.info('\n  lnlike: redchisq={}'.format(red_chisq))
+    logger.info('\n  lnlike: red_chisq={}'.format(red_chisq))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
