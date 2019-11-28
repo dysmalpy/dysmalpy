@@ -113,6 +113,12 @@ def fit(gal, nWalkers=10,
         if blob_name.lower().strip() not in valid_blobnames:
             raise ValueError("blob_name={} not recognized as option!".format(blob_name))
             
+            
+    # Temporary: testing:
+    if red_chisq:
+        raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
+        
+        
     # --------------------------------
     # Basic setup:
     
@@ -208,6 +214,7 @@ def fit(gal, nWalkers=10,
     
     logger.info('\n  nCPUs: {}'.format(nCPUs))
     logger.info('\n  nWalkers: {}'.format(nWalkers))
+    logger.info('\n  lnlike: redchisq={}'.format(red_chisq))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
@@ -1212,6 +1219,10 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
                 blob_name=None, 
                 model_key_re=None, 
                 model_key_halo=None):
+    #
+    # Temporary: testing:
+    if red_chisq:
+        raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
 
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
