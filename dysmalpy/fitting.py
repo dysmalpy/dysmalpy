@@ -866,7 +866,7 @@ class MCMCResults(FitResults):
         # --------------------------------
         # Plot results: corner plot, best-fit
         if (do_plotting) & (self.f_plot_param_corner is not None):
-            plotting.plot_corner(self, fileout=self.f_plot_param_corner, blob_name=blob_name)
+            plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=blob_name)
 
         if (do_plotting) & (self.f_plot_bestfit is not None):
             plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion,
@@ -925,8 +925,11 @@ class MCMCResults(FitResults):
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
 
         # Unpack MCMC samples: lower, upper 1, 2 sigma
-        mcmc_limits = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
-
+        mcmc_limits_percentile = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
+        
+        mcmc_limits = shortest_span_bounds(self.sampler['flatchain'], percentile=0.6827)
+        
+        
         ## location of peaks of *marginalized histograms* for each parameter
         mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
         for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
@@ -967,16 +970,39 @@ class MCMCResults(FitResults):
         # --------------------------------------------
         # Uncertainty bounds are currently determined from marginalized posteriors
         #   (even if the best-fit is found from linked posterior).
+        
+        # --------------------------------------------
+        # Save best-fit results in the MCMCResults instance
+        self.bestfit_parameters = mcmc_param_bestfit
+        self.bestfit_redchisq = None
+        
+        # ++++++++++++++++++++++++=
+        # Original 68% percentile interval:
+        mcmc_stack_percentile = np.concatenate(([mcmc_param_bestfit], mcmc_limits_percentile), axis=0)
+        # Order: best fit value, lower 1sig bound, upper 1sig bound
 
+        mcmc_uncertainties_1sig_percentile = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
+                            list(zip(*mcmc_stack_percentile)))))
+                            
+        # 1sig lower, upper uncertainty
+        self.bestfit_parameters_err_percentile = mcmc_uncertainties_1sig_percentile
+
+        # Bound limits (in case it's useful)
+        self.bestfit_parameters_l68_percentile = mcmc_limits_percentile[0]
+        self.bestfit_parameters_u68_percentile = mcmc_limits_percentile[1]
+
+        # Separate 1sig l, u uncertainty, for utility:
+        self.bestfit_parameters_l68_err_percentile = mcmc_param_bestfit - mcmc_limits_percentile[0]
+        self.bestfit_parameters_u68_err_percentile = mcmc_limits_percentile[1] - mcmc_param_bestfit
+        
+        
+        # ++++++++++++++++++++++++=
+        # From new shortest credible interval:
         mcmc_stack = np.concatenate(([mcmc_param_bestfit], mcmc_limits), axis=0)
         # Order: best fit value, lower 1sig bound, upper 1sig bound
 
         mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
                             list(zip(*mcmc_stack)))))
-
-        # --------------------------------------------
-        # Save best-fit results in the MCMCResults instance
-        self.bestfit_parameters = mcmc_param_bestfit
 
         # 1sig lower, upper uncertainty
         self.bestfit_parameters_err = mcmc_uncertainties_1sig
@@ -989,7 +1015,7 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
-        self.bestfit_redchisq = None
+        
         
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
@@ -1004,13 +1030,19 @@ class MCMCResults(FitResults):
         pname = parname.strip()
             
         # Unpack MCMC samples: lower, upper 1, 2 sigma
-        mcmc_limits = np.percentile(blobs, [15.865, 84.135], axis=0)
+        mcmc_limits_percentile = np.percentile(blobs, [15.865, 84.135], axis=0)
+        
+        mcmc_limits = shortest_span_bounds(blobs, percentile=0.6827)
         
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         self.__dict__['bestfit_{}'.format(pname)] = bestfit
         self.__dict__['bestfit_{}_l68_err'.format(pname)] = bestfit - mcmc_limits[0]
         self.__dict__['bestfit_{}_u68_err'.format(pname)] = mcmc_limits[1] - bestfit
+        
+        
+        self.__dict__['bestfit_{}_l68_err_percentile'.format(pname)] = bestfit - mcmc_limits_percentile[0]
+        self.__dict__['bestfit_{}_u68_err_percentile'.format(pname)] = mcmc_limits_percentile[1] - bestfit
         
         
     def analyze_dm_posterior_dist(self, gal=None, model_key_re=None):
@@ -1074,17 +1106,17 @@ class MCMCResults(FitResults):
     def plot_results(self, gal, fitdispersion=True, oversample=1, oversize=1,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None, blob_name=None):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
-        self.plot_corner(fileout=f_plot_param_corner, blob_name=blob_name)
+        self.plot_corner(gal=gal, fileout=f_plot_param_corner, blob_name=blob_name)
         self.plot_bestfit(gal, fitdispersion=fitdispersion,
                 oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
         self.plot_trace(fileout=f_plot_trace)
 
 
-    def plot_corner(self, fileout=None):
+    def plot_corner(self, gal=None, fileout=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
-        plotting.plot_corner(self, fileout=fileout)
+        plotting.plot_corner(self, gal=gal, fileout=fileout)
 
 
     def plot_trace(self, fileout=None):
@@ -1583,19 +1615,6 @@ def find_multiD_pk_hist(flatchain, linked_inds, nPostBins=25):
     return pk_vals
 
 
-def find_shortest_conf_interval(xarr, percentile_frac):
-    # Canonical 1sigma: 0.6827
-    xsort = np.sort(xarr)
-    
-    N = len(xarr)
-    i_max = np.int64(np.round(percentile_frac*N)) 
-    len_arr = xsort[i_max:] - xsort[0:N-i_max]
-    
-    argmin = np.argmin(len_arr)
-    l_val, u_val = xsort[argmin], xsort[argmin+i_max-1]
-    
-    return l_val, u_val
-
 
 def get_linked_posterior_peak_values(flatchain,
                 guess = None, 
@@ -1872,37 +1891,54 @@ def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
 def norm(x): # Euclidean norm
     return np.sqrt(np.sum(x**2))
 
+#
 
+def find_shortest_conf_interval(xarr, percentile_frac):
+    # Canonical 1sigma: 0.6827
+    xsort = np.sort(xarr)
+    
+    N = len(xarr)
+    i_max = np.int64(np.round(percentile_frac*N)) 
+    len_arr = xsort[i_max:] - xsort[0:N-i_max]
+    
+    argmin = np.argmin(len_arr)
+    l_val, u_val = xsort[argmin], xsort[argmin+i_max-1]
+    
+    return l_val, u_val
 
 def shortest_span_bounds(arr, percentile=0.6827):
     if len(arr.shape) == 1:
-        arr_sort = np.sort(arr)
-        N = len(arr_sort)
-        span = np.round(percentile*N)
-        span_arr = np.ones(N-span) * 99.
-    
-        for i in six.moves.xrange(N-span):
-            span_arr[i] = arr_sort[i+span] - arr_sort[i]
+        # arr_sort = np.sort(arr)
+        # N = len(arr_sort)
+        # span = np.round(percentile*N)
+        # span_arr = np.ones(N-span) * 99.
+        #     
+        # for i in six.moves.xrange(N-span):
+        #     span_arr[i] = arr_sort[i+span] - arr_sort[i]
+        # 
+        # argmin = np.argmin(span_arr)
+        # limits = np.array([ arr_sort[argmin], arr_sort[argmin+span] ])
         
-        argmin = np.argmin(span_arr)
-        limits = np.array([ arr_sort[argmin], arr_sort[argmin+span] ])
+        limits = find_shortest_conf_interval(arr, percentile)
          
     else:
         limits = np.ones((2, arr.shape[1]))
         
         for j in six.moves.xrange(arr.shape[1]):
-            arr_sort = np.sort(arr[:,j])
-            N = len(arr_sort)
-            span = np.round(percentile*N)
-            span_arr = np.ones(N-span) * 99.
+            # arr_sort = np.sort(arr[:,j])
+            # N = len(arr_sort)
+            # span = np.round(percentile*N)
+            # span_arr = np.ones(N-span) * 99.
+            # 
+            # for i in six.moves.xrange(N-span):
+            #     span_arr[i] = arr_sort[i+span] - arr_sort[i]
+            #     
+            # argmin = np.argmin(span_arr)
+            # 
+            # limits[0, j] = arr_sort[argmin]
+            # limits[1, j] = arr_sort[argmin+span]
             
-            for i in six.moves.xrange(N-span):
-                span_arr[i] = arr_sort[i+span] - arr_sort[i]
-                
-            argmin = np.argmin(span_arr)
-            
-            limits[0, j] = arr_sort[argmin]
-            limits[1, j] = arr_sort[argmin+span]
+            limits[:, j] = find_shortest_conf_interval(arr[:,j], percentile)
     
     return limits
     
