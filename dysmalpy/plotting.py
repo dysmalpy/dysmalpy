@@ -225,6 +225,9 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
             title = "{0} = {1}".format(names[i], title)
         ax.set_title(title, **title_kwargs)
         
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        
         if truths_l68_percentile is not None:
             if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
                 ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
@@ -232,6 +235,9 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         if priors is not None:
             if priors[i] is not None:
                 ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
+                
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
                 
     if priors is not None:
         for i in six.moves.xrange(nFreeParam):
@@ -241,13 +247,17 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                     pass
                 else:
                     ax = axes[i*nFreeParam + j]
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
                     if priors[i] is not None:
                         ax.axhline(priors[i], ls=':', color='#ff7f0e') # orange
                     if priors[j] is not None:
                         ax.axvline(priors[j], ls=':', color='#ff7f0e') # orange
                     if (priors[i] is not None) & (priors[j] is not None):
                         ax.scatter([priors[j], priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
-            
+                    #
+                    ax.set_xlim(xlim)
+                    ax.set_ylim(ylim)
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
