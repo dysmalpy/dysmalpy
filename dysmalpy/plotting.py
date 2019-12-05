@@ -129,25 +129,25 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         truths_l68_percentile = None
         truths_u68_percentile = None
     
-    if gal is not None:
-        # Get prior locations:
-        priors = []
-        
-        pfree_dict = gal.model.get_free_parameter_keys()
-        comps_names = pfree_dict.keys()
-        for compn in comps_names:
-            comp = gal.model.components.__getitem__(compn)
-            params_names = pfree_dict[compn].keys()
-            for paramn in params_names:
-                if pfree_dict[compn][paramn] >= 0:
-                    # Free parameter: 
-                    # check if uniform or prior
-                    try:
-                        priors.append(comp.prior[paramn].center)
-                    except:
-                        priors.append(None)
-    else:
-        priors = None
+    # if gal is not None:
+    #     # Get prior locations:
+    #     priors = []
+    #     
+    #     pfree_dict = gal.model.get_free_parameter_keys()
+    #     comps_names = pfree_dict.keys()
+    #     for compn in comps_names:
+    #         comp = gal.model.components.__getitem__(compn)
+    #         params_names = pfree_dict[compn].keys()
+    #         for paramn in params_names:
+    #             if pfree_dict[compn][paramn] >= 0:
+    #                 # Free parameter: 
+    #                 # check if uniform or prior
+    #                 try:
+    #                     priors.append(comp.prior[paramn].center)
+    #                 except:
+    #                     priors.append(None)
+    # else:
+    #     priors = None
     
     ###############
     if blob_name is not None:
@@ -224,40 +224,40 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         if names is not None:
             title = "{0} = {1}".format(names[i], title)
         ax.set_title(title, **title_kwargs)
-        
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        
-        if truths_l68_percentile is not None:
-            if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
-                ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
-                ax.axvline(best+q_p, ls='--', color='#9467bd')   # purple
-        if priors is not None:
-            if priors[i] is not None:
-                ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
+        # 
+        # xlim = ax.get_xlim()
+        # ylim = ax.get_ylim()
+        # 
+        # if truths_l68_percentile is not None:
+        #     if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
+        #         ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
+        #         ax.axvline(best+q_p, ls='--', color='#9467bd')   # purple
+        # if priors is not None:
+        #     if priors[i] is not None:
+        #         ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
+        #         
+        # ax.set_xlim(xlim)
+        # ax.set_ylim(ylim)
                 
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-                
-    if priors is not None:
-        for i in six.moves.xrange(nFreeParam):
-            for j in six.moves.xrange(nFreeParam):
-                # need the off-diagonals:
-                if j >= i:
-                    pass
-                else:
-                    ax = axes[i*nFreeParam + j]
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-                    if priors[i] is not None:
-                        ax.axhline(priors[i], ls=':', color='#ff7f0e') # orange
-                    if priors[j] is not None:
-                        ax.axvline(priors[j], ls=':', color='#ff7f0e') # orange
-                    if (priors[i] is not None) & (priors[j] is not None):
-                        ax.scatter([priors[j], priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
-                    #
-                    ax.set_xlim(xlim)
-                    ax.set_ylim(ylim)
+    # if priors is not None:
+    #     for i in six.moves.xrange(nFreeParam):
+    #         for j in six.moves.xrange(nFreeParam):
+    #             # need the off-diagonals:
+    #             if j >= i:
+    #                 pass
+    #             else:
+    #                 ax = axes[i*nFreeParam + j]
+    #                 xlim = ax.get_xlim()
+    #                 ylim = ax.get_ylim()
+    #                 if priors[i] is not None:
+    #                     ax.axhline(priors[i], ls=':', color='#ff7f0e') # orange
+    #                 if priors[j] is not None:
+    #                     ax.axvline(priors[j], ls=':', color='#ff7f0e') # orange
+    #                 if (priors[i] is not None) & (priors[j] is not None):
+    #                     ax.scatter([priors[j], priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
+    #                 #
+    #                 ax.set_xlim(xlim)
+    #                 ax.set_ylim(ylim)
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
