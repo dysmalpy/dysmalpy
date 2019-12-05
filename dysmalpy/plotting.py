@@ -146,9 +146,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                         priors.append(comp.prior[paramn].center)
                     except:
                         priors.append(None)
-        return log_prior_model
-        
-        priors = None
     else:
         priors = None
     
