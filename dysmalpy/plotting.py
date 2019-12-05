@@ -105,7 +105,7 @@ def plot_trace(mcmcResults, fileout=None):
     return None
 
 
-def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
+def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=None):
     """
     Plot corner plot of MCMC result posterior distributions.
     Optional:
@@ -121,6 +121,36 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
     truths = mcmcResults.bestfit_parameters
     truths_l68 = mcmcResults.bestfit_parameters_l68_err
     truths_u68 = mcmcResults.bestfit_parameters_u68_err
+    
+    try:
+        truths_l68_percentile = mcmcResults.bestfit_parameters_l68_err_percentile
+        truths_u68_percentile = mcmcResults.bestfit_parameters_u68_err_percentile
+    except:
+        truths_l68_percentile = None
+        truths_u68_percentile = None
+    
+    if gal is not None:
+        # Get prior locations:
+        priors = []
+        
+        pfree_dict = gal.model.get_free_parameter_keys()
+        comps_names = pfree_dict.keys()
+        for compn in comps_names:
+            comp = gal.model.components.__getitem__(compn)
+            params_names = pfree_dict[compn].keys()
+            for paramn in params_names:
+                if pfree_dict[compn][paramn] >= 0:
+                    # Free parameter: 
+                    # check if uniform or prior
+                    try:
+                        priors.append(comp.prior[paramn].center)
+                    else:
+                        priors.append(None)
+        return log_prior_model
+        
+        priors = None
+    else:
+        priors = None
     
     ###############
     if blob_name is not None:
@@ -157,6 +187,14 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
         truths = np.append(truths, blob_true)
         truths_l68 = np.append(truths_l68, blob_l68_err)
         truths_u68 = np.append(truths_u68, blob_u68_err )
+        
+        if priors is not None:
+            priors.append(None)
+        
+        if truths_l68_percentile is not None:
+            truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blob_name)])
+            truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blob_name)])
+            
     ###############
         
         
@@ -189,6 +227,30 @@ def plot_corner(mcmcResults, fileout=None, step_slice=None, blob_name=None):
         if names is not None:
             title = "{0} = {1}".format(names[i], title)
         ax.set_title(title, **title_kwargs)
+        
+        if truths_l68_percentile is not None:
+            if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
+                ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
+                ax.axvline(best+q_p, ls='--', color='#9467bd')   # purple
+        if priors is not None:
+            if priors[i] is not None:
+                ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
+                
+    if priors is not None:
+        for i in six.moves.xrange(nFreeParam):
+            for j in six.moves.xrange(nFreeParam):
+                # need the off-diagonals:
+                if j >= i:
+                    pass
+                else:
+                    ax = axes[i*nFreeParam + j]
+                    if priors[i] is not None:
+                        ax.axhline(priors[i], ls=':', color='#ff7f0e') # orange
+                    if priors[j] is not None:
+                        ax.axvline(priors[j], ls=':', color='#ff7f0e') # orange
+                    if (priors[i] is not None) & (priors[j] is not None):
+                        ax.scatter([priors[j], priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
+            
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
