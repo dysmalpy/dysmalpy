@@ -185,8 +185,8 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         truths_l68 = np.append(truths_l68, blob_l68_err)
         truths_u68 = np.append(truths_u68, blob_u68_err )
         
-        if priors is not None:
-            priors.append(None)
+        # if priors is not None:
+        #     priors.append(None)
         
         if truths_l68_percentile is not None:
             truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blob_name)])
