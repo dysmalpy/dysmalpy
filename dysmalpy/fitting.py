@@ -19,6 +19,7 @@ import abc
 # DYSMALPY code
 from dysmalpy import plotting
 from dysmalpy import galaxy
+from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 
 # Third party imports
 import os
@@ -62,6 +63,7 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
+           oversampled_chisq = None, 
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
@@ -106,6 +108,8 @@ def fit(gal, nWalkers=10,
     Output:
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
+    
+    
     # --------------------------------
     # Check option validity:
     if blob_name is not None:
@@ -113,6 +117,8 @@ def fit(gal, nWalkers=10,
         if blob_name.lower().strip() not in valid_blobnames:
             raise ValueError("blob_name={} not recognized as option!".format(blob_name))
             
+    if oversampled_chisq is None:
+        raise ValueError("Must set 'oversampled_chisq'!")
             
     # Temporary: testing:
     if red_chisq:
@@ -132,6 +138,33 @@ def fit(gal, nWalkers=10,
 
     nDim = gal.model.nparams_free
     #len(model.get_free_parameters_values())
+    
+    # +++++++++++++++++++++++
+    # Setup for oversampled_chisq:
+    if oversampled_chisq:
+        if isinstance(GaussianBeam, gal.instrument.beam):
+            try:
+                PSF_FWHM = gal.instrument.beam.major.value
+            except:
+                PSF_FWHM = gal.instrument.beam.major
+        elif isinstance(Moffat, gal.instrument.beam):
+            try:
+                PSF_FWHM = gal.instrument.beam.major_fwhm.value
+            except:
+                PSF_FWHM = gal.instrument.beam.major_fwhm
+        elif isinstance(DoubleBeam, gal.instrument.beam):
+            try:
+                PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
+            except:
+                PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
+        
+        if nDim == 1:
+            gal.data.oversample_factor_chisq = PSF_FWHM / np.avg(gal.data.rarr[1:]-gal.data.rarr[:-1])
+        elif nDim == 2:
+            gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale)**2
+        elif nDim == 3:
+            raise ValueError("need to implement!")
+    # +++++++++++++++++++++++
 
     # Output filenames
     if (len(outdir) > 0):
@@ -169,7 +202,9 @@ def fit(gal, nWalkers=10,
                     'blob_name': blob_name, 
                     'model_key_re':model_key_re, 
                     'model_key_halo': model_key_halo, 
-                    'red_chisq': red_chisq, 'profile1d_type':profile1d_type}
+                    'red_chisq': red_chisq, 
+                    'oversampled_chisq': oversampled_chisq, 
+                    'profile1d_type':profile1d_type}
 
     
     
@@ -215,6 +250,7 @@ def fit(gal, nWalkers=10,
     logger.info('\n  nCPUs: {}'.format(nCPUs))
     logger.info('\n  nWalkers: {}'.format(nWalkers))
     logger.info('\n  lnlike: red_chisq={}'.format(red_chisq))
+    logger.info('\n  lnlike: oversampled_chisq={}'.format(oversampled_chisq))
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
@@ -447,7 +483,8 @@ def fit(gal, nWalkers=10,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
                               f_chain_ascii = f_chain_ascii)
-                              
+    if oversample_chisq:
+        mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
                               
     # Do all analysis, plotting, saving:
     mcmcResults.analyze_plot_save_results(gal,                           
@@ -1195,6 +1232,7 @@ def log_prob(theta, gal,
              oversample=1,
              oversize=1,
              red_chisq=False, 
+             oversampled_chisq=None, 
              fitdispersion=True,
              blob_name = None, 
              profile1d_type=None,
@@ -1225,8 +1263,9 @@ def log_prob(theta, gal,
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
                               
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, red_chisq=red_chisq, fitdispersion=fitdispersion, 
-                    blob_name=blob_name, \
+        llike = log_like(gal, red_chisq=red_chisq, oversampled_chisq=oversampled_chisq, 
+                    fitdispersion=fitdispersion, 
+                    blob_name=blob_name, 
                     model_key_re=model_key_re, model_key_halo=model_key_halo)
                     
         if blob_name is not None:
@@ -1247,15 +1286,21 @@ def log_prob(theta, gal,
             return lprob
 
 
-def log_like(gal, red_chisq=False, fitdispersion=True, 
+def log_like(gal, red_chisq=False, 
+                oversampled_chisq=None, 
+                fitdispersion=True, 
                 blob_name=None, 
                 model_key_re=None, 
                 model_key_halo=None):
-    #
+    
     # Temporary: testing:
+    if oversampled_chisq is None: 
+        raise ValueError
+        
     if red_chisq:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
-
+        
+        
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
 
@@ -1267,7 +1312,9 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         # Artificially mask zero errors which are masked
         #err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = ((dat - mod)/err)**2 + np.log(2.*np.pi*err**2)
-        if red_chisq:
+        if oversampled_chisq:
+            invnu = 1. / gal.data.oversample_factor_chisq
+        elif red_chisq:
             if gal.model.nparams_free > np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
@@ -1300,7 +1347,9 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
         chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2 +
                                np.log(2.*np.pi*vel_err**2))
         if fitdispersion:
-            if red_chisq:
+            if oversampled_chisq:
+                invnu = 1. / gal.data.oversample_factor_chisq
+            elif red_chisq:
                 if gal.model.nparams_free > 2.*np.sum(msk) :
                     raise ValueError("More free parameters than data points!")
                 invnu = 1./ (1.*(2.*np.sum(msk) - gal.model.nparams_free))
@@ -1310,7 +1359,9 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
                                     np.log(2.*np.pi*disp_err**2))
             llike = -0.5*( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
         else:
-            if red_chisq:
+            if oversampled_chisq:
+                invnu = 1. / gal.data.oversample_factor_chisq
+            elif red_chisq:
                 if gal.model.nparams_free > np.sum(msk) :
                     raise ValueError("More free parameters than data points!")
                 invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
@@ -1327,7 +1378,10 @@ def log_like(gal, red_chisq=False, fitdispersion=True,
 
         chisq_arr = (((data - mod)/err)**2 +
                                np.log(2.*np.pi*err**2))
-        if red_chisq:
+        #
+        if oversampled_chisq:
+            invnu = 1. / gal.data.oversample_factor_chisq
+        elif red_chisq:
             if gal.model.nparams_free > np.sum(msk):
                 raise ValueError("More free parameters than data points!")
 
