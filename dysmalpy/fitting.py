@@ -483,7 +483,7 @@ def fit(gal, nWalkers=10,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
                               f_chain_ascii = f_chain_ascii)
-    if oversample_chisq:
+    if oversampled_chisq:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
                               
     # Do all analysis, plotting, saving:
