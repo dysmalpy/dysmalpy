@@ -158,11 +158,11 @@ def fit(gal, nWalkers=10,
             except:
                 PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
         
-        if nDim == 1:
+        if gal.data.ndim == 1:
             gal.data.oversample_factor_chisq = PSF_FWHM / np.avg(gal.data.rarr[1:]-gal.data.rarr[:-1])
-        elif nDim == 2:
+        elif gal.data.ndim == 2:
             gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale)**2
-        elif nDim == 3:
+        elif gal.data.ndim == 3:
             raise ValueError("need to implement!")
     # +++++++++++++++++++++++
 
