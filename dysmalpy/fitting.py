@@ -142,17 +142,17 @@ def fit(gal, nWalkers=10,
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
     if oversampled_chisq:
-        if isinstance(GaussianBeam, gal.instrument.beam):
+        if isinstance(gal.instrument.beam, GaussianBeam):
             try:
                 PSF_FWHM = gal.instrument.beam.major.value
             except:
                 PSF_FWHM = gal.instrument.beam.major
-        elif isinstance(Moffat, gal.instrument.beam):
+        elif isinstance(gal.instrument.beam, Moffat):
             try:
                 PSF_FWHM = gal.instrument.beam.major_fwhm.value
             except:
                 PSF_FWHM = gal.instrument.beam.major_fwhm
-        elif isinstance(DoubleBeam, gal.instrument.beam):
+        elif isinstance(gal.instrument.beam, DoubleBeam):
             try:
                 PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
             except:
