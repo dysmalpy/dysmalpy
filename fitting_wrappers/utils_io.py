@@ -107,6 +107,7 @@ def read_fitting_params(fname=None):
               'halo_profile_type': 'NFW',
               'blob_name': None, 
               'red_chisq': False, 
+              'oversampled_chisq': None, 
               'linked_posteriors': None, }
 
     # param_filename
