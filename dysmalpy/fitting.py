@@ -161,9 +161,11 @@ def fit(gal, nWalkers=10,
         if gal.data.ndim == 1:
             rarrtmp = gal.data.rarr.copy()
             rarrtmp.sort()
+            spacing_avg = np.abs(np.average(rarrtmp[1:]-rarrtmp[:-1]))
             print(rarrtmp)
+            print(spacing_avg)
             raise ValueError
-            gal.data.oversample_factor_chisq = PSF_FWHM / np.average(np.abs(gal.data.rarr[1:]-gal.data.rarr[:-1]))
+            gal.data.oversample_factor_chisq = PSF_FWHM /spacing_avg
         elif gal.data.ndim == 2:
             gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale)**2
         elif gal.data.ndim == 3:
