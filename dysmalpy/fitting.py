@@ -160,7 +160,7 @@ def fit(gal, nWalkers=10,
         
         if gal.data.ndim == 1:
             rarrtmp = gal.data.rarr.copy()
-            rarrtmp = rarrtmp.sort()
+            rarrtmp.sort()
             print(rarrtmp)
             raise ValueError
             gal.data.oversample_factor_chisq = PSF_FWHM / np.average(np.abs(gal.data.rarr[1:]-gal.data.rarr[:-1]))
