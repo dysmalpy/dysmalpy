@@ -667,7 +667,7 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     
     # Mask NaNs:
     mask[~np.isfinite(gal_vel)] = 0
-    gal_val[~np.isfinite(gal_vel)] = 0.
+    gal_vel[~np.isfinite(gal_vel)] = 0.
     
     mask[~np.isfinite(err_vel)] = 0
     err_vel[~np.isfinite(err_vel)] = 0.
