@@ -544,22 +544,47 @@ def setup_mcmc_dict(params=None):
         # Copy over all various fitting options
         mcmc_dict[key] = params[key]
         
+    # #
+    # if mcmc_dict['linked_posteriors'] is not None:
+    #     linked_post_arr = []
+    #     for lpost in mcmc_dict['linked_posteriors']:
+    #         if lpost.strip().lower() == 'total_mass':
+    #             linked_post_arr.append(['disk+bulge', 'total_mass'])
+    #         elif lpost.strip().lower() == 'mvirial':
+    #             linked_post_arr.append(['halo', 'mvirial'])
+    #         else:
+    #             raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
+    #         
+    #     # "Bundle of linked posteriors"
+    #     linked_posterior_names = [ linked_post_arr ] 
+    #     
+    #     
+    #     mcmc_dict['linked_posterior_names'] = linked_posterior_names
+    
     #
-    if mcmc_dict['linked_posteriors'] is not None:
-        linked_post_arr = []
-        for lpost in mcmc_dict['linked_posteriors']:
-            if lpost.strip().lower() == 'total_mass':
-                linked_post_arr.append(['disk+bulge', 'total_mass'])
-            elif lpost.strip().lower() == 'mvirial':
-                linked_post_arr.append(['halo', 'mvirial'])
-            else:
-                raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
-            
-        # "Bundle of linked posteriors"
-        linked_posterior_names = [ linked_post_arr ] 
-        
-        
-        mcmc_dict['linked_posterior_names'] = linked_posterior_names
+    mcmc_dict['model_key_re'] = ['disk+bulge', 'r_eff_disk']
+    mcmc_dict['model_key_halo'] = ['halo']
+    
+    
+    if not params['fdm_fixed']:
+        # Case: fdm free, other param fixed:
+        mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+                                                  ['halo', 'fdm'],
+                                                  ['dispprof', 'sigma0'] ] ]
+    else:
+        # Case: fdm derived from other params, which are free:
+        if params['halo_profile_type'].strip().upper() == 'NFW':
+            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+                                                      ['halo', 'mvirial'],
+                                                      ['dispprof', 'sigma0'] ] ]
+        elif params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO':
+            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+                                                      ['halo', 'alpha'],
+                                                      ['dispprof', 'sigma0'] ] ]
+        elif params['halo_profile_type'].strip().upper() == 'BURKERT':
+            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+                                                      ['halo', 'rB'],
+                                                      ['dispprof', 'sigma0'] ] ]
         
         
     return mcmc_dict
