@@ -354,7 +354,7 @@ def setup_gal_inst_mod_2D(params=None):
                    'yshift':  (params['yshift_bounds'][0], params['yshift_bounds'][1]), 
                    'vel_shift': (params['vel_shift_bounds'][0], params['vel_shift_bounds'][1])}
     
-    geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
+    geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift, vel_shift=vel_shift, 
                            fixed=geom_fixed, bounds=geom_bounds, name='geom')
     geom = utils_io.set_comp_param_prior(comp=geom, param_name='inc', params=params)
     geom = utils_io.set_comp_param_prior(comp=geom, param_name='pa', params=params)
