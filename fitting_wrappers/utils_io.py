@@ -166,13 +166,14 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
         
         # --------------------------------------------
         # get fdm_best, lfdm, ufdm
-        if params['include_halo']:
+        #if params['include_halo']:
             
+        if 'blob_name' in params.keys():
             #fit_results.analyze_dm_posterior_dist()
             
-            fdm_best = fit_results.bestfit_fdm
-            lfdm = fit_results.bestfit_fdm_l68_err
-            ufdm = fit_results.bestfit_fdm_u68_err
+            blob_best = fit_results.__dict__['bestfit_{}'.format(params['blob_name'])]
+            l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(params['blob_name'])]
+            u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(params['blob_name'])]
             
         # --------------------------------------------
         
@@ -200,12 +201,11 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                     
             ###
             
-            #fdm_best, lfdm, ufdm
-            if params['include_halo']:
-                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('f_DM_RE', '-----',
-                            '-----', fdm_best, lfdm, ufdm)
+            if 'blob_name' in params.keys():
+                #fit_results.analyze_dm_posterior_dist()
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(params['blob_name'], '-----',
+                            '-----', blob_best, l68_blob, u68_blob)
                 f.write(datstr+'\n')
-            
             
             ###
             datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
@@ -273,11 +273,11 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
 
             
             ####
-            if params['include_halo']:
+            if 'blob_name' in params.keys():
                 f.write('\n')
                 f.write('-----------'+'\n')
-                datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format('f_DM(R_E)',
-                            fdm_best, lfdm, ufdm)
+                datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(params['blob_name'],
+                            blob_best, l68_blob, u68_blob)
                 f.write(datstr+'\n')
 
             ####
