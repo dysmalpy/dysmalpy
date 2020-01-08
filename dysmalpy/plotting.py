@@ -1120,7 +1120,7 @@ def plot_model_multid_base(gal,
                 disp_vmax = vcrop_value
         
         
-        alpha_masked = 0.7 #0.6
+        alpha_masked = 1. #0.7 #0.6
         alpha_bkgd = 0.5 #1. #0.5
         alpha_aper = 0.8
         
