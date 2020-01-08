@@ -1055,6 +1055,7 @@ def plot_model_multid_base(gal,
         
         gal.data = copy.deepcopy(data2d)
         gal.instrument = copy.deepcopy(instorig2d)
+        pixscale = gal.instrument.pixscale.value
     
         gal.model.update_parameters(theta) 
         
@@ -1088,6 +1089,7 @@ def plot_model_multid_base(gal,
         
         cmap.set_bad(color='k')
         
+        color_annotate = 'white'
     
     
         # -----------------------
@@ -1201,6 +1203,31 @@ def plot_model_multid_base(gal,
                                         remove_shift=remove_shift)
                         
                         
+                    ####################################
+                    # Show a 1arcsec line:
+                    if xlim is None:
+                        xlim = ax.get_xlim()
+                    if ylim is None:
+                        ylim = ax.get_ylim()
+                        
+                    #
+                    ybase_offset = 0.065
+                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                    len_line_angular = 1./(pixscale)
+
+                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
+                                c=color_annotate, ls='-',lw=2)
+                    string = '1"'
+                    y_text = y_base
+                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
+                                    xycoords="data", 
+                                    xytext=(0,0),
+                                    color=color_annotate, 
+                                    textcoords="offset points", ha="left", va="center",
+                                    fontsize=8)
+                    ####################################
+                                        
                     #ax.set_ylabel(yt)
                     if k == 'data':
                         ax.set_ylabel(yt)
