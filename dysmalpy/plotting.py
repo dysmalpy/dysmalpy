@@ -1680,7 +1680,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
 
     for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-        #print("mm={}:  rap={}".format(mm, rap))
+        print("mm={}:  rap={}, xap, yap=({}, {})".format(mm, rap, xap, yap))
         circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
         ax.add_artist(circle)
         if (mm == 0):
