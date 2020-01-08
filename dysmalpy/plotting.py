@@ -1205,10 +1205,8 @@ def plot_model_multid_base(gal,
                         
                     ####################################
                     # Show a 1arcsec line:
-                    if xlim is None:
-                        xlim = ax.get_xlim()
-                    if ylim is None:
-                        ylim = ax.get_ylim()
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
                         
                     #
                     ybase_offset = 0.065
@@ -1295,9 +1293,32 @@ def plot_model_multid_base(gal,
                             ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
                                         galorig=galorig, alpha_aper=alpha_aper,
                                         remove_shift=remove_shift)
-                            
+                                        
                         # -------------------------------------------
+                        
+                        ####################################
+                        # Show a 1arcsec line:
+                        xlim = ax.get_xlim()
+                        ylim = ax.get_ylim()
 
+                        #
+                        ybase_offset = 0.065
+                        x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                        y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                        len_line_angular = 1./(pixscale)
+
+                        ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
+                                    c=color_annotate, ls='-',lw=2)
+                        string = '1"'
+                        y_text = y_base
+                        ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
+                                        xycoords="data", 
+                                        xytext=(0,0),
+                                        color=color_annotate, 
+                                        textcoords="offset points", ha="left", va="center",
+                                        fontsize=8)
+                        ####################################
+                        
                     elif k == 'residual':
 
                         im_model = gal.model_data.data['dispersion'].copy()
