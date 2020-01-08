@@ -1383,11 +1383,13 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
     
-        try:
+        #try:
+        if True:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1)
-        except:
+        #except:
+        else:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1, from_data=False)
@@ -1617,7 +1619,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     aper_centers = data1d.rarr
     slit_width = data1d.slit_width
     slit_pa = data1d.slit_pa
-    rstep = gal.instrument.pixscale.value
+    rstep = gal.instrument1d.pixscale.value
     rpix = slit_width/rstep/2.
     aper_dist_pix = 2*rpix
     aper_centers_pix = aper_centers/rstep
