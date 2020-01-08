@@ -1025,8 +1025,15 @@ def plot_model_multid_base(gal,
             
     galorig = copy.deepcopy(gal)
     instorig = copy.deepcopy(gal.instrument)
-    
-    
+    try:
+        instorig2d = copy.deepcopy(gal.instrument2d)
+    except:
+        instorig2d = copy.deepcopy(gal.instrument)
+    #
+    try:
+        instorig1d = copy.deepcopy(gal.instrument1d)
+    except:
+        instorig1d = copy.deepcopy(gal.instrument)
     # ----------------------------------------------------------------------
     # 2D plotting
     
@@ -1047,7 +1054,7 @@ def plot_model_multid_base(gal,
             
         
         gal.data = data2d
-        #gal.instrument = instorig
+        gal.instrument = instorig2d
     
         gal.model.update_parameters(theta) 
         
@@ -1359,6 +1366,7 @@ def plot_model_multid_base(gal,
         gal = copy.deepcopy(galorig)
         #
         gal.data = data1d
+        gal.instrument = instorig1d
         
         
         if galorig.data.ndim == 2:
