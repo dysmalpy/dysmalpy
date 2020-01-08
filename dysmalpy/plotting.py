@@ -1619,10 +1619,14 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     aper_centers = data1d.rarr
     slit_width = data1d.slit_width
     slit_pa = data1d.slit_pa
-    rstep = gal.instrument1d.pixscale.value
+    rstep = gal.instrument.pixscale.value
+    try:
+        rstep1d = gal.instrument1d.pixscale.value
+    except:
+        rstep1d = rstep
     rpix = slit_width/rstep/2.
     aper_dist_pix = 2*rpix
-    aper_centers_pix = aper_centers/rstep
+    aper_centers_pix = aper_centers/rstep1d
 
     pa = slit_pa
 
@@ -1674,7 +1678,11 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
     # First determine the centers of all the apertures that fit within the cube
     xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
-
+    
+    print("aper_centers_pix={}".format(aper_centers_pix))
+    print("xaps={}".format(xaps))
+    print("yaps={}".format(yaps))
+    
     pyoff = 0.
 
     cmstar = cm.plasma
@@ -1682,7 +1690,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
 
     for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-        #print("mm={}:  rap={}".format(mm, rap))
+        print("mm={}:  rap={}, xap, yap=({}, {})".format(mm, rap, xap, yap))
         circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
         ax.add_artist(circle)
         if (mm == 0):
