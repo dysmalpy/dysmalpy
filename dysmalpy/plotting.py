@@ -1684,8 +1684,6 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     aper_centers_pix = aper_centers/rstep#1d
 
     pa = slit_pa
-    
-    pa = -90.
 
     print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
                                     gal.model.geometry.xshift.value, 
