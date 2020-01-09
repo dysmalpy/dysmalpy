@@ -1209,7 +1209,7 @@ def plot_model_multid_base(gal,
                     ylim = ax.get_ylim()
                         
                     #
-                    ybase_offset = 0.065
+                    ybase_offset = 0.035 #0.065
                     x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
                     y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
                     len_line_angular = 1./(pixscale)
@@ -1286,38 +1286,6 @@ def plot_model_multid_base(gal,
                         if inst_corr:
                             im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
                             
-                            
-                        # -------------------------------------------
-                        if (show_1d_apers) & (data1d is not None):
-                            
-                            ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
-                                        galorig=galorig, alpha_aper=alpha_aper,
-                                        remove_shift=remove_shift)
-                                        
-                        # -------------------------------------------
-                        
-                        ####################################
-                        # Show a 1arcsec line:
-                        xlim = ax.get_xlim()
-                        ylim = ax.get_ylim()
-
-                        #
-                        ybase_offset = 0.065
-                        x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                        y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                        len_line_angular = 1./(pixscale)
-
-                        ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
-                                    c=color_annotate, ls='-',lw=2)
-                        string = '1"'
-                        y_text = y_base
-                        ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
-                                        xycoords="data", 
-                                        xytext=(0,0),
-                                        color=color_annotate, 
-                                        textcoords="offset points", ha="left", va="center",
-                                        fontsize=8)
-                        ####################################
                         
                     elif k == 'residual':
 
@@ -1362,6 +1330,37 @@ def plot_model_multid_base(gal,
                     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
                     # ++++++++++++++++++++++++++
                     
+                    # -------------------------------------------
+                    if (show_1d_apers) & (data1d is not None):
+                        
+                        ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
+                                    galorig=galorig, alpha_aper=alpha_aper,
+                                    remove_shift=remove_shift)
+                                    
+                    # -------------------------------------------
+                    
+                    ####################################
+                    # Show a 1arcsec line:
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
+
+                    #
+                    ybase_offset = 0.035 #0.065
+                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                    len_line_angular = 1./(pixscale)
+
+                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
+                                c=color_annotate, ls='-',lw=2)
+                    string = '1"'
+                    y_text = y_base
+                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
+                                    xycoords="data", 
+                                    xytext=(0,0),
+                                    color=color_annotate, 
+                                    textcoords="offset points", ha="left", va="center",
+                                    fontsize=8)
+                    ####################################
                     
                     
                     if k == 'data':
@@ -1676,12 +1675,12 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     slit_width = data1d.slit_width
     slit_pa = data1d.slit_pa
     rstep = gal.instrument.pixscale.value
-    # try:
-    #     rstep1d = gal.instrument1d.pixscale.value
-    # except:
-    #     rstep1d = rstep
+    try:
+        rstep1d = gal.instrument1d.pixscale.value
+    except:
+        rstep1d = rstep
     rpix = slit_width/rstep/2.
-    aper_dist_pix = 2*rpix
+    # aper_dist_pix = 2*rpix
     aper_centers_pix = aper_centers/rstep#1d
 
     pa = slit_pa
@@ -1700,8 +1699,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
     if not remove_shift:
         if data1d.aper_center_pix_shift is not None:
-            center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0], 
-                            np.int(ny / 2) + data1d.aper_center_pix_shift[1])
+            center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                            np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
         else:
             center_pixel = None
     else:
@@ -1713,14 +1712,14 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     print("center_pixel={}".format(center_pixel))
     print("aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
     
-    center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
-                    np.int(ny / 2) + gal.model.geometry.yshift.value)
+    center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                        np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
     
     
     if center_pixel is None:
         #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-        center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value, 
-                        np.int(ny / 2) + gal.model.geometry.yshift.value)
+        center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                        np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
     #
 
@@ -1729,8 +1728,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='magenta', marker='+')
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
 
-    # Assume equal distance between successive apertures equal to diameter of aperture
-    dr = aper_dist_pix
+    # # Assume equal distance between successive apertures equal to diameter of aperture
+    # dr = aper_dist_pix
 
     # First determine the centers of all the apertures that fit within the cube
     xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
