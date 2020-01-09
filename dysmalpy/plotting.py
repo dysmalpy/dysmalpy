@@ -1676,13 +1676,13 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     slit_width = data1d.slit_width
     slit_pa = data1d.slit_pa
     rstep = gal.instrument.pixscale.value
-    try:
-        rstep1d = gal.instrument1d.pixscale.value
-    except:
-        rstep1d = rstep
+    # try:
+    #     rstep1d = gal.instrument1d.pixscale.value
+    # except:
+    #     rstep1d = rstep
     rpix = slit_width/rstep/2.
     aper_dist_pix = 2*rpix
-    aper_centers_pix = aper_centers/rstep1d
+    aper_centers_pix = aper_centers/rstep#1d
 
     pa = slit_pa
 
