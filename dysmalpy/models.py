@@ -111,7 +111,6 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     # Need to do this internally instead of relying on IDL save files!!
     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
         nearest_n, nearest_q)
-    # print("file_noord=",file_noord)
     restNVC = scp_io.readsav(file_noord)
     N2008_vcirc = restNVC.N2008_vcirc
     N2008_rad = restNVC.N2008_rad
@@ -1011,20 +1010,15 @@ class Sersic(MassModel):
             return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
 
     def circular_velocity(self, r):
-
         if self.noord_flat:
-
             vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
                                      self.n, self.invq)
-
         else:
-
             vcirc = super(Sersic, self).circular_velocity(r)
 
         return vcirc
 
     def mass_to_light(self, r):
-
         return sersic_mr(r, 1.0, self.n, self.r_eff)
 
 
@@ -1125,12 +1119,11 @@ class DiskBulge(MassModel):
         return vcirc
         
     def circular_velocity(self, r):
-
         vbulge = self.circular_velocity_bulge(r)
         vdisk = self.circular_velocity_disk(r)
-    
+        
         vcirc = np.sqrt(vbulge**2 + vdisk**2)
-
+        
         return vcirc
         
     def velocity_profile(self, r, modelset):
