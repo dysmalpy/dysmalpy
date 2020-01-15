@@ -1122,7 +1122,8 @@ def plot_model_multid_base(gal,
                 disp_vmax = vcrop_value
         
         
-        alpha_masked = 1. #0.7 #0.6
+        alpha_unmasked = 1. #0.7 #0.6
+        alpha_masked = 0.5   # 0.
         alpha_bkgd = 1. #0.5 #1. #0.5
         alpha_aper = 0.8
         
@@ -1185,7 +1186,7 @@ def plot_model_multid_base(gal,
                     # Create an alpha channel of linearly increasing values moving to the right.
                     alphas = np.ones(im.shape)
                     alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 0.
+                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
                     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
                     imtmpalph = mplcolors.Normalize(vel_vmin, vel_vmax, clip=True)(imtmp)
                     imtmpalph = cm.Greys_r(imtmpalph)
@@ -1319,7 +1320,7 @@ def plot_model_multid_base(gal,
                     # Create an alpha channel of linearly increasing values moving to the right.
                     alphas = np.ones(im.shape)
                     alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 0.
+                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
                     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
                     imtmpalph = mplcolors.Normalize(disp_vmin, disp_vmax, clip=True)(imtmp)
                     imtmpalph = cm.Greys_r(imtmpalph)
