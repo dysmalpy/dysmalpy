@@ -704,6 +704,16 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     err_disp[~np.isfinite(err_disp)] = 0.
     
     
+    # Crop, if desired
+    if params['fov_npix'] < min(gal_vel.shape):
+        crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
+        crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
+        gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+        err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+        gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+        err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+        mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+
     # Auto mask som bad data
     if automask: 
         indtmp = (gal_disp > dispmax) | (np.abs(gal_vel) > vmax)
