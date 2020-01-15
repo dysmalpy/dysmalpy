@@ -111,6 +111,7 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     # Need to do this internally instead of relying on IDL save files!!
     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
         nearest_n, nearest_q)
+    # print("file_noord=",file_noord)
     restNVC = scp_io.readsav(file_noord)
     N2008_vcirc = restNVC.N2008_vcirc
     N2008_rad = restNVC.N2008_rad
@@ -1000,8 +1001,14 @@ class Sersic(MassModel):
         :param r: Radii at which to calculate the enclosed mass
         :return: 1D enclosed mass profile
         """
-
-        return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
+        
+        if self.noord_flat:
+            # Take Noordermeer+08 vcirc, and then get Menc from vcirc
+            return menc_from_vcirc(apply_noord_flat(r, self.r_eff, 10**self.total_mass,
+                                     self.n, self.invq), r)
+            
+        else:
+            return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
 
     def circular_velocity(self, r):
 
@@ -1048,47 +1055,58 @@ class DiskBulge(MassModel):
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
-
+        
+        print("consider if Noord flat: this will be modified")
         mbulge_total = 10**total_mass*bt
         mdisk_total = 10**total_mass*(1 - bt)
-
+        
         mr_bulge = sersic_mr(r, mbulge_total, n_bulge, r_eff_bulge)
         mr_disk = sersic_mr(r, mdisk_total, n_disk, r_eff_disk)
-
+        
         return mr_bulge+mr_disk
-
+        
     def enclosed_mass(self, r):
-
         mbulge_total = 10 ** self.total_mass * self.bt
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
-
-        menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge,
-                                 self.r_eff_bulge)
-        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
-                                self.r_eff_disk)
-
+        
+        if self.noord_flat:
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+                        self.n_bulge, self.invq_bulge), r)
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+                        self.n_disk,  self.invq_disk),  r)
+        else:
+            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+        
         return menc_disk+menc_bulge
         
     def enclosed_mass_disk(self, r):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
         
-        menc_disk = sersic_menc(r, mdisk_total, self.n_disk,
-                                self.r_eff_disk)
+        if self.noord_flat:
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+                        self.n_disk,  self.invq_disk),  r)
+        else:
+            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            
         return menc_disk
         
     def enclosed_mass_bulge(self, r):
         mbulge_total = 10 ** self.total_mass * self.bt
-    
-        menc_bulge= sersic_menc(r, mbulge_total, self.n_bulge,
-                                 self.r_eff_bulge)
+        
+        if self.noord_flat:
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+                        self.n_bulge, self.invq_bulge), r)
+        else:
+            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+        
         return menc_bulge
-
+        
     def circular_velocity_disk(self, r):
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
             vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
                                      self.n_disk, self.invq_disk)
-
         else:
             mass_enc = self.enclosed_mass_disk(r)
             vcirc = v_circular(mass_enc, r)
