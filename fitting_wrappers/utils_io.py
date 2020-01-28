@@ -151,6 +151,15 @@ def read_fitting_params(fname=None):
                 params['fdm_bounds'] = [0, 1]
                 params['blob_name'] = 'fdm'
         
+        # Put a default, if missing
+        if ('mvirial_tied' not in params.keys()):
+            if params['halo_profile_type'].upper() == 'NFW':
+                params['mvirial_tied'] = False
+            elif ((params['halo_profile_type'].lower() == 'twopowerhalo') | \
+                        (params['halo_profile_type'].lower() == 'burkert')):
+                # Default to the "old" behavior
+                params['mvirial_tied'] = True
+            
     return params
     
 def save_results_ascii_files(fit_results=None, gal=None, params=None):
