@@ -121,7 +121,7 @@ class Galaxy:
                           oversample=1, oversize=1, debug=False,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
                           pix_length=None,
-                          skip_downsample=False):
+                          skip_downsample=False, partial_aperture_weight=False):
 
         """
         Simulate an IFU cube then optionally collapse it down to a 2D
@@ -422,6 +422,7 @@ class Galaxy:
                 else:
                     center_pixel = None
                 
+                # raise ValueError
                 
                 #----------------------------------------------------------
                 #try:
@@ -442,6 +443,7 @@ class Galaxy:
                                 aperture_radius=aperture_radius, 
                                 pix_perp=pix_perp, pix_parallel=pix_parallel,
                                 pix_length=pix_length, 
+                                partial_weight=partial_aperture_weight, 
                                 from_data=False)
                     
                     
