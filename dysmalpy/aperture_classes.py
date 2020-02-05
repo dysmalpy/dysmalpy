@@ -21,11 +21,20 @@ from .utils import calc_pixel_distance
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-
 __all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures", 
             "EllipApertures", "CircApertures", "RectApertures", "SquareApertures" ]
 
 deg2rad = np.pi / 180.
+
+try:
+    from shapely.geometry import Polygon, Point
+    from shapely import affinity as shply_affinity
+    shapely_installed = True
+except:
+    # print("*******************************************")
+    # print("* Python package 'shapely' not installed. *")
+    # print("*******************************************")
+    shapely_installed = False
 
 
 # Base Class for a data container
@@ -37,11 +46,13 @@ class Aperture(object):
     Shape aper_center: 2 ( [x0, y0] )
     """
 
-    def __init__(self, aper_center=None, nx=None, ny=None):
+    def __init__(self, aper_center=None, nx=None, ny=None, partial_weight=False):
                  
         self.aper_center = aper_center
         self.nx = nx
         self.ny = ny
+        self.partial_weight = partial_weight
+        self._mask_ap = None
         
     def define_aperture_mask(self):
         mask = np.ones((self.ny, self.nx), dtype=np.bool)
@@ -53,8 +64,18 @@ class Aperture(object):
         """
         spec_array: the spectral direction array -- eg, vel array or wave array.
         """
-        
-        mask_ap = self.define_aperture_mask()
+        try:
+            if self.partial_weight:
+                if self._mask_ap is None:
+                    mask_ap = self.define_aperture_mask()
+                    self._mask_ap = mask_ap
+                else:
+                    mask_ap = self._mask_ap
+            else:
+                mask_ap = self.define_aperture_mask()
+        except:
+            mask_ap = self.define_aperture_mask()
+            
         mask_cube = np.tile(mask_ap, (cube.shape[0], 1, 1))
         spec = np.nansum(np.nansum(cube*mask_cube, axis=1), axis=1)
         
@@ -91,7 +112,7 @@ class EllipAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None):
+            aper_center=None, nx=None, ny=None, partial_weight=False):
 
         # set things here
         self.pix_perp = pix_perp
@@ -100,7 +121,7 @@ class EllipAperture(Aperture):
 
 
         super(EllipAperture, self).__init__(aper_center=aper_center, 
-                                            nx=nx, ny=ny)
+                                            nx=nx, ny=ny, partial_weight=partial_weight)
 
 
     def define_aperture_mask(self):
@@ -111,8 +132,52 @@ class EllipAperture(Aperture):
 
         xslits = xskys * np.cos(self.slit_PA*deg2rad)       + yskys * np.sin(self.slit_PA*deg2rad)
         yslits = xskys * -1. * np.sin(self.slit_PA*deg2rad) + yskys * np.cos(self.slit_PA*deg2rad)
-
-        apmask = ( (yslits/self.pix_parallel)**2 + (xslits/self.pix_perp)**2 <= 1. )
+        
+        try:
+            if self.partial_weight:
+                do_partial_weight = True
+            else:
+                do_partial_weight = False
+        except:
+            do_partial_weight = False
+            
+        if do_partial_weight:
+            if shapely_installed:
+                apmask = np.ones(xskys.shape) * -99.
+                
+                wh_allin = np.where( (np.abs(yslits)/self.pix_parallel + 1./np.sqrt(2.))**2 + \
+                                     (np.abs(xslits)/self.pix_perp + 1./np.sqrt(2.))**2 <= 1. )
+                wh_allout = np.where( (np.abs(yslits)/self.pix_parallel - 1./np.sqrt(2.))**2 + \
+                                      (np.abs(xslits)/self.pix_perp - 1./np.sqrt(2.))**2 > 1. )
+                
+                apmask[wh_allin] = 1.
+                apmask[wh_allout] = 0.
+                
+                wh_calc = np.where(apmask < 0)
+                
+                # define shapely object:
+                circtmp = Point((0,0)).buffer(1)
+                aper_ell = shply_affinity.scale(circtmp, int(self.pix_perp), int(self.pix_parallel))
+                
+                
+                for (whc_y, whc_x) in zip(*wh_calc):
+                    x_sky_pix_corners = np.array([xskys[whc_y,whc_x]+0.5, xskys[whc_y,whc_x]+0.5, 
+                                                  xskys[whc_y,whc_x]-0.5, xskys[whc_y,whc_x]-0.5] )
+                    y_sky_pix_corners = np.array([yskys[whc_y,whc_x]+0.5, yskys[whc_y,whc_x]-0.5, 
+                                                  yskys[whc_y,whc_x]-0.5, yskys[whc_y,whc_x]+0.5] )
+                    x_slit_pix_corners = x_sky_pix_corners * np.cos(self.slit_PA*deg2rad)       + y_sky_pix_corners * np.sin(self.slit_PA*deg2rad)
+                    y_slit_pix_corners = x_sky_pix_corners * -1. * np.sin(self.slit_PA*deg2rad) + y_sky_pix_corners * np.cos(self.slit_PA*deg2rad)
+                    
+                    cornerspix = np.array([x_slit_pix_corners, y_slit_pix_corners])
+                    pix_poly = Polygon(cornerspix.T)
+                
+                    overlap = aper_ell.intersection(pix_poly)
+                    apmask[whc_y,whc_x] = overlap.area
+            else:
+                raise ValueError("Currently cannot do partial weights if python package shapely is not installed")
+                apmask = None # fractional pixels
+        else:
+            apmask = ( (yslits/self.pix_parallel)**2 + (xslits/self.pix_perp)**2 <= 1. )
 
         return apmask
         
@@ -123,7 +188,7 @@ class RectAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None):
+            aper_center=None, nx=None, ny=None, partial_weight=False):
 
         # set things here
         self.pix_perp = pix_perp
@@ -132,7 +197,7 @@ class RectAperture(Aperture):
 
 
         super(RectAperture, self).__init__(aper_center=aper_center, 
-                                            nx=nx, ny=ny)
+                                            nx=nx, ny=ny, partial_weight=partial_weight)
 
 
     def define_aperture_mask(self):
@@ -143,9 +208,57 @@ class RectAperture(Aperture):
 
         xslits = xskys * np.cos(self.slit_PA*deg2rad)       + yskys * np.sin(self.slit_PA*deg2rad)
         yslits = xskys * -1. * np.sin(self.slit_PA*deg2rad) + yskys * np.cos(self.slit_PA*deg2rad)
-
-        apmask = ( (np.abs(xslits) <= self.pix_perp/2.) & (np.abs(yslits) <= self.pix_parallel/2.) )
-
+        
+        try:
+            if self.partial_weight:
+                do_partial_weight = True
+            else:
+                do_partial_weight = False
+        except:
+            do_partial_weight = False
+            
+        if do_partial_weight:
+            if shapely_installed:
+                apmask = np.ones(xskys.shape) * -99.
+                
+                wh_allin = np.where(( (np.abs(xslits) <= self.pix_perp/2. - 1./np.sqrt(2.)) & \
+                                (np.abs(yslits) <= self.pix_parallel/2.- 1./np.sqrt(2.)) ))
+                #
+                wh_allout = np.where(( (np.abs(xslits) > self.pix_perp/2. + 1./np.sqrt(2.)) | \
+                                (np.abs(yslits) > self.pix_parallel/2.+ 1./np.sqrt(2.)) ))
+                
+                apmask[wh_allin] = 1.
+                apmask[wh_allout] = 0.
+                
+                # define shapely object:
+                corners = np.array([[self.pix_perp/2., self.pix_perp/2., 
+                                    -self.pix_perp/2., -self.pix_perp/2.], 
+                                    [self.pix_parallel/2., -self.pix_parallel/2., 
+                                    -self.pix_parallel/2., self.pix_parallel/2.]])
+                aper_poly = Polygon(corners.T)
+                
+                wh_calc = np.where(apmask < 0)
+                
+                for (whc_y, whc_x) in zip(*wh_calc):
+                    x_sky_pix_corners = np.array([xskys[whc_y,whc_x]+0.5, xskys[whc_y,whc_x]+0.5, 
+                                                  xskys[whc_y,whc_x]-0.5, xskys[whc_y,whc_x]-0.5] )
+                    y_sky_pix_corners = np.array([yskys[whc_y,whc_x]+0.5, yskys[whc_y,whc_x]-0.5, 
+                                                  yskys[whc_y,whc_x]-0.5, yskys[whc_y,whc_x]+0.5] )
+                    x_slit_pix_corners = x_sky_pix_corners * np.cos(self.slit_PA*deg2rad)       + y_sky_pix_corners * np.sin(self.slit_PA*deg2rad)
+                    y_slit_pix_corners = x_sky_pix_corners * -1. * np.sin(self.slit_PA*deg2rad) + y_sky_pix_corners * np.cos(self.slit_PA*deg2rad)
+                    
+                    cornerspix = np.array([x_slit_pix_corners, y_slit_pix_corners])
+                    pix_poly = Polygon(cornerspix.T)
+                    
+                    overlap = aper_poly.intersection(pix_poly)
+                    apmask[whc_y,whc_x] = overlap.area
+                    
+            else:
+                raise ValueError("Currently cannot do partial weights if python package shapely is not installed")
+                apmask = None # fractional pixels
+        else:
+            apmask = ( (np.abs(xslits) <= self.pix_perp/2.) & (np.abs(yslits) <= self.pix_parallel/2.) )
+            
         return apmask
 
 
@@ -209,7 +322,7 @@ class EllipApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
         
         #aper_center_pix_shift = None
         
@@ -249,7 +362,7 @@ class EllipApertures(Apertures):
             aper_centers_pix[:,i] = aper_cent_pix
             apertures.append(EllipAperture(slit_PA=slit_PA,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
-                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny))
+                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
         
         self.aper_centers_pix = aper_centers_pix
         
@@ -258,11 +371,11 @@ class EllipApertures(Apertures):
     
 class CircApertures(EllipApertures):
     def __init__(self, rarr=None, slit_PA=None, rpix=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
              
         super(CircApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=rpix, pix_parallel=rpix, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight)
     
 #
 class RectApertures(Apertures):
@@ -279,7 +392,7 @@ class RectApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
         
         #aper_center_pix_shift = None
         
@@ -319,7 +432,7 @@ class RectApertures(Apertures):
             aper_centers_pix[:,i] = aper_cent_pix
             apertures.append(RectAperture(slit_PA=slit_PA,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
-                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny))
+                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
         
         self.aper_centers_pix = aper_centers_pix
         
@@ -331,11 +444,11 @@ class SquareApertures(RectApertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_length=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
              
         super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight)
                 
                 
                 
@@ -345,7 +458,12 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None, 
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, from_data=True, 
+            partial_weight=False, 
             oversample=1):
+            
+    # partial_weight:
+    #           are partial pixels weighted in apertures?
+    #
             
     if from_data:
         slit_width = gal.data.slit_width
@@ -377,7 +495,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             rpix = slit_width/rstep/2.
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                 partial_weight=partial_weight)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
 
@@ -395,7 +514,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
-                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                partial_weight=partial_weight)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
 
@@ -407,7 +527,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         aper_centers_pix = aper_centers/rstep
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                 partial_weight=partial_weight)
 
     else:
         raise TypeError('Unknown method for measuring the 1D profiles.')
