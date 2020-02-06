@@ -940,6 +940,11 @@ def tie_rB_Burkert(model_set):
     rB = comp_halo.calc_rB_from_fdm(comp_baryons, r_fdm)
     return rB
     
+def tie_fdm(model_set):
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    fdm = model_set.get_dm_aper(r_fdm)
+    return fdm
+    
 ############################################################################
 
 
