@@ -923,6 +923,7 @@ class MCMCResults(FitResults):
             
             
     def mod_linear_param_posterior(self, gal=None):
+        self.linear_posterior = []
         j = -1
         for cmp in gal.model.fixed:
             # pkeys[cmp] = OrderedDict()
@@ -933,7 +934,16 @@ class MCMCResults(FitResults):
                     j += 1
                     if isinstance( gal.model.components[cmp]._constraints['prior'][pm], UniformLinearPrior):
                         self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
-        return p, pkeys
+                        self.linear_posterior.append(True)
+                    else:
+                        self.linear_posterior.append(False)
+        
+    
+    def back_map_linear_param_bestfits(self, mcmc_param_bestfit):
+        for j in range(len(mcmc_param_bestfit)):
+            if self.linear_posterior[j]:
+                mcmc_param_bestfit[j] = np.log10(mcmc_param_bestfit[j])
+        return mcmc_param_bestfit
 
     def analyze_posterior_dist(self, gal=None, linked_posterior_names=None, nPostBins=50):
         """
@@ -1031,6 +1041,9 @@ class MCMCResults(FitResults):
         
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
+        
+        mcmc_param_bestfit = self.back_map_linear_param_bestfits(mcmc_param_bestfit)
+        
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
         
