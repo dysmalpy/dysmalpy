@@ -871,15 +871,15 @@ class MCMCResults(FitResults):
                 self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
             elif blob_name.lower() == 'rb':
                 self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-    
+        
         gal.create_model_data(oversample=oversample, oversize=oversize, 
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
-    
+        
         self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
                         model_key_re=model_key_re)
         self.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, 
                                 model_key_re=model_key_re)
-    
+        
         if model_key_re is not None:
             comp = gal.model.components.__getitem__(model_key_re[0])
             param_i = comp.param_names.index(model_key_re[1])
