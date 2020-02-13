@@ -877,6 +877,8 @@ class MCMCResults(FitResults):
     
         self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, 
                         model_key_re=model_key_re)
+        self.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, 
+                                model_key_re=model_key_re)
     
         if model_key_re is not None:
             comp = gal.model.components.__getitem__(model_key_re[0])
@@ -1417,7 +1419,71 @@ def log_like(gal, red_chisq=False,
     else:
         return llike
         
+def chisq_eval(gal, fitdispersion=True, 
+                model_key_re=['disk+bulge','r_eff_disk']):
+    #
+    if gal.data.ndim == 3:
+        # Will have problem with vel shift: data, model won't match...
 
+        msk = gal.data.mask
+        dat = gal.data.data.unmasked_data[:].value[msk]
+        mod = gal.model_data.data.unmasked_data[:].value[msk]
+        err = gal.data.error.unmasked_data[:].value[msk]
+
+        # Artificially mask zero errors which are masked
+        #err[((err==0) & (msk==0))] = 99.
+        chisq_arr_raw = ((dat - mod)/err)**2 
+        invnu = 1.
+        chsq = chisq_arr_raw.sum() * invnu
+
+    elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
+
+        msk = gal.data.mask
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
+
+        # Correct model for instrument dispersion if the data is instrument corrected:
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt(disp_mod**2 -
+                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                       # below the instrumental dispersion
+                                                       
+        # Includes velocity shift
+        chisq_arr_raw_vel = ((vel_dat - vel_mod)/vel_err)**2
+        if fitdispersion:
+            invnu = 1.
+            chisq_arr_raw_disp = ((disp_dat - disp_mod)/disp_err)**2
+            chsq = ( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
+        else:
+            invnu = 1.
+            chsq = chisq_arr_raw_vel.sum() * invnu
+
+    elif gal.data.ndim == 0:
+
+        msk = gal.data.mask
+        data = gal.data.data
+        mod = gal.model_data.data
+        err = gal.data.error
+
+        chisq_arr = ((data - mod)/err)**2
+
+        chsq = chisq_arr.sum() 
+
+    else:
+        logger.warning("ndim={} not supported!".format(gal.data.ndim))
+        raise ValueError
+        
+
+    return chsq
+    
+    
 def chisq_red(gal, fitdispersion=True, 
                 model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
