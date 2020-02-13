@@ -141,6 +141,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None):
                                   maxAF=fit_dict['maxAF'],
                                   nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
                                   red_chisq=fit_dict['red_chisq'],
+                                  oversampled_chisq = fit_dict['oversampled_chisq'],
                                   oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
                                   blob_name=fit_dict['blob_name'],
