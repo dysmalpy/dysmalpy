@@ -1198,7 +1198,7 @@ class LinearDiskBulge(MassModel):
         self.noord_flat = noord_flat
         self.light_component = light_component
 
-        super(DiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
+        super(LinearDiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
                                         r_eff_bulge, n_bulge, bt, **kwargs)
 
     @staticmethod
@@ -1663,7 +1663,7 @@ class LinearNFW(DarkMatterHalo):
             z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
+        super(LinearNFW, self).__init__(mvirial, conc, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
         """3D mass density profile"""
