@@ -206,7 +206,17 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                             noord_flat=noord_flat,
                             name='disk+bulge',
                             fixed=bary_fixed, bounds=bary_bounds)
-                            
+    #
+    if 'linear_masses' in params.keys():
+        if params['linear_masses']:
+            bary = models.LinearDiskBulge(total_mass=total_mass, bt=bt,
+                                    r_eff_disk=r_eff_disk, n_disk=n_disk,
+                                    invq_disk=invq_disk,
+                                    r_eff_bulge=r_eff_bulge, n_bulge=n_bulge,
+                                    invq_bulge=invq_bulge,
+                                    noord_flat=noord_flat,
+                                    name='disk+bulge',
+                                    fixed=bary_fixed, bounds=bary_bounds)
                             
     bary = utils_io.set_comp_param_prior(comp=bary, param_name='total_mass', params=params)
     bary = utils_io.set_comp_param_prior(comp=bary, param_name='bt', params=params)
@@ -238,7 +248,13 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                            
             halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
-            
+            #
+            if 'linear_masses' in params.keys():
+                if params['linear_masses']:
+                    halo = models.LinearNFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z, 
+                                      fixed=halo_fixed, bounds=halo_bounds, name='halo')
+                    
+                    
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
             

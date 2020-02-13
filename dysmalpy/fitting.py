@@ -1044,8 +1044,10 @@ class MCMCResults(FitResults):
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         
-        mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
-                self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
+        # # mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
+        # #         self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
+        # mcmc_param_bestfit_linear = mcmc_param_bestfit.copy()
+        # mcmc_limits_linear = mcmc_limits.copy()
         
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
@@ -1090,10 +1092,10 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
         
-        # If things have been mapped to linear space for posterior analysis:
-        self.bestfit_parameters_linear = mcmc_param_bestfit_linear
-        self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
-        self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
+        # # If things have been mapped to linear space for posterior analysis:
+        # self.bestfit_parameters_linear = mcmc_param_bestfit_linear
+        # self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
+        # self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
         
         
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None):

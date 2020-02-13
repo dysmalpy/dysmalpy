@@ -123,15 +123,15 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     truths_l68 = mcmcResults.bestfit_parameters_l68_err
     truths_u68 = mcmcResults.bestfit_parameters_u68_err
     
-    try:
-        # If things have been mapped to linear posterior space for analysis in chain
-        truths_linear = mcmcResults.bestfit_parameters_linear
-        truths_l68_linear = mcmcResults.bestfit_parameters_linear_l68_err
-        truths_u68_linear = mcmcResults.bestfit_parameters_linear_u68_err
-    except:
-        truths_linear = mcmcResults.bestfit_parameters
-        truths_l68_linear = mcmcResults.bestfit_parameters_l68_err
-        truths_u68_linear = mcmcResults.bestfit_parameters_u68_err
+    # try:
+    #     # If things have been mapped to linear posterior space for analysis in chain
+    #     truths_linear = mcmcResults.bestfit_parameters_linear
+    #     truths_l68_linear = mcmcResults.bestfit_parameters_linear_l68_err
+    #     truths_u68_linear = mcmcResults.bestfit_parameters_linear_u68_err
+    # except:
+    #     truths_linear = mcmcResults.bestfit_parameters
+    #     truths_l68_linear = mcmcResults.bestfit_parameters_l68_err
+    #     truths_u68_linear = mcmcResults.bestfit_parameters_u68_err
     
     try:
         truths_l68_percentile = mcmcResults.bestfit_parameters_l68_err_percentile
@@ -193,11 +193,11 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
         
         truths = np.append(truths, blob_true)
-        truths_linear = np.append(truths_linear, blob_true)
         truths_l68 = np.append(truths_l68, blob_l68_err)
         truths_u68 = np.append(truths_u68, blob_u68_err )
-        truths_l68_linear = np.append(truths_l68_linear, blob_l68_err)
-        truths_u68_linear = np.append(truths_u68_linear, blob_u68_err)
+        # truths_linear = np.append(truths_linear, blob_true)
+        # truths_l68_linear = np.append(truths_l68_linear, blob_l68_err)
+        # truths_u68_linear = np.append(truths_u68_linear, blob_u68_err)
         
         if priors is not None:
             priors.append(None)
@@ -213,7 +213,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     fig = corner.corner(sampler_chain,
                             labels=names,
                             quantiles= [.02275, 0.15865, 0.84135, .97725],
-                            truths=truths_linear,
+                            truths=truths, # truths_linear,
                             plot_datapoints=False,
                             show_titles=True,
                             bins=40,
@@ -229,9 +229,9 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         best = truths[i] #fit_results.bestfit_parameters[i]
         q_m = truths_l68[i]
         q_p = truths_u68[i]
-        best_lin = truths_linear[i]
-        q_m_lin = truths_l68_linear[i]
-        q_p_lin = truths_u68_linear[i]
+        # best_lin = truths_linear[i]
+        # q_m_lin = truths_l68_linear[i]
+        # q_p_lin = truths_u68_linear[i]
         title_fmt=".2f"
         fmt = "{{0:{0}}}".format(title_fmt).format
         title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
@@ -247,8 +247,11 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         
         if truths_l68_percentile is not None:
             if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
-                ax.axvline(best_lin-q_m_lin, ls='--', color='#9467bd')   # purple
-                ax.axvline(best_lin+q_p_lin, ls='--', color='#9467bd')   # purple
+                ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
+                ax.axvline(best+q_p, ls='--', color='#9467bd')   # purple
+                
+                #ax.axvline(best_lin-q_m_lin, ls='--', color='#9467bd')   # purple
+                #ax.axvline(best_lin+q_p_lin, ls='--', color='#9467bd')   # purple
         if priors is not None:
             if priors[i] is not None:
                 ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
