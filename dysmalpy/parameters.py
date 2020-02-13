@@ -95,6 +95,49 @@ class UniformPrior(Prior):
             
         return np.random.rand(N)*(pmax-pmin) + pmin
 
+#
+class UniformLinearPrior(Prior):
+    # Note: must bounds input as LINEAR BOUNDS
+    @staticmethod
+    def log_prior(self, param, modelset):
+
+        if param.bounds[0] is None:
+            pmin = -np.inf
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = np.inf
+        else:
+            pmax = param.bounds[1]
+
+        if (np.power(10., param.value) >= pmin) & (np.power(10., param.value) <= pmax):
+            return 0.
+        else:
+            return -np.inf
+            
+    @staticmethod
+    def sample_prior(self, param, N=1):
+        if param.bounds[0] is None:
+            pmin = -1.e13  # Need to default to a finite value for the rand dist.
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:
+            pmax = 1.e13  # Need to default to a finite value for the rand dist.
+        else:
+            pmax = param.bounds[1]
+            
+        rvs = []
+        while len(rvs) < N:
+            test_v = np.random.rand(N)*(pmax-pmin) + pmin
+            
+            if (test_v >= pmin) & (test_v <= pmax):
+                rvs.append(np.log10(test_v))
+            
+        return rvs
+        
+
 
 class GaussianPrior(Prior):
 
