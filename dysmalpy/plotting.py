@@ -124,6 +124,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     truths_u68 = mcmcResults.bestfit_parameters_u68_err
     
     try:
+        # If things have been mapped to linear posterior space for analysis in chain
         truths_linear = mcmcResults.bestfit_parameters_linear
         truths_l68_linear = mcmcResults.bestfit_parameters_linear_l68_err
         truths_u68_linear = mcmcResults.bestfit_parameters_linear_u68_err
