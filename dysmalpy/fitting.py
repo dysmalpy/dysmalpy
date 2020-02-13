@@ -1050,8 +1050,6 @@ class MCMCResults(FitResults):
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
         
-        self.bestfit_parameters_linear = mcmc_param_bestfit_linear
-        
         # ++++++++++++++++++++++++=
         # Original 68% percentile interval:
         mcmc_stack_percentile = np.concatenate(([mcmc_param_bestfit], mcmc_limits_percentile), axis=0)
@@ -1091,13 +1089,11 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
+        
+        # If things have been mapped to linear space for posterior analysis:
+        self.bestfit_parameters_linear = mcmc_param_bestfit_linear
         self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
         self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
-        
-        
-        print(mcmc_param_bestfit_linear)
-        print(mcmc_limits_linear)
-        print(self.bestfit_parameters_linear_l68_err, self.bestfit_parameters_linear_u68_err)
         
         
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
