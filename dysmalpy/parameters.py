@@ -99,7 +99,7 @@ class UniformPrior(Prior):
 class UniformLinearPrior(Prior):
     # Note: must bounds input as LINEAR BOUNDS
     @staticmethod
-    def log_prior(self, param, modelset):
+    def log_prior(param, modelset):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -117,7 +117,7 @@ class UniformLinearPrior(Prior):
             return -np.inf
             
     @staticmethod
-    def sample_prior(self, param, N=1):
+    def sample_prior(param, N=1):
         if param.bounds[0] is None:
             pmin = -1.e13  # Need to default to a finite value for the rand dist.
         else:
