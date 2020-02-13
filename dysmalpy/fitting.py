@@ -19,6 +19,7 @@ import abc
 # DYSMALPY code
 from dysmalpy import plotting
 from dysmalpy import galaxy
+from dysmalpy.parameters import UniformLinearPrior
 from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 
 # Third party imports
@@ -856,7 +857,7 @@ class MCMCResults(FitResults):
             self.save_chain_ascii(filename=self.f_chain_ascii, blob_name=blob_name)
 
         # Get the best-fit values, uncertainty bounds from marginalized posteriors
-        self.analyze_posterior_dist(linked_posterior_names=linked_posterior_names,
+        self.analyze_posterior_dist(gal=gal, linked_posterior_names=linked_posterior_names,
                     nPostBins=nPostBins)
                 
         # Update theta to best-fit:
@@ -920,8 +921,21 @@ class MCMCResults(FitResults):
         if f_vel_ascii is not None:
             self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
             
+            
+    def mod_linear_param_posterior(self, gal=None):
+        j = -1
+        for cmp in gal.model.fixed:
+            # pkeys[cmp] = OrderedDict()
+            for pm in gal.model.fixed[cmp]:
+                if self.fixed[cmp][pm] | np.bool(self.tied[cmp][pm]):
+                    pass
+                else:
+                    j += 1
+                    if isinstance( gal.model.components[cmp]._constraints['prior'][pm], UniformLinearPrior):
+                        self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
+        return p, pkeys
 
-    def analyze_posterior_dist(self, linked_posterior_names=None, nPostBins=50):
+    def analyze_posterior_dist(self, gal=None, linked_posterior_names=None, nPostBins=50):
         """
         Default analysis of posterior distributions from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -965,6 +979,8 @@ class MCMCResults(FitResults):
 
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
+
+        self.mod_linear_param_posterior(gal=gal)
 
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
