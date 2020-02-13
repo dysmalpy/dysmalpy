@@ -49,6 +49,13 @@ pc = apy_con.pc
 # DEFAULT COSMOLOGY
 _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
+# # +++++++++++++++++++++++++++++
+# # TEMP:
+# G = 6.67e-11 * u.m**3 / u.kg / (u.s**2)  #(unit='m3 / (kg s2)')
+# Msun = 2e30 * u.kg
+# pc = 3e16 * u.m
+# # +++++++++++++++++++++++++++++
+
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
@@ -1169,6 +1176,152 @@ class DiskBulge(MassModel):
 
 #
 
+class LinearDiskBulge(MassModel):
+    """Class with a combined disk and bulge to allow varying of B/T and the
+    total baryonic mass"""
+
+    total_mass = DysmalParameter(default=10, bounds=(5, 14))
+    r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
+    n_disk = DysmalParameter(default=1, fixed=True, bounds=(0, 8))
+    r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
+    n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
+    bt = DysmalParameter(default=0.2, bounds=(0, 1))
+
+    _subtype = 'baryonic'
+
+    def __init__(self, total_mass, r_eff_disk, n_disk, r_eff_bulge,
+                 n_bulge, bt, invq_disk=5, invq_bulge=1, noord_flat=False,
+                 light_component='disk', **kwargs):
+
+        self.invq_disk = invq_disk
+        self.invq_bulge = invq_bulge
+        self.noord_flat = noord_flat
+        self.light_component = light_component
+
+        super(DiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
+                                        r_eff_bulge, n_bulge, bt, **kwargs)
+
+    @staticmethod
+    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
+        
+        print("consider if Noord flat: this will be modified")
+        mbulge_total = total_mass*bt
+        mdisk_total = total_mass*(1 - bt)
+        
+        mr_bulge = sersic_mr(r, mbulge_total, n_bulge, r_eff_bulge)
+        mr_disk = sersic_mr(r, mdisk_total, n_disk, r_eff_disk)
+        
+        return mr_bulge+mr_disk
+        
+    def enclosed_mass(self, r):
+        mbulge_total = self.total_mass * self.bt
+        mdisk_total = self.total_mass * (1 - self.bt)
+        
+        if self.noord_flat:
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+                        self.n_bulge, self.invq_bulge), r)
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+                        self.n_disk,  self.invq_disk),  r)
+        else:
+            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+        
+        return menc_disk+menc_bulge
+        
+    def enclosed_mass_disk(self, r):
+        mdisk_total = self.total_mass * (1 - self.bt)
+        
+        if self.noord_flat:
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+                        self.n_disk,  self.invq_disk),  r)
+        else:
+            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            
+        return menc_disk
+        
+    def enclosed_mass_bulge(self, r):
+        mbulge_total = self.total_mass * self.bt
+        
+        if self.noord_flat:
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+                        self.n_bulge, self.invq_bulge), r)
+        else:
+            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+        
+        return menc_bulge
+        
+    def circular_velocity_disk(self, r):
+        if self.noord_flat:
+            mdisk_total = self.total_mass*(1-self.bt)
+            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+                                     self.n_disk, self.invq_disk)
+        else:
+            mass_enc = self.enclosed_mass_disk(r)
+            vcirc = v_circular(mass_enc, r)
+
+        return vcirc
+        
+    def circular_velocity_bulge(self, r):
+        if self.noord_flat:
+            mbulge_total = self.total_mass*self.bt
+            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+                                     self.n_bulge, self.invq_bulge)
+        else:
+            mass_enc = self.enclosed_mass_bulge(r)
+            vcirc = v_circular(mass_enc, r)
+
+        return vcirc
+        
+    def circular_velocity(self, r):
+        vbulge = self.circular_velocity_bulge(r)
+        vdisk = self.circular_velocity_disk(r)
+        
+        vcirc = np.sqrt(vbulge**2 + vdisk**2)
+        
+        return vcirc
+        
+    def velocity_profile(self, r, modelset):
+        vcirc = self.circular_velocity(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_disk(self, r, modelset):
+        vcirc = self.circular_velocity_disk(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+    def velocity_profile_bulge(self, r, modelset):
+        vcirc = self.circular_velocity_bulge(r)
+        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        return vrot
+        
+
+    def mass_to_light(self, r):
+
+        if self.light_component == 'disk':
+
+            flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+
+        elif self.light_component == 'bulge':
+
+            flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+
+        elif self.light_component == 'total':
+
+            flux_disk = sersic_mr(r, 1.0-self.bt,
+                                  self.n_disk, self.r_eff_disk)
+            flux_bulge = sersic_mr(r, self.bt,
+                                   self.n_bulge, self.r_eff_bulge)
+            flux = flux_disk + flux_bulge
+
+        else:
+
+            raise ValueError("light_component can only be 'disk', 'bulge', "
+                             "or 'total.'")
+
+        return flux
+
+
 class DarkMatterHalo(MassModel):
     """
     Generic class for dark matter halo profiles
@@ -1498,6 +1651,67 @@ class NFW(DarkMatterHalo):
     def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
         halo = NFW(mvirial=mass, conc=conc, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
+
+#
+class LinearNFW(DarkMatterHalo):
+    """
+    1D NFW mass model parameterized by the virial radius, virial mass, and
+    concentration.
+    """
+    
+    def __init__(self, mvirial, conc, fdm = None, 
+            z=0, cosmo=_default_cosmo, **kwargs):
+        self.z = z
+        self.cosmo = cosmo
+        super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
+
+    def evaluate(self, r, mvirial, conc, fdm):
+        """3D mass density profile"""
+
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+
+        return rho0 / (r / rs * (1 + r / rs) ** 2)
+
+    def enclosed_mass(self, r):
+        """
+        Calculate the enclosed mass as a function of radius
+        :param r: Radii at which to calculate the enclosed mass
+        :return: 1D enclosed mass profile
+        """
+        
+        rho0 = self.calc_rho0()
+        rvirial = self.calc_rvir()
+        rs = rvirial/self.conc
+        aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
+        
+        # For very small r, bb can be negative.
+        bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
+        
+        return aa*bb
+
+    def calc_rho0(self):
+
+        rvirial = self.calc_rvir()
+        aa = self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
+        bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
+
+        return aa * bb
+
+    def calc_rvir(self):
+        """
+        Calculate the virial radius based on virial mass and redshift
+        M_vir = 100*H(z)^2/G * R_vir^3
+        """
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((self.mvirial * (g_new_unit * 1e-3) /
+                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
+        
+        
 
 
 
