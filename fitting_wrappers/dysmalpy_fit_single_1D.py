@@ -84,6 +84,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
                                   nSteps=fit_dict['nSteps'], minAF=fit_dict['minAF'], maxAF=fit_dict['maxAF'],
                                   nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
                                   red_chisq=fit_dict['red_chisq'],
+                                  oversampled_chisq = fit_dict['oversampled_chisq'],
                                   profile1d_type=fit_dict['profile1d_type'],
                                   oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
