@@ -923,21 +923,22 @@ class MCMCResults(FitResults):
             
             
     def mod_linear_param_posterior(self, gal=None):
-        self.linear_posterior = []
+        linear_posterior = []
         j = -1
         for cmp in gal.model.fixed:
             # pkeys[cmp] = OrderedDict()
             for pm in gal.model.fixed[cmp]:
-                if self.fixed[cmp][pm] | np.bool(self.tied[cmp][pm]):
+                if gal.model.fixed[cmp][pm] | np.bool(gal.model.tied[cmp][pm]):
                     pass
                 else:
                     j += 1
                     if isinstance( gal.model.components[cmp]._constraints['prior'][pm], UniformLinearPrior):
                         self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
-                        self.linear_posterior.append(True)
+                        linear_posterior.append(True)
                     else:
-                        self.linear_posterior.append(False)
+                        linear_posterior.append(False)
         
+        self.linear_posterior = linear_posterior
     
     def back_map_linear_param_bestfits(self, mcmc_param_bestfit):
         for j in range(len(mcmc_param_bestfit)):
