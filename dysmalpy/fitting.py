@@ -1047,12 +1047,6 @@ class MCMCResults(FitResults):
         mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
                 self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
         
-        print(mcmc_param_bestfit)
-        print(mcmc_param_bestfit_linear)
-        print(mcmc_limits)
-        print(mcmc_limits_linear)
-        print(mcmc_limits_percentile)
-        
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
         
@@ -1099,6 +1093,12 @@ class MCMCResults(FitResults):
         
         self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
         self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
+        
+        
+        print(mcmc_param_bestfit_linear)
+        print(mcmc_limits_linear)
+        print(self.bestfit_parameters_linear_l68_err, self.bestfit_parameters_linear_u68_err)
+        
         
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
