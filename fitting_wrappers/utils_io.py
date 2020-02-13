@@ -574,26 +574,26 @@ def setup_mcmc_dict(params=None):
     mcmc_dict['model_key_re'] = ['disk+bulge', 'r_eff_disk']
     mcmc_dict['model_key_halo'] = ['halo']
     
-    
-    if not params['fdm_fixed']:
-        # Case: fdm free, other param fixed:
-        mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-                                                  ['halo', 'fdm'],
-                                                  ['dispprof', 'sigma0'] ] ]
-    else:
-        # Case: fdm derived from other params, which are free:
-        if params['halo_profile_type'].strip().upper() == 'NFW':
-            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-                                                      ['halo', 'mvirial'],
-                                                      ['dispprof', 'sigma0'] ] ]
-        elif params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO':
-            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-                                                      ['halo', 'alpha'],
-                                                      ['dispprof', 'sigma0'] ] ]
-        elif params['halo_profile_type'].strip().upper() == 'BURKERT':
-            mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-                                                      ['halo', 'rB'],
-                                                      ['dispprof', 'sigma0'] ] ]
+    # # REMOVE THIS TO MAKE GENERAL!!!
+    # if not params['fdm_fixed']:
+    #     # Case: fdm free, other param fixed:
+    #     mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+    #                                               ['halo', 'fdm'],
+    #                                               ['dispprof', 'sigma0'] ] ]
+    # else:
+    #     # Case: fdm derived from other params, which are free:
+    #     if params['halo_profile_type'].strip().upper() == 'NFW':
+    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+    #                                                   ['halo', 'mvirial'],
+    #                                                   ['dispprof', 'sigma0'] ] ]
+    #     elif params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO':
+    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+    #                                                   ['halo', 'alpha'],
+    #                                                   ['dispprof', 'sigma0'] ] ]
+    #     elif params['halo_profile_type'].strip().upper() == 'BURKERT':
+    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
+    #                                                   ['halo', 'rB'],
+    #                                                   ['dispprof', 'sigma0'] ] ]
         
         
     return mcmc_dict
