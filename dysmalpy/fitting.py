@@ -941,8 +941,8 @@ class MCMCResults(FitResults):
         self.linear_posterior = linear_posterior
     
     def back_map_linear_param_bestfits(self, mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile):
-        mcmc_param_bestfit_linear = mcmc_param_bestfit[:]
-        mcmc_limits_linear = mcmc_limits[:]
+        mcmc_param_bestfit_linear = mcmc_param_bestfit.copy()
+        mcmc_limits_linear = mcmc_limits.copy()
         
         for j in range(len(mcmc_param_bestfit)):
             if self.linear_posterior[j]:
@@ -1046,6 +1046,12 @@ class MCMCResults(FitResults):
         
         mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
                 self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
+        
+        print(mcmc_param_bestfit)
+        print(mcmc_param_bestfit_linear)
+        print(mcmc_limits)
+        print(mcmc_limits_linear)
+        print(mcmc_limits_percentile)
         
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
