@@ -32,9 +32,10 @@ from . import cutils
 # Local imports
 from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW',
+__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'LinearNFW', 
+           'TwoPowerHalo', 'Burkert', 
            'DispersionConst', 'Geometry', 'BiconicalOutflow',
-           'KinematicOptions', 'ZHeightGauss', 'DiskBulge']
+           'KinematicOptions', 'ZHeightGauss', 'DiskBulge', 'LinearDiskBulge']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -622,7 +623,7 @@ class ModelSet:
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
 
-                    if isinstance(mcomp, DiskBulge):
+                    if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r)
@@ -1837,7 +1838,7 @@ class KinematicOptions:
                 
                 if model.mass_components[cmp]:
                     mcomp = model.components[cmp]
-                    if isinstance(mcomp, DiskBulge):
+                    if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r1d)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r1d)
@@ -1927,7 +1928,7 @@ class KinematicOptions:
                         mcomp = model.components[cmp]
                         if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
                             #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
-                            if (isinstance(mcomp, DiskBulge)):
+                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
@@ -1971,7 +1972,7 @@ class KinematicOptions:
                         mcomp = model.components[cmp]
                         if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
                             #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
-                            if (isinstance(mcomp, DiskBulge)):
+                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
                                 pre = mcomp.r_eff_disk.value
                             else:
                                 pre = mcomp.r_eff.value
