@@ -940,12 +940,18 @@ class MCMCResults(FitResults):
         
         self.linear_posterior = linear_posterior
     
-    def back_map_linear_param_bestfits(self, mcmc_param_bestfit):
+    def back_map_linear_param_bestfits(self, mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile):
+        mcmc_param_bestfit_linear = mcmc_param_bestfit[:]
+        mcmc_limits_linear = mcmc_limits[:]
+        
         for j in range(len(mcmc_param_bestfit)):
             if self.linear_posterior[j]:
                 mcmc_param_bestfit[j] = np.log10(mcmc_param_bestfit[j])
-        return mcmc_param_bestfit
-
+                mcmc_limits[:,j] = np.log10(mcmc_limits[:, j])
+                mcmc_limits_percentile[:,j] = np.log10(mcmc_limits_percentile[:, j])
+                
+        return mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile
+        
     def analyze_posterior_dist(self, gal=None, linked_posterior_names=None, nPostBins=50):
         """
         Default analysis of posterior distributions from MCMC fitting:
@@ -1019,11 +1025,6 @@ class MCMCResults(FitResults):
                             linked_posterior_names=linked_posterior_names)
             
             guess = mcmc_param_bestfit.copy()
-            # ## TESTING NEW HERE:
-            # if True:
-            #     for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-            #         guess[linked_posterior_ind_arr[k]] = find_multiD_pk_hist(self.sampler['flatchain'], 
-            #                 linked_posterior_ind_arr[k], nPostBins=nPostBins/2) 
             
             bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
                             guess=guess, 
@@ -1043,10 +1044,13 @@ class MCMCResults(FitResults):
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         
-        mcmc_param_bestfit = self.back_map_linear_param_bestfits(mcmc_param_bestfit)
+        mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
+                self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
         
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
+        
+        self.bestfit_parameters_linear = mcmc_param_bestfit_linear
         
         # ++++++++++++++++++++++++=
         # Original 68% percentile interval:
@@ -1087,7 +1091,8 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
-        
+        self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
+        self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
         
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
