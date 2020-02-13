@@ -574,6 +574,8 @@ def setup_mcmc_dict(params=None):
     mcmc_dict['model_key_re'] = ['disk+bulge', 'r_eff_disk']
     mcmc_dict['model_key_halo'] = ['halo']
     
+    
+    mcmc_dict['linked_posterior_names'] = None
     # # REMOVE THIS TO MAKE GENERAL!!!
     # if not params['fdm_fixed']:
     #     # Case: fdm free, other param fixed:
