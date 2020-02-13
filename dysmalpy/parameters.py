@@ -130,7 +130,7 @@ class UniformLinearPrior(Prior):
             
         rvs = []
         while len(rvs) < N:
-            test_v = np.random.rand(N)*(pmax-pmin) + pmin
+            test_v = np.random.rand(1)*(pmax-pmin) + pmin
             
             if (test_v >= pmin) & (test_v <= pmax):
                 rvs.append(np.log10(test_v))
