@@ -839,6 +839,8 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
             
             if params['{}_prior'.format(param_name)].lower() == 'flat':
                 comp.prior[param_name] = parameters.UniformPrior()
+            elif params['{}_prior'.format(param_name)].lower() == 'flat_linear':
+                comp.prior[param_name] = parameters.UniformLinearPrior()
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
                 comp.prior[param_name] = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
