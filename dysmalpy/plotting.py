@@ -228,6 +228,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         best = truths[i] #fit_results.bestfit_parameters[i]
         q_m = truths_l68[i]
         q_p = truths_u68[i]
+        best_lin = truths_linear[i]
         q_m_lin = truths_l68_linear[i]
         q_p_lin = truths_u68_linear[i]
         title_fmt=".2f"
@@ -244,9 +245,9 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         ylim = ax.get_ylim()
         
         if truths_l68_percentile is not None:
-            if (truths_l68_percentile[i] != q_m_lin) | (truths_u68_percentile[i] != q_p_lin):
-                ax.axvline(best-q_m_lin, ls='--', color='#9467bd')   # purple
-                ax.axvline(best+q_p_lin, ls='--', color='#9467bd')   # purple
+            if (truths_l68_percentile[i] != q_m) | (truths_u68_percentile[i] != q_p):
+                ax.axvline(best_lin-q_m_lin, ls='--', color='#9467bd')   # purple
+                ax.axvline(best_lin+q_p_lin, ls='--', color='#9467bd')   # purple
         if priors is not None:
             if priors[i] is not None:
                 ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
