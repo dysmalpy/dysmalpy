@@ -596,8 +596,10 @@ def setup_mcmc_dict(params=None):
     #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
     #                                                   ['halo', 'rB'],
     #                                                   ['dispprof', 'sigma0'] ] ]
-        
-        
+    
+    if 'continue_steps' not in mcmc_dict.keys():
+        mcmc_dict['continue_steps'] = False
+    
     return mcmc_dict
 
 
