@@ -554,28 +554,34 @@ def setup_mcmc_dict(params=None):
         mcmc_dict[key] = params[key]
         
     # #
-    # if mcmc_dict['linked_posteriors'] is not None:
-    #     linked_post_arr = []
-    #     for lpost in mcmc_dict['linked_posteriors']:
-    #         if lpost.strip().lower() == 'total_mass':
-    #             linked_post_arr.append(['disk+bulge', 'total_mass'])
-    #         elif lpost.strip().lower() == 'mvirial':
-    #             linked_post_arr.append(['halo', 'mvirial'])
-    #         else:
-    #             raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
-    #         
-    #     # "Bundle of linked posteriors"
-    #     linked_posterior_names = [ linked_post_arr ] 
-    #     
-    #     
-    #     mcmc_dict['linked_posterior_names'] = linked_posterior_names
-    
+    if 'linked_posteriors' in mcmc_dict.keys():
+        if mcmc_dict['linked_posteriors'] is not None:
+            linked_post_arr = []
+            for lpost in mcmc_dict['linked_posteriors']:
+                if lpost.strip().lower() == 'total_mass':
+                    linked_post_arr.append(['disk+bulge', 'total_mass'])
+                elif lpost.strip().lower() == 'mvirial':
+                    linked_post_arr.append(['halo', 'mvirial'])
+                else:
+                    raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
+            
+            # "Bundle of linked posteriors"
+            linked_posterior_names = [ linked_post_arr ] 
+        
+        
+            mcmc_dict['linked_posterior_names'] = linked_posterior_names
+        else:
+            mcmc_dict['linked_posterior_names'] = None
+    else:
+        mcmc_dict['linked_posterior_names'] = None
+        
+        
     #
     mcmc_dict['model_key_re'] = ['disk+bulge', 'r_eff_disk']
     mcmc_dict['model_key_halo'] = ['halo']
     
     
-    mcmc_dict['linked_posterior_names'] = None
+    # mcmc_dict['linked_posterior_names'] = None
     # # REMOVE THIS TO MAKE GENERAL!!!
     # if not params['fdm_fixed']:
     #     # Case: fdm free, other param fixed:
