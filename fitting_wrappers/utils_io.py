@@ -562,6 +562,10 @@ def setup_mcmc_dict(params=None):
                     linked_post_arr.append(['disk+bulge', 'total_mass'])
                 elif lpost.strip().lower() == 'mvirial':
                     linked_post_arr.append(['halo', 'mvirial'])
+                elif lpost.strip().lower() == 'r_eff_disk':
+                    linked_post_arr.append(['disk+bulge', 'r_eff_disk'])
+                elif lpost.strip().lower() == 'bt':
+                    linked_post_arr.append(['disk+bulge', 'bt'])
                 else:
                     raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
             
