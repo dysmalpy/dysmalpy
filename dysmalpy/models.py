@@ -481,44 +481,19 @@ class ModelSet:
                     log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn), self)
         return log_prior_model
         
-    def get_dm_aper(self, r, rstep=0.2):
-        lnin = 0
-        try:
-            lnin = len(r)
-            if lnin == 1:
-                r = r[0]
-                makearr = True
-            else:
-                rgal = r
-                makearr = False
-        except:
-            makearr = True
-            
-        if makearr:
-            nstep = np.floor_divide(r,rstep) 
-            rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-            rgal = np.append(rgal, r)
-            
-        vc, vdm = self.circular_velocity(rgal, compute_dm=True)
+    def get_dm_aper(self, r):
         
-        # Not generally true if a term is oblate; to be updated
-        # r_eff is the last (or only) entry:
-        if (lnin <= 1):
-            dm_frac = vdm[-1]**2/vc[-1]**2
-            if lnin == 1:
-                dm_frac = np.array([dm_frac])
-        else:
-            dm_frac = vdm**2/vc**2
-        
+        vc, vdm = self.circular_velocity(r, compute_dm=True)
+        dm_frac = vdm**2/vc**2
         return dm_frac
             
-    def get_dm_frac_effrad(self, rstep=0.2, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def get_dm_frac_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
         
-        return self.get_dm_aper(r_eff, rstep=rstep)
+        return self.get_dm_aper(r_eff)
         
     def get_mvirial(self, model_key_halo=['halo']):
         comp = self.components.__getitem__(model_key_halo[0])
@@ -541,23 +516,18 @@ class ModelSet:
         except:
             return None
         
-    def get_encl_mass_effrad(self, rstep=0.2, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
         r = r_eff
         
-        nstep = np.floor_divide(r,rstep) 
-        rgal = np.linspace(0.,nstep*rstep,num=nstep+1)
-        rgal = np.append(rgal, r)
+        vc, vdm = self.circular_velocity(r, compute_dm=True)
         
-        vc, vdm = self.circular_velocity(rgal, compute_dm=True)
+        return menc_from_vcirc(vc, r_eff)
         
-        return menc_from_vcirc(vc[-1], r_eff)
-        
-        
-    def enclosed_mass(self, r):
+    def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk']):
         """
         Method to calculate the total enclosed mass for the whole model
         as a function of radius
@@ -592,7 +562,7 @@ class ModelSet:
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
 
-                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True)
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, model_key_re=model_key_re)
                 # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
                 #               (G.cgs.value * Msun.cgs.value))
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
@@ -602,7 +572,7 @@ class ModelSet:
         return enc_mass, enc_bary, enc_dm
 
         
-    def circular_velocity(self, r, compute_dm=False):
+    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk']):
         """
         Method to calculate the 1D circular velocity profile
         as a function of radius, from the enclosed mass
@@ -614,42 +584,39 @@ class ModelSet:
             raise AttributeError("There are no mass components so a velocity "
                                  "can't be calculated.")
         else:
-
             vdm = r*0.
             vbaryon = r*0.
-
+            
             for cmp in self.mass_components:
-
+                
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
-
+                    
                     if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r)
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
-
+                        
                         vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
-
+                        
                     elif mcomp._subtype == 'baryonic':
-
+                        
                         vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
-
+                        
                     else:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm, compute_dm=compute_dm)
-
+            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm, compute_dm=compute_dm,
+                            model_key_re=model_key_re)
+                            
             if compute_dm:
                 vel = vels[0]
                 vdm = vels[1]
-
             else:
-
                 vel = vels
-            
             if compute_dm:
                 return vel, vdm
             else:
@@ -1821,14 +1788,30 @@ class KinematicOptions:
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
 
-    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, compute_dm=False):
-
+    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, 
+                compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk']):
+        
         if self.adiabatic_contract:
             #logger.info("Applying adiabatic contraction.")
             
             # Define 1d radius array for calculation
             step1d = 0.2  # kpc
-            r1d = np.arange(step1d, np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
+            # r1d = np.arange(step1d, np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
+            try:
+                rmaxin = r.max()
+            except:
+                rmaxin = r
+            # Get reff:
+            comp = model.components.__getitem__(model_key_re[0])
+            param_i = comp.param_names.index(model_key_re[1])
+            r_eff = comp.parameters[param_i]
+            
+            rmax_calc = max(5.* r_eff, rmaxin)
+            
+            # Wide enough radius range for full calculation -- out to 5*Reff, at least
+            r1d = np.arange(step1d, np.ceil(rmax_calc/step1d)*step1d+ step1d, step1d, dtype=np.float64)
+            
+            
             rprime_all_1d = np.zeros(len(r1d))
             
             # Calculate vhalo, vbaryon on this 1D radius array [note r is a 3D array]
@@ -1884,18 +1867,6 @@ class KinematicOptions:
                     rprime_all_1d = rprime_all_1d[converged]
                     r1d = r1d[converged]
             
-            # ## Calculations + ERROR WARNINGS
-            # if converged.sum() < len(r1d):
-            #     if converged.sum() >= 0.9 *len(r1d):
-            #         logger.warning("N={} radii not converged".format(len(r1d)-converged.sum()))
-            #         rprime_all_1d = rprime_all_1d[converged]
-            #         r1d = r1d[converged]
-            #     else:
-            #         logger.warning("More than 10% of radii newton values not converged!")
-            #         logger.warning("theta = {}".format(model.components))
-            # else:
-            #     logger.warning("All N={} converged!".format(len(r1d)))
-            
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
             
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
@@ -1904,9 +1875,7 @@ class KinematicOptions:
             
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
             
-            
         else:
-
             vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
             
         if compute_dm:
