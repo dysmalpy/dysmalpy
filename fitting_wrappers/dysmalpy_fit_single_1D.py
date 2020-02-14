@@ -103,7 +103,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
                                   f_chain_ascii=fit_dict['f_chain_ascii'],
                                   f_vel_ascii=fit_dict['f_vel_ascii'],
                                   f_log=fit_dict['f_log'], 
-                                  continue_steps=f_dict['continue_steps'])
+                                  continue_steps=fit_dict['continue_steps'])
 
         elif fit_dict['fit_method'] == 'mpfit':
 
