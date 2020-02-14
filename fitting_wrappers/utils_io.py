@@ -571,8 +571,6 @@ def setup_mcmc_dict(params=None):
             
             # "Bundle of linked posteriors"
             linked_posterior_names = [ linked_post_arr ] 
-        
-        
             mcmc_dict['linked_posterior_names'] = linked_posterior_names
         else:
             mcmc_dict['linked_posterior_names'] = None
