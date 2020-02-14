@@ -95,7 +95,7 @@ class UniformPrior(Prior):
             
         return np.random.rand(N)*(pmax-pmin) + pmin
 
-#
+# CAN THIS? BC NEED TO USE LinearDiskBulge / etc, bc of walker jumps ?????
 class UniformLinearPrior(Prior):
     # Note: must bounds input as LINEAR BOUNDS
     @staticmethod
