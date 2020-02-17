@@ -217,6 +217,10 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write(datstr+'\n')
             
             ###
+            datstr = '{: <12}   {: <11}   {: <5}   {: <8}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
+                        '-----', gal.model.kinematic_options.adiabatic_contract, -99, -99)
+            f.write(datstr+'\n')
+            
             datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
                         '-----', fit_results.bestfit_redchisq, -99, -99)
             f.write(datstr+'\n')
@@ -290,6 +294,11 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write(datstr+'\n')
 
             ####
+            f.write('\n')
+            f.write('-----------'+'\n')
+            datstr = 'Adiabatic contraction: {}'.format(gal.model.kinematic_options.adiabatic_contract)
+            f.write(datstr+'\n')
+
             f.write('\n')
             f.write('-----------'+'\n')
             datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
