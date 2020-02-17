@@ -28,7 +28,7 @@ import dill as _pickle
 # Local imports
 # Package imports
 from dysmalpy.instrument import Instrument
-from dysmalpy.models import ModelSet, calc_1dprofile
+from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.utils import apply_smoothing_2D, apply_smoothing_3D
 from dysmalpy import aperture_classes
@@ -398,8 +398,7 @@ class Galaxy:
                                  "'wavelength.'")
 
             if profile1d_type == 'circ_ap_pv':
-
-                r1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
+                r1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data, slit_width,
                                                     slit_pa-180., rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
@@ -411,6 +410,22 @@ class Galaxy:
                 
                 aper_model = None
             
+            elif profile1d_type == 'single_pix_pv':
+                r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
+                                                    slit_pa-180., rstep, vel_arr)
+                vinterp = scp_interp.interp1d(r1d, vel1d,
+                                              fill_value='extrapolate')
+                disp_interp = scp_interp.interp1d(r1d, disp1d,
+                                                  fill_value='extrapolate')
+                vel1d = vinterp(aper_centers)
+                disp1d = disp_interp(aper_centers)
+                # flux1d = aper_centers*0. + np.NaN
+                
+                flux_intper = scp_interp.interp1d(r1d, flux1d,
+                                                  fill_value='extrapolate')
+                flux1d = flux_interp(aper_centers)
+                
+                aper_model = None
             else:
                 
                 if from_data:
