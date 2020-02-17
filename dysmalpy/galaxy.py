@@ -421,7 +421,7 @@ class Galaxy:
                 disp1d = disp_interp(aper_centers)
                 # flux1d = aper_centers*0. + np.NaN
                 
-                flux_intper = scp_interp.interp1d(r1d, flux1d,
+                flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
                 flux1d = flux_interp(aper_centers)
                 
