@@ -662,12 +662,20 @@ def setup_basic_aperture_types(gal=None, params=None):
         pix_length=params['pix_length']
     else:
         pix_length = None
+        
+    #
+    if ('partial_weight' in params.keys()):
+        partial_weight = params['partial_weight']
+    else:
+        # Preserve previous default behavior
+        partial_weight = False
     
     apertures = aperture_classes.setup_aperture_types(gal=gal, 
                 profile1d_type=params['profile1d_type'], 
                 aperture_radius=aperture_radius, 
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
-                pix_length=pix_length, from_data=True)
+                pix_length=pix_length, from_data=True, 
+                partial_weight=partial_weight)
     
     return apertures
 

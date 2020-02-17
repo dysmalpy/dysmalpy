@@ -267,9 +267,11 @@ class Apertures(object):
     """
     Generic case. Should be array of Aperture objects. Needs the loop.
     """
-    def __init__(self, apertures=None, slit_PA=None):
+    def __init__(self, apertures=None, slit_PA=None, rotate_cube=False):
         self.apertures = apertures
         self.slit_PA = slit_PA
+        self.slit_PA_unrotated = slit_PA
+        self.rotate_cube = rotate_cube
     
     def extract_1d_kinematics(self, spec_arr=None, 
                 cube=None, err=None, mask=None, spec_mask=None, 
@@ -277,6 +279,12 @@ class Apertures(object):
         """
         aper_centers_pixout: the radial direction positions, relative to kin center, in pixels
         """
+        # +++++++++++++++++++++++++++++++++++++++++++++
+        ## If rotate cube, implement here:
+        # self.slit_PA = 0.
+        #
+        # rotate by self.slit_PA_unrotated
+        # +++++++++++++++++++++++++++++++++++++++++++++
         ny = cube.shape[1]
         nx = cube.shape[2]
         
@@ -303,8 +311,8 @@ class Apertures(object):
                 aper_centers_pixout[i] = (np.sqrt((self.apertures[i].aper_center[0]-center_pixel[0])**2 +
                            (self.apertures[i].aper_center[1]-center_pixel[1])**2 ) *
                            np.sign(-np.cos((self.slit_PA+90.)*deg2rad)*(self.apertures[i].aper_center[0]-center_pixel[0])))
-
-
+                           
+                           
         
         return aper_centers_pixout*pixscale, flux1d, vel1d, disp1d
 
@@ -322,7 +330,13 @@ class EllipApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+        
+        #
+        if rotate_cube:
+            slit_PA_use = 0.
+        else:
+            slit_PA_use = slit_PA
         
         #aper_center_pix_shift = None
         
@@ -357,25 +371,25 @@ class EllipApertures(Apertures):
         aper_centers_pix = np.zeros((2,len(self.rarr)))
         apertures = []
         for i in range(len(rarr)):
-            aper_cent_pix = [rarr[i]*np.sin(slit_PA*deg2rad)/self.pixscale + self.center_pixel[0],
-                            rarr[i]*-1.*np.cos(slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
+            aper_cent_pix = [rarr[i]*np.sin(slit_PA_use*deg2rad)/self.pixscale + self.center_pixel[0],
+                            rarr[i]*-1.*np.cos(slit_PA_use*deg2rad)/self.pixscale + self.center_pixel[1]]
             aper_centers_pix[:,i] = aper_cent_pix
-            apertures.append(EllipAperture(slit_PA=slit_PA,
+            apertures.append(EllipAperture(slit_PA=slit_PA_use,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
                         aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
         
         self.aper_centers_pix = aper_centers_pix
         
-        super(EllipApertures, self).__init__(apertures=apertures, slit_PA=slit_PA)
+        super(EllipApertures, self).__init__(apertures=apertures, slit_PA=slit_PA, rotate_cube=rotate_cube)
     
     
 class CircApertures(EllipApertures):
     def __init__(self, rarr=None, slit_PA=None, rpix=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
              
         super(CircApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=rpix, pix_parallel=rpix, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, rotate_cube=rotate_cube)
     
 #
 class RectApertures(Apertures):
@@ -392,8 +406,15 @@ class RectApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
-        
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+        #
+        if rotate_cube:
+            slit_PA_use = 0.
+        else:
+            slit_PA_use = slit_PA
+            
+            
+            
         #aper_center_pix_shift = None
         
         # Assume the default central pixel is the center of the cube
@@ -427,16 +448,16 @@ class RectApertures(Apertures):
         aper_centers_pix = np.zeros((2,len(self.rarr)))
         apertures = []
         for i in range(len(rarr)):
-            aper_cent_pix = [rarr[i]*np.sin(slit_PA*deg2rad)/self.pixscale + self.center_pixel[0],
-                            rarr[i]*-1.*np.cos(slit_PA*deg2rad)/self.pixscale + self.center_pixel[1]]
+            aper_cent_pix = [rarr[i]*np.sin(slit_PA_use*deg2rad)/self.pixscale + self.center_pixel[0],
+                            rarr[i]*-1.*np.cos(slit_PA_use*deg2rad)/self.pixscale + self.center_pixel[1]]
             aper_centers_pix[:,i] = aper_cent_pix
-            apertures.append(RectAperture(slit_PA=slit_PA,
+            apertures.append(RectAperture(slit_PA=slit_PA_use,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
                         aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
         
         self.aper_centers_pix = aper_centers_pix
         
-        super(RectApertures, self).__init__(apertures=apertures, slit_PA=slit_PA)
+        super(RectApertures, self).__init__(apertures=apertures, slit_PA=slit_PA, rotate_cube=rotate_cube)
 
 class SquareApertures(RectApertures):
     """
@@ -444,11 +465,11 @@ class SquareApertures(RectApertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_length=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
              
         super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, rotate_cube=rotate_cube)
                 
                 
                 
@@ -458,7 +479,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None, 
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, from_data=True, 
-            partial_weight=False, 
+            partial_weight=False, rotate_cube=False, 
             oversample=1):
             
     # partial_weight:
@@ -496,7 +517,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 partial_weight=partial_weight)
+                 partial_weight=partial_weight, rotate_cube=rotate_cube)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
 
@@ -515,7 +536,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                partial_weight=partial_weight)
+                partial_weight=partial_weight, rotate_cube=rotate_cube)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
 
@@ -528,7 +549,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 partial_weight=partial_weight)
+                 partial_weight=partial_weight, rotate_cube=rotate_cube)
 
     else:
         raise TypeError('Unknown method for measuring the 1D profiles.')

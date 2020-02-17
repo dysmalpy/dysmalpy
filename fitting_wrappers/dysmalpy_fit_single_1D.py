@@ -144,8 +144,9 @@ def setup_single_object_1D(params=None, data=None):
     if data is None:
         gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], params=params)
         gal.data.filename_velocity = params['fdata']
-
-        if params['profile1d_type'] != 'circ_ap_pv':
+        
+        #if params['profile1d_type'] != 'circ_ap_pv':
+        if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
             gal.data.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
         #params['profile1d_type']
     else:

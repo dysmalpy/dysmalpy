@@ -138,8 +138,53 @@ def area_segm(rr, dd):
             dd * np.sqrt(2. * rr * (rr-dd) - (rr-dd)**2))
 
 
+#
 def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
+    # This is just *PV* diagram
+    # Get the data for the observed velocity profile
+    cube_shape = cube.shape
+    psize = cube_shape[1]
+    vsize = cube_shape[0]
+    lin = np.arange(psize) - np.fix(psize/2.)
+    veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
+                                           reshape=False)
+    tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
+            ((lin*pxs) >= (soff-slit_width/2.)))
+    data = np.zeros((psize, vsize))
+    
+    
+    flux = np.zeros(psize)
+    
+    yvec = vx
+    xvec = lin*pxs
+    
+    for i in range(psize):
+        for j in range(vsize):
+            data[i, j] = np.mean(veldata[j, i, tmpn])
+        flux[i] = np.sum(data[i,:])
+        
+    flux = flux / np.max(flux) * 10.
+    pvec = (flux < 0.)
+    
+    
+    vel = np.zeros(psize)
+    disp = np.zeros(psize)
+    for i in range(psize):
+        vel[i] = np.sum(data[i,:]*yvec)/np.sum(data[i,:])
+        disp[i] = np.sqrt( np.sum( ((yvec-vel[i])**2) * data[i,:]) / np.sum(data[i,:]) )
+    
+    if np.sum(pvec) > 0.:
+        vel[pvec] = -1.e3
+        disp[pvec] = 0.
+    
+    return xvec, flux, vel, disp
 
+
+
+
+def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
+    # Matching how DYSMAL does circular aperture extraction (out of the model PV diagram)
+    
     # Get the data for the observed velocity profile
     cube_shape = cube.shape
     psize = cube_shape[1]
@@ -151,10 +196,10 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
             ((lin*pxs) >= (soff-slit_width/2.)))
     data = np.zeros((psize, vsize))
     flux = np.zeros(psize)
-
+    
     yvec = vx
     xvec = lin*pxs
-
+    
     for i in range(psize):
         for j in range(vsize):
             data[i, j] = np.mean(veldata[j, i, tmpn])
