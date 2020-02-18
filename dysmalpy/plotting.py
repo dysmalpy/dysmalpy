@@ -1822,7 +1822,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         
         
     
-        ax.annotate(r'{} $z={:0.1f}$'.format(galIDsubs, gal.z), (0.5, 0.96), 
+        ax.annotate(r'{} $z={:0.1f}$'.format(gal.name, gal.z), (0.5, 0.96), 
                 xycoords='axes fraction', ha='center', va='top', fontsize=fontsize_title)
     
         ax.set_xlabel(keyxtitle, fontsize=fontsize_label)
@@ -1905,10 +1905,10 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
             xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
     
-        ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
-        ax2.annotate(r'$6r_d}$',
-            (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])), 
-            xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
+        # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
+        # ax2.annotate(r'$6r_d}$',
+        #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])), 
+        #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
         
         ###
         ax3 = ax2.twinx()
