@@ -33,7 +33,8 @@ import corner
 from spectral_cube import SpectralCube, BooleanArrayMask
 
 # Package imports
-from .utils import calc_pix_position, apply_smoothing_3D, create_vel_profile_files
+from .utils import calc_pix_position, apply_smoothing_3D
+from .utils_io import create_vel_profile_files
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from dysmalpy.extern.altered_colormaps import new_diverging_cmap
