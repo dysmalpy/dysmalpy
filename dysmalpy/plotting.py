@@ -428,9 +428,9 @@ def plot_data_model_comparison_1D(gal,
         axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
                 xerr=None, yerr = data.error[keyyarr[j]][~msk],
                 marker=None, ls='None', ecolor='grey', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
         axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk],
-            c='grey', marker='o', s=25, lw=1, label=None)
+            c='grey', marker='o', s=25, lw=1, label=None, alpha=0.5)
             
         # Unmasked points
         axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
