@@ -34,7 +34,7 @@ from spectral_cube import SpectralCube, BooleanArrayMask
 
 # Package imports
 from .utils import calc_pix_position, apply_smoothing_3D
-from .utils_io import create_vel_profile_files
+from .utils_io import create_vel_profile_files, read_bestfit_1d_obs_file, read_model_intrinsic_profile
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from dysmalpy.extern.altered_colormaps import new_diverging_cmap
@@ -1719,8 +1719,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
     if not file_exists:
         # ---------------------------------------------------------------------------
         # Read in stuff:
-        model_obs = dysmalpy_outerrc_fitting_io.read_model_obs1D_profile(filename=fname_model)
-        model_int = dysmalpy_outerrc_fitting_io.read_model_intrinsic_profile(filename=fname_intrinsic)
+        model_obs = read_bestfit_1d_obs_file(filename=fname_model)
+        model_int = read_model_intrinsic_profile(filename=fname_intrinsic)
         
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
     
