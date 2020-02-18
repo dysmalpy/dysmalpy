@@ -409,28 +409,80 @@ def plot_data_model_comparison_1D(gal,
         # Comparison:
         axes.append(plt.subplot(gs[0,j]))
         k += 1
-        axes[k].errorbar( data.rarr, data.data[keyyarr[j]],
-                xerr=None, yerr = data.error[keyyarr[j]],
+        
+        # msk = data.data.mask
+        if keyyarr[j] == 'velocity':
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.msk
+        elif keyyarr[j] == 'dispersion':
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.msk
+        else:
+            msk = np.array(np.ones(len(data.rarr)), dtype=np.bool)
+        
+        # Masked points
+        axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
+                xerr=None, yerr = data.error[keyyarr[j]][~msk],
+                marker=None, ls='None', ecolor='grey', zorder=-1.,
+                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk],
+            c='grey', marker='o', s=25, lw=1, label=None)
+            
+        # Unmasked points
+        axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
+                xerr=None, yerr = data.error[keyyarr[j]][msk],
                 marker=None, ls='None', ecolor='k', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        axes[k].scatter( data.rarr, data.data[keyyarr[j]],
+        axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk],
             c='black', marker='o', s=25, lw=1, label=None)
             
+        #
+        
+        
+        # axes[k].errorbar( data.rarr, data.data[keyyarr[j]],
+        #         xerr=None, yerr = data.error[keyyarr[j]],
+        #         marker=None, ls='None', ecolor='k', zorder=-1.,
+        #         lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        # axes[k].scatter( data.rarr, data.data[keyyarr[j]],
+        #     c='black', marker='o', s=25, lw=1, label=None)
             
-        axes[k].scatter( model_data.rarr, model_data.data[keyyarr[j]],
+        
+        # Masked points
+        axes[k].scatter( model_data.rarr[~msk], model_data.data[keyyarr[j]][~msk],
+            c='lightsalmon', marker='s', s=25, lw=1, label=None, alpha=0.5)
+            
+        # Unmasked points
+        axes[k].scatter( model_data.rarr[msk], model_data.data[keyyarr[j]][msk],
             c='red', marker='s', s=25, lw=1, label=None)
+            
+            
         axes[k].set_xlabel(keyxtitle)
         axes[k].set_ylabel(keyytitlearr[j])
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
         # Residuals:
         axes.append(plt.subplot(gs[1,j]))
         k += 1
-        axes[k].errorbar( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
-                xerr=None, yerr = data.error[keyyarr[j]],
+        
+        # Masked points
+        axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
+                xerr=None, yerr = data.error[keyyarr[j]][~msk],
+                marker=None, ls='None', ecolor='grey', zorder=-1.,
+                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
+            c='lightsalmon', marker='s', s=25, lw=1, label=None)
+            
+        # Unmasked points:
+        axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
+                xerr=None, yerr = data.error[keyyarr[j]][msk],
                 marker=None, ls='None', ecolor='k', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        axes[k].scatter( data.rarr, data.data[keyyarr[j]]-model_data.data[keyyarr[j]],
+        axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
             c='red', marker='s', s=25, lw=1, label=None)
+            
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
         axes[k].set_xlabel(keyxtitle)
         axes[k].set_ylabel(keyyresidtitlearr[j])
@@ -1793,12 +1845,26 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         xlim2 = np.array(xlim) / gal.dscale
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
     
-    
-        ax.errorbar( np.abs(gal.data.rarr), np.abs(gal.data.data['velocity']),
-                xerr=None, yerr = gal.data.error['velocity'],
+        # msk = data.data.mask
+        if gal.data.mask_velocity is not None:
+            msk = gal.data.mask_velocity
+        else:
+            msk = gal.data.msk
+            
+        # Masked points
+        ax.errorbar( np.abs(gal.data.rarr[~msk]), np.abs(gal.data.data['velocity'][~msk]),
+                xerr=None, yerr = gal.data.error['velocity'][~msk],
+                marker=None, ls='None', ecolor='lightgrey', zorder=4.,
+                alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        ax.scatter( np.abs(gal.data.rarr[~msk]), np.abs(gal.data.data['velocity'][~msk]),
+            edgecolor='lightgrey', facecolor='whitesmoke', marker='s', s=25, lw=1, zorder=5., label=None)
+            
+        # Unmasked points
+        ax.errorbar( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
+                xerr=None, yerr = gal.data.error['velocity'][msk],
                 marker=None, ls='None', ecolor='dimgrey', zorder=4.,
                 alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        ax.scatter( np.abs(gal.data.rarr), np.abs(gal.data.data['velocity']),
+        ax.scatter( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
             edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
     
     

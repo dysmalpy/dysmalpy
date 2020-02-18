@@ -697,7 +697,7 @@ def setup_basic_aperture_types(gal=None, params=None):
     return apertures
 
     
-def load_single_object_1D_data(fdata=None, params=None):
+def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
     
     # Load the data set to be fit
     dat_arr =   np.loadtxt(fdata)
@@ -707,6 +707,14 @@ def load_single_object_1D_data(fdata=None, params=None):
     err_vel =   dat_arr[:,2]
     err_disp =  dat_arr[:,4]
     
+    if os.path.isfile(fdata_mask):
+        msk_arr =   np.loadtxt(fdata_mask)
+        msk_r =     msk_arr[:,0]
+        msk_vel =   msk_arr[:,1]
+        msk_disp =  msk_arr[:,2]
+    else:
+        msk_vel = None
+        msk_disp = None
     #####
     # Apply symmetrization if wanted:
     try:
@@ -717,10 +725,11 @@ def load_single_object_1D_data(fdata=None, params=None):
         pass
     
     
-    data1d = data_classes.Data1D(r=gal_r, velocity=gal_vel,
-                                      vel_disp=gal_disp, vel_err=err_vel,
-                                      vel_disp_err=err_disp, slit_width=params['slit_width'],
-                                      slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'] )
+    data1d = data_classes.Data1D(r=gal_r, velocity=gal_vel,vel_disp=gal_disp, 
+                                vel_err=err_vel, vel_disp_err=err_disp, 
+                                mask_velocity=msk_vel, mask_vel_disp=msk_disp,
+                                slit_width=params['slit_width'],
+                                slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'] )
                                       
     return data1d
     

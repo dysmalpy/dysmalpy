@@ -57,7 +57,10 @@ class Data1D(Data):
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, 
                  flux=None, 
-                 mask=None, slit_width=None,
+                 mask=None, 
+                 mask_velocity=None, 
+                 mask_vel_disp=None, 
+                 slit_width=None,
                  slit_pa=None, aper_center_pix_shift=None, 
                  estimate_err=False, error_frac=0.2,
                  inst_corr=False, 
@@ -74,7 +77,12 @@ class Data1D(Data):
 
         else:
             mask = np.ones(len(velocity))
-
+            
+        if mask_velocity is not None:
+            if mask_velocity.shape != velocity.shape:
+                raise ValueError("mask_velocity and velocity are not the same size.")
+                
+                
         data = {'velocity': velocity}
         
         # Information about *dispersion* instrument correction
@@ -131,6 +139,11 @@ class Data1D(Data):
 
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
+                                 
+            #
+            if mask_vel_disp is not None:
+                if mask_vel_disp.shape != velocity.shape:
+                    raise ValueError("mask_vel_disp and velocity are not the same size.")
 
             error['dispersion'] = vel_disp_err
         else:
@@ -151,12 +164,24 @@ class Data1D(Data):
                                      shape=shape, mask=mask,
                                      filename_velocity=filename_velocity, 
                                      filename_dispersion=filename_dispersion)
+                                     
+        #
+        if mask_velocity is not None:
+            self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
+        else:
+            self.mask_velocity = None
+        if mask_vel_disp is not None:
+            self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
+        else:
+            self.mask_vel_disp = None
 
 
 class Data2D(Data):
 
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, estimate_err=False,
+                  mask_velocity=None, 
+                  mask_vel_disp=None,
                  error_frac=0.2, ra=None, dec=None, ref_pixel=None,
                  inst_corr=False, 
                  filename_velocity=None, 
@@ -170,6 +195,10 @@ class Data2D(Data):
 
         else:
             mask = np.ones(velocity.shape)
+            
+        if mask_velocity is not None:
+            if mask_velocity.shape != velocity.shape:
+                raise ValueError("mask_velocity and velocity are not the same size.")
 
         data = {'velocity': velocity}
         
@@ -214,11 +243,16 @@ class Data2D(Data):
                 error['dispersion'] = None
 
         elif (vel_disp is not None) and (vel_disp_err is not None):
-
+            
             if vel_disp_err.shape != velocity.shape:
 
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
+            #
+            if mask_vel_disp is not None:
+                if mask_vel_disp.shape != velocity.shape:
+                    raise ValueError("mask_vel_disp and velocity are not the same size.")
+            
 
             error['dispersion'] = vel_disp_err
         else:
@@ -241,6 +275,15 @@ class Data2D(Data):
                                      filename_dispersion=filename_dispersion,
                                      smoothing_type=smoothing_type, 
                                      smoothing_npix=smoothing_npix)
+        #
+        if mask_velocity is not None:
+            self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
+        else:
+            self.mask_velocity = None
+        if mask_vel_disp is not None:
+            self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
+        else:
+            self.mask_vel_disp = None
 
 
 class Data3D(Data):
