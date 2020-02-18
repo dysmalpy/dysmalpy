@@ -14,6 +14,11 @@ from scipy import interpolate
 
 import copy
 
+try:
+    import aperture_classes
+except:
+    from . import aperture_classes
+
 
 def write_bestfit_1d_obs_file(gal=None, fname=None):
     """
