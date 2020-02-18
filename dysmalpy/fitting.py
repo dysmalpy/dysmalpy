@@ -1374,7 +1374,7 @@ def log_like(gal, red_chisq=False,
         if gal.data.mask_velocity is not None:
             msk = gal.data.mask_velocity
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
@@ -1382,7 +1382,7 @@ def log_like(gal, red_chisq=False,
         if gal.data.mask_vel_disp is not None:
             msk = gal.data.mask_vel_disp
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
@@ -1490,7 +1490,7 @@ def chisq_eval(gal, fitdispersion=True,
         if gal.data.mask_velocity is not None:
             msk = gal.data.mask_velocity
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
@@ -1498,7 +1498,7 @@ def chisq_eval(gal, fitdispersion=True,
         if gal.data.mask_vel_disp is not None:
             msk = gal.data.mask_vel_disp
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
@@ -1570,7 +1570,7 @@ def chisq_red(gal, fitdispersion=True,
         if gal.data.mask_velocity is not None:
             msk = gal.data.mask_velocity
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
@@ -1578,7 +1578,7 @@ def chisq_red(gal, fitdispersion=True,
         if gal.data.mask_vel_disp is not None:
             msk = gal.data.mask_vel_disp
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
@@ -1665,7 +1665,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
         if gal.data.mask_velocity is not None:
             msk = gal.data.mask_velocity
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
@@ -1673,7 +1673,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
         if gal.data.mask_vel_disp is not None:
             msk = gal.data.mask_vel_disp
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
