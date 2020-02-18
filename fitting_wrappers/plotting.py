@@ -29,6 +29,11 @@ from astropy.table import Table
 
 import astropy.io.fits as fits
 
+try:
+    import utils_io
+except:
+    from . import utils_io
+
 
 
 #
@@ -42,7 +47,7 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     # gal, results = fitting.reload_all_fitting(filename_galmodel=fname_gal, 
     #                     filename_mcmc_results=fname_results)
     
-    params = read_fitting_params(fname=param_filename)
+    params = utils_io.read_fitting_params(fname=param_filename)
     
     if 'aperture_radius' not in params.keys():
         params['aperture_radius'] = -99.
