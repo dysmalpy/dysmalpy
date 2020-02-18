@@ -707,11 +707,15 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
     err_vel =   dat_arr[:,2]
     err_disp =  dat_arr[:,4]
     
-    if os.path.isfile(fdata_mask):
-        msk_arr =   np.loadtxt(fdata_mask)
-        msk_r =     msk_arr[:,0]
-        msk_vel =   msk_arr[:,1]
-        msk_disp =  msk_arr[:,2]
+    if fdata_mask is not None:
+        if os.path.isfile(fdata_mask):
+            msk_arr =   np.loadtxt(fdata_mask)
+            msk_r =     msk_arr[:,0]
+            msk_vel =   msk_arr[:,1]
+            msk_disp =  msk_arr[:,2]
+        else:
+            msk_vel = None
+            msk_disp = None
     else:
         msk_vel = None
         msk_disp = None
