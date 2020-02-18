@@ -412,15 +412,21 @@ def plot_data_model_comparison_1D(gal,
         
         # msk = data.data.mask
         if keyyarr[j] == 'velocity':
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
+            if hasattr(gal.data, 'mask_velocity'):
+                if gal.data.mask_velocity is not None:
+                    msk = gal.data.mask_velocity
+                else:
+                    msk = gal.data.mask
             else:
-                msk = gal.data.msk
+                msk = gal.data.mask
         elif keyyarr[j] == 'dispersion':
-            if gal.data.mask_vel_disp is not None:
-                msk = gal.data.mask_vel_disp
+            if hasattr(gal.data, 'mask_vel_disp'):
+                if gal.data.mask_vel_disp is not None:
+                    msk = gal.data.mask_vel_disp
+                else:
+                    msk = gal.data.mask
             else:
-                msk = gal.data.msk
+                msk = gal.data.mask
         else:
             msk = np.array(np.ones(len(data.rarr)), dtype=np.bool)
         
@@ -1846,10 +1852,13 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
     
         # msk = data.data.mask
-        if gal.data.mask_velocity is not None:
-            msk = gal.data.mask_velocity
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
         else:
-            msk = gal.data.msk
+            msk = gal.data.mask
             
         # Masked points
         ax.errorbar( np.abs(gal.data.rarr[~msk]), np.abs(gal.data.data['velocity'][~msk]),

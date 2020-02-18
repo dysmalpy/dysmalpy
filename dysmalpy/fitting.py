@@ -1371,18 +1371,26 @@ def log_like(gal, red_chisq=False,
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         
         #msk = gal.data.mask
-        if gal.data.mask_velocity is not None:
-            msk = gal.data.mask_velocity
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
+            
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
         
-        if gal.data.mask_vel_disp is not None:
-            msk = gal.data.mask_vel_disp
+        if hasattr(gal.data, 'mask_vel_disp'):
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
+            
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
@@ -1487,18 +1495,26 @@ def chisq_eval(gal, fitdispersion=True,
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
         
         #msk = gal.data.mask
-        if gal.data.mask_velocity is not None:
-            msk = gal.data.mask_velocity
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
+            
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
         
-        if gal.data.mask_vel_disp is not None:
-            msk = gal.data.mask_vel_disp
+        if hasattr(gal.data, 'mask_vel_disp'):
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
+            
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
@@ -1567,16 +1583,24 @@ def chisq_red(gal, fitdispersion=True,
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
 
         #msk = gal.data.mask
-        if gal.data.mask_velocity is not None:
-            msk = gal.data.mask_velocity
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
+            
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
         
-        if gal.data.mask_vel_disp is not None:
-            msk = gal.data.mask_vel_disp
+        #
+        if hasattr(gal.data, 'mask_vel_disp'):
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
@@ -1662,16 +1686,22 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
     elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
 
         #msk = gal.data.mask
-        if gal.data.mask_velocity is not None:
-            msk = gal.data.mask_velocity
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
         
-        if gal.data.mask_vel_disp is not None:
-            msk = gal.data.mask_vel_disp
+        if hasattr(gal.data, 'mask_vel_disp'):
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.mask
         else:
             msk = gal.data.mask
         disp_dat = gal.data.data['dispersion'][msk]
