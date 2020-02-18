@@ -225,6 +225,11 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                         '-----', fit_results.bestfit_redchisq, -99, -99)
             f.write(datstr+'\n')
             
+            if 'profile1d_type' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
+                            '-----', params['profile1d_type'], -99, -99)
+                f.write(datstr+'\n')
+            
             #
         #
         with open(f_ascii_pretty, 'w') as f:
@@ -254,6 +259,8 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
 
             f.write('\n')
             f.write('Fitting method: {}'.format(params['fit_method'].upper()))
+            if 'profile1d_type' in params.keys():
+                f.write('profile1d_type: {}'.format(params['profile1d_type']))
             f.write('\n')
             f.write('###############################'+'\n')
             f.write(' Fitting results'+'\n')
