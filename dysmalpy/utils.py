@@ -18,6 +18,8 @@ from scipy import interpolate
 from scipy.optimize import minimize
 from scipy.stats import norm
 
+import copy
+
 from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
 
