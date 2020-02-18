@@ -11,6 +11,8 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import copy
 
+import os 
+
 # Third party imports
 import numpy as np
 from astropy.extern import six
