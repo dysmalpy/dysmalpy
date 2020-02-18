@@ -23,6 +23,8 @@ mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FixedLocator, FixedFormatter
+
 
 import matplotlib.colors as mplcolors
 from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
