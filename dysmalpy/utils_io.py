@@ -16,8 +16,10 @@ import copy
 
 try:
     import aperture_classes
+    import data_classes
 except:
     from . import aperture_classes
+    from . import data_classes
 
 #
 # Class for intrinsic rot curve 
