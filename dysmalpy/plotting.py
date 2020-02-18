@@ -1735,6 +1735,15 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         
         model_int.data['vrot_sini'] = model_int.data['vrot']*sini
         
+        sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
+        sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
+    
+        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 +  \
+                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
+                gal.model.components['dispprof'].sigma0.value ** 2 )
+        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 +  \
+                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
+                gal.model.components['dispprof'].sigma0.value ** 2 )
         
         ######################################
         # Setup plot:
