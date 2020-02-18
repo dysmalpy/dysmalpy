@@ -19,6 +19,63 @@ try:
 except:
     from . import aperture_classes
 
+#
+# Class for intrinsic rot curve 
+class RotCurveInt(object):
+    def __init__(self, r=None, vcirc_tot=None, vcirc_bar=None, vcirc_dm=None):
+
+        self.rarr = r
+        
+        data = {'vcirc_tot': vcirc_tot, 
+                'vcirc_bar': vcirc_bar, 
+                'vcirc_dm': vcirc_dm}
+                
+        
+        self.data = data
+
+    
+def read_model_intrinsic_profile(filename=None):
+    # Load the data set to be fit
+    dat_arr =   np.loadtxt(filename) #datadir+'{}.obs_prof.txt'.format(galID))
+    gal_r      = dat_arr[:,0]
+    vcirc_tot  = dat_arr[:,1]
+    vcirc_bar  = dat_arr[:,2]
+    vcirc_dm   = dat_arr[:,3]
+    
+    model_int = RotCurveInt(r=gal_r, vcirc_tot=vcirc_tot, vcirc_bar=vcirc_bar, vcirc_dm=vcirc_dm)
+    
+    return model_int
+    
+def read_bestfit_1d_obs_file(fname=None, mirror=False):
+    """
+    Short function to save load space 1D obs profile for a galaxy (eg, for plotting, etc)
+    Follows form of H.Ü. example.
+    """
+    
+    # Load the model file
+    dat_arr =   np.loadtxt(fname)
+    gal_r =     dat_arr[:,0]
+    gal_flux =  dat_arr[:,1]
+    gal_vel =   dat_arr[:,2]
+    gal_disp =  dat_arr[:,3]
+    
+    slit_width = None
+    slit_pa = None
+    
+    if mirror:
+        gal_r = np.append(-1.*gal_r[::-1][:-1], gal_r)
+        gal_flux = np.append(1.*gal_flux[::-1][:-1], gal_flux)
+        gal_vel = np.append(-1.*gal_vel[::-1][:-1], gal_vel)
+        gal_disp = np.append(1.*gal_disp[::-1][:-1], gal_disp)
+        
+    #
+    model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,
+                             vel_disp=gal_disp, flux=gal_flux, 
+                             slit_width=slit_width,
+                             slit_pa=slit_pa)
+    model_data.apertures = None
+                                      
+    return model_data
 
 def write_bestfit_1d_obs_file(gal=None, fname=None):
     """
