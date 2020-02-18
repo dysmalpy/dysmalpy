@@ -142,7 +142,11 @@ def setup_single_object_1D(params=None, data=None):
     # ------------------------------------------------------------
     # Load data:
     if data is None:
-        gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], params=params)
+        if 'fdata_mask' in params.keys():
+            fdata_mask = params['fdata_mask']
+        else:
+            fdata_mask = None
+        gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params)
         gal.data.filename_velocity = params['fdata']
         
         #if params['profile1d_type'] != 'circ_ap_pv':
