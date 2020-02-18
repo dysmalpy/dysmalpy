@@ -1,4 +1,4 @@
-# Script to fit KMOS3D kinematics
+# Script to fit kinematics
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -485,6 +485,7 @@ def read_bestfit_1d_obs_file(fname=None, mirror=False):
     model_data.apertures = None
                                       
     return model_data
+    
     
 def make_catalog_row_entry(ascii_data=None, galID=None):
     
