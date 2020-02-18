@@ -31,7 +31,7 @@ import corner
 from spectral_cube import SpectralCube, BooleanArrayMask
 
 # Package imports
-from .utils import calc_pix_position, apply_smoothing_3D
+from .utils import calc_pix_position, apply_smoothing_3D, create_vel_profile_files
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from dysmalpy.extern.altered_colormaps import new_diverging_cmap
@@ -1676,6 +1676,291 @@ def plot_bestfit(mcmcResults, gal,
                 
     return None
 
+
+#
+def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False, 
+            outpath = None,
+            plotfile = None, 
+            profile1d_type = None, 
+            fname_model = None, fname_intrinsic = None,
+            oversample=3, oversize=1, aperture_radius=None):
+    if (plotfile is None) & (outpath is None):
+        raise ValueError
+    if plotfile is None:
+        plotfile = '{}{}_rot_components.pdf'.format(outpath, gal.name)
+    if fname_model is None:
+        fname_model = '{}{}_out-1dplots_finer_sampling.txt'.format(outpath, gal.name)
+    if fname_intrinsic is None:
+        fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
+        
+    # check if the file exists:
+    if overwrite:
+        file_exists = False
+    else:
+        file_exists = os.path.isfile(plotfile)
+    
+    # Check if the rot curves are done:
+    if overwrite_curve_files:
+        curve_files_exist = False
+    else:
+        curve_files_exist = (os.path.isfile(fname_model) and os.path.isfile(fname_intrinsic))
+    
+    
+    if not curve_files_exist:
+        create_vel_profile_files(gal=gal, outpath=outpath, oversample=oversample, oversize=oversize, 
+                    profile1d_type=profile1d_type, aperture_radius=aperture_radius, 
+                    fname_finer=fname_model, 
+                    fname_intrinsic=fname_intrinsic)
+    
+    
+    if not file_exists:
+        # ---------------------------------------------------------------------------
+        # Read in stuff:
+        model_obs = dysmalpy_outerrc_fitting_io.read_model_obs1D_profile(filename=fname_model)
+        model_int = dysmalpy_outerrc_fitting_io.read_model_intrinsic_profile(filename=fname_intrinsic)
+        
+        sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
+    
+    
+        vsq = model_int.data['vcirc_tot'] ** 2 - \
+                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
+                        gal.model.components['dispprof'].sigma0.value ** 2
+        vsq[vsq<0] = 0.
+    
+        model_int.data['vrot'] = np.sqrt(vsq)
+    
+        model_int.data['vrot_sini'] = model_int.data['vrot']*sini
+        
+        
+        ######################################
+        # Setup plot:
+        f = plt.figure()
+        scale = 3.5
+        
+        ncols = 2
+        nrows = 1
+        
+        wspace = 0.2
+        hspace = 0.2
+        f.set_size_inches(1.1*ncols*scale, nrows*scale)
+        gs = gridspec.GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+        axes = []
+        for i in six.moves.xrange(nrows):
+            for j in six.moves.xrange(ncols):
+                # Comparison:
+                axes.append(plt.subplot(gs[i,j]))
+            
+            
+        keyxtitle = r'Radius [arcsec]'
+        keyxtitle_alt = r'Radius [kpc]'
+    
+        keyytitle = r'Velocity [km/s]'
+        keyytitle_fdm = r'DM Fraction'
+    
+        errbar_lw = 0.5
+        errbar_cap = 1.5
+        lw = 1.5
+    
+    
+        fontsize_ticks = 9.
+        fontsize_label = 10.
+        fontsize_ann = 8.
+        fontsize_title = 10.
+        fontsize_leg= 7.5 #8.
+    
+        color_arr = ['mediumblue', 'mediumturquoise', 'orange', 'red', 'blueviolet', 'dimgrey']
+    
+        # ++++++++++++++++++++++++++++++++++++
+        ax = axes[0]
+    
+    
+        xlim = [-0.05, np.max([np.max(np.abs(gal.data.rarr)) + 0.5, 2.0])]
+        xlim2 = np.array(xlim) / gal.dscale
+        ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
+    
+    
+        ax.errorbar( np.abs(gal.data.rarr), np.abs(gal.data.data['velocity']),
+                xerr=None, yerr = gal.data.error['velocity'],
+                marker=None, ls='None', ecolor='dimgrey', zorder=4.,
+                alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        ax.scatter( np.abs(gal.data.rarr), np.abs(gal.data.data['velocity']),
+            edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
+    
+    
+        ax.plot( model_obs.rarr, model_obs.data['velocity'], 
+            c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
+        
+        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet', 
+                zorder=-20., label=r'Intrinsic $\sigma_0$')
+    
+        ax2 = ax.twiny()
+    
+        ax2.plot(model_int.rarr, model_int.data['vrot_sini'], 
+            c='orange', lw=lw, label=r'$V_{\mathrm{rot}} \sin(i)$ intrinsic', zorder=1.)
+        #
+        ax2.plot(model_int.rarr, model_int.data['vrot'], 
+            c='mediumturquoise', lw=lw, label=r'$V_{\mathrm{rot}}$ intrinsic', zorder=0.)
+        ####
+        ax2.fill_between(model_int.rarr, model_int.data['vcirc_tot_linc'], model_int.data['vcirc_tot_uinc'], 
+            color='mediumblue', alpha=0.1, lw=0, label=None, zorder=-1.)
+        ####
+        ax2.plot(model_int.rarr, model_int.data['vcirc_tot'], 
+            c='mediumblue', lw=lw, label=r'$V_{\mathrm{c}}$ intrinsic', zorder=2.)
+        
+        
+    
+        ax.annotate(r'{} $z={:0.1f}$'.format(galIDsubs, gal.z), (0.5, 0.96), 
+                xycoords='axes fraction', ha='center', va='top', fontsize=fontsize_title)
+    
+        ax.set_xlabel(keyxtitle, fontsize=fontsize_label)
+        ax.set_ylabel(keyytitle, fontsize=fontsize_label)
+        ax2.set_xlabel(keyxtitle_alt, fontsize=fontsize_label)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax2.set_xlim(xlim2)
+        ax.tick_params(labelsize=fontsize_ticks)
+        ax2.tick_params(labelsize=fontsize_ticks)
+    
+        ax.xaxis.set_major_locator(MultipleLocator(0.5))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.1))
+        ax.yaxis.set_major_locator(MultipleLocator(50.))
+        ax.yaxis.set_minor_locator(MultipleLocator(10.))
+    
+        ax2.xaxis.set_major_locator(MultipleLocator(5.))
+        ax2.xaxis.set_minor_locator(MultipleLocator(1.))
+    
+        ax.set_zorder(ax2.get_zorder()+1) 
+        ax.patch.set_visible(False)
+    
+    
+    
+        handles, lbls = ax.get_legend_handles_labels()
+        handles2, lbls2 = ax2.get_legend_handles_labels()
+        handles_arr = handles2[::-1]
+        labels_arr = lbls2[::-1]
+        handles_arr.extend(handles)
+        labels_arr.extend(lbls)
+    
+        frameon = True #False
+        borderpad = 0.25 #0
+        markerscale = 1.#0.8
+        labelspacing= 0.25 #0.15
+        handletextpad= 0.05 #0.2
+        handlelength = 0.
+        #legend_properties = {'weight':'bold'}
+        legend = ax.legend(handles_arr, labels_arr, 
+            labelspacing=labelspacing, borderpad=borderpad, 
+            markerscale=markerscale, 
+            handletextpad=handletextpad, 
+            handlelength=handlelength, 
+            loc='lower right', 
+            frameon=frameon, numpoints=1, 
+            scatterpoints=1,
+            fontsize=fontsize_leg)
+    
+    
+        for ind,text in enumerate(legend.get_texts()):
+            legend.legendHandles[ind].set_visible(False)
+            text.set_color(color_arr[ind])
+    
+    
+        # ++++++++++++++++++++++++++++++++++++
+        ax = axes[1]
+    
+        color_arr = ['mediumblue', 'limegreen', 'purple']
+    
+    
+        xlim2 = [xlim2[0], np.max(model_int.rarr)+0.1]
+        xlim = np.array(xlim2) * gal.dscale
+    
+        ax2 = ax.twiny()
+    
+        ax2.plot(model_int.rarr, model_int.data['vcirc_tot'], 
+                c='mediumblue', lw=lw, label=r'$V_{\mathrm{c}}$ intrinsic', zorder=2.)
+    
+        ax2.plot(model_int.rarr, model_int.data['vcirc_bar'], 
+                c='limegreen', lw=lw, label=r'$V_{\mathrm{bar}}$ intrinsic', zorder=1.)
+    
+        ax2.plot(model_int.rarr, model_int.data['vcirc_dm'], 
+                c='purple', lw=lw, label=r'$V_{\mathrm{DM}}$ intrinsic', zorder=0.)
+        ###
+        
+            
+    
+        ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
+        ax2.annotate(r'$R_{\mathrm{eff}}$',
+            (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
+            xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
+    
+        ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
+        ax2.annotate(r'$6r_d}$',
+            (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])), 
+            xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
+        
+        ###
+        ax3 = ax2.twinx()
+        fdm = model_int.data['vcirc_dm']**2/model_int.data['vcirc_tot']**2 
+        ax3.plot(model_int.rarr, fdm, ls='-', lw=1, 
+                    color='grey', alpha=0.8)
+        #
+    
+        ax2.set_zorder(ax3.get_zorder()+1+ax.get_zorder()) 
+        ax2.patch.set_visible(False)
+        ax.patch.set_visible(False)
+    
+        ax.set_xlabel(keyxtitle, fontsize=fontsize_label)
+        ax.set_ylabel(keyytitle, fontsize=fontsize_label)
+        ax2.set_xlabel(keyxtitle_alt, fontsize=fontsize_label)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax2.set_xlim(xlim2)
+        ax.tick_params(labelsize=fontsize_ticks)
+        ax2.tick_params(labelsize=fontsize_ticks)
+    
+        ax.yaxis.set_major_locator(MultipleLocator(50.))
+        ax.yaxis.set_minor_locator(MultipleLocator(10.))
+    
+        ax.xaxis.set_major_locator(MultipleLocator(1.))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
+        ax2.xaxis.set_major_locator(MultipleLocator(10.))
+        ax2.xaxis.set_minor_locator(MultipleLocator(2.))
+    
+        ax3.set_ylabel(keyytitle_fdm, fontsize=fontsize_label-2, color='grey')
+        ax3.tick_params(axis='y', direction='in', color='black', labelsize=fontsize_ticks-2, colors='grey')
+        ax3.set_ylim([0.,1.])
+    
+        ax.yaxis.set_ticks_position('left')
+        ax2.yaxis.set_ticks_position('right')
+    
+        ax3.yaxis.set_major_locator(MultipleLocator(0.2))
+        ax3.yaxis.set_minor_locator(MultipleLocator(0.05))
+    
+        handles2, lbls2 = ax2.get_legend_handles_labels()
+        handles_arr = handles2
+        labels_arr = lbls2
+        #
+        legend = ax2.legend(handles_arr, labels_arr, 
+            labelspacing=labelspacing, borderpad=borderpad, 
+            markerscale=markerscale, 
+            handletextpad=handletextpad, 
+            handlelength=handlelength,
+            loc='lower right', 
+            frameon=frameon, numpoints=1, 
+            scatterpoints=1,
+            fontsize=fontsize_leg)
+        #
+        for ind,text in enumerate(legend.get_texts()):
+            legend.legendHandles[ind].set_visible(False)
+            text.set_color(color_arr[ind])
+        
+        
+        #############################################################
+        # Save to file:
+    
+        plt.savefig(plotfile, bbox_inches='tight', dpi=300)
+        plt.close()
+    
+    return None
 
 def make_clean_mcmc_plot_names(mcmcResults):
     names = []
