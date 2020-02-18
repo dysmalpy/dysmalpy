@@ -46,14 +46,14 @@ def read_model_intrinsic_profile(filename=None):
     
     return model_int
     
-def read_bestfit_1d_obs_file(fname=None, mirror=False):
+def read_bestfit_1d_obs_file(filename=None):
     """
     Short function to save load space 1D obs profile for a galaxy (eg, for plotting, etc)
     Follows form of H.Ü. example.
     """
     
     # Load the model file
-    dat_arr =   np.loadtxt(fname)
+    dat_arr =   np.loadtxt(filename)
     gal_r =     dat_arr[:,0]
     gal_flux =  dat_arr[:,1]
     gal_vel =   dat_arr[:,2]
@@ -62,11 +62,6 @@ def read_bestfit_1d_obs_file(fname=None, mirror=False):
     slit_width = None
     slit_pa = None
     
-    if mirror:
-        gal_r = np.append(-1.*gal_r[::-1][:-1], gal_r)
-        gal_flux = np.append(1.*gal_flux[::-1][:-1], gal_flux)
-        gal_vel = np.append(-1.*gal_vel[::-1][:-1], gal_vel)
-        gal_disp = np.append(1.*gal_disp[::-1][:-1], gal_disp)
         
     #
     model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,

@@ -1723,15 +1723,15 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         model_int = read_model_intrinsic_profile(filename=fname_intrinsic)
         
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
-    
-    
+        
+        
         vsq = model_int.data['vcirc_tot'] ** 2 - \
                 3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
                         gal.model.components['dispprof'].sigma0.value ** 2
         vsq[vsq<0] = 0.
-    
+        
         model_int.data['vrot'] = np.sqrt(vsq)
-    
+        
         model_int.data['vrot_sini'] = model_int.data['vrot']*sini
         
         
