@@ -605,13 +605,14 @@ def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None):
     profiles_m[:,3] = np.log10(menc_dm)
     profiles_m[~np.isfinite(profiles_m)] = 0.
     
-    save_vcirc_tot_bar_dm_files(gal=gal, fname=fname, fname_m=fname_m)
+    save_vcirc_tot_bar_dm_files(gal=gal, fname=fname, fname_m=fname_m, 
+                    profiles=profiles, profiles_m=profiles_m)
     
     return None
 
 
 #
-def save_vcirc_tot_bar_dm_files(gal=None, fname=None, fname_m=None):
+def save_vcirc_tot_bar_dm_files(gal=None, fname=None, fname_m=None, profiles=None, profiles_m=None):
     with open(fname, 'w') as f:
         namestr = '#   r   vcirc_tot vcirc_bar   vcirc_dm'
         f.write(namestr+'\n')
