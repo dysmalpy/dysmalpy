@@ -1722,6 +1722,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         model_obs = read_bestfit_1d_obs_file(filename=fname_model)
         model_int = read_model_intrinsic_profile(filename=fname_intrinsic)
         
+        deg2rad = np.pi/180.
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
         
         
