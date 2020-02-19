@@ -1765,6 +1765,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
     # Check if the rot curves are done:
     if overwrite_curve_files:
         curve_files_exist = False
+        file_exists = False
     else:
         curve_files_exist = (os.path.isfile(fname_model) and os.path.isfile(fname_intrinsic))
     
