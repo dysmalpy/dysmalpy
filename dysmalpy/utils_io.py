@@ -179,9 +179,19 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     pix_perp=None, pix_parallel=None,
                     pix_length=None, from_data=False)
                     
-    gal.create_model_data(oversample=oversample, oversize=oversize, 
-                          line_center=gal.model.line_center,
-                          profile1d_type=profile1d_type)
+    if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
+        gal.create_model_data(oversample=oversample, oversize=oversize, 
+                              line_center=gal.model.line_center,
+                              profile1d_type=profile1d_type)
+    else:
+        gal.instrument.slit_width = gal.data.slit_width
+        gal.create_model_data(from_data=False, from_instrument=True,
+                              ndim_final=1, 
+                              aper_centers=aper_centers_interp, 
+                              slit_width=gal.data.slit_width, slit_pa=gal.data.slit_pa, 
+                              profile1d_type=profile1d_type,
+                              oversample=oversample, oversize=oversize, 
+                              aperture_radius=aperture_radius)
                           
                           
     write_bestfit_1d_obs_file(gal=gal, fname=fname)
