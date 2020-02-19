@@ -408,6 +408,9 @@ class Galaxy:
                 disp1d = disp_interp(aper_centers)
                 flux1d = aper_centers*0. + np.NaN
                 
+                print("r1d={}".format(r1d))
+                print("aper_centers={}".format(aper_centers))
+                
                 aper_model = None
             
             elif profile1d_type == 'single_pix_pv':
