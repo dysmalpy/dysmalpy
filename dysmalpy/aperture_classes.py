@@ -399,7 +399,7 @@ class EllipApertures(Apertures):
 class CircApertures(EllipApertures):
     def __init__(self, rarr=None, slit_PA=None, rpix=None, 
              nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
-             moment=moment):
+             moment=False):
              
         super(CircApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=rpix, pix_parallel=rpix, nx=nx, ny=ny, 
@@ -422,7 +422,7 @@ class RectApertures(Apertures):
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
              nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
-             moment=moment):
+             moment=False):
         #
         if rotate_cube:
             slit_PA_use = 0.
