@@ -233,6 +233,7 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
 
     circaper_vel = np.zeros(psize)
     circaper_disp = np.zeros(psize)
+    circaper_flux = np.zeros(psize)
 
     nidx = len(circaper_idx)
     for i in range(psize):
