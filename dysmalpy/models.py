@@ -249,6 +249,7 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
             cnt_idx = cnt_idx + 1
 
         circaper_vel[i] = tot_vnum / tot_denom
+        circaper_flux[i] = tot_denom
 
         tot_dnum = 0.
         cnt_idx = 0
@@ -263,8 +264,9 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
     if np.sum(pvec) > 0.:
         circaper_vel[pvec] = -1.e3
         circaper_disp[pvec] = 0.
+        circaper_flux[pvec] = 0.
 
-    return xvec, flux1d, circaper_vel, circaper_disp
+    return xvec, circaper_flux, circaper_vel, circaper_disp
 
 # ############################################################################
 # def tie_r_fdm(model_set):
