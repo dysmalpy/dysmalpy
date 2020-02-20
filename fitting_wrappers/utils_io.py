@@ -889,6 +889,14 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif method.strip().lower() == 'radius_rmax':
         rmax = np.abs(np.max(r))
         weight = np.exp( np.abs(r)/ rmax )
+    #
+    elif method.strip().lower() == 'radius_rmax2':
+        rmax = np.abs(np.max(r))
+        weight = np.exp((np.abs(r)/ rmax)**2 )
+        
+    elif method.strip().lower() == 'radius_2rmax2':
+        rmax = np.abs(np.max(r))
+        weight = np.exp( 2. * (np.abs(r)/ rmax)**2 )
         
     elif ((method.strip().lower() == 'none') | (method is None) | (method.strip().lower() == 'uniform')):
         weight = None
