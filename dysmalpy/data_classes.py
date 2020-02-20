@@ -27,7 +27,8 @@ __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 # Base Class for a data container
 class Data(object):
 
-    def __init__(self, data=None, error=None, ndim=None, mask=None,
+    def __init__(self, data=None, error=None, weight=None, 
+                 ndim=None, mask=None,
                  shape=None, 
                  filename_velocity=None, 
                  filename_dispersion=None, 
@@ -36,6 +37,7 @@ class Data(object):
                  
         self.data = data
         self.error = error
+        self.weight = weight
         self.ndim = ndim
         self.shape = shape
         self.mask = np.array(mask, dtype=np.bool)
@@ -60,6 +62,7 @@ class Data1D(Data):
                  mask=None, 
                  mask_velocity=None, 
                  mask_vel_disp=None, 
+                 weight=None, 
                  slit_width=None,
                  slit_pa=None, aper_center_pix_shift=None, 
                  estimate_err=False, error_frac=0.2,
@@ -160,7 +163,7 @@ class Data1D(Data):
         
         self.apertures = None
         
-        super(Data1D, self).__init__(data=data, error=error, ndim=1,
+        super(Data1D, self).__init__(data=data, error=error, weight=weight, ndim=1,
                                      shape=shape, mask=mask,
                                      filename_velocity=filename_velocity, 
                                      filename_dispersion=filename_dispersion)
@@ -182,6 +185,7 @@ class Data2D(Data):
                  vel_disp_err=None, mask=None, estimate_err=False,
                   mask_velocity=None, 
                   mask_vel_disp=None,
+                  weight=None, 
                  error_frac=0.2, ra=None, dec=None, ref_pixel=None,
                  inst_corr=False, 
                  filename_velocity=None, 
@@ -269,7 +273,7 @@ class Data2D(Data):
         self.ra = ra
         self.dec = dec
         self.ref_pixel = ref_pixel
-        super(Data2D, self).__init__(data=data, error=error, ndim=2,
+        super(Data2D, self).__init__(data=data, error=error, weight=weight, ndim=2,
                                      shape=shape, mask=mask,
                                      filename_velocity=filename_velocity, 
                                      filename_dispersion=filename_dispersion,
@@ -289,7 +293,8 @@ class Data2D(Data):
 class Data3D(Data):
 
     def __init__(self, cube, pixscale, spec_type, spec_arr,
-                 err_cube=None, mask_sky=None, mask_spec=None,
+                 err_cube=None, weight=None, 
+                 mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
                  ref_pixel=None, spec_unit=None, flux_map=None):
 
@@ -376,7 +381,7 @@ class Data3D(Data):
         shape = cube.shape
         self.flux_map = flux_map
 
-        super(Data3D, self).__init__(data=data, error=error, ndim=3,
+        super(Data3D, self).__init__(data=data, error=error, weight=weight, ndim=3,
                                      shape=shape, mask=mask)
 
 
@@ -385,7 +390,7 @@ class Data0D(Data):
     Data class for storing a single spectrum
     """
 
-    def __init__(self, x, flux, flux_err=None,
+    def __init__(self, x, flux, flux_err=None, weight=None, 
                  mask=None, integrate_cube=True, slit_width=None,
                  slit_pa=None, estimate_err=False, error_frac=0.2):
 
@@ -424,7 +429,7 @@ class Data0D(Data):
         self.x = x
         shape = x.shape
 
-        super(Data0D, self).__init__(data=data, error=error, ndim=0,
+        super(Data0D, self).__init__(data=data, error=error, weight=weight, ndim=0,
                                      shape=shape, mask=mask)
 
 

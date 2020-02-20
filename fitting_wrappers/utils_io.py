@@ -108,7 +108,8 @@ def read_fitting_params(fname=None):
               'blob_name': None, 
               'red_chisq': False, 
               'oversampled_chisq': None, 
-              'linked_posteriors': None, }
+              'linked_posteriors': None, 
+              'weighting_method': None}
 
     # param_filename
     fname_split = fname.split('/')
@@ -733,8 +734,14 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
         pass
     
     
+    if 'weighting_method' in params.keys():
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+    else:
+        gal_weight = None
+    
     data1d = data_classes.Data1D(r=gal_r, velocity=gal_vel,vel_disp=gal_disp, 
                                 vel_err=err_vel, vel_disp_err=err_disp, 
+                                weight=gal_weight, 
                                 mask_velocity=msk_vel, mask_vel_disp=msk_disp,
                                 slit_width=params['slit_width'],
                                 slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'] )
@@ -842,10 +849,16 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     except:
         pass
     
+    #
+    if 'weighting_method' in params.keys():
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+    else:
+        gal_weight = None
     
     data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp, mask=mask,
+                                      weight=gal_weight, 
                                       filename_velocity=params['fdata_vel'],
                                       filename_dispersion=params['fdata_disp'],
                                       smoothing_type=params['smoothing_type'],
@@ -860,11 +873,30 @@ def load_single_object_3D_data(params=None):
     
     raise ValueError("Not generically supported for now: will need to write your own wrapper to load cubes.")
     
-    
+    if 'weighting_method' in params.keys():
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+    else:
+        gal_weight = None
+        
     data3d = None
     
     return data3d
     
+def setup_data_weighting_method(method='UNSET', r=None):
+    if method == 'UNSET':
+        raise ValueError("Must set method if setting data point weighting!")
+        
+    elif method.strip().lower() == 'radius_rmax':
+        rmax = np.abs(np.max(r))
+        weight = np.exp( np.abs(r)/ rmax )
+        
+    elif ((method.strip().lower() == 'none') | (method is None) | (method.strip().lower() == 'uniform')):
+        weight = None
+        #weight = np.ones(len(r), dtype=np.float)
+    else:
+        raise ValueError("Weighting method not implmented yet!: {}".format(method))
+    
+    return weight
 
 def set_comp_param_prior(comp=None, param_name=None, params=None):
     if params['{}_fixed'.format(param_name)] is False:
