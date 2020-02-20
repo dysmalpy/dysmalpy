@@ -433,10 +433,10 @@ def plot_data_model_comparison_1D(gal,
         # Masked points
         axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
                 xerr=None, yerr = data.error[keyyarr[j]][~msk],
-                marker=None, ls='None', ecolor='grey', zorder=-1.,
+                marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
         axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk],
-            c='grey', marker='o', s=25, lw=1, label=None, alpha=0.5)
+            c='darkgrey', marker='o', s=25, lw=1, label=None, alpha=0.5)
             
         # Unmasked points
         axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
@@ -459,7 +459,7 @@ def plot_data_model_comparison_1D(gal,
         
         # Masked points
         axes[k].scatter( model_data.rarr[~msk], model_data.data[keyyarr[j]][~msk],
-            c='lightsalmon', marker='s', s=25, lw=1, label=None, alpha=0.5)
+            c='lightsalmon', marker='s', s=25, lw=1, label=None, alpha=0.3)
             
         # Unmasked points
         axes[k].scatter( model_data.rarr[msk], model_data.data[keyyarr[j]][msk],
@@ -476,10 +476,10 @@ def plot_data_model_comparison_1D(gal,
         # Masked points
         axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
                 xerr=None, yerr = data.error[keyyarr[j]][~msk],
-                marker=None, ls='None', ecolor='grey', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+                marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
+                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
         axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
-            c='lightsalmon', marker='s', s=25, lw=1, label=None)
+            c='lightsalmon', marker='s', s=25, lw=1, label=None, alpha=0.3)
             
         # Unmasked points:
         axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
