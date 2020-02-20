@@ -891,7 +891,9 @@ def load_single_object_3D_data(params=None):
 def setup_data_weighting_method(method='UNSET', r=None):
     if method == 'UNSET':
         raise ValueError("Must set method if setting data point weighting!")
-    elif ((method.strip().lower() == 'none') | (method is None) | (method.strip().lower() == 'uniform')):
+    elif (method is None): 
+        weight = None
+    elif ((method.strip().lower() == 'none') | (method.strip().lower() == 'uniform')):
         weight = None
         #weight = np.ones(len(r), dtype=np.float)
     elif method.strip().lower() == 'radius_rmax':
