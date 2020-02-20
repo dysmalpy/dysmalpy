@@ -691,13 +691,19 @@ def setup_basic_aperture_types(gal=None, params=None):
     else:
         # Preserve previous default behavior
         partial_weight = False
+        
+    if ('moment_calc' in params.keys()):
+        moment_calc = params['moment_calc']
+    else:
+        moment_calc = False
     
     apertures = aperture_classes.setup_aperture_types(gal=gal, 
                 profile1d_type=params['profile1d_type'], 
                 aperture_radius=aperture_radius, 
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
                 pix_length=pix_length, from_data=True, 
-                partial_weight=partial_weight)
+                partial_weight=partial_weight,
+                moment=moment_calc)
     
     return apertures
 

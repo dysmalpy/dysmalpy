@@ -46,13 +46,15 @@ class Aperture(object):
     Shape aper_center: 2 ( [x0, y0] )
     """
 
-    def __init__(self, aper_center=None, nx=None, ny=None, partial_weight=False):
+    def __init__(self, aper_center=None, nx=None, ny=None, partial_weight=False,
+                moment=False):
                  
         self.aper_center = aper_center
         self.nx = nx
         self.ny = ny
         self.partial_weight = partial_weight
         self._mask_ap = None
+        self.moment=moment
         
     def define_aperture_mask(self):
         mask = np.ones((self.ny, self.nx), dtype=np.bool)
@@ -91,17 +93,22 @@ class Aperture(object):
         mom1 = np.sum(spec_fit * spec_arr_fit) / mom0
         mom2 = np.sum(spec_fit * (spec_arr_fit - mom1) ** 2) / mom0
 
-        mod = apy_mod.models.Gaussian1D(amplitude=mom0 / np.sqrt(2 * np.pi * np.abs(mom2)),
-                                        mean=mom1,
-                                        stddev=np.sqrt(np.abs(mom2)))
-        mod.amplitude.bounds = (0, None)
-        mod.stddev.bounds = (0, None)
-        fitter = apy_mod.fitting.LevMarLSQFitter()
-        best_fit = fitter(mod, spec_arr_fit, spec_fit)
+        if self.moment:
+            flux1d = mom0
+            vel1d = mom1
+            disp1d = np.sqrt(np.abs(mom2))
+        else:
+            mod = apy_mod.models.Gaussian1D(amplitude=mom0 / np.sqrt(2 * np.pi * np.abs(mom2)),
+                                            mean=mom1,
+                                            stddev=np.sqrt(np.abs(mom2)))
+            mod.amplitude.bounds = (0, None)
+            mod.stddev.bounds = (0, None)
+            fitter = apy_mod.fitting.LevMarLSQFitter()
+            best_fit = fitter(mod, spec_arr_fit, spec_fit)
 
-        vel1d = best_fit.mean.value
-        disp1d = best_fit.stddev.value
-        flux1d = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp1d
+            vel1d = best_fit.mean.value
+            disp1d = best_fit.stddev.value
+            flux1d = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp1d
         
         return flux1d, vel1d, disp1d
         
@@ -112,7 +119,8 @@ class EllipAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None, partial_weight=False):
+            aper_center=None, nx=None, ny=None, partial_weight=False,
+            moment=False):
 
         # set things here
         self.pix_perp = pix_perp
@@ -121,7 +129,8 @@ class EllipAperture(Aperture):
 
 
         super(EllipAperture, self).__init__(aper_center=aper_center, 
-                                            nx=nx, ny=ny, partial_weight=partial_weight)
+                                            nx=nx, ny=ny, partial_weight=partial_weight,
+                                            moment=moment)
 
 
     def define_aperture_mask(self):
@@ -188,7 +197,8 @@ class RectAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None, partial_weight=False):
+            aper_center=None, nx=None, ny=None, partial_weight=False,
+            moment=False):
 
         # set things here
         self.pix_perp = pix_perp
@@ -197,7 +207,8 @@ class RectAperture(Aperture):
 
 
         super(RectAperture, self).__init__(aper_center=aper_center, 
-                                            nx=nx, ny=ny, partial_weight=partial_weight)
+                                            nx=nx, ny=ny, partial_weight=partial_weight,
+                                            moment=moment)
 
 
     def define_aperture_mask(self):
@@ -330,7 +341,8 @@ class EllipApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             moment=False):
         
         #
         if rotate_cube:
@@ -376,7 +388,8 @@ class EllipApertures(Apertures):
             aper_centers_pix[:,i] = aper_cent_pix
             apertures.append(EllipAperture(slit_PA=slit_PA_use,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
-                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
+                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight,
+                        moment=moment))
         
         self.aper_centers_pix = aper_centers_pix
         
@@ -385,11 +398,13 @@ class EllipApertures(Apertures):
     
 class CircApertures(EllipApertures):
     def __init__(self, rarr=None, slit_PA=None, rpix=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             moment=moment):
              
         super(CircApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=rpix, pix_parallel=rpix, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, rotate_cube=rotate_cube)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, rotate_cube=rotate_cube,
+                moment=moment)
     
 #
 class RectApertures(Apertures):
@@ -406,14 +421,13 @@ class RectApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             moment=moment):
         #
         if rotate_cube:
             slit_PA_use = 0.
         else:
             slit_PA_use = slit_PA
-            
-            
             
         #aper_center_pix_shift = None
         
@@ -453,7 +467,8 @@ class RectApertures(Apertures):
             aper_centers_pix[:,i] = aper_cent_pix
             apertures.append(RectAperture(slit_PA=slit_PA_use,
                         pix_perp=self.pix_perp[i], pix_parallel=self.pix_parallel[i],
-                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight))
+                        aper_center=aper_cent_pix, nx=self.nx, ny=self.ny, partial_weight=partial_weight,
+                        moment=moment))
         
         self.aper_centers_pix = aper_centers_pix
         
@@ -465,11 +480,14 @@ class SquareApertures(RectApertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_length=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False):
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             moment=False):
              
         super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
                 pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny, 
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, rotate_cube=rotate_cube)
+                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight, 
+                rotate_cube=rotate_cube,
+                moment=moment)
                 
                 
                 
@@ -480,6 +498,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, from_data=True, 
             partial_weight=False, rotate_cube=False, 
+            moment=False, 
             oversample=1):
             
     # partial_weight:
@@ -517,7 +536,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 partial_weight=partial_weight, rotate_cube=rotate_cube)
+                 partial_weight=partial_weight, rotate_cube=rotate_cube,
+                 moment=moment)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
 
@@ -536,7 +556,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel, 
                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                partial_weight=partial_weight, rotate_cube=rotate_cube)
+                partial_weight=partial_weight, rotate_cube=rotate_cube,
+                moment=moment)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
 
@@ -549,7 +570,8 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 partial_weight=partial_weight, rotate_cube=rotate_cube)
+                 partial_weight=partial_weight, rotate_cube=rotate_cube,
+                 moment=moment)
 
     else:
         raise TypeError('Unknown method for measuring the 1D profiles.')
