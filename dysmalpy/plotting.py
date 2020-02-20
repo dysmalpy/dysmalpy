@@ -443,6 +443,16 @@ def plot_data_model_comparison_1D(gal,
                 xerr=None, yerr = data.error[keyyarr[j]][msk],
                 marker=None, ls='None', ecolor='k', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        
+        # Weights: effective errorbars show in blue, for reference
+        if hasattr(data, 'weight'):
+            if gal.data.weight is not None:
+                wgt = gal.data.weight
+                axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
+                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt),
+                        marker=None, ls='None', ecolor='blue', zorder=-1.,
+                        lw = errbar_lw,capthick= errbar_lw*1.5,capsize=errbar_cap,label=None )
+                        
         axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk],
             c='black', marker='o', s=25, lw=1, label=None)
             
@@ -469,6 +479,8 @@ def plot_data_model_comparison_1D(gal,
         axes[k].set_xlabel(keyxtitle)
         axes[k].set_ylabel(keyytitlearr[j])
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
+        
+        
         # Residuals:
         axes.append(plt.subplot(gs[1,j]))
         k += 1
@@ -486,8 +498,19 @@ def plot_data_model_comparison_1D(gal,
                 xerr=None, yerr = data.error[keyyarr[j]][msk],
                 marker=None, ls='None', ecolor='k', zorder=-1.,
                 lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+                
+        # Weights: effective errorbars show in blue, for reference
+        if hasattr(data, 'weight'):
+            if gal.data.weight is not None:
+                wgt = gal.data.weight
+                axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
+                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt),
+                        marker=None, ls='None', ecolor='blue', zorder=-1.,
+                        lw = errbar_lw,capthick= errbar_lw*1.5,capsize=errbar_cap,label=None )
+        #
         axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
             c='red', marker='s', s=25, lw=1, label=None)
+            
             
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
         axes[k].set_xlabel(keyxtitle)
@@ -1876,7 +1899,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
                 alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
         ax.scatter( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
             edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
-    
+        
     
         ax.plot( model_obs.rarr, model_obs.data['velocity'], 
             c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
