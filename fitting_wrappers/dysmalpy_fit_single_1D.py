@@ -137,12 +137,7 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
     # Setup some paths:
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
-
-    # Copy paramfile into outdir for posterity:
-    #os.system('cp {} {}'.format(param_filename, outdir))
-
-    # Copy paramfile that is OS independent
-    shutil.copy(param_filename, outdir)
+    
     
     #######################
     # Setup
