@@ -127,7 +127,55 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     
     
     return None
+
+#
+def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
     
+    # Read in the parameters from param_filename:
+    params = utils_io.read_fitting_params(fname=param_filename)
+    
+    # Setup some paths:
+    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    params['outdir'] = outdir
+
+    # Copy paramfile into outdir for posterity:
+    #os.system('cp {} {}'.format(param_filename, outdir))
+
+    # Copy paramfile that is OS independent
+    shutil.copy(param_filename, outdir)
+    
+    #######################
+    # Setup
+    gal, fit_dict = setup_single_object_1D(params=params, data=data)
+    
+    # Reload object:
+    gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                            filename_mcmc_results=fit_dict['f_mcmc_results']):
+    
+    # Reanalyze sampler:
+    results.analyze_plot_save_results(gal,                           
+                  blob_name=fit_dict['blob_name'], 
+                  linked_posterior_names=fit_dict['linked_posterior_names'], 
+                  nPostBins = 50, 
+                  model_key_re = ['disk+bulge','r_eff_disk'],
+                  model_key_halo=['halo'],
+                  oversample=fit_dict['oversample'], 
+                  oversize=fit_dict['oversize'], 
+                  profile1d_type=fit_dict['profile1d_type'], 
+                  fitdispersion=fit_dict['fitdispersion'], 
+                  save_data=True, 
+                  save_bestfit_cube=True,
+                  f_cube=fit_dict['f_cube'], 
+                  f_model=fit_dict['f_model'], 
+                  f_vel_ascii = fit_dict['f_vel_ascii'], 
+                  do_plotting = fit_dict['do_plotting'])
+    
+    # Save results
+    utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+    
+    
+    return None
+
     
 def setup_single_object_1D(params=None, data=None):
     # ------------------------------------------------------------
