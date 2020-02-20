@@ -264,7 +264,7 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
         circaper_vel[pvec] = -1.e3
         circaper_disp[pvec] = 0.
 
-    return xvec, circaper_vel, circaper_disp
+    return xvec, flux1d, circaper_vel, circaper_disp
 
 # ############################################################################
 # def tie_r_fdm(model_set):

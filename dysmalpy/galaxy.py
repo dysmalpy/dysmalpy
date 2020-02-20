@@ -398,7 +398,7 @@ class Galaxy:
                                  "'wavelength.'")
 
             if profile1d_type == 'circ_ap_pv':
-                r1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data, slit_width,
+                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data, slit_width,
                                                     slit_pa-180., rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
@@ -406,8 +406,10 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
-                flux1d = aper_centers*0. + np.NaN
-                
+                # flux1d = aper_centers*0. + np.NaN
+                flux_interp = scp_interp.interp1d(r1d, flux1d,
+                                                  fill_value='extrapolate')
+                flux1d = flux_interp(aper_centers)
                 aper_model = None
             
             elif profile1d_type == 'single_pix_pv':
