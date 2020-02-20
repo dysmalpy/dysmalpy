@@ -1356,7 +1356,7 @@ def log_like(gal, red_chisq=False,
         # Weights:
         if hasattr(gal.data, 'weight'):
             if gal.data.weight is not None:
-                wgt = gal.data.weight
+                wgt = gal.data.weight[msk]
             else:
                 wgt = 1.
         else:
@@ -1406,7 +1406,7 @@ def log_like(gal, red_chisq=False,
         
         if hasattr(gal.data, 'weight'):
             if gal.data.weight is not None:
-                wgt = gal.data.weight
+                wgt = gal.data.weight[msk]
             else:
                 wgt = 1.
         else:
@@ -1513,7 +1513,7 @@ def chisq_eval(gal, fitdispersion=True, use_weights=False,
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
-                    wgt = gal.data.weight
+                    wgt = gal.data.weight[msk]
                 else:
                     wgt = 1.
             else:
@@ -1558,7 +1558,7 @@ def chisq_eval(gal, fitdispersion=True, use_weights=False,
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
-                    wgt = gal.data.weight
+                    wgt = gal.data.weight[msk]
                 else:
                     wgt = 1.
             else:
@@ -1630,7 +1630,7 @@ def chisq_red(gal, fitdispersion=True, use_weights=False,
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
-                    wgt = gal.data.weight
+                    wgt = gal.data.weight[msk]
                 else:
                     wgt = 1.
             else:
@@ -1682,7 +1682,7 @@ def chisq_red(gal, fitdispersion=True, use_weights=False,
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
-                    wgt = gal.data.weight
+                    wgt = gal.data.weight[msk]
                 else:
                     wgt = 1.
             else:
@@ -1805,7 +1805,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
-                    wgt = gal.data.weight
+                    wgt = gal.data.weight[msk]
                 else:
                     wgt = 1.
             else:
