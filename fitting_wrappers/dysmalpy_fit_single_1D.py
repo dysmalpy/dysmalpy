@@ -124,7 +124,16 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
-    
+        
+        # Make component plot:
+        if fit_dict['do_plotting']:
+            if 'aperture_radius' not in params.keys():
+                params['aperture_radius'] = -99.
+                
+            plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
+                    profile1d_type = fit_dict['profile1d_type'], 
+                    oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
+                    aperture_radius=params['aperture_radius'])
     
     return None
 
@@ -167,6 +176,17 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
     
     # Save results
     utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+    
+    # Make component plot:
+    if fit_dict['do_plotting']:
+        if 'aperture_radius' not in params.keys():
+            params['aperture_radius'] = -99.
+            
+        plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
+                profile1d_type = fit_dict['profile1d_type'], 
+                oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
+                aperture_radius=params['aperture_radius'],
+                overwrite=True, overwrite_curve_files=True)
     
     
     return None
