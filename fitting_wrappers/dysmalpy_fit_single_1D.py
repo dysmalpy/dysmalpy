@@ -150,7 +150,7 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
     
     # Reload object:
     gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                                            filename_mcmc_results=fit_dict['f_mcmc_results']):
+                                            filename_mcmc_results=fit_dict['f_mcmc_results'])
     
     # Reanalyze sampler:
     results.analyze_plot_save_results(gal,                           
