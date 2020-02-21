@@ -53,8 +53,13 @@ class Aperture(object):
         self.nx = nx
         self.ny = ny
         self.partial_weight = partial_weight
-        self._mask_ap = None
-        self.moment=moment
+        self.moment = moment
+        
+        # Setup mask if using partial_weight (partial pixels)
+        if self.partial_weight:
+            self._mask_ap = self.define_aperture_mask()
+        else:
+            self._mask_ap = None
         
     def define_aperture_mask(self):
         mask = np.ones((self.ny, self.nx), dtype=np.bool)
@@ -66,16 +71,23 @@ class Aperture(object):
         """
         spec_array: the spectral direction array -- eg, vel array or wave array.
         """
-        try:
+        # try:
+        #     if self.partial_weight:
+        #         if self._mask_ap is None:
+        #             mask_ap = self.define_aperture_mask()
+        #             self._mask_ap = mask_ap
+        #         else:
+        #             mask_ap = self._mask_ap
+        #     else:
+        #         mask_ap = self.define_aperture_mask()
+        # except:
+        #     mask_ap = self.define_aperture_mask()
+        if hasattr(self, 'partial_weight'):
             if self.partial_weight:
-                if self._mask_ap is None:
-                    mask_ap = self.define_aperture_mask()
-                    self._mask_ap = mask_ap
-                else:
-                    mask_ap = self._mask_ap
+                mask_ap = self._mask_ap
             else:
                 mask_ap = self.define_aperture_mask()
-        except:
+        else:
             mask_ap = self.define_aperture_mask()
             
         mask_cube = np.tile(mask_ap, (cube.shape[0], 1, 1))
