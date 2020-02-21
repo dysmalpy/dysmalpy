@@ -116,9 +116,9 @@ class Aperture(object):
             vel1d = best_fit.mean.value
             disp1d = best_fit.stddev.value
             flux1d = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp1d
-         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-         
-         return flux1d, vel1d, disp1d
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        
+        return flux1d, vel1d, disp1d
          
 class EllipAperture(Aperture):
     """
