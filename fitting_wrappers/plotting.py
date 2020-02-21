@@ -52,12 +52,19 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     if 'aperture_radius' not in params.keys():
         params['aperture_radius'] = -99.
     
+    if ('moment_calc' in params.keys()):
+        moment_calc = params['moment_calc']
+    else:
+        moment_calc = False
+    
+    
     plotting.plot_rotcurve_components(gal=gal, 
                 overwrite=overwrite, overwrite_curve_files=overwrite_curve_files, 
                 outpath = outpath,
                 profile1d_type = params['profile1d_type'], 
                 oversample=params['oversample'], oversize=params['oversize'], 
-                aperture_radius=params['aperture_radius'])
+                aperture_radius=params['aperture_radius'],
+                moment=moment_calc)
                 
                 
     return None
