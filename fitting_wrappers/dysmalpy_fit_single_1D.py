@@ -129,7 +129,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
         if fit_dict['do_plotting']:
             if 'aperture_radius' not in params.keys():
                 params['aperture_radius'] = -99.
-                
+            # Reload bestfit case
+            gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
             plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                     profile1d_type = fit_dict['profile1d_type'], 
                     oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
@@ -182,6 +183,8 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
         if 'aperture_radius' not in params.keys():
             params['aperture_radius'] = -99.
             
+        # Reload bestfit case
+        gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                 profile1d_type = fit_dict['profile1d_type'], 
                 oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
