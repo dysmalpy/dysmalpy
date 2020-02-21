@@ -449,7 +449,7 @@ def plot_data_model_comparison_1D(gal,
             if gal.data.weight is not None:
                 wgt = gal.data.weight
                 axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
-                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt),
+                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
                         marker=None, ls='None', ecolor='blue', zorder=-1.,
                         lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
                         
