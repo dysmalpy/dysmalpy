@@ -92,8 +92,15 @@ class Aperture(object):
         mom0 = np.sum(spec_fit)
         mom1 = np.sum(spec_fit * spec_arr_fit) / mom0
         mom2 = np.sum(spec_fit * (spec_arr_fit - mom1) ** 2) / mom0
-
-        if self.moment:
+        
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # Catch case where mixing old + new w/o moment defined
+        if hasattr(self, 'moment'):
+            moment_calc = self.moment
+        else:
+            moment_calc = False
+        #if self.moment:
+        if moment_calc:
             flux1d = mom0
             vel1d = mom1
             disp1d = np.sqrt(np.abs(mom2))
@@ -109,9 +116,7 @@ class Aperture(object):
             vel1d = best_fit.mean.value
             disp1d = best_fit.stddev.value
             flux1d = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp1d
-        
-        return flux1d, vel1d, disp1d
-        
+         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 class EllipAperture(Aperture):
     """
