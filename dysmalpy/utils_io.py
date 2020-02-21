@@ -94,6 +94,7 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
 #
 def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1, 
             profile1d_type=None, aperture_radius=None, 
+            moment=False, 
             fname_model_matchdata=None, 
             fname_finer=None, 
             fname_intrinsic=None, 
@@ -136,7 +137,7 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     # Try finer scale:
     
     write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
-                profile1d_type=profile1d_type, aperture_radius=aperture_radius)
+                profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment)
     
     
     return None
@@ -144,7 +145,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
 #
 def write_1d_obs_finer_scale(gal=None, fname=None, 
             profile1d_type=None, aperture_radius=None, 
-            oversample=3, oversize=1):
+            oversample=3, oversize=1,
+            moment=False):
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -168,7 +170,8 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     aper_centers = aper_centers_interp, 
                     slit_pa = gal.data.slit_pa, 
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
-                    pix_length=None, from_data=False)
+                    pix_length=None, from_data=False,
+                    moment=moment)
     elif profile1d_type == 'circ_ap_cube':
         gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal, 
                     profile1d_type=profile1d_type, 
@@ -177,7 +180,8 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     aper_centers = aper_centers_interp, 
                     slit_pa = gal.data.slit_pa, 
                     pix_perp=None, pix_parallel=None,
-                    pix_length=None, from_data=False)
+                    pix_length=None, from_data=False,
+                    moment=moment)
                     
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
         gal.create_model_data(oversample=oversample, oversize=oversize, 
