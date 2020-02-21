@@ -94,7 +94,8 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
 #
 def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1, 
             profile1d_type=None, aperture_radius=None, 
-            moment=False, 
+            moment=False,
+            partial_weight=False, 
             fname_model_matchdata=None, 
             fname_finer=None, 
             fname_intrinsic=None, 
@@ -137,7 +138,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     # Try finer scale:
     
     write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
-                profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment)
+                profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
+                partial_weight=partial_weight)
     
     
     return None
@@ -145,7 +147,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
 #
 def write_1d_obs_finer_scale(gal=None, fname=None, 
             profile1d_type=None, aperture_radius=None, 
-            oversample=3, oversize=1,
+            oversample=3, oversize=1, 
+            partial_weight=False, 
             moment=False):
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
@@ -169,6 +172,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     slit_width=gal.data.slit_width, 
                     aper_centers = aper_centers_interp, 
                     slit_pa = gal.data.slit_pa, 
+                    partial_weight=partial_weight, 
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
                     pix_length=None, from_data=False,
                     moment=moment)
@@ -179,6 +183,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     slit_width=gal.data.slit_width, 
                     aper_centers = aper_centers_interp, 
                     slit_pa = gal.data.slit_pa, 
+                    partial_weight=partial_weight, 
                     pix_perp=None, pix_parallel=None,
                     pix_length=None, from_data=False,
                     moment=moment)

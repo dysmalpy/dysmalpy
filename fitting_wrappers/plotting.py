@@ -56,6 +56,13 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
         moment_calc = params['moment_calc']
     else:
         moment_calc = False
+        
+    #
+    if ('partial_weight' in params.keys()):
+        partial_weight = params['partial_weight']
+    else:
+        # Preserve previous default behavior
+        partial_weight = False
     
     
     plotting.plot_rotcurve_components(gal=gal, 
@@ -64,7 +71,8 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
                 profile1d_type = params['profile1d_type'], 
                 oversample=params['oversample'], oversize=params['oversize'], 
                 aperture_radius=params['aperture_radius'],
-                moment=moment_calc)
+                moment=moment_calc,
+                partial_weight=partial_weight)
                 
                 
     return None
