@@ -901,7 +901,7 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif ((method.strip().lower() == 'none') | (method.strip().lower() == 'uniform')):
         weight = None
         #weight = np.ones(len(r), dtype=np.float)
-    # exp[ A * (r/rmax) ]
+    # exp[ A * (r/rmax) ]  // exponential or more general power-law
     elif method.strip().lower() == 'radius_rmax':
         # value at 0: 1 // value at rmax: 2.718
         weight = np.exp( np.abs(r)/ rmax )
@@ -911,7 +911,7 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif method.strip().lower() == 'radius_rmax_A10':
         # value at 0: 1 // value at rmax: 10.
         weight = np.exp( np.log(10.) * (np.abs(r)/ rmax)  )
-    # exp[ A * (r/rmax)^2 ]
+    # exp[ A * (r/rmax)^2 ]  // exponential or more general power-law
     elif method.strip().lower() == 'radius_rmax2':
         # value at 0: 1 // value at rmax: 2.718
         weight = np.exp((np.abs(r)/ rmax)**2 )
