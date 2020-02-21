@@ -117,7 +117,9 @@ class Aperture(object):
             disp1d = best_fit.stddev.value
             flux1d = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp1d
          # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+         
+         return flux1d, vel1d, disp1d
+         
 class EllipAperture(Aperture):
     """
     Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
