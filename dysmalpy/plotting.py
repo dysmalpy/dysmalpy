@@ -1769,7 +1769,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             plotfile = None, 
             profile1d_type = None, 
             fname_model = None, fname_intrinsic = None,
-            oversample=3, oversize=1, aperture_radius=None):
+            oversample=3, oversize=1, aperture_radius=None,
+            moment=False):
     if (plotfile is None) & (outpath is None):
         raise ValueError
     if plotfile is None:
@@ -1797,7 +1798,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         create_vel_profile_files(gal=gal, outpath=outpath, oversample=oversample, oversize=oversize, 
                     profile1d_type=profile1d_type, aperture_radius=aperture_radius, 
                     fname_finer=fname_model, 
-                    fname_intrinsic=fname_intrinsic)
+                    fname_intrinsic=fname_intrinsic,
+                    moment=moment)
     
     
     if not file_exists:
