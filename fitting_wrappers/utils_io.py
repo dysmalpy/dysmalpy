@@ -889,6 +889,11 @@ def load_single_object_3D_data(params=None):
     return data3d
     
 def setup_data_weighting_method(method='UNSET', r=None):
+    if r is not None:
+        rmax = np.abs(np.max(r))
+    else:
+        rmax = None
+        
     if method == 'UNSET':
         raise ValueError("Must set method if setting data point weighting!")
     elif (method is None): 
@@ -896,17 +901,29 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif ((method.strip().lower() == 'none') | (method.strip().lower() == 'uniform')):
         weight = None
         #weight = np.ones(len(r), dtype=np.float)
+    # exp[ A * (r/rmax) ]
     elif method.strip().lower() == 'radius_rmax':
-        rmax = np.abs(np.max(r))
+        # value at 0: 1 // value at rmax: 2.718
         weight = np.exp( np.abs(r)/ rmax )
-    #
+    elif method.strip().lower() == 'radius_rmax_A5':
+        # value at 0: 1 // value at rmax: 5.
+        weight = np.exp( np.log(5.) * (np.abs(r)/ rmax)  )
+    elif method.strip().lower() == 'radius_rmax_A10':
+        # value at 0: 1 // value at rmax: 10.
+        weight = np.exp( np.log(10.) * (np.abs(r)/ rmax)  )
+    # exp[ A * (r/rmax)^2 ]
     elif method.strip().lower() == 'radius_rmax2':
-        rmax = np.abs(np.max(r))
+        # value at 0: 1 // value at rmax: 2.718
         weight = np.exp((np.abs(r)/ rmax)**2 )
-        
     elif method.strip().lower() == 'radius_2rmax2':
-        rmax = np.abs(np.max(r))
+        # value at 0: 1 // value at rmax: 7.389
         weight = np.exp( 2. * (np.abs(r)/ rmax)**2 )
+    elif method.strip().lower() == 'radius_rmax2_A5':
+        # value at 0: 1 // value at rmax: 5.
+        weight = np.exp( np.log(5.) * (np.abs(r)/ rmax)**2 )
+    elif method.strip().lower() == 'radius_rmax2_A10':
+        # value at 0: 1 // value at rmax: 10.
+        weight = np.exp( np.log(10.) * (np.abs(r)/ rmax)**2 )
     else:
         raise ValueError("Weighting method not implmented yet!: {}".format(method))
     
