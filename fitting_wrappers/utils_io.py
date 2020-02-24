@@ -605,28 +605,6 @@ def setup_mcmc_dict(params=None):
     mcmc_dict['model_key_halo'] = ['halo']
     
     
-    # mcmc_dict['linked_posterior_names'] = None
-    # # REMOVE THIS TO MAKE GENERAL!!!
-    # if not params['fdm_fixed']:
-    #     # Case: fdm free, other param fixed:
-    #     mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-    #                                               ['halo', 'fdm'],
-    #                                               ['dispprof', 'sigma0'] ] ]
-    # else:
-    #     # Case: fdm derived from other params, which are free:
-    #     if params['halo_profile_type'].strip().upper() == 'NFW':
-    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-    #                                                   ['halo', 'mvirial'],
-    #                                                   ['dispprof', 'sigma0'] ] ]
-    #     elif params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO':
-    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-    #                                                   ['halo', 'alpha'],
-    #                                                   ['dispprof', 'sigma0'] ] ]
-    #     elif params['halo_profile_type'].strip().upper() == 'BURKERT':
-    #         mcmc_dict['linked_posterior_names'] = [ [ ['disk+bulge', 'total_mass'], 
-    #                                                   ['halo', 'rB'],
-    #                                                   ['dispprof', 'sigma0'] ] ]
-    
     if 'continue_steps' not in mcmc_dict.keys():
         mcmc_dict['continue_steps'] = False
     
@@ -689,8 +667,11 @@ def setup_basic_aperture_types(gal=None, params=None):
     if ('partial_weight' in params.keys()):
         partial_weight = params['partial_weight']
     else:
-        # Preserve previous default behavior
-        partial_weight = False
+        # # Preserve previous default behavior
+        # partial_weight = False
+        
+        ## NEW default behavior: always use partial_weight:
+        partial_weight = True
         
     if ('moment_calc' in params.keys()):
         moment_calc = params['moment_calc']

@@ -46,7 +46,7 @@ class Aperture(object):
     Shape aper_center: 2 ( [x0, y0] )
     """
 
-    def __init__(self, aper_center=None, nx=None, ny=None, partial_weight=False,
+    def __init__(self, aper_center=None, nx=None, ny=None, partial_weight=True,
                 moment=False):
                  
         self.aper_center = aper_center
@@ -138,7 +138,7 @@ class EllipAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None, partial_weight=False,
+            aper_center=None, nx=None, ny=None, partial_weight=True,
             moment=False):
 
         # set things here
@@ -216,7 +216,7 @@ class RectAperture(Aperture):
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
-            aper_center=None, nx=None, ny=None, partial_weight=False,
+            aper_center=None, nx=None, ny=None, partial_weight=True,
             moment=False):
 
         # set things here
@@ -360,7 +360,7 @@ class EllipApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
              moment=False):
         
         #
@@ -417,7 +417,7 @@ class EllipApertures(Apertures):
     
 class CircApertures(EllipApertures):
     def __init__(self, rarr=None, slit_PA=None, rpix=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
              moment=False):
              
         super(CircApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
@@ -440,7 +440,7 @@ class RectApertures(Apertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
              moment=False):
         #
         if rotate_cube:
@@ -499,7 +499,7 @@ class SquareApertures(RectApertures):
     
     """
     def __init__(self, rarr=None, slit_PA=None, pix_length=None, 
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=False, rotate_cube=False,
+             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
              moment=False):
              
         super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA, 
@@ -516,7 +516,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None, 
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, from_data=True, 
-            partial_weight=False, rotate_cube=False, 
+            partial_weight=True, rotate_cube=False, 
             moment=False, 
             oversample=1):
             
