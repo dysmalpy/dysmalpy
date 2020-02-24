@@ -279,7 +279,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                     if priors[j] is not None:
                         ax.axvline(priors[j], ls=':', color='#ff7f0e') # orange
                     if (priors[i] is not None) & (priors[j] is not None):
-                        ax.scatter([priors[j], priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
+                        ax.scatter([priors[j]], [priors[i]], marker='s', edgecolor='#ff7f0e', facecolor='None') # orange
                     #
                     ax.set_xlim(xlim)
                     ax.set_ylim(ylim)
