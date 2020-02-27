@@ -232,6 +232,22 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write(datstr+'\n')
             
             #
+            if 'weighting_method' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+                            '-----', params['weighting_method'], -99, -99)
+                f.write(datstr+'\n')
+                
+            if 'moment_calc' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
+                            '-----', params['moment_calc'], -99, -99)
+                f.write(datstr+'\n')
+                
+            #
+            if 'partial_weight' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
+                            '-----', params['partial_weight'], -99, -99)
+                f.write(datstr+'\n')
+            #
         #
         with open(f_ascii_pretty, 'w') as f:
             f.write('###############################'+'\n')
@@ -260,8 +276,16 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
 
             f.write('\n')
             f.write('Fitting method: {}'.format(params['fit_method'].upper()))
+            # --------------------------------------
             if 'profile1d_type' in params.keys():
                 f.write('profile1d_type: {}'.format(params['profile1d_type']))
+            if 'weighting_method' in params.keys():
+                f.write('weighting_method: {}'.format(params['weighting_method']))
+            if 'moment_calc' in params.keys():
+                f.write('moment_calc: {}'.format(params['moment_calc']))
+            if 'partial_weight' in params.keys():
+                f.write('partial_weight: {}'.format(params['partial_weight']))
+            # --------------------------------------
             f.write('\n')
             f.write('###############################'+'\n')
             f.write(' Fitting results'+'\n')
