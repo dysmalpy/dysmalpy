@@ -910,10 +910,10 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif method.strip().lower() == 'radius_rmax':
         # value at 0: 1 // value at rmax: 2.718
         weight = np.exp( np.abs(r)/ rmax )
-    elif method.strip().lower() == 'radius_rmax_A5':
+    elif method.strip().lower() == 'radius_rmax_a5':
         # value at 0: 1 // value at rmax: 5.
         weight = np.exp( np.log(5.) * (np.abs(r)/ rmax)  )
-    elif method.strip().lower() == 'radius_rmax_A10':
+    elif method.strip().lower() == 'radius_rmax_a10':
         # value at 0: 1 // value at rmax: 10.
         weight = np.exp( np.log(10.) * (np.abs(r)/ rmax)  )
     # exp[ A * (r/rmax)^2 ]  // exponential or more general power-law
@@ -923,10 +923,10 @@ def setup_data_weighting_method(method='UNSET', r=None):
     elif method.strip().lower() == 'radius_2rmax2':
         # value at 0: 1 // value at rmax: 7.389
         weight = np.exp( 2. * (np.abs(r)/ rmax)**2 )
-    elif method.strip().lower() == 'radius_rmax2_A5':
+    elif method.strip().lower() == 'radius_rmax2_a5':
         # value at 0: 1 // value at rmax: 5.
         weight = np.exp( np.log(5.) * (np.abs(r)/ rmax)**2 )
-    elif method.strip().lower() == 'radius_rmax2_A10':
+    elif method.strip().lower() == 'radius_rmax2_a10':
         # value at 0: 1 // value at rmax: 10.
         weight = np.exp( np.log(10.) * (np.abs(r)/ rmax)**2 )
     else:
