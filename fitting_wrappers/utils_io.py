@@ -291,7 +291,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write('partial_weight: {}'.format(params['partial_weight']))
                 f.write('\n')
             # --------------------------------------
-            
+            f.write('\n')
             f.write('###############################'+'\n')
             f.write(' Fitting results'+'\n')
 
