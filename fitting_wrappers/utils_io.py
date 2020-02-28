@@ -276,17 +276,22 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
 
             f.write('\n')
             f.write('Fitting method: {}'.format(params['fit_method'].upper()))
+            f.write('\n')
             # --------------------------------------
             if 'profile1d_type' in params.keys():
                 f.write('profile1d_type: {}'.format(params['profile1d_type']))
+                f.write('\n')
             if 'weighting_method' in params.keys():
                 f.write('weighting_method: {}'.format(params['weighting_method']))
+                f.write('\n')
             if 'moment_calc' in params.keys():
                 f.write('moment_calc: {}'.format(params['moment_calc']))
+                f.write('\n')
             if 'partial_weight' in params.keys():
                 f.write('partial_weight: {}'.format(params['partial_weight']))
+                f.write('\n')
             # --------------------------------------
-            f.write('\n')
+            
             f.write('###############################'+'\n')
             f.write(' Fitting results'+'\n')
 
