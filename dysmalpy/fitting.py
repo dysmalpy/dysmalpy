@@ -467,11 +467,11 @@ def fit(gal, nWalkers=10,
     if f_sampler is not None:
         # Save stuff to file, for future use:
         dump_pickle(sampler_dict, filename=f_sampler)
-
-
+        
+    
     if nCPUs > 1:
         sampler.pool.close()
-
+    
     ##########################################
     ##########################################
     ##########################################
