@@ -522,6 +522,7 @@ def fit_mpfit(gal,
               oversample=1,
               oversize=1,
               fitdispersion=True,
+              use_weights=False, 
               profile1d_type='circ_ap_cube',
               model_key_re = ['disk+bulge','r_eff_disk'],
               model_key_halo = ['halo'], 
@@ -581,7 +582,7 @@ def fit_mpfit(gal,
 
     # Setup dictionary of arguments that mpfit_chisq needs
     fa = {'gal':gal, 'fitdispersion':fitdispersion, 'profile1d_type':profile1d_type,
-          'oversample':oversample, 'oversize':oversize}
+            'oversample':oversample, 'oversize':oversize, 'use_weights': use_weights}
 
     # Run mpfit
     # Output some fitting info to logger:
@@ -1762,7 +1763,7 @@ def chisq_red(gal, fitdispersion=True, use_weights=False,
     return redchsq
 
 def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='circ_ap_cube',
-                oversample=1, oversize=1):
+                oversample=1, oversize=1, use_weights=False):
 
     gal.model.update_parameters(theta)
     gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize, oversample=oversample)
