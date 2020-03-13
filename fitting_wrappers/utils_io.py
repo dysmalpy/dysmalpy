@@ -867,7 +867,7 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     
     #
     if 'weighting_method' in params.keys():
-        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=None)
     else:
         gal_weight = None
     
@@ -890,7 +890,7 @@ def load_single_object_3D_data(params=None):
     raise ValueError("Not generically supported for now: will need to write your own wrapper to load cubes.")
     
     if 'weighting_method' in params.keys():
-        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=None)
     else:
         gal_weight = None
         
