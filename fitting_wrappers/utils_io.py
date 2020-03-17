@@ -754,13 +754,24 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
         gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
     else:
         gal_weight = None
+    #
+    if ('xcenter' in params.keys()):
+        xcenter = params['xcenter']
+    else:
+        xcenter = None
+    #
+    if ('ycenter' in params.keys()):
+        ycenter = params['ycenter']
+    else:
+        ycenter = None
     
     data1d = data_classes.Data1D(r=gal_r, velocity=gal_vel,vel_disp=gal_disp, 
                                 vel_err=err_vel, vel_disp_err=err_disp, 
                                 weight=gal_weight, 
                                 mask_velocity=msk_vel, mask_vel_disp=msk_disp,
                                 slit_width=params['slit_width'],
-                                slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'] )
+                                slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'],
+                                xcenter=xcenter, ycenter=ycenter)
                                       
     return data1d
     
@@ -870,7 +881,21 @@ def load_single_object_2D_data(params=None, adjust_error=True,
         gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=None)
     else:
         gal_weight = None
-    
+        
+    #
+    if ('moment_calc' in params.keys()):
+        moment_calc = params['moment_calc']
+    else:
+        moment_calc = False
+    if ('xcenter' in params.keys()):
+        xcenter = params['xcenter']
+    else:
+        xcenter = None
+    if ('ycenter' in params.keys()):
+        ycenter = params['ycenter']
+    else:
+        ycenter = None
+        
     data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp, mask=mask,
@@ -879,7 +904,9 @@ def load_single_object_2D_data(params=None, adjust_error=True,
                                       filename_dispersion=params['fdata_disp'],
                                       smoothing_type=params['smoothing_type'],
                                       smoothing_npix=params['smoothing_npix'],
-                                      inst_corr=params['data_inst_corr'])
+                                      inst_corr=params['data_inst_corr'],
+                                      moment=moment_calc,
+                                      xcenter=xcenter, ycenter=ycenter)
                                       
             
     return data2d
@@ -1052,7 +1079,7 @@ def tie_lmvirial_NFW(model_set):
     comp_halo = model_set.components.__getitem__('halo')
     comp_baryons = model_set.components.__getitem__('disk+bulge')
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm)
+    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm, adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
     return mvirial
 
 def tie_alpha_TwoPower(model_set):

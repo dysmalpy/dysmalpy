@@ -768,6 +768,7 @@ class ModelSet:
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
+                      xcenter=None, ycenter=None, 
                       debug=False):
 
         """Simulate an IFU cube of this model set"""
@@ -776,7 +777,13 @@ class ModelSet:
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
-
+        
+        ### Don't need, just do later for {x/y}center_samp
+        # if xcenter is None:
+        #     xcenter = (nx_sky - 1) / 2.
+        # if ycenter is None:
+        #     ycenter = (nx_sky - 1) / 2.
+        
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
@@ -786,7 +793,16 @@ class ModelSet:
 
         if (np.mod(ny_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             ny_sky_samp = ny_sky_samp + 1
-
+            
+        if xcenter is None:
+            xcenter_samp = (nx_sky_samp - 1) / 2.
+        else:
+            xcenter_samp = (xcenter + 0.5)*oversample - 0.5
+        if ycenter is None:
+            ycenter_samp = (ny_sky_samp - 1) / 2.
+        else:
+            ycenter_samp = (ycenter + 0.5)*oversample - 0.5
+            
         #nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
@@ -820,8 +836,8 @@ class ModelSet:
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
             zsky, ysky, xsky = np.indices(sh)
             zsky = zsky - (nz_sky_samp - 1) / 2.
-            ysky = ysky - (ny_sky_samp - 1) / 2.
-            xsky = xsky - (nx_sky_samp - 1) / 2.
+            ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
+            xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
 
             # Apply the geometric transformation to get galactic coordinates
             # Need to account for oversampling in the x and y shift parameters
@@ -878,8 +894,11 @@ class ModelSet:
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - (ny_sky_samp - 1) / 2.
-                xsky = xsky - (nx_sky_samp - 1) / 2.
+                #ysky = ysky - (ny_sky_samp - 1) / 2.
+                #xsky = xsky - (nx_sky_samp - 1) / 2.
+                ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
+                xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
+                
                 # Apply the geometric transformation to get outflow coordinates
                 # Account for oversampling
                 self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
@@ -928,8 +947,11 @@ class ModelSet:
 
                 # The coordinates where the unresolved outflow is placed needs to be
                 # an integer pixel so for now we round to nearest integer.
-                xpix = np.int(np.round(xshift)) + nx_sky_samp/2
-                ypix = np.int(np.round(yshift)) + ny_sky_samp/2
+                # xpix = np.int(np.round(xshift)) + nx_sky_samp/2
+                # ypix = np.int(np.round(yshift)) + ny_sky_samp/2
+                
+                xpix = np.int(np.round(xshift)) + np.int(np.round(xcenter_samp))
+                ypix = np.int(np.round(yshift)) + np.int(np.round(ycenter_samp))
 
                 voutflow = v_sys + self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
@@ -1633,7 +1655,7 @@ class NFW(DarkMatterHalo):
 
         return rvir
         
-    def calc_mvirial_from_fdm(self, baryons, r_fdm):
+    def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
         
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
@@ -1649,25 +1671,57 @@ class NFW(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
     
             mtest = np.arange(-5, 50, 1.0)
-            vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+            if adiabatic_contract:
+                vtest = np.array([self._minfunc_vdm_AC(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons) for m in mtest])
+                # TEST
+                vtest_noAC = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+            else:
+                vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
         
             try:
                 a = mtest[vtest < 0][-1]
                 b = mtest[vtest > 0][0]
+                # TEST
+                if adiabatic_contract:
+                    a_noAC = mtest[vtest_noAC < 0][-1]
+                    b_noAC = mtest[vtest_noAC > 0][0]
             except:
                 print("fdm={}".format(self.fdm.value))
                 print("r_fdm={}".format(r_fdm))
                 print(mtest, vtest)
                 raise ValueError
-    
-            mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
+                
+            if adiabatic_contract:    
+                # # TEST
+                # print("mtest={}".format(mtest))
+                # print("vtest={}".format(vtest))
+                mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
+                
+                # TEST
+                mvirial_noAC = scp_opt.brentq(self._minfunc_vdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
+                print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
+            else:
+                mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
     
         return mvirial
     
     def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
         halo = NFW(mvirial=mass, conc=conc, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
-
+    
+    def _minfunc_vdm_AC(self, mass, vtarget, conc, z, r_eff, bary):
+        halo = NFW(mvirial=mass, conc=conc, z=z, name='halotmp')
+        modtmp = ModelSet()
+        modtmp.add_component(bary, light=True)
+        modtmp.add_component(halo)
+        modtmp.kinematic_options.adiabatic_contract = True
+        modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
+        
+        vc, vc_dm = modtmp.circular_velocity(r_eff, compute_dm=True)
+        #print("mass={}, barymass={}, vc={}, vcdm={}, vcdm_noAC={}, vtarget={}".format(mass, bary.total_mass.value, vc, 
+        #            vc_dm, halo.circular_velocity(r_eff), np.sqrt(vtarget)))
+        return vc_dm **2 - vtarget
+        
 #
 class LinearNFW(DarkMatterHalo):
     """
@@ -1903,11 +1957,24 @@ class KinematicOptions:
                     result = r1d[i]
                     converged[i] = False
                     
+                # ------------------------------------------------------------------
+                # HACK TO FIX WEIRD AC: If too weird: toss it...
+                if ('adiabatic_contract_modify_small_values' in self.__dict__.keys()):
+                    if self.adiabatic_contract_modify_small_values:
+                        if ((result < 0.) | (result > 5*max(r1d))):
+                            #print("tossing, mvir={}".format(model.components['halotmp'].mvirial.value))
+                            result = r1d[i]
+                            converged[i] = False
+                # ------------------------------------------------------------------
+                
                 rprime_all_1d[i] = result
                 
             
             vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
+            ####vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, kind='linear')   # linear interpolation
             
+            #print("r1d={}".format(r1d))
+            #print("rprime_all_1d={}".format(rprime_all_1d))
             
             # Just calculations:
             if converged.sum() < len(r1d):
@@ -1916,7 +1983,7 @@ class KinematicOptions:
                     r1d = r1d[converged]
             
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
-            
+            ####print("vhalo_adi_1d={}".format(vhalo_adi_1d))
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
             
             vhalo_adi = vhalo_adi_interp_map_3d(r)
@@ -2162,13 +2229,15 @@ class DustExtinction(_DysmalFittable3DModel):
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
-
     if rprime <= 0.:
         rprime = 0.1
     if rprime < adia_x_dm[1]:
         rprime = adia_x_dm[1]
-    rprime_interp = scp_interp.interp1d(adia_x_dm, adia_v_dm,
+    rprime_interp = scp_interp.interp1d(adia_x_dm, adia_v_dm, 
                                         fill_value="extrapolate")
     result = (r_adi + r_adi * ((r_adi*adia_v_disk**2) /
                                (rprime*(rprime_interp(rprime))**2)) - rprime)
+    # #
+    # print("adia_x_dm={}, adia_v_dm={}, r_adi={}, rprime={}, rprime_interp(rprime)={}, result={}".format(adia_x_dm, adia_v_dm, r_adi, rprime, 
+    #             rprime_interp(rprime), result))
     return result

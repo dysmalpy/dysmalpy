@@ -121,7 +121,8 @@ class Galaxy:
                           oversample=1, oversize=1, debug=False,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
                           pix_length=None,
-                          skip_downsample=False, partial_aperture_weight=False):
+                          skip_downsample=False, partial_aperture_weight=False, 
+                          xcenter=None, ycenter=None):
 
         """
         Simulate an IFU cube then optionally collapse it down to a 2D
@@ -151,12 +152,29 @@ class Galaxy:
                 spec_step = (self.data.data.spectral_axis[1].value -
                              self.data.data.spectral_axis[0].value)
                 rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
-
+                
+                try:
+                    xcenter = self.data.xcenter
+                except:
+                    pass
+                try:
+                    ycenter = self.data.ycenter
+                except:
+                    pass
+                
             elif ndim_final == 2:
 
                 nx_sky = self.data.data['velocity'].shape[1]
                 ny_sky = self.data.data['velocity'].shape[0]
                 rstep = self.data.pixscale
+                try:
+                    xcenter = self.data.xcenter
+                except:
+                    pass
+                try:
+                    ycenter = self.data.ycenter
+                except:
+                    pass
                 if from_instrument:
                     spec_type = self.instrument.spec_type
                     spec_start = self.instrument.spec_start.value
@@ -189,6 +207,15 @@ class Galaxy:
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
                 aper_centers = self.data.rarr
+                
+                try:
+                    xcenter = self.data.xcenter
+                except:
+                    pass
+                try:
+                    ycenter = self.data.ycenter
+                except:
+                    pass
 
             elif ndim_final == 0:
 
@@ -249,7 +276,9 @@ class Galaxy:
                                                   spec_start=spec_start,
                                                   spec_unit=spec_unit,
                                                   oversample=oversample,
-                                                  oversize=oversize)
+                                                  oversize=oversize, 
+                                                  xcenter=xcenter, 
+                                                  ycenter=ycenter)
                                                   
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample): 
@@ -351,17 +380,25 @@ class Galaxy:
                                 smoothing_npix=self.data.smoothing_npix)
                                 
             if spec_type == "velocity":
-                vel = self.model_cube.data.moment1().to(u.km/u.s).value
-                disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
-
+                if self.data.moment_calc:
+                    vel = self.model_cube.data.moment1().to(u.km/u.s).value
+                    disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                else:
+                    vel = lksjdfldksf
+                    disp = klsjdflkdf
             elif spec_type == "wavelength":
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
                     velocity_convention='optical',
                     rest_value=line_center)
 
-                vel = cube_with_vel.moment1().value
-                disp = cube_with_vel.linewidth_sigma().value
+                if self.data.moment_calc:
+                    vel = cube_with_vel.moment1().value
+                    disp = cube_with_vel.linewidth_sigma().value
+                else:
+                    vel = lksjdflksdjf
+                    disp = lksjdflksdjflskd
+                    
                 disp[np.isnan(disp)] = 0.
 
             else:

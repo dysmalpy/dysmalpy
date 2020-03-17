@@ -33,7 +33,9 @@ class Data(object):
                  filename_velocity=None, 
                  filename_dispersion=None, 
                  smoothing_type=None, 
-                 smoothing_npix=1):
+                 smoothing_npix=1, 
+                 xcenter=None, 
+                 ycenter=None):
                  
         self.data = data
         self.error = error
@@ -48,7 +50,8 @@ class Data(object):
         self.filename_velocity = filename_velocity
         self.filename_dispersion = filename_dispersion
         
-
+        self.xcenter = xcenter
+        self.ycenter = ycenter
 
 class Data1D(Data):
     """
@@ -68,7 +71,9 @@ class Data1D(Data):
                  estimate_err=False, error_frac=0.2,
                  inst_corr=False, 
                  filename_velocity=None, 
-                 filename_dispersion=None):
+                 filename_dispersion=None, 
+                 xcenter=None, 
+                 ycenter=None):
         # Default assume 1D dispersion is **NOT** instrument corrected
         
         if r.shape != velocity.shape:
@@ -166,7 +171,9 @@ class Data1D(Data):
         super(Data1D, self).__init__(data=data, error=error, weight=weight, ndim=1,
                                      shape=shape, mask=mask,
                                      filename_velocity=filename_velocity, 
-                                     filename_dispersion=filename_dispersion)
+                                     filename_dispersion=filename_dispersion, 
+                                      xcenter=xcenter, 
+                                      ycenter=ycenter)
                                      
         #
         if mask_velocity is not None:
@@ -180,7 +187,7 @@ class Data1D(Data):
 
 
 class Data2D(Data):
-
+    
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, mask=None, estimate_err=False,
                   mask_velocity=None, 
@@ -191,7 +198,10 @@ class Data2D(Data):
                  filename_velocity=None, 
                  filename_dispersion=None, 
                  smoothing_type=None, 
-                 smoothing_npix=1):
+                 smoothing_npix=1,
+                 moment=False,
+                 xcenter=None,
+                 ycenter=None):
 
         if mask is not None:
             if mask.shape != velocity.shape:
@@ -278,7 +288,9 @@ class Data2D(Data):
                                      filename_velocity=filename_velocity, 
                                      filename_dispersion=filename_dispersion,
                                      smoothing_type=smoothing_type, 
-                                     smoothing_npix=smoothing_npix)
+                                     smoothing_npix=smoothing_npix,
+                                     xcenter=xcenter,
+                                     ycenter=ycenter)
         #
         if mask_velocity is not None:
             self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
@@ -288,7 +300,9 @@ class Data2D(Data):
             self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
         else:
             self.mask_vel_disp = None
-
+            
+        # Whether kin was extracted through moments, or gaussian fits (True: moment / False: gaussian)
+        self.moment = moment
 
 class Data3D(Data):
 
@@ -296,7 +310,8 @@ class Data3D(Data):
                  err_cube=None, weight=None, 
                  mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
-                 ref_pixel=None, spec_unit=None, flux_map=None):
+                 ref_pixel=None, spec_unit=None, flux_map=None,
+                 xcenter=None, ycenter=None):
 
         if mask_sky is not None:
             if mask_sky.shape != cube.shape[1:]:
@@ -382,7 +397,7 @@ class Data3D(Data):
         self.flux_map = flux_map
 
         super(Data3D, self).__init__(data=data, error=error, weight=weight, ndim=3,
-                                     shape=shape, mask=mask)
+                                     shape=shape, mask=mask, xcenter=xcenter, ycenter=ycenter)
 
 
 class Data0D(Data):
