@@ -385,7 +385,7 @@ class Galaxy:
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                 else:
-                    mom0 = self.model_cube.data.moment0()
+                    mom0 = self.model_cube.data.moment0().value
                     mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
                     mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                     vel = np.zeros(mom0.shape)
@@ -399,9 +399,8 @@ class Galaxy:
                             mod.stddev.bounds = (0, None)
                             fitter = apy_mod.fitting.LevMarLSQFitter()
                             
-                            print("self.model_cube.data.spectral_axis={}".format(self.model_cube.data.spectral_axis))
-                            best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s), 
-                                        self.model_cube.data.unmasked_data[:,i,j])
+                            best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
+                                        self.model_cube.data.unmasked_data[:,i,j].value)
                                         
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
