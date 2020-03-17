@@ -399,6 +399,7 @@ class Galaxy:
                             mod.stddev.bounds = (0, None)
                             fitter = apy_mod.fitting.LevMarLSQFitter()
                             
+                            print("self.model_cube.data.spectral_axis={}".format(self.model_cube.data.spectral_axis))
                             best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s), 
                                         self.model_cube.data.unmasked_data[:,i,j])
                                         
