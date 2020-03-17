@@ -18,6 +18,7 @@ import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
 from astropy.extern import six
+import astropy.modeling as apy_mod
 import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
 
@@ -380,19 +381,37 @@ class Galaxy:
                                 smoothing_npix=self.data.smoothing_npix)
                                 
             if spec_type == "velocity":
-                if self.data.moment_calc:
+                if self.data.moment:
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                 else:
-                    vel = lksjdfldksf
-                    disp = klsjdflkdf
+                    mom0 = self.model_cube.data.moment0()
+                    mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
+                    mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                    vel = np.zeros(mom0.shape)
+                    disp = np.zeros(mom0.shape)
+                    for i in range(mom0.shape[0]):
+                        for j in range(mom0.shape[1]):
+                            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * np.abs(mom2[i,j])),
+                                                    mean=mom1[i,j],
+                                                    stddev=np.sqrt(np.abs(mom2[i,j])))
+                            mod.amplitude.bounds = (0, None)
+                            mod.stddev.bounds = (0, None)
+                            fitter = apy_mod.fitting.LevMarLSQFitter()
+                            best_fit = fitter(mod, self.model_cube.spectral_axis.to(u.km/u.s), self.model_cube.data[:,i,j])
+
+                            vel[i,j] = best_fit.mean.value
+                            disp[i,j] = best_fit.stddev.value
+                    
+                    # vel = lksjdfldksf
+                    # disp = klsjdflkdf
             elif spec_type == "wavelength":
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
                     velocity_convention='optical',
                     rest_value=line_center)
 
-                if self.data.moment_calc:
+                if self.data.moment:
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
                 else:
