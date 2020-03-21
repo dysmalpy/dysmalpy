@@ -277,6 +277,8 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             f.write('\n')
             f.write('Fitting method: {}'.format(params['fit_method'].upper()))
             f.write('\n')
+            f.write('moment_calc: {}'.format(params['moment_calc']))
+            f.write('\n')
             # --------------------------------------
             if 'profile1d_type' in params.keys():
                 f.write('profile1d_type: {}'.format(params['profile1d_type']))
