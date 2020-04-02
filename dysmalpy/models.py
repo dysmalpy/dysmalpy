@@ -1666,6 +1666,8 @@ class NFW(DarkMatterHalo):
             mvirial = -np.inf #-5.  # as a small but finite value
         elif (self.fdm.value < 1.e-10):
             mvirial = -np.inf
+        elif (r_fdm < 0.):
+            mvirial = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
@@ -1686,6 +1688,7 @@ class NFW(DarkMatterHalo):
                     a_noAC = mtest[vtest_noAC < 0][-1]
                     b_noAC = mtest[vtest_noAC > 0][0]
             except:
+                print("adiabatic_contract={}".format(adiabatic_contract))
                 print("fdm={}".format(self.fdm.value))
                 print("r_fdm={}".format(r_fdm))
                 print(mtest, vtest)
