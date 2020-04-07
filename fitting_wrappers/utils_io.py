@@ -653,6 +653,8 @@ def setup_mcmc_dict(params=None):
                     linked_post_arr.append(['halo', 'mvirial'])
                 elif lpost.strip().lower() == 'fdm':
                     linked_post_arr.append(['halo', 'fdm'])
+                elif lpost.strip().lower() == 'alpha':
+                    linked_post_arr.append(['halo', 'alpha'])
                 elif lpost.strip().lower() == 'r_eff_disk':
                     linked_post_arr.append(['disk+bulge', 'r_eff_disk'])
                 elif lpost.strip().lower() == 'bt':
