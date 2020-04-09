@@ -1121,10 +1121,17 @@ def plot_model_multid_base(gal,
         gal.model.update_parameters(theta)     # Update the parameters
         
     #
+    inst_corr_1d = inst_corr_2d = None
     if inst_corr is None:
-        if 'inst_corr' in gal.data.data.keys():
-            inst_corr = gal.data.data['inst_corr']
-    if (inst_corr):
+        if 'inst_corr' in data1d.data.keys():
+            inst_corr_1d = data1d.data['inst_corr']
+        if 'inst_corr' in data2d.data.keys():
+            inst_corr_2d = data1d.data['inst_corr']
+    else:
+        inst_corr_1d = inst_corr
+        inst_corr_2d = inst_corr
+        
+    if (inst_corr_1d):
         inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
     else:
         inst_corr_sigma = 0.
@@ -1147,16 +1154,12 @@ def plot_model_multid_base(gal,
         for ax in grid_2D:
             ax.set_axis_off()
             
-            
     else:
-        
         gal = copy.deepcopy(galorig)
-        
         if gal.data.ndim == 1:
             apply_shift = True
         else:
             apply_shift = False
-            
             
         
         gal.data = copy.deepcopy(data2d)
@@ -1390,7 +1393,7 @@ def plot_model_multid_base(gal,
 
                         # Correct model for instrument dispersion
                         # if the data is instrument corrected:
-                        if inst_corr:
+                        if inst_corr_2d:
                             im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
                             
                         
@@ -1545,13 +1548,11 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
     
-        #try:
-        if True:
+        try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1)
-        #except:
-        else:
+        except:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1, from_data=False)
@@ -1559,7 +1560,7 @@ def plot_model_multid_base(gal,
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
         data = data1d #galnew.data
-        if (inst_corr):
+        if (inst_corr_1d):
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - inst_corr_sigma**2 )
     
@@ -1578,11 +1579,14 @@ def plot_model_multid_base(gal,
     
         k = -1
         for j in six.moves.xrange(nrows):
+            print("data.rarr={}".format(data.rarr))
+            print("model_data.rarr={}".format(model_data.rarr))
             for mm in six.moves.xrange(2):
                 # Comparison:
                 k += 1
                 ax = grid_1D[k]
-            
+                
+                
                 if plottype[mm] == 'data':
                     try:
                         #
@@ -1594,7 +1598,7 @@ def plot_model_multid_base(gal,
                             c='black', marker='o', s=25, lw=1, label=None)
                     except:
                         pass
-        
+            
                     ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
                         c='red', marker='s', s=25, lw=1, label=None)
                     ax.set_xlabel(keyxtitle)
@@ -2122,21 +2126,17 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
     if not remove_shift:
         if data1d.aper_center_pix_shift is not None:
-            #try:
-            if True:
+            try:
                 center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
                                 gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-            # except:
-            #     center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-            #                     np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+            except:
+                center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                                np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
         else:
-            ##center_pixel = None
-            
-            #try:
-            if True:
+            try:
                 center_pixel = (gal.data.xcenter, gal.data.ycenter)
-            # except:
-            #     center_pixel = None
+            except:
+                center_pixel = None
     else:
         # remove shift:
         center_pixel = None
@@ -2146,13 +2146,12 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     print("plotting: center_pixel={}".format(center_pixel))
     print("plotting: aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
     
-    #try:
-    if True:
+    try:
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
                             gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
-    # except:
-    #     center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
-    #                         np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
+    except:
+        center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                            np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
     
     
     if center_pixel is None:
