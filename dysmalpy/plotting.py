@@ -2124,23 +2124,27 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         if data1d.aper_center_pix_shift is not None:
             #try:
             if True:
-                gal.data.xcenter
-                
                 center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
                                 gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
             # except:
             #     center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
             #                     np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
         else:
-            center_pixel = None
+            ##center_pixel = None
+            
+            #try:
+            if True:
+                center_pixel = (gal.data.xcenter, gal.data.ycenter)
+            # except:
+            #     center_pixel = None
     else:
         # remove shift:
         center_pixel = None
     
     
-    print("center_pixel w/ NO REMOVE shift:")
-    print("center_pixel={}".format(center_pixel))
-    print("aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
+    print("plotting: center_pixel w/ NO REMOVE shift:")
+    print("plotting: center_pixel={}".format(center_pixel))
+    print("plotting: aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
     
     #try:
     if True:
