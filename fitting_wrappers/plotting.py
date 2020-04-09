@@ -85,7 +85,7 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
 
 #
 def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
-    remove_shift=True,
+    remove_shift=False,
     show_1d_apers=False):
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
