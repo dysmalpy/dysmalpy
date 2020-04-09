@@ -25,6 +25,11 @@ import astropy.units as u
 
 import utils_io
 
+try:
+    from plotting import plot_results_multid
+except:
+    from .plotting import plot_results_multid
+
 
 
 def dysmalpy_fit_single_2D(param_filename=None, data=None):
@@ -78,29 +83,6 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
 
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
-            # results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
-            #                       scale_param_a=fit_dict['scale_param_a'], nBurn=fit_dict['nBurn'],
-            #                       nSteps=fit_dict['nSteps'], minAF=fit_dict['minAF'],
-            #                       maxAF=fit_dict['maxAF'],
-            #                       nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
-            #                       red_chisq=fit_dict['red_chisq'],
-            #                       oversample=fit_dict['oversample'],
-            #                       fitdispersion=fit_dict['fitdispersion'],
-            #                       blob_name=fit_dict['blob_name'],
-            #                       linked_posterior_names=fit_dict['linked_posterior_names'],
-            #                       outdir=fit_dict['outdir'],
-            #                       f_plot_trace_burnin=fit_dict['f_plot_trace_burnin'],
-            #                       f_plot_trace=fit_dict['f_plot_trace'],
-            #                       f_model=fit_dict['f_model'],
-            #                       f_cube=fit_dict['f_cube'],
-            #                       f_sampler=fit_dict['f_sampler'],
-            #                       f_burn_sampler=fit_dict['f_burn_sampler'],
-            #                       f_plot_param_corner=fit_dict['f_plot_param_corner'],
-            #                       f_plot_bestfit=fit_dict['f_plot_bestfit'],
-            #                       f_mcmc_results=fit_dict['f_mcmc_results'],
-            #                       f_chain_ascii=fit_dict['f_chain_ascii'],
-            #                       f_vel_ascii=fit_dict['f_vel_ascii'],
-            #                       f_log=fit_dict['f_log'])
             results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'],
                                        nCPUs=fit_dict['nCPUs'],
                                        scale_param_a=fit_dict['scale_param_a'],
@@ -150,6 +132,11 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+        
+        
+        # Plot multid, if enabled:
+        if 'fdata_1d' in params.keys():
+            plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True)
     
     return None
     
