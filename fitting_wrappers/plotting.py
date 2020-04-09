@@ -121,7 +121,7 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         
         if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
             data_orig = copy.deepcopy(gal.data)
-            gal.data = gal.data1d
+            gal.data = data1d
             data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
             # Reset:
             gal.data = data_orig
