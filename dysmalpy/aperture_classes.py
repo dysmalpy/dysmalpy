@@ -538,13 +538,15 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         ny *= oversample
         rstep /= (1.* oversample)
         aper_centers *= oversample
-
-    try:
+        
+        
+    #try:
+    if True:
         xcenter_samp = (gal.data.xcenter + 0.5)*oversample - 0.5
         ycenter_samp = (gal.data.ycenter + 0.5)*oversample - 0.5
         center_pixel = [xcenter_samp, ycenter_samp]
-    except:
-        center_pixel = None
+    # except:
+    #     center_pixel = None
         
     
     if (gal.data.aper_center_pix_shift is not None):

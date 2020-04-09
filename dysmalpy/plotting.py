@@ -2142,12 +2142,14 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     print("center_pixel={}".format(center_pixel))
     print("aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
     
-    try:
-        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
-                            gal.data.ucenter + gal.model.geometry.yshift.value*rstep/rstep1d)
-    except:
-        center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
-                            np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
+    center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                        gal.data.ucenter + gal.model.geometry.yshift.value*rstep/rstep1d)
+    # try:
+    #     center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
+    #                         gal.data.ucenter + gal.model.geometry.yshift.value*rstep/rstep1d)
+    # except:
+    #     center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+    #                         np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
     
     
     if center_pixel is None:
