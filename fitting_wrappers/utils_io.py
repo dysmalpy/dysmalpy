@@ -233,9 +233,10 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             
             #
             if 'weighting_method' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
-                            '-----', params['weighting_method'], -99, -99)
-                f.write(datstr+'\n')
+                if params['weighting_method'] is not None:
+                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+                                '-----', params['weighting_method'], -99, -99)
+                    f.write(datstr+'\n')
                 
             if 'moment_calc' in params.keys():
                 datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
@@ -284,8 +285,9 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write('profile1d_type: {}'.format(params['profile1d_type']))
                 f.write('\n')
             if 'weighting_method' in params.keys():
-                f.write('weighting_method: {}'.format(params['weighting_method']))
-                f.write('\n')
+                if params['weighting_method'] is not None:
+                    f.write('weighting_method: {}'.format(params['weighting_method']))
+                    f.write('\n')
             if 'moment_calc' in params.keys():
                 f.write('moment_calc: {}'.format(params['moment_calc']))
                 f.write('\n')
@@ -350,9 +352,10 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             
             #
             if 'weighting_method' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+                if params['weighting_method'] is not None:
+                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
                             '-----', params['weighting_method'], -99, -99)
-                f.write(datstr+'\n')
+                    f.write(datstr+'\n')
                 
             if 'moment_calc' in params.keys():
                 datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
@@ -441,8 +444,9 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 f.write('profile1d_type: {}'.format(params['profile1d_type']))
                 f.write('\n')
             if 'weighting_method' in params.keys():
-                f.write('weighting_method: {}'.format(params['weighting_method']))
-                f.write('\n')
+                if params['weighting_method'] is not None:
+                    f.write('weighting_method: {}'.format(params['weighting_method']))
+                    f.write('\n')
             if 'moment_calc' in params.keys():
                 f.write('moment_calc: {}'.format(params['moment_calc']))
                 f.write('\n')
