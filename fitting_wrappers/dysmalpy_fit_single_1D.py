@@ -135,6 +135,12 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
                     profile1d_type = fit_dict['profile1d_type'], 
                     oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
                     aperture_radius=params['aperture_radius'])
+                    
+                    
+                    
+            # Plot multid, if enabled:
+            if 'fdata_vel' in params.keys():
+                plot_results_multid(param_filename=param_filename, fit_ndim=1, show_1d_apers=True)
     
     return None
 

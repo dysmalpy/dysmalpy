@@ -824,7 +824,8 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
     return data1d
     
 def load_single_object_2D_data(params=None, adjust_error=True, 
-            automask=True, vmax=500., dispmax=600.):
+            automask=True, vmax=500., dispmax=600.,
+            skip_crop=False):
     
     # +++++++++++++++++++++++++++++++++++++++++++
     # Upload the data set to be fit
@@ -850,14 +851,15 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     
     
     # Crop, if desired
-    if params['fov_npix'] < min(gal_vel.shape):
-        crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
-        crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
-        gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-        err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-        gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-        err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-        mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+    if not skip_crop:
+        if params['fov_npix'] < min(gal_vel.shape):
+            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
+            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
+            gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
 
     # Auto mask som bad data
     if automask: 

@@ -2233,6 +2233,18 @@ def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
     #mcmcResults.reload_sampler(filename=filename_sampler)
     
     return gal, mcmcResults
+    
+def reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None):
+    
+    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
+    
+    results = MPFITResults() 
+    
+    results.reload_results(filename=filename_results)
+    
+    return gal, results
+    
+    
 
 def norm(x): # Euclidean norm
     return np.sqrt(np.sum(x**2))
