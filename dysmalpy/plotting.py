@@ -350,7 +350,7 @@ def plot_data_model_comparison_1D(gal,
             oversample=1,
             oversize=1,
             fitdispersion=True, 
-            profile1d_type=None
+            profile1d_type=None, 
             fileout=None):
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
@@ -1720,6 +1720,7 @@ def plot_data_model_comparison(gal,
                     oversample=oversample,
                     oversize=oversize,
                     fitdispersion=fitdispersion, 
+                    profile1d_type=profile1d_type, 
                     fileout=fileout)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(dummy_gal,
