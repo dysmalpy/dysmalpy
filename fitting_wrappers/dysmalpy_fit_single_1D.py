@@ -230,7 +230,8 @@ def setup_single_object_1D(params=None, data=None):
         if gal.data.apertures is None:
             gal.data.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
         
-    
+    #
+    gal.data.profile1d_type = params['profile1d_type']
     
     # ------------------------------------------------------------
     # Setup fitting dict:

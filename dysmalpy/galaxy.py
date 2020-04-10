@@ -117,7 +117,7 @@ class Galaxy:
                           rstep=None, spec_type='velocity', spec_step=10.,
                           spec_start=-1000., nspec=201, line_center=None,
                           spec_unit=(u.km/u.s), aper_centers=None, aper_dist=None,
-                          slit_width=None, slit_pa=None, profile1d_type='circ_ap_cube',
+                          slit_width=None, slit_pa=None, profile1d_type=None, 
                           from_instrument=True, from_data=True,
                           oversample=1, oversize=1, debug=False,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
@@ -132,7 +132,9 @@ class Galaxy:
         Convention:
             slit_pa is angle of slit to left side of major axis (eg, neg r is E)
         """
-
+        # Default: 'circ_ap_cube',
+        
+        
         # Pull parameters from the observed data if specified
         if from_data:
 
@@ -217,6 +219,12 @@ class Galaxy:
                     ycenter = self.data.ycenter
                 except:
                     pass
+                    
+                
+                if 'profile1d_type' in self.data.__dict__.keys():
+                    if self.data.profile1d_type is not None:
+                        profile1d_type = self.data.profile1d_type
+                
 
             elif ndim_final == 0:
 
@@ -258,6 +266,9 @@ class Galaxy:
                 slit_width = self.instrument.slit_width
             except:
                 pass
+                
+            if (ndim_final == 1) & (profile1d_type is None):
+                raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
             
         else:
 
@@ -266,6 +277,11 @@ class Galaxy:
                 raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                  "be set if from_instrument and/or from_data"
                                  " is False.")
+            #
+            if (ndim_final == 1) & (profile1d_type is None):
+                raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
+            
+            
                                  
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,

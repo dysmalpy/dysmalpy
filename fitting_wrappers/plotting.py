@@ -123,6 +123,7 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
             data_orig = copy.deepcopy(gal.data)
             gal.data = data1d
             data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
+            data1d.profile1d_type = params['profile1d_type']
             # Reset:
             gal.data = data_orig
         

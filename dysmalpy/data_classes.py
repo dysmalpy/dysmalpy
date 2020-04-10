@@ -72,6 +72,7 @@ class Data1D(Data):
                  inst_corr=False, 
                  filename_velocity=None, 
                  filename_dispersion=None, 
+                 profile1d_type=None, 
                  xcenter=None, 
                  ycenter=None):
         # Default assume 1D dispersion is **NOT** instrument corrected
@@ -167,6 +168,7 @@ class Data1D(Data):
         self.rarr = r
         
         self.apertures = None
+        self.profile1d_type = profile1d_type
         
         super(Data1D, self).__init__(data=data, error=error, weight=weight, ndim=1,
                                      shape=shape, mask=mask,

@@ -350,6 +350,7 @@ def plot_data_model_comparison_1D(gal,
             oversample=1,
             oversize=1,
             fitdispersion=True, 
+            profile1d_type=None
             fileout=None):
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
@@ -360,7 +361,8 @@ def plot_data_model_comparison_1D(gal,
         galnew = copy.deepcopy(gal)
         galnew.data = data
         galnew.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=galnew.model.line_center)
+                              line_center=galnew.model.line_center,
+                                profile1d_type=profile1d_type)
         model_data = galnew.model_data
 
     else:
@@ -1064,6 +1066,7 @@ def plot_model_multid_base(gal,
             vcrop_value = 800., 
             show_1d_apers=False, 
             remove_shift = True,
+            profile1d_type=None, 
             inst_corr=None):
         
     #
@@ -1525,6 +1528,9 @@ def plot_model_multid_base(gal,
         gal.data = copy.deepcopy(data1d)
         gal.instrument = copy.deepcopy(instorig1d)
         
+        if 'profile1d_type' in data1d.__dict__.keys():
+            if data1d.profile1d_type is not None:
+                profile1d_type = data1d.profile1d_type
         
         if galorig.data.ndim == 2:
             if remove_shift:
@@ -1548,16 +1554,15 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
     
-        #try:
-        if True:
+        try:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
-                                  ndim_final=1)
-        #except:
-        else:    
+                                  ndim_final=1,profile1d_type=profile1d_type)
+        except:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
-                                  ndim_final=1, from_data=False)
+                                  ndim_final=1, from_data=False,
+                                  profile1d_type=profile1d_type)
                                   
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data

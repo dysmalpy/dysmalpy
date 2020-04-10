@@ -762,6 +762,8 @@ def setup_basic_aperture_types(gal=None, params=None):
                 pix_length=pix_length, from_data=True, 
                 partial_weight=partial_weight,
                 moment=moment_calc)
+                
+    # apertures.profile1d_type = params['profile1d_type']
     
     return apertures
 
