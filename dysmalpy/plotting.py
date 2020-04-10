@@ -1566,6 +1566,7 @@ def plot_model_multid_base(gal,
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - inst_corr_sigma**2 )
     
+        raise ValueError
     
         ######################################
     
