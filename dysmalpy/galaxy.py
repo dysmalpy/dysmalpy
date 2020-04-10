@@ -515,16 +515,16 @@ class Galaxy:
                     
                 #
                 if from_data:
-                    if data1d.aper_center_pix_shift is not None:
+                    if (self.data.aper_center_pix_shift is not None):
                         try:
                             center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0], 
                                             self.data.ycenter + self.data.aper_center_pix_shift[1])
                         except:
-                            center_pixel = (np.int(nx / 2) + self.data.aper_center_pix_shift[0], 
-                                            np.int(ny / 2) + self.data.aper_center_pix_shift[1])
+                            center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0], 
+                                            np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
                     else:
                         try:
-                            center_pixel = (gal.data.xcenter, gal.data.ycenter)
+                            center_pixel = (self.data.xcenter, self.data.ycenter)
                         except:
                             center_pixel = None
                 else:
