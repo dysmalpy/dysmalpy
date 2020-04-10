@@ -504,12 +504,29 @@ class Galaxy:
                 aper_model = None
             else:
                 
+                # if from_data:
+                #     if (self.data.aper_center_pix_shift is not None):
+                #         center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
+                #                         np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                #     else:
+                #         center_pixel = None
+                # else:
+                #     center_pixel = None
+                    
+                #
                 if from_data:
-                    if (self.data.aper_center_pix_shift is not None):
-                        center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-                                        np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                    if data1d.aper_center_pix_shift is not None:
+                        try:
+                            center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0], 
+                                            self.data.ycenter + self.data.aper_center_pix_shift[1])
+                        except:
+                            center_pixel = (np.int(nx / 2) + self.data.aper_center_pix_shift[0], 
+                                            np.int(ny / 2) + self.data.aper_center_pix_shift[1)
                     else:
-                        center_pixel = None
+                        try:
+                            center_pixel = (gal.data.xcenter, gal.data.ycenter)
+                        except:
+                            center_pixel = None
                 else:
                     center_pixel = None
                 
@@ -542,12 +559,13 @@ class Galaxy:
                             cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
 
 
-
+            # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, flux=flux1d, 
                                      slit_width=slit_width,
                                      slit_pa=slit_pa)
             self.model_data.apertures = aper_model
+            self.model_data.profile1d_type = profile1d_type
 
         elif ndim_final == 0:
 
