@@ -1548,11 +1548,13 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
     
-        try:
+        #try:
+        if True:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1)
-        except:
+        #except:
+        else:    
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, 
                                   ndim_final=1, from_data=False)
