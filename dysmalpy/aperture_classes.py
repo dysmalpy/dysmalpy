@@ -557,7 +557,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
                             np.int(ny / 2) + gal.data.aper_center_pix_shift[1]*oversample]
 
         
-    print("aperture_class: center_pixel={}".format(center_pixel))
+    #print("aperture_class: center_pixel={}".format(center_pixel))
 
     if (profile1d_type.lower() == 'circ_ap_cube'):
         
