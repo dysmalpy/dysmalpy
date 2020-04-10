@@ -521,7 +521,7 @@ class Galaxy:
                                             self.data.ycenter + self.data.aper_center_pix_shift[1])
                         except:
                             center_pixel = (np.int(nx / 2) + self.data.aper_center_pix_shift[0], 
-                                            np.int(ny / 2) + self.data.aper_center_pix_shift[1)
+                                            np.int(ny / 2) + self.data.aper_center_pix_shift[1])
                     else:
                         try:
                             center_pixel = (gal.data.xcenter, gal.data.ycenter)
