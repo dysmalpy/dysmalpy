@@ -23,8 +23,10 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 
-import utils_io
-
+try:
+    import utils_io
+except:
+    from . import utils_io
 
 
 def user_specific_load_3D_data(param_filename=None):
