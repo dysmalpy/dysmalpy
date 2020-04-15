@@ -23,12 +23,13 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 
-import utils_io
-
 try:
-    from plotting import plot_results_multid
+    import utils_io
+    import plotting as fw_plotting
 except:
-    from .plotting import plot_results_multid
+    from . import utils_io
+    from . import plotting as fw_plotting
+
 
 
 
@@ -136,7 +137,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
         
         # Plot multid, if enabled:
         if 'fdata_1d' in params.keys():
-            plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True)
+            fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True)
     
     return None
     
