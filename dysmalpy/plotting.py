@@ -2189,9 +2189,10 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     # ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
     # TESTTESTTEST
-    ax.axvline(x=np.int(nx / 2.), lw=0.1, ls='-', color='cyan')
-    ax.axhline(y=np.int(ny / 2.), lw=0.1, ls='-', color='cyan')
-    pyoff = 0. #-0.25
+    pyoff = -0.25
+    ax.axvline(x=np.int(nx / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
+    ax.axhline(y=np.int(ny / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
+    
     
     ax.scatter(center_pixel[0]+pyoff, center_pixel[1]+pyoff, color='magenta', marker='.', s=0.25)
     ax.scatter(center_pixel_kin[0]+pyoff, center_pixel_kin[1]+pyoff, color='cyan', marker='.', s=0.25)
