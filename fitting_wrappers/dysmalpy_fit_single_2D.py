@@ -137,7 +137,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
         
         # Plot multid, if enabled:
         if 'fdata_1d' in params.keys():
-            fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True)
+            fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True)
     
     return None
     

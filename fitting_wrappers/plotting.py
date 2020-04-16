@@ -23,6 +23,7 @@ from dysmalpy import plotting
 from dysmalpy import utils as dysmalpy_utils
 
 from dysmalpy import aperture_classes
+from dysmalpy import instrument
 
 import scipy.optimize as scp_opt
 
@@ -85,7 +86,7 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
 
 #
 def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
-    remove_shift=False,
+    remove_shift=True,
     show_1d_apers=False):
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -115,7 +116,17 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         else:
             fdata_mask = None
         params1d = copy.deepcopy(params)
-        params1d['data_inst_corr'] = params1d['data_inst_corr_1d']
+
+        
+        test_keys = ['data_inst_corr', 'pixscale', 'psf_type', 'psf_fwhm', 
+                    'psf_fwhm1', 'psf_fwhm2', 'psf_beta', 'psf_scale1', 'psf_scale2',
+                    'use_lsf', 'sig_inst_res',
+                    'fov', 'spec_type', 'spec_step', 'spec_start', 'nspec']
+        for tkey in test_keys:
+            if '{}_1d'.format(tkey) in params1d.keys():
+                params1d['{}'.format(tkey)] = params1d['{}_1d'.format(tkey)]
+        
+            
         data1d = utils_io.load_single_object_1D_data(fdata=params['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
         data1d.filename_velocity = params['fdata_1d']
         
@@ -129,9 +140,69 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         
         
         gal.data1d = data1d
+        
+        # Setup instrument:
+        try:
+            if params1d['psf_type'].lower().strip() == 'gaussian':
+                beamsize = params1d['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
+                beam = instrument.GaussianBeam(major=beamsize)
+            elif params1d['psf_type'].lower().strip() == 'moffat':
+                beamsize = params1d['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
+                beta = params1d['psf_beta']
+                beam = instrument.Moffat(major_fwhm=beamsize, beta=beta)
+            elif params1d['psf_type'].lower().strip() == 'doublegaussian':
+                # Kernel of both components multipled by: self._scaleN / np.sum(kernelN.array)
+                #    -- eg, scaleN controls the relative amount of flux in each component.
+
+                beamsize1 = params1d['psf_fwhm1']*u.arcsec              # FWHM of beam, Gaussian
+                beamsize2 = params1d['psf_fwhm2']*u.arcsec              # FWHM of beam, Gaussian
+
+                try:
+                    scale1 = params1d['psf_scale1']                     # Flux scaling of component 1
+                except:
+                    scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
+                scale2 = params1d['psf_scale2']                         # Flux scaling of component 2
+
+                beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2, 
+                                scale1=scale1, scale2=scale2)
+
+            else:
+                raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
+                
+            #
+            if params1d['use_lsf']:
+                sig_inst = params1d['sig_inst_res'] * u.km / u.s  # Instrumental spectral resolution  [km/s]
+                lsf = instrument.LSF(sig_inst)
+                inst.lsf = lsf
+                inst.set_lsf_kernel()
+
+            inst.beam = beam
+            inst.pixscale = params1d['pixscale']
+            
+            # Just set the same
+            inst.fov = params1d['fov']
+            inst.spec_type = params1d['spec_type']
+            inst.spec_step = params1d['spec_step']
+            inst.spec_start = params1d['spec_start']
+            inst.nspec = params1d['nspec']
+
+            # Set the beam kernel so it doesn't have to be calculated every step
+            inst.set_beam_kernel(support_scaling=12.)   # ORIGINAL: support_scaling=8.
+
+            # Add the model set and instrument to the Galaxy
+            gal.instrument1d = inst
+        except:
+            gal.instrument1d = None
+            
+        
+        
     elif fit_ndim == 1:
         data2d = utils_io.load_single_object_2D_data(params=params, skip_crop=True)
         gal.data2d = data2d
+        
+        gal.instrument2d = SETUP2DINST
+        
+        
     
     # Plot:
     plotting.plot_model_multid(gal, theta=results.bestfit_parameters, 
