@@ -2177,15 +2177,15 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
     #
 
-    #if (gal.data.ndim == 2):
-    ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
-    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
-    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
+    # #if (gal.data.ndim == 2):
+    # ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
+    # ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
+    # ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
     # TESTTESTTEST
-    ax.scatter(center_pixel[0], center_pixel[1], color='black', marker='.', s=1)
-    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='black', marker='.', s=1)
-    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='black', marker='.', s=1)
+    ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='.', s=1)
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='.', s=1)
+    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='.', s=1)
 
 
     # # Assume equal distance between successive apertures equal to diameter of aperture
