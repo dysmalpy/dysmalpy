@@ -1292,11 +1292,11 @@ def plot_model_multid_base(gal,
                     else:
                         raise ValueError("key not supported.")
                         
-                    # TESTTESTTEST
-                    im[-1,0] = np.nan
-                    im[0,-1] = np.nan
-                    im[-1,-1] = np.nan
-                    im[0,0] = np.nan
+                    # # TESTTESTTEST
+                    # im[-1,0] = np.nan
+                    # im[0,-1] = np.nan
+                    # im[-1,-1] = np.nan
+                    # im[0,0] = np.nan
                         
                     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=vel_vmin, vmax=vel_vmax, origin=origin)
@@ -2184,27 +2184,29 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
     # +++++++++++++++++
     # #if (gal.data.ndim == 2):
-    # ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
-    # ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
-    # ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
-    # TESTTESTTEST
-    pyoff = -0.25
-    ax.axvline(x=np.int(nx / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
-    ax.axhline(y=np.int(ny / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
+    pyoff = 0. 
+    ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
+    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
-    
-    ax.scatter(center_pixel[0]+pyoff, center_pixel[1]+pyoff, color='magenta', marker='.', s=0.25)
-    ax.scatter(center_pixel_kin[0]+pyoff, center_pixel_kin[1]+pyoff, color='cyan', marker='.', s=0.25)
-    ax.scatter(np.int(nx / 2.)+pyoff, np.int(ny / 2.)+pyoff, color='lime', marker='.', s=0.25)
-    print("magenta: center_pixel={}".format(center_pixel))
-    print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2.), np.int(ny / 2.)))
-    
-    print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim()))
-    
-    
-    ax.scatter(0+pyoff, 0+pyoff, color='magenta', marker='.', s=0.25)
-    ax.scatter(nx-1+pyoff, ny-1+pyoff, color='magenta', marker='.', s=0.25)
+    # # TESTTESTTEST
+    # pyoff = 0. #-0.1#-0.25
+    # # ax.axvline(x=np.int(nx / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
+    # # ax.axhline(y=np.int(ny / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
+    # 
+    # 
+    # ax.scatter(center_pixel[0]+pyoff, center_pixel[1]+pyoff, color='magenta', marker='.', s=0.25)
+    # ax.scatter(center_pixel_kin[0]+pyoff, center_pixel_kin[1]+pyoff, color='cyan', marker='.', s=0.25)
+    # ax.scatter(np.int(nx / 2.)+pyoff, np.int(ny / 2.)+pyoff, color='lime', marker='.', s=0.25)
+    # print("magenta: center_pixel={}".format(center_pixel))
+    # print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2.), np.int(ny / 2.)))
+    # 
+    # print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim()))
+    # 
+    # 
+    # ax.scatter(0+pyoff, 0+pyoff, color='magenta', marker='.', s=0.25)
+    # ax.scatter(nx-1+pyoff, ny-1+pyoff, color='magenta', marker='.', s=0.25)
     
     
     # +++++++++++++++++
