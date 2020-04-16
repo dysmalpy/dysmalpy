@@ -2143,8 +2143,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
                             gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
     except:
-        center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
-                            np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel_kin = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                            np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
     
     if not remove_shift:
         if data1d.aper_center_pix_shift is not None:
@@ -2152,8 +2152,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
                 center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
                                 gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
             except:
-                center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-                                np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+                center_pixel = (np.int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                                np.int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
         else:
             try:
                 center_pixel = (gal.data.xcenter, gal.data.ycenter)
@@ -2173,8 +2173,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
     if center_pixel is None:
         #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-        center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
-                        np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d, 
+                        np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
     # +++++++++++++++++
     # #if (gal.data.ndim == 2):
@@ -2183,17 +2183,21 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     # ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
     # TESTTESTTEST
-    ax.axvline(x=center_pixel[0], lw=0.25, ls='--', color='cyan')
-    ax.axhline(y=center_pixel[1], lw=0.25, ls='--', color='cyan')
-    pyoff = -0.25
+    ax.axvline(x=np.int(nx / 2.), lw=0.25, ls='--', color='cyan')
+    ax.axhline(y=np.int(ny / 2.), lw=0.25, ls='--', color='cyan')
+    pyoff = 0. #-0.25
     
     ax.scatter(center_pixel[0]+pyoff, center_pixel[1]+pyoff, color='magenta', marker='.', s=0.25)
     ax.scatter(center_pixel_kin[0]+pyoff, center_pixel_kin[1]+pyoff, color='cyan', marker='.', s=0.25)
-    ax.scatter(np.int(nx / 2)+pyoff, np.int(ny / 2)+pyoff, color='lime', marker='.', s=0.25)
+    ax.scatter(np.int(nx / 2.)+pyoff, np.int(ny / 2.)+pyoff, color='lime', marker='.', s=0.25)
     print("magenta: center_pixel={}".format(center_pixel))
-    print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2), np.int(ny / 2)))
+    print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2.), np.int(ny / 2.)))
     
     print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim()))
+    
+    
+    ax.scatter(0+pyoff, 0+pyoff, color='magenta', marker='.', s=0.25)
+    ax.scatter(nx-1+pyoff, ny-1+pyoff, color='magenta', marker='.', s=0.25)
     
     
     # +++++++++++++++++
@@ -2288,10 +2292,10 @@ def extract_1D_moments_from_cube(gal,
     # Aper centers: pick roughly number fitting into size:
     nx = gal.data.shape[2]
     ny = gal.data.shape[1]
-    center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift, 
-                    np.int(ny / 2) + gal.model.geometry.yshift)
+    center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift, 
+                    np.int(ny / 2.) + gal.model.geometry.yshift)
                     
-    aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2) 
+    aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.) 
     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
     
     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
