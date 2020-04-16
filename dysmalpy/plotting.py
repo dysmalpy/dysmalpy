@@ -2139,29 +2139,6 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     nx = data2d.data['velocity'].shape[1]
     ny = data2d.data['velocity'].shape[0]
     
-    
-    #if not remove_shift:
-    if data1d.aper_center_pix_shift is not None:
-        try:
-            center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-                            gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-        except:
-            center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-                            np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-    else:
-        try:
-            center_pixel = (gal.data.xcenter, gal.data.ycenter)
-        except:
-            center_pixel = None
-    # else:
-    #     # remove shift:
-    #     center_pixel = None
-    
-    
-    print("plotting: center_pixel w/ NO REMOVE shift:")
-    print("plotting: center_pixel={}".format(center_pixel))
-    print("plotting: aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
-    
     try:
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d, 
                             gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
@@ -2169,14 +2146,37 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         center_pixel_kin = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
                             np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
     
+    if not remove_shift:
+        if data1d.aper_center_pix_shift is not None:
+            try:
+                center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                                gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+            except:
+                center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                                np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+        else:
+            try:
+                center_pixel = (gal.data.xcenter, gal.data.ycenter)
+            except:
+                center_pixel = None
+    else:
+        # remove shift:
+        ##center_pixel = None
+        center_pixel = center_pixel_kin
+        
+    
+    
+    # print("plotting: center_pixel w/ NO REMOVE shift:")
+    # print("plotting: center_pixel={}".format(center_pixel))
+    # print("plotting: aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
+    
     
     if center_pixel is None:
         #center_pixel = (np.int(nx / 2), np.int(ny / 2))
         center_pixel = (np.int(nx / 2) + gal.model.geometry.xshift.value*rstep/rstep1d, 
                         np.int(ny / 2) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
-    #
-
+    # +++++++++++++++++
     # #if (gal.data.ndim == 2):
     # ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
     # ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
@@ -2188,6 +2188,11 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='.', s=1)
     print("magenta: center_pixel={}".format(center_pixel))
     print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2), np.int(ny / 2)))
+    
+    print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim())
+    
+    
+    # +++++++++++++++++
 
     # # Assume equal distance between successive apertures equal to diameter of aperture
     # dr = aper_dist_pix
