@@ -2189,7 +2189,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     print("magenta: center_pixel={}".format(center_pixel))
     print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2), np.int(ny / 2)))
     
-    print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim())
+    print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim()))
     
     
     # +++++++++++++++++
