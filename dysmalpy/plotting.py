@@ -2140,22 +2140,22 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     ny = data2d.data['velocity'].shape[0]
     
     
-    if not remove_shift:
-        if data1d.aper_center_pix_shift is not None:
-            try:
-                center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-                                gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-            except:
-                center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
-                                np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-        else:
-            try:
-                center_pixel = (gal.data.xcenter, gal.data.ycenter)
-            except:
-                center_pixel = None
+    #if not remove_shift:
+    if data1d.aper_center_pix_shift is not None:
+        try:
+            center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                            gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+        except:
+            center_pixel = (np.int(nx / 2) + data1d.aper_center_pix_shift[0]*rstep/rstep1d, 
+                            np.int(ny / 2) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
     else:
-        # remove shift:
-        center_pixel = None
+        try:
+            center_pixel = (gal.data.xcenter, gal.data.ycenter)
+        except:
+            center_pixel = None
+    # else:
+    #     # remove shift:
+    #     center_pixel = None
     
     
     print("plotting: center_pixel w/ NO REMOVE shift:")
@@ -2181,6 +2181,12 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
     ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
+    
+    # TESTTESTTEST
+    ax.scatter(center_pixel[0], center_pixel[1], color='black', marker='.', size=1)
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='black', marker='.', size=1)
+    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='black', marker='.', size=1)
+
 
     # # Assume equal distance between successive apertures equal to diameter of aperture
     # dr = aper_dist_pix
