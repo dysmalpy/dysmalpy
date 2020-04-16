@@ -1016,6 +1016,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
             vcrop_value=800.,
             remove_shift=True):
             
+            
     if gal.data.ndim == 1:
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d, 
                     theta=theta,fitdispersion=fitdispersion, 
@@ -1051,8 +1052,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
     return None
 
 def plot_model_multid_base(gal, 
-            data1d=None, 
-            data2d=None, 
+            data1d=None, data2d=None, 
             theta=None,
             fitdispersion=True,  
             symmetric_residuals=True, 
@@ -1145,10 +1145,17 @@ def plot_model_multid_base(gal,
         instorig2d = copy.deepcopy(gal.instrument2d)
     except:
         instorig2d = copy.deepcopy(gal.instrument)
+
     #
     try:
         instorig1d = copy.deepcopy(gal.instrument1d)
     except:
+        instorig1d = copy.deepcopy(gal.instrument)
+    
+    # In case missing / set to None:
+    if instorig2d is None:
+        instorig2d = copy.deepcopy(gal.instrument)
+    if instorig1d is None:
         instorig1d = copy.deepcopy(gal.instrument)
     # ----------------------------------------------------------------------
     # 2D plotting
