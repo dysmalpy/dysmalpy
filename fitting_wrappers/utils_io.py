@@ -41,7 +41,11 @@ def read_fitting_params_input(fname=None):
             try:
                 tmpval = df['values'][j].split('#')[0].strip()
             except:
-                tmpval = df['values'][j].strip()
+                try:
+                    tmpval = df['values'][j].strip()
+                except:
+                    print("param line: {}".format(df['values'][j]))
+                    raise ValueError
             try:
                 tmparr = tmpval.split(' ')
                 tmparrnew = []
