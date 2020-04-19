@@ -44,6 +44,7 @@ def read_fitting_params_input(fname=None):
                 try:
                     tmpval = df['values'][j].strip()
                 except:
+                    print("param key: {}".format(key))
                     print("param line: {}".format(df['values'][j]))
                     raise ValueError
             try:
