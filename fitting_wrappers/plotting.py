@@ -170,6 +170,7 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
                 raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
                 
             #
+            inst = instrument.Instrument()
             if params1d['use_lsf']:
                 sig_inst = params1d['sig_inst_res'] * u.km / u.s  # Instrumental spectral resolution  [km/s]
                 lsf = instrument.LSF(sig_inst)
@@ -177,13 +178,13 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
                 inst.set_lsf_kernel()
 
             inst.beam = beam
-            inst.pixscale = params1d['pixscale']
+            inst.pixscale = params1d['pixscale'] * u.arcsec
             
             # Just set the same
-            inst.fov = params1d['fov']
+            inst.fov = [params1d['fov_npix'], params1d['fov_npix']] 
             inst.spec_type = params1d['spec_type']
-            inst.spec_step = params1d['spec_step']
-            inst.spec_start = params1d['spec_start']
+            inst.spec_step = params1d['spec_step'] * u.km / u.s
+            inst.spec_start = params1d['spec_start'] * u.km / u.s
             inst.nspec = params1d['nspec']
 
             # Set the beam kernel so it doesn't have to be calculated every step
@@ -202,7 +203,7 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         
         gal.instrument2d = SETUP2DINST
         
-        
+       
     
     # Plot:
     plotting.plot_model_multid(gal, theta=results.bestfit_parameters, 
