@@ -421,8 +421,6 @@ class Galaxy:
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
                     
-                    # vel = lksjdfldksf
-                    # disp = klsjdflkdf
             elif spec_type == "wavelength":
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
@@ -442,11 +440,6 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
             
-            # if from_data:
-            #     if self.data.smoothing_type is not None:
-            #         vel, disp = apply_smoothing_2D(vel, disp,
-            #                     smoothing_type=self.data.smoothing_type,
-            #                     smoothing_npix=self.data.smoothing_npix)
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
@@ -480,7 +473,6 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
-                # flux1d = aper_centers*0. + np.NaN
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
                 flux1d = flux_interp(aper_centers)
@@ -495,7 +487,6 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
-                # flux1d = aper_centers*0. + np.NaN
                 
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
@@ -504,16 +495,6 @@ class Galaxy:
                 aper_model = None
             else:
                 
-                # if from_data:
-                #     if (self.data.aper_center_pix_shift is not None):
-                #         center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-                #                         np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
-                #     else:
-                #         center_pixel = None
-                # else:
-                #     center_pixel = None
-                    
-                #
                 if from_data:
                     if (self.data.aper_center_pix_shift is not None):
                         try:
@@ -529,8 +510,6 @@ class Galaxy:
                             center_pixel = None
                 else:
                     center_pixel = None
-                
-                # raise ValueError
                 
                 #----------------------------------------------------------
                 #try:
