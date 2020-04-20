@@ -1292,11 +1292,6 @@ def plot_model_multid_base(gal,
                     else:
                         raise ValueError("key not supported.")
                         
-                    # # TESTTESTTEST
-                    # im[-1,0] = np.nan
-                    # im[0,-1] = np.nan
-                    # im[-1,-1] = np.nan
-                    # im[0,0] = np.nan
                         
                     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=vel_vmin, vmax=vel_vmax, origin=origin)
