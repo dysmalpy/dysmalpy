@@ -1293,15 +1293,7 @@ def plot_model_multid_base(gal,
                         vmax_2d_resid.append(vel_vmax)
                     else:
                         raise ValueError("key not supported.")
-                       
-                    # ###
-                    # # TEST
-                    # if k == 'model':
-                    #     print(im[0,0])
-                    #     print(im[-1,0])
-                    #     print(im[0,-1])
-                    #     print(im[-1,-1])
-                    # ###
+
                         
                     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=vel_vmin, vmax=vel_vmax, origin=origin)
@@ -1441,14 +1433,6 @@ def plot_model_multid_base(gal,
                     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                                      vmin=disp_vmin, vmax=disp_vmax, origin=origin)
                     
-                    # ###
-                    # # TEST
-                    # if k == 'model':
-                    #     print(im[0,0])
-                    #     print(im[-1,0])
-                    #     print(im[0,-1])
-                    #     print(im[-1,-1])
-                    # ###
                     
                     # ++++++++++++++++++++++++++
                     imtmp = im.copy()
