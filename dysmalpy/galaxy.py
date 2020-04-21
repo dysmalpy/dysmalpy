@@ -389,6 +389,14 @@ class Galaxy:
                                      spec_unit=spec_unit)
 
         elif ndim_final == 2:
+            ###
+            # TEST
+            veltmp = self.model_cube.data.moment1().to(u.km/u.s).value
+            print("create_model_data: pre sm vel:", veltmp[0,0])
+            print("create_model_data: pre sm vel:", veltmp[-1,0])
+            print("create_model_data: pre sm vel:", veltmp[0,-1])
+            print("create_model_data: pre sm vel:", veltmp[-1,-1])
+            ###
             
             if from_data:
                 if self.data.smoothing_type is not None:
@@ -442,10 +450,10 @@ class Galaxy:
             
             ###
             # TEST
-            print(vel[0,0])
-            print(vel[-1,0])
-            print(vel[0,-1])
-            print(vel[-1,-1])
+            print("create_model_data: vel:", vel[0,0])
+            print("create_model_data: vel:", vel[-1,0])
+            print("create_model_data: vel:", vel[0,-1])
+            print("create_model_data: vel:", vel[-1,-1])
             ###
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
