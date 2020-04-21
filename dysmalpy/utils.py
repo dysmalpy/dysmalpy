@@ -14,6 +14,7 @@ import astropy.modeling as apy_mod
 import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
+import scipy.ndimage as sp_ndi
 from scipy import interpolate
 from scipy.optimize import minimize
 from scipy.stats import norm
@@ -309,8 +310,12 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
         return vel, disp
     else:
         if (smoothing_type.lower() == 'median'):
-            vel = sp_sig.medfilt(vel, kernel_size=smoothing_npix)
-            disp = sp_sig.medfilt(disp, kernel_size=smoothing_npix)
+            if (smoothing_npix % 2) == 1:
+                vel = sp_sig.medfilt(vel, kernel_size=smoothing_npix)
+                disp = sp_sig.medfilt(disp, kernel_size=smoothing_npix)
+            else:
+                vel = sp_ndi.median_filter(vel, size=smoothing_npix, mode='constant', cval=0.)  # zero-padding edges
+                disp = sp_ndi.median_filter(disp, size=smoothing_npix, mode='constant', cval=0.)  # zero-padding edges
         else:
             print("Smoothing type={} not supported".format(smoothing_type))
             
@@ -324,10 +329,14 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
         if (smoothing_type.lower() == 'median'):
             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
             cb = cube.filled_data[:].value
-            cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
+            if (smoothing_npix % 2) == 1:
+                cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
+            else:
+                cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
+                
             cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
-                                                  mask=cube.mask, meta=cube.meta,
-                                                  fill_value=cube.fill_value)
+                                              mask=cube.mask, meta=cube.meta,
+                                              fill_value=cube.fill_value)
             #cube = cube.spatial_smooth_median(smoothing_npix)
             
         else:
