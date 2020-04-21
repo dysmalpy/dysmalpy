@@ -656,9 +656,20 @@ if __name__ == "__main__":
     
     param_filename = sys.argv[1]
     
-    dysmalpy_fit_single_1D(param_filename=param_filename)
-    
-    
+    try:
+        if sys.argv[2].strip().lower() == 'reanalyze':
+            reanalyze = True
+        else:
+            reanalyze = False
+    except:
+        reanalyze = False
+        
+    if reanalyze:
+        dysmalpy_reanalyze_single_1D(param_filename=param_filename)
+    else:
+        dysmalpy_fit_single_1D(param_filename=param_filename)
+        
+        
 
 
 
