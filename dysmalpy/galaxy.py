@@ -440,6 +440,13 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
             
+            ###
+            # TEST
+            print(vel[0,0])
+            print(vel[-1,0])
+            print(vel[0,-1])
+            print(vel[-1,-1])
+            ###
             
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
