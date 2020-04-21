@@ -1262,6 +1262,8 @@ def plot_model_multid_base(gal,
             
                 xt = keyxtitlearr[mm]
                 yt = keyytitlearr[j]
+                
+                print("plot_model_multid_base: doing j={}: {} // mm={}: {}".format(j, keyyarr[j], mm, k))
             
                 # -----------------------------------
                 if keyyarr[j] == 'velocity':
@@ -1605,8 +1607,8 @@ def plot_model_multid_base(gal,
     
         k = -1
         for j in six.moves.xrange(nrows):
-            print("data.rarr={}".format(data.rarr))
-            print("model_data.rarr={}".format(model_data.rarr))
+            # print("data.rarr={}".format(data.rarr))
+            # print("model_data.rarr={}".format(model_data.rarr))
             for mm in six.moves.xrange(2):
                 # Comparison:
                 k += 1
@@ -1641,10 +1643,10 @@ def plot_model_multid_base(gal,
                         for nn in six.moves.xrange(nstp+1):
                             ytmp = ylim[1] - nn/(1.*nstp)*yrange
                             Xtmp.append([ytmp, ytmp])
-                        #Xtmp = [[ylim[1], ylim[1]], [ylim[0], ylim[0]]]
-                        print("ylim={}".format(ylim))
-                        print("vmin_2d[j]={}".format(vmin_2d[j]))
-                        print("vmax_2d[j]={}".format(vmax_2d[j]))
+                        # #Xtmp = [[ylim[1], ylim[1]], [ylim[0], ylim[0]]]
+                        # print("ylim={}".format(ylim))
+                        # print("vmin_2d[j]={}".format(vmin_2d[j]))
+                        # print("vmax_2d[j]={}".format(vmax_2d[j]))
                         ax.imshow(Xtmp, interpolation='bicubic', cmap=cmap, 
                                     extent=(xlim[0], xlim[1], ylim[0], ylim[1]), alpha=alpha_bkgd, 
                                     zorder=-100., aspect='auto', 
