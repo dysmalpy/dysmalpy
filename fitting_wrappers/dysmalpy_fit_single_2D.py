@@ -142,6 +142,79 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
     return None
     
     
+#
+def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
+    
+    # Read in the parameters from param_filename:
+    params = utils_io.read_fitting_params(fname=param_filename)
+    
+    # Setup some paths:
+    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    params['outdir'] = outdir
+    
+    fitting.ensure_dir(params['outdir'])
+
+    # Check if fitting already done:
+    if params['fit_method'] == 'mcmc':
+        # Copy paramfile that is OS independent
+        shutil.copy(param_filename, outdir)
+        
+        # Reload the results, etc
+        #######################
+        # Reload stuff
+        galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
+        
+        
+        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+        
+        # Do all analysis, plotting, saving:
+        results.analyze_plot_save_results(gal,                           
+                      blob_name=fit_dict['blob_name'], 
+                      linked_posterior_names=fit_dict['linked_posterior_names'], 
+                      model_key_re=fit_dict['model_key_re'], 
+                      model_key_halo=fit_dict['model_key_halo'], 
+                      oversample=fit_dict['oversample'], 
+                      oversize=fit_dict['oversize'], 
+                      fitdispersion=fit_dict['fitdispersion'], 
+                      f_model=fit_dict['f_model'], 
+                      f_vel_ascii = fit_dict['f_vel_ascii'], 
+                      save_data=True, 
+                      save_bestfit_cube=False,
+                      do_plotting = True)
+        
+        # Reload fitting stuff to get the updated gal object
+        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                                    
+        # Save results
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+                                   
+    elif params['fit_method'] == 'mpfit':
+        galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
+        
+        # reload results:
+        gal, results = reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
+                                    filename_results=fit_dict['f_results'])
+        # Don't reanalyze anything...
+    else:
+        raise ValueError(
+            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
+                params['fit_method']))
+    #
+    ## SKIP THIS REWRITE FOR MPFIT -- not reanalyzing anything for MPFIT.
+    # # Save results
+    # utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+    
+    
+    # Plot multid, if enabled:
+    if 'fdata_1d' in params.keys():
+        fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True)
+
+    return None
+
+    
+    
 def setup_single_object_2D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup galaxy, instrument, model:
