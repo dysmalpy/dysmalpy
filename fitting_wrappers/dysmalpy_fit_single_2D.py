@@ -165,7 +165,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
         galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
         
         
-        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_mcmc_results=fit_dict['f_mcmc_results'])
         
         # Do all analysis, plotting, saving:
@@ -184,7 +184,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
                       do_plotting = True)
         
         # Reload fitting stuff to get the updated gal object
-        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_mcmc_results=fit_dict['f_mcmc_results'])
                                     
         # Save results
@@ -194,7 +194,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
         galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
         
         # reload results:
-        gal, results = reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
+        gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
                                     filename_results=fit_dict['f_results'])
         # Don't reanalyze anything...
     else:
