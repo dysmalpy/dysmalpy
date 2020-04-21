@@ -146,8 +146,64 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     
     return None
 
+# #
+# def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
+#     
+#     # Read in the parameters from param_filename:
+#     params = utils_io.read_fitting_params(fname=param_filename)
+#     
+#     # Setup some paths:
+#     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+#     params['outdir'] = outdir
+#     
+#     
+#     #######################
+#     # Setup
+#     gal, fit_dict = setup_single_object_1D(params=params, data=data)
+#     
+#     # Reload object:
+#     gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+#                                             filename_mcmc_results=fit_dict['f_mcmc_results'])
+#     
+#     # Reanalyze sampler:
+#     results.analyze_plot_save_results(gal,                           
+#                   blob_name=fit_dict['blob_name'], 
+#                   linked_posterior_names=fit_dict['linked_posterior_names'], 
+#                   nPostBins = 50, 
+#                   model_key_re = ['disk+bulge','r_eff_disk'],
+#                   model_key_halo=['halo'],
+#                   oversample=fit_dict['oversample'], 
+#                   oversize=fit_dict['oversize'], 
+#                   profile1d_type=fit_dict['profile1d_type'], 
+#                   fitdispersion=fit_dict['fitdispersion'], 
+#                   save_data=True, 
+#                   save_bestfit_cube=True,
+#                   f_cube=fit_dict['f_cube'], 
+#                   f_model=fit_dict['f_model'], 
+#                   f_vel_ascii = fit_dict['f_vel_ascii'], 
+#                   do_plotting = fit_dict['do_plotting'])
+#     
+#     # Save results
+#     utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+#     
+#     # Make component plot:
+#     if fit_dict['do_plotting']:
+#         if 'aperture_radius' not in params.keys():
+#             params['aperture_radius'] = -99.
+#             
+#         # Reload bestfit case
+#         gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
+#         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
+#                 profile1d_type = fit_dict['profile1d_type'], 
+#                 oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
+#                 aperture_radius=params['aperture_radius'],
+#                 overwrite=True, overwrite_curve_files=True)
+#     
+#     
+#     return None
+
 #
-def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
+def dysmalpy_reanalyze_single_1D(param_filename=None, data=None):
     
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -156,35 +212,60 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     
-    
-    #######################
-    # Setup
-    gal, fit_dict = setup_single_object_1D(params=params, data=data)
-    
-    # Reload object:
-    gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                                            filename_mcmc_results=fit_dict['f_mcmc_results'])
-    
-    # Reanalyze sampler:
-    results.analyze_plot_save_results(gal,                           
-                  blob_name=fit_dict['blob_name'], 
-                  linked_posterior_names=fit_dict['linked_posterior_names'], 
-                  nPostBins = 50, 
-                  model_key_re = ['disk+bulge','r_eff_disk'],
-                  model_key_halo=['halo'],
-                  oversample=fit_dict['oversample'], 
-                  oversize=fit_dict['oversize'], 
-                  profile1d_type=fit_dict['profile1d_type'], 
-                  fitdispersion=fit_dict['fitdispersion'], 
-                  save_data=True, 
-                  save_bestfit_cube=True,
-                  f_cube=fit_dict['f_cube'], 
-                  f_model=fit_dict['f_model'], 
-                  f_vel_ascii = fit_dict['f_vel_ascii'], 
-                  do_plotting = fit_dict['do_plotting'])
-    
-    # Save results
-    utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+    fitting.ensure_dir(params['outdir'])
+
+    # Check if fitting already done:
+    if params['fit_method'] == 'mcmc':
+        # Copy paramfile that is OS independent
+        shutil.copy(param_filename, outdir)
+        
+        # Reload the results, etc
+        #######################
+        # Reload stuff
+        galtmp, fit_dict = setup_single_object_1D(params=params, data=data)
+        
+        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+        
+        # Do all analysis, plotting, saving:
+        results.analyze_plot_save_results(gal,                           
+                      blob_name=fit_dict['blob_name'], 
+                      linked_posterior_names=fit_dict['linked_posterior_names'], 
+                      model_key_re=fit_dict['model_key_re'], 
+                      model_key_halo=fit_dict['model_key_halo'], 
+                      oversample=fit_dict['oversample'], 
+                      oversize=fit_dict['oversize'], 
+                      fitdispersion=fit_dict['fitdispersion'], 
+                      profile1d_type=fit_dict['profile1d_type'],
+                      f_model=fit_dict['f_model'], 
+                      f_vel_ascii = fit_dict['f_vel_ascii'], 
+                      save_data=True, 
+                      save_bestfit_cube=True,
+                      f_cube=fit_dict['f_cube'],
+                      do_plotting = fit_dict['do_plotting'])
+        
+        # Reload fitting stuff to get the updated gal object
+        gal, results = reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                                    
+        # Save results
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+                                   
+    elif params['fit_method'] == 'mpfit':
+        galtmp, fit_dict = setup_single_object_1D(params=params, data=data)
+        
+        # reload results:
+        gal, results = reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
+                                    filename_results=fit_dict['f_results'])
+        # Don't reanalyze anything...
+    else:
+        raise ValueError(
+            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
+                params['fit_method']))
+    #
+    ## SKIP THIS REWRITE FOR MPFIT -- not reanalyzing anything for MPFIT.
+    # # Save results
+    # utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
     
     # Make component plot:
     if fit_dict['do_plotting']:
@@ -192,15 +273,19 @@ def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
             params['aperture_radius'] = -99.
             
         # Reload bestfit case
-        gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
+        # # gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                 profile1d_type = fit_dict['profile1d_type'], 
                 oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
                 aperture_radius=params['aperture_radius'],
                 overwrite=True, overwrite_curve_files=True)
     
-    
+    # Plot multid, if enabled:
+    if 'fdata_vel' in params.keys():
+        fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=1, show_1d_apers=True)
+        
     return None
+
 
     
 def setup_single_object_1D(params=None, data=None):
