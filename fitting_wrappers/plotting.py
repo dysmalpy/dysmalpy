@@ -218,6 +218,27 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     remove_shift=True,
     show_1d_apers=False):
     
+    # Read in the parameters from param_filename:
+    params = utils_io.read_fitting_params(fname=param_filename)
+    
+    # Setup some paths:
+    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    params['outdir'] = outdir
+    
+    if fit_ndim == 2:
+        gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)
+    elif fit_ndim == 1:
+        gal, fit_dict = dysmalpy_fit_single_1D.setup_single_object_1D(params=params, data=data)
+    
+    
+    # Reload the best-fit:
+    if fit_dict['fit_method'] == 'mcmc':
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+    elif fit_dict['fit_method'] == 'mpfit':
+        gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
+                    filename_results=fit_dict['f_results'])
+                    
     plot_results_multid_general(param_filename=param_filename, data=data, 
         fit_ndim=fit_ndim,
         remove_shift=remove_shift,
