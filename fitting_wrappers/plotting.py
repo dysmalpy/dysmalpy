@@ -239,6 +239,8 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
                     filename_results=fit_dict['f_results'])
                     
+                    
+    print("results.bestfit_parameters={}".format(results.bestfit_parameters))
     plot_results_multid_general(param_filename=param_filename, data=data, 
         fit_ndim=fit_ndim,
         remove_shift=remove_shift,
