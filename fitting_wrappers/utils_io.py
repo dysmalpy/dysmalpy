@@ -670,6 +670,17 @@ def setup_mcmc_dict(params=None):
                     linked_post_arr.append(['disk+bulge', 'bt'])
                 elif lpost.strip().lower() == 'sigma0':
                     linked_post_arr.append(['dispprof', 'sigma0'])
+                #
+                elif lpost.strip().lower() == 'inc':
+                    linked_post_arr.append(['geom', 'inc'])
+                elif lpost.strip().lower() == 'pa':
+                    linked_post_arr.append(['geom', 'pa'])
+                elif lpost.strip().lower() == 'xshift':
+                    linked_post_arr.append(['geom', 'xshift'])
+                elif lpost.strip().lower() == 'yshift':
+                    linked_post_arr.append(['geom', 'yshift'])
+                elif lpost.strip().lower() == 'vel_shift':
+                    linked_post_arr.append(['geom', 'vel_shift'])
                 else:
                     raise ValueError("linked posterior for {} not currently implemented!".format(lpost))
             
