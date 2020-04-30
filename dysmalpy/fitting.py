@@ -1829,8 +1829,6 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
 
 def setup_oversampled_chisq(gal):
     # Setup for oversampled_chisq:
-    gal = setup_oversampled_chisq(gal)
-    
     if isinstance(gal.instrument.beam, GaussianBeam):
         try:
             PSF_FWHM = gal.instrument.beam.major.value
