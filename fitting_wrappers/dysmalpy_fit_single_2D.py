@@ -170,7 +170,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
                                     filename_mcmc_results=fit_dict['f_mcmc_results'])
         except:
             # Something went wrong after sampler was saved
-            gal = galtmp.copy()
+            gal = copy.deepcopy(galtmp)
             sampler_dict = fitting.load_pickle(fit_dict['f_sampler'])
             results = MCMCResults(model=gal.model, sampler=sampler_dict,
                                       f_plot_trace_burnin = fit_dict['f_plot_trace_burnin'],
