@@ -165,8 +165,23 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
         galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
         
         
-        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+        try:
+            gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_mcmc_results=fit_dict['f_mcmc_results'])
+        except:
+            # Something went wrong after sampler was saved
+            gal = galtmp.copy()
+            sampler_dict = fitting.load_pickle(fit_dict['f_sampler'])
+            results = MCMCResults(model=gal.model, sampler=sampler_dict,
+                                      f_plot_trace_burnin = fit_dict['f_plot_trace_burnin'],
+                                      f_plot_trace = fit_dict['f_plot_trace'],
+                                      f_sampler = fit_dict['f_sampler'], 
+                                      f_plot_param_corner = fit_dict['f_plot_param_corner'],
+                                      f_plot_bestfit = fit_dict['f_plot_bestfit'],
+                                      f_results= fit_dict['f_mcmc_results'],
+                                      f_chain_ascii = fit_dict['f_chain_ascii'])
+            if fit_dict['oversampled_chisq']:
+                results.oversample_factor_chisq = gal.data.oversample_factor_chisq
         
         # Do all analysis, plotting, saving:
         results.analyze_plot_save_results(gal,                           
