@@ -143,31 +143,7 @@ def fit(gal, nWalkers=10,
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
     if oversampled_chisq:
-        if isinstance(gal.instrument.beam, GaussianBeam):
-            try:
-                PSF_FWHM = gal.instrument.beam.major.value
-            except:
-                PSF_FWHM = gal.instrument.beam.major
-        elif isinstance(gal.instrument.beam, Moffat):
-            try:
-                PSF_FWHM = gal.instrument.beam.major_fwhm.value
-            except:
-                PSF_FWHM = gal.instrument.beam.major_fwhm
-        elif isinstance(gal.instrument.beam, DoubleBeam):
-            try:
-                PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
-            except:
-                PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
-        
-        if gal.data.ndim == 1:
-            rarrtmp = gal.data.rarr.copy()
-            rarrtmp.sort()
-            spacing_avg = np.abs(np.average(rarrtmp[1:]-rarrtmp[:-1]))
-            gal.data.oversample_factor_chisq = PSF_FWHM /spacing_avg
-        elif gal.data.ndim == 2:
-            gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale.value)**2
-        elif gal.data.ndim == 3:
-            raise ValueError("need to implement!")
+        gal = setup_oversampled_chisq(gal)
     # +++++++++++++++++++++++
 
     # Output filenames
@@ -1851,6 +1827,37 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, profile1d_type='
 
     return [status, chisq_arr_raw]
 
+def setup_oversampled_chisq(gal):
+    # Setup for oversampled_chisq:
+    gal = setup_oversampled_chisq(gal)
+    
+    if isinstance(gal.instrument.beam, GaussianBeam):
+        try:
+            PSF_FWHM = gal.instrument.beam.major.value
+        except:
+            PSF_FWHM = gal.instrument.beam.major
+    elif isinstance(gal.instrument.beam, Moffat):
+        try:
+            PSF_FWHM = gal.instrument.beam.major_fwhm.value
+        except:
+            PSF_FWHM = gal.instrument.beam.major_fwhm
+    elif isinstance(gal.instrument.beam, DoubleBeam):
+        try:
+            PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
+        except:
+            PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
+
+    if gal.data.ndim == 1:
+        rarrtmp = gal.data.rarr.copy()
+        rarrtmp.sort()
+        spacing_avg = np.abs(np.average(rarrtmp[1:]-rarrtmp[:-1]))
+        gal.data.oversample_factor_chisq = PSF_FWHM /spacing_avg
+    elif gal.data.ndim == 2:
+        gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale.value)**2
+    elif gal.data.ndim == 3:
+        raise ValueError("need to implement!")
+    
+    return gal
 
 def initialize_walkers(model, nWalkers=None):
     """

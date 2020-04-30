@@ -18,6 +18,8 @@ from dysmalpy import instrument
 from dysmalpy import parameters
 from dysmalpy import plotting
 
+from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
+
 import copy
 import numpy as np
 import pandas as pd
@@ -171,6 +173,13 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
         except:
             # Something went wrong after sampler was saved
             gal = copy.deepcopy(galtmp)
+            
+            # +++++++++++++++++++++++
+            # Setup for oversampled_chisq:
+            gal = fitting.setup_oversampled_chisq(gal)
+            # +++++++++++++++++++++++
+            
+            
             sampler_dict = fitting.load_pickle(fit_dict['f_sampler'])
             results = fitting.MCMCResults(model=gal.model, sampler=sampler_dict,
                                       f_plot_trace_burnin = fit_dict['f_plot_trace_burnin'],
