@@ -115,8 +115,19 @@ def fit(gal, nWalkers=10,
     # Check option validity:
     if blob_name is not None:
         valid_blobnames = ['fdm', 'mvirial', 'alpha', 'rb']
-        if blob_name.lower().strip() not in valid_blobnames:
-            raise ValueError("blob_name={} not recognized as option!".format(blob_name))
+        if isinstance(blob_name, str):
+            # Single blob
+            blob_arr = [blob_name]
+        else:
+            # Array of blobs
+            blob_arr = blob_name[:]
+        
+        for blobn in blob_arr:
+            if blobn.lower().strip() not in valid_blobnames:
+                raise ValueError("blob_name={} not recognized as option!".format(blobn))
+            
+        # if blob_name.lower().strip() not in valid_blobnames:
+        #     raise ValueError("blob_name={} not recognized as option!".format(blob_name))
             
     if oversampled_chisq is None:
         raise ValueError("Must set 'oversampled_chisq'!")
@@ -231,6 +242,19 @@ def fit(gal, nWalkers=10,
     logger.info('\n  nWalkers: {}'.format(nWalkers))
     logger.info('\n  lnlike: red_chisq={}'.format(red_chisq))
     logger.info('\n  lnlike: oversampled_chisq={}'.format(oversampled_chisq))
+    
+    logger.info('\n')
+    logger.info('\n  blobs: {}'.format(blob_name))
+    
+    
+    logger.info('\n')
+    logger.info('\n  mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    logger.info('\n  truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    logger.info('\n  nSubpixels = {}'.format(gal.model.nSubpixels))
+    
+    logger.info('\n')
+    
+    
     #logger.info('nSubpixels = %s' % (model.nSubpixels))
 
     ################################################################
@@ -841,14 +865,29 @@ class MCMCResults(FitResults):
         gal.model.update_parameters(self.bestfit_parameters)
                 
         if blob_name is not None:
-            if blob_name.lower() == 'fdm':
-                self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re)
-            elif blob_name.lower() == 'mvirial':
-                self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-            elif blob_name.lower() == 'alpha':
-                self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo)
-            elif blob_name.lower() == 'rb':
-                self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo)
+            if isinstance(blob_name, str):
+                blob_names = [blob_name]
+            else:
+                blob_names = blob_name[:]
+            
+            for blobn in blob_names:
+                if blobn.lower() == 'fdm':
+                    self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=blob_name)  # here blob_name should be the *full* list
+                elif blobn.lower() == 'mvirial':
+                    self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+                elif blobn.lower() == 'alpha':
+                    self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+                elif blobn.lower() == 'rb':
+                    self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+            
+            # if blob_name.lower() == 'fdm':
+            #     self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=blob_name)  # here blob_name should be the *full* list
+            # elif blob_name.lower() == 'mvirial':
+            #     self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+            # elif blob_name.lower() == 'alpha':
+            #     self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+            # elif blob_name.lower() == 'rb':
+            #     self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
         
         gal.create_model_data(oversample=oversample, oversize=oversize, 
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
@@ -1075,17 +1114,26 @@ class MCMCResults(FitResults):
         # self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
         
         
-    def analyze_blob_posterior_dist(self, bestfit=None, parname=None):
+    def analyze_blob_posterior_dist(self, bestfit=None, parname=None, blob_name=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
         #
+        # FLAG28
         if ('flatblobs' not in self.sampler.keys()):
             self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
             
-        blobs = self.sampler['flatblobs']
+        if isinstasnce(blob_name, str):
+            blobs = self.sampler['flatblobs']
+            pname = parname.strip()
+        else:
+            pname = parname.strip()
+            indv = blob_name.index(pname)
+            blobs = self.sampler['flatblobs'][indv]
             
-        pname = parname.strip()
+        # # 
+        # blobs = self.sampler['flatblobs']
+        # pname = parname.strip()
             
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(blobs, [15.865, 84.135], axis=0)
@@ -1103,7 +1151,7 @@ class MCMCResults(FitResults):
         self.__dict__['bestfit_{}_u68_err_percentile'.format(pname)] = mcmc_limits_percentile[1] - bestfit
         
         
-    def analyze_dm_posterior_dist(self, gal=None, model_key_re=None):
+    def analyze_dm_posterior_dist(self, gal=None, model_key_re=None, blob_name=None):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -1112,19 +1160,19 @@ class MCMCResults(FitResults):
 
         """
         fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm')
+        self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm', blob_name=blob_name)
         
-    def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None):
+    def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         mvirial_mcmc_param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
-        self.analyze_blob_posterior_dist(bestfit=mvirial_mcmc_param_bestfit, parname='mvirial')
+        self.analyze_blob_posterior_dist(bestfit=mvirial_mcmc_param_bestfit, parname='mvirial', blob_name=blob_name)
         
-    def analyze_alpha_posterior_dist(self, gal=None, model_key_halo=None):
+    def analyze_alpha_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         alpha_mcmc_param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-        self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='alpha')
+        self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='alpha', blob_name=blob_name)
         
-    def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None):
+    def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-        self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb')
+        self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb', blob_name=blob_name)
         
     def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
@@ -1134,6 +1182,7 @@ class MCMCResults(FitResults):
             except:
                 blobset = False
             
+            # FLAG28
             if ('flatblobs' not in self.sampler.keys()) & (blobset):
                 self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
             
@@ -1142,14 +1191,23 @@ class MCMCResults(FitResults):
                 namestr += '  '.join(map(str, self.chain_param_names))
                 if blobset:
                     # Currently assuming blob only returns DM fraction
-                    namestr += '  {}'.format(blob_name)
+                    if isinstance(blob_name, str):
+                        namestr += '  {}'.format(blob_name)
+                    else:
+                        for blobn in blob_name:
+                            namestr += '  {}'.format(blobn)
                 f.write(namestr+'\n')
                 
                 # flatchain shape: (flat)step, params
                 for i in six.moves.xrange(self.sampler['flatchain'].shape[0]):
                     datstr = '  '.join(map(str, self.sampler['flatchain'][i,:]))
                     if blobset:
-                        datstr += '  {}'.format(self.sampler['flatblobs'][i])
+                        if isinstance(blob_name, str):
+                            datstr += '  {}'.format(self.sampler['flatblobs'][i])
+                        else:
+                            for k in range(len(blob_name)):
+                                datstr += '  {}'.format(self.sampler['flatblobs'][i][k])
+                                
                     f.write(datstr+'\n')
 
 
@@ -1170,11 +1228,11 @@ class MCMCResults(FitResults):
         self.plot_trace(fileout=f_plot_trace)
 
 
-    def plot_corner(self, gal=None, fileout=None):
+    def plot_corner(self, gal=None, fileout=None, blob_name=None):
         """Plot/replot the corner plot for the MCMC fitting"""
         if fileout is None:
             fileout = self.f_plot_param_corner
-        plotting.plot_corner(self, gal=gal, fileout=fileout)
+        plotting.plot_corner(self, gal=gal, fileout=fileout, blob_name=blob_name)
 
 
     def plot_trace(self, fileout=None):
@@ -1217,18 +1275,34 @@ class MPFITResults(FitResults):
             
         # Add "blob" bestfit:
         if blob_name is not None:
-            if blob_name.lower() == 'fdm':
-                param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
-            elif blob_name.lower() == 'mvirial':
-                param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
-                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
-            elif blob_name.lower() == 'alpha':
-                param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
-            elif blob_name.lower() == 'rb':
-                param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-                self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
+            if isinstance(blob_name, str):
+                blob_names = [blob_name]
+            else:
+                blob_names = blob_name[:]
+                
+            for blobn in blob_names:
+                if blobn.lower() == 'fdm':
+                    param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+                elif blobn.lower() == 'mvirial':
+                    param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
+                elif blobn.lower() == 'alpha':
+                    param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+                elif blobn.lower() == 'rb':
+                    param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+                    
+                self.analyze_blob_value(bestfit=param_bestfit, parname=blobn.lower())
+                
+            
+            # if blob_name.lower() == 'fdm':
+            #     param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+            # elif blob_name.lower() == 'mvirial':
+            #     param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
+            # elif blob_name.lower() == 'alpha':
+            #     param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+            # elif blob_name.lower() == 'rb':
+            #     param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+            # 
+            # self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
                 
                 
     def analyze_blob_value(self, bestfit=None, parname=None):
@@ -1275,7 +1349,10 @@ def log_prob(theta, gal,
     # First check to see if log prior is finite
     if not np.isfinite(lprior):
         if blob_name is not None:
-            return -np.inf, -np.inf
+            if isinstance(blob_name, str):
+                return -np.inf, -np.inf
+            else:
+                return -np.inf, [-np.inf]*len(blob_name)
         else:
             return -np.inf
     else:
@@ -1460,18 +1537,47 @@ def log_like(gal, red_chisq=False,
         
     ####
     if blob_name is not None:
-        if blob_name.lower() == 'fdm':
-            dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-            return llike, dm_frac
-        elif blob_name.lower() == 'mvirial':
-            mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
-            return llike, mvirial
-        elif blob_name.lower() == 'alpha':
-            alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-            return llike, alpha
-        elif blob_name.lower() == 'rb':
-            rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-            return llike, rB
+        if isinstance(blob_name, str):
+            # Single blob
+            blob_arr = [blob_name]
+        else:
+            # Array of blobs
+            blob_arr = blob_name[:]
+        
+        #
+        blobvals = []
+        for blobn in blob_arr:
+            if blob_name.lower() == 'fdm':
+                blobv = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+            elif blob_name.lower() == 'mvirial':
+                blobv = gal.model.get_mvirial(model_key_halo=model_key_halo)
+            elif blob_name.lower() == 'alpha':
+                blobv = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+            elif blob_name.lower() == 'rb':
+                blobv = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+            #
+            blobvals.append(blobv)
+        
+        # Preserve old behavior if there's only a single blob value: return float blob
+        if isinstance(blob_name, str):
+            blobvals = blobvals[0]
+            
+        
+        return llike, blobvals
+        
+        ## OLD: only one blob at a time:
+        # if blob_name.lower() == 'fdm':
+        #     dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        #     return llike, dm_frac
+        # elif blob_name.lower() == 'mvirial':
+        #     mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
+        #     return llike, mvirial
+        # elif blob_name.lower() == 'alpha':
+        #     alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
+        #     return llike, alpha
+        # elif blob_name.lower() == 'rb':
+        #     rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
+        #     return llike, rB
     else:
         return llike
         
