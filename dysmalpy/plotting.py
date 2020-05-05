@@ -170,46 +170,105 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         
         names_nice = names[:]
         
-        blob_true = mcmcResults.__dict__['bestfit_{}'.format(blob_name)]
-        blob_l68_err = mcmcResults.__dict__['bestfit_{}_l68_err'.format(blob_name)]
-        blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blob_name)]
-        
-        if blob_name.lower() == 'fdm':
-            names.append('Blob: fDM(RE)')
-            names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
-        elif blob_name.lower() == 'alpha':
-            names.append('Blob: alpha')
-            names_nice.append(r'$\alpha$')
-        elif blob_name.lower() == 'mvirial':
-            names.append('Blob: Mvirial')
-            names_nice.append(r'$\log_{10}(M_{\rm vir})$')
-        elif blob_name.lower() == 'rb':
-            names.append('Blob: rB')
-            names_nice.append(r'$R_B$')
+        if isinstance(blob_name, str):
+            blob_names = [blob_name]
         else:
-            names.append(blob_name)
-            names_nice.append(blob_name)
-        
-        if step_slice is None:
-            blobs = mcmcResults.sampler['flatblobs']
-        else:
-            blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+            blob_names = blob_name[:]
             
-        sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
-        
-        truths = np.append(truths, blob_true)
-        truths_l68 = np.append(truths_l68, blob_l68_err)
-        truths_u68 = np.append(truths_u68, blob_u68_err )
-        # truths_linear = np.append(truths_linear, blob_true)
-        # truths_l68_linear = np.append(truths_l68_linear, blob_l68_err)
-        # truths_u68_linear = np.append(truths_u68_linear, blob_u68_err)
-        
-        if priors is not None:
-            priors.append(None)
-        
-        if truths_l68_percentile is not None:
-            truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blob_name)])
-            truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blob_name)])
+        for blobn in blob_names:
+            blob_true = mcmcResults.__dict__['bestfit_{}'.format(blobn)]
+            blob_l68_err = mcmcResults.__dict__['bestfit_{}_l68_err'.format(blobn)]
+            blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blobn)]
+            
+            if blobn.lower() == 'fdm':
+                names.append('Blob: fDM(RE)')
+                names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
+            elif blobn.lower() == 'alpha':
+                names.append('Blob: alpha')
+                names_nice.append(r'$\alpha$')
+            elif blobn.lower() == 'mvirial':
+                names.append('Blob: Mvirial')
+                names_nice.append(r'$\log_{10}(M_{\rm vir})$')
+            elif blobn.lower() == 'rb':
+                names.append('Blob: rB')
+                names_nice.append(r'$R_B$')
+            else:
+                names.append(blobn)
+                names_nice.append(blobn)
+                
+            if isinstance(blob_name, str):
+                if step_slice is None:
+                    blobs = mcmcResults.sampler['flatblobs']
+                else:
+                    blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+            else:
+                indv = blob_names.index(blobn)
+                if step_slice is None:
+                    blobs = mcmcResults.sampler['flatblobs'][indv]
+                else:
+                    # WHAT IS THIS SHAPE ACTUALLY????????
+                    blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+                
+                
+            sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
+
+            truths = np.append(truths, blob_true)
+            truths_l68 = np.append(truths_l68, blob_l68_err)
+            truths_u68 = np.append(truths_u68, blob_u68_err )
+            # truths_linear = np.append(truths_linear, blob_true)
+            # truths_l68_linear = np.append(truths_l68_linear, blob_l68_err)
+            # truths_u68_linear = np.append(truths_u68_linear, blob_u68_err)
+
+            if priors is not None:
+                priors.append(None)
+
+            if truths_l68_percentile is not None:
+                truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blobn)])
+                truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blobn)])
+            
+            
+            
+        #### ORIGINAL 
+        # blob_true = mcmcResults.__dict__['bestfit_{}'.format(blob_name)]
+        # blob_l68_err = mcmcResults.__dict__['bestfit_{}_l68_err'.format(blob_name)]
+        # blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blob_name)]
+        # 
+        # if blob_name.lower() == 'fdm':
+        #     names.append('Blob: fDM(RE)')
+        #     names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
+        # elif blob_name.lower() == 'alpha':
+        #     names.append('Blob: alpha')
+        #     names_nice.append(r'$\alpha$')
+        # elif blob_name.lower() == 'mvirial':
+        #     names.append('Blob: Mvirial')
+        #     names_nice.append(r'$\log_{10}(M_{\rm vir})$')
+        # elif blob_name.lower() == 'rb':
+        #     names.append('Blob: rB')
+        #     names_nice.append(r'$R_B$')
+        # else:
+        #     names.append(blob_name)
+        #     names_nice.append(blob_name)
+        # 
+        # if step_slice is None:
+        #     blobs = mcmcResults.sampler['flatblobs']
+        # else:
+        #     blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+        #     
+        # sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
+        # 
+        # truths = np.append(truths, blob_true)
+        # truths_l68 = np.append(truths_l68, blob_l68_err)
+        # truths_u68 = np.append(truths_u68, blob_u68_err )
+        # # truths_linear = np.append(truths_linear, blob_true)
+        # # truths_l68_linear = np.append(truths_l68_linear, blob_l68_err)
+        # # truths_u68_linear = np.append(truths_u68_linear, blob_u68_err)
+        # 
+        # if priors is not None:
+        #     priors.append(None)
+        # 
+        # if truths_l68_percentile is not None:
+        #     truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blob_name)])
+        #     truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blob_name)])
             
     ###############
         

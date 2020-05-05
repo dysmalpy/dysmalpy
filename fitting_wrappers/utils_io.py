@@ -136,14 +136,24 @@ def read_fitting_params(fname=None):
         if params['blob_name'] is None:
             if 'fdm_fixed' in params.keys():
                 if not params['fdm_fixed']:
+                    # fdm is free
                     if params['halo_profile_type'].upper() == 'NFW':
                         params['blob_name'] = 'mvirial'
                     elif params['halo_profile_type'].lower() == 'twopowerhalo':
-                        params['blob_name'] = 'alpha'
+                        #params['blob_name'] = 'alpha'
+                        params['blob_name'] = ['alpha', 'mvirial']
                     elif params['halo_profile_type'].lower() == 'burkert':
-                        params['blob_name'] = 'rb'
+                        #params['blob_name'] = 'rb'
+                        params['blob_name'] = ['rb', 'mvirial']
                 else:
-                    params['blob_name'] = 'fdm'
+                    # fdm is fixed
+                    #params['blob_name'] = 'fdm'
+                    
+                    if params['halo_profile_type'].upper() == 'NFW':
+                        params['blob_name'] = 'fdm'
+                    else:
+                        params['blob_name'] = ['fdm', 'mvirial']
+        
         
         if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
             if params['mvirial_fixed'] is True:
@@ -165,6 +175,11 @@ def read_fitting_params(fname=None):
                         (params['halo_profile_type'].lower() == 'burkert')):
                 # Default to the "old" behavior
                 params['mvirial_tied'] = True
+                
+        # Put a default, if missing:
+        if ('truncate_lmstar_halo' not in params.keys()):
+            # Default to MISSING
+            params['truncate_lmstar_halo'] = None
             
     return params
     
@@ -184,11 +199,18 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
         #if params['include_halo']:
             
         if 'blob_name' in params.keys():
-            #fit_results.analyze_dm_posterior_dist()
+            blob_name = params['blob_name']
+            if isinstance(blob_name, str):
+                blob_names = [blob_name]
+            else:
+                blob_names = blob_name[:]
             
-            blob_best = fit_results.__dict__['bestfit_{}'.format(params['blob_name'])]
-            l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(params['blob_name'])]
-            u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(params['blob_name'])]
+            ## ORIGINAL
+            # #fit_results.analyze_dm_posterior_dist()
+            # 
+            # blob_best = fit_results.__dict__['bestfit_{}'.format(params['blob_name'])]
+            # l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(params['blob_name'])]
+            # u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(params['blob_name'])]
             
         # --------------------------------------------
         
@@ -217,10 +239,19 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             ###
             
             if 'blob_name' in params.keys():
-                #fit_results.analyze_dm_posterior_dist()
-                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(params['blob_name'], '-----',
-                            '-----', blob_best, l68_blob, u68_blob)
-                f.write(datstr+'\n')
+                for blobn in blob_names:
+                    blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
+                    l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                    u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                                '-----', blob_best, l68_blob, u68_blob)
+                    f.write(datstr+'\n')
+                
+                # # ORIGINAL
+                # #fit_results.analyze_dm_posterior_dist()
+                # datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(params['blob_name'], '-----',
+                #             '-----', blob_best, l68_blob, u68_blob)
+                # f.write(datstr+'\n')
             
             ###
             datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
@@ -333,11 +364,28 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             
             ####
             if 'blob_name' in params.keys():
+                blob_name = params['blob_name']
+                if isinstance(blob_name, str):
+                    blob_names = [blob_name]
+                else:
+                    blob_names = blob_name[:]
+                
                 f.write('\n')
                 f.write('-----------'+'\n')
-                datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(params['blob_name'],
-                            blob_best, l68_blob, u68_blob)
-                f.write(datstr+'\n')
+                for blobn in blob_names:
+                    blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
+                    l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                    u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                    f.write(datstr+'\n')
+                
+                
+                ## ORIGINAL
+                # f.write('\n')
+                # f.write('-----------'+'\n')
+                # datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(params['blob_name'],
+                #             blob_best, l68_blob, u68_blob)
+                # f.write(datstr+'\n')
 
             ####
             f.write('\n')
@@ -1119,10 +1167,17 @@ def lmstar_solver(lMh, z, lmass):
     return m13_lshfm(lMh, z) - lmass + lMh
     
 
-def moster13_halo_mass(z=None, lmass=None):
+def moster13_halo_mass(z=None, lmass=None, truncate_lmstar_halo=None):
     # Do zpt solver to get lmhalo given lmass:
-
-    lmstar = min(lmass, 11.2)
+    
+    if truncate_lmstar_halo is None:
+        raise ValueError
+        
+    if truncate_lmstar_halo:
+        lmstar = min(lmass, 11.2)
+    else:
+        lmstar = lmass
+        
     lmhalo = scp_opt.newton(lmstar_solver, lmstar + 2.,
                         args=(z, lmstar),
                         maxiter=200)
@@ -1130,6 +1185,7 @@ def moster13_halo_mass(z=None, lmass=None):
     return lmhalo
     
 def tied_mhalo_mstar(model_set):
+    # Uses constant fgas to go from lMbar to the stellar mass for the moster calculation
     z = model_set.components['halo'].z
     
     lmbar = model_set.components['disk+bulge'].total_mass.value
@@ -1137,7 +1193,13 @@ def tied_mhalo_mstar(model_set):
     Mbar = np.power(10., lmbar)
     Mstar = (1.-fgas)*Mbar
     
-    lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar))
+    try:
+        truncate_lmstar_halo = model_set.components['disk+bulge'].truncate_lmstar_halo
+    except:
+        print("Missing truncate_lmstar_halo! setting truncate_lmstar_halo=True")
+        truncate_lmstar_halo = True
+        
+    lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar), truncate_lmstar_halo=truncate_lmstar_halo)
     
     return lmhalo
     
