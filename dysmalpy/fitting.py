@@ -238,24 +238,21 @@ def fit(gal, nWalkers=10,
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
     
-    logger.info('\n  nCPUs: {}'.format(nCPUs))
-    logger.info('\n  nWalkers: {}'.format(nWalkers))
-    logger.info('\n  lnlike: red_chisq={}'.format(red_chisq))
-    logger.info('\n  lnlike: oversampled_chisq={}'.format(oversampled_chisq))
+    #logger.info('\n')
+    logger.info('\n'+'nCPUs: {}'.format(nCPUs))
+    logger.info('nWalkers: {}'.format(nWalkers))
+    logger.info('lnlike: red_chisq={}'.format(red_chisq))
+    logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
     
-    logger.info('\n')
-    logger.info('\n  blobs: {}'.format(blob_name))
-    
-    
-    logger.info('\n')
-    logger.info('\n  mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    logger.info('\n  truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
-    logger.info('\n  nSubpixels = {}'.format(gal.model.nSubpixels))
-    
-    logger.info('\n')
+    #logger.info('\n')
+    logger.info('\n'+'blobs: {}'.format(blob_name))
     
     
-    #logger.info('nSubpixels = %s' % (model.nSubpixels))
+    #logger.info('\n')
+    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    logger.info('nSubpixels: {}'.format(oversample))
+    
 
     ################################################################
     # --------------------------------
@@ -592,6 +589,11 @@ def fit_mpfit(gal,
         logger.info("    velocity file: {}".format(gal.data.filename_velocity))
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
+
+    #logger.info('\n')
+    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    logger.info('nSubpixels: {}'.format(oversample))
 
     logger.info('\nMPFIT Fitting:\n'
                 'Start: {}\n'.format(datetime.datetime.now()))
@@ -1118,22 +1120,26 @@ class MCMCResults(FitResults):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
-        #
-        # FLAG28
+        
         if ('flatblobs' not in self.sampler.keys()):
-            self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+            if len(self.sampler['blobs'].shape) == 2:
+                # Only 1 blob: nSteps, nWalkers:
+                flatblobs = self.sampler['blobs'].reshape(-1)
+            elif len(self.sampler['blobs'].shape) == 3:
+                # Multiblobs; nSteps, nWalkers, nBlobs
+                flatblobs = self.sampler['blobs'].reshape(-1,self.sampler['blobs'].shape[2])
+            else:
+                raise ValueError("Sampler blob length not recognized")
             
-        if isinstasnce(blob_name, str):
+            self.sampler['flatblobs'] = flatblobs
+
+        if isinstance(blob_name, str):
             blobs = self.sampler['flatblobs']
             pname = parname.strip()
         else:
             pname = parname.strip()
             indv = blob_name.index(pname)
             blobs = self.sampler['flatblobs'][indv]
-            
-        # # 
-        # blobs = self.sampler['flatblobs']
-        # pname = parname.strip()
             
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(blobs, [15.865, 84.135], axis=0)
@@ -1182,10 +1188,18 @@ class MCMCResults(FitResults):
             except:
                 blobset = False
             
-            # FLAG28
             if ('flatblobs' not in self.sampler.keys()) & (blobset):
-                self.sampler['flatblobs'] = np.hstack(np.stack(self.sampler['blobs'], axis=1))
+                if len(self.sampler['blobs'].shape) == 2:
+                    # Only 1 blob: nSteps, nWalkers:
+                    flatblobs = self.sampler['blobs'].reshape(-1)
+                elif len(self.sampler['blobs'].shape) == 3:
+                    # Multiblobs; nSteps, nWalkers, nBlobs
+                    flatblobs = self.sampler['blobs'].reshape(-1,self.sampler['blobs'].shape[2])
+                else:
+                    raise ValueError("Sampler blob length not recognized")
             
+                self.sampler['flatblobs'] = flatblobs
+
             with open(filename, 'w') as f:
                 namestr = '#'
                 namestr += '  '.join(map(str, self.chain_param_names))
@@ -1547,13 +1561,13 @@ def log_like(gal, red_chisq=False,
         #
         blobvals = []
         for blobn in blob_arr:
-            if blob_name.lower() == 'fdm':
+            if blobn.lower() == 'fdm':
                 blobv = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-            elif blob_name.lower() == 'mvirial':
+            elif blobn.lower() == 'mvirial':
                 blobv = gal.model.get_mvirial(model_key_halo=model_key_halo)
-            elif blob_name.lower() == 'alpha':
+            elif blobn.lower() == 'alpha':
                 blobv = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-            elif blob_name.lower() == 'rb':
+            elif blobn.lower() == 'rb':
                 blobv = gal.model.get_halo_rb(model_key_halo=model_key_halo)
             #
             blobvals.append(blobv)
@@ -2218,7 +2232,17 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
 
     if len(sampler.blobs) > 0:
         df['blobs'] = sampler.blobs
-        df['flatblobs'] = np.hstack(np.stack(sampler.blobs, axis=1))
+        if len(np.shape(sampler.blobs)) == 2:
+            # Only 1 blob: nSteps, nWalkers:
+            flatblobs = np.array(sampler.blobs).reshape(-1)
+        elif len(np.shape(sampler.blobs)) == 3:
+            # Multiblobs; nSteps, nWalkers, nBlobs
+            flatblobs = np.array(sampler.blobs).reshape(-1,np.shape(sampler.blobs)[2])
+        else:
+            raise ValueError("Sampler blob length not recognized")
+            
+        df['flatblobs'] = flatblobs
+
 
     return df
     
