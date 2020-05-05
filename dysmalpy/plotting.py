@@ -209,10 +209,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                 else:
                     blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['blobs'].shape[2]))[:,indv]
                 
-            print("sampler_chain.shape={}".format(sampler_chain.shape))
-            print("blobs.shape={}".format(blobs.shape))
-            print("np.array([blobs]).T.shape={}".format(np.array([blobs]).T.shape))
-            #
             sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
 
             truths = np.append(truths, blob_true)
