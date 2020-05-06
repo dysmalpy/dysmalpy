@@ -519,10 +519,13 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
         stddev_y =  m.x_stddev.value
         stddev_x =  m.y_stddev.value
     
+    # Map to 0, 180:
+    PA = PA % 360
+    
     if PA > 180.:
         PA -= 180.
-    if PA < 0:
-        PA += 180.
+    # if PA < 0:
+    #     PA += 180.
     
     return PA, stddev_x, stddev_y 
     
