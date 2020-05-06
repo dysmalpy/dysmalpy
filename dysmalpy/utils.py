@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
+import warnings
 
 # Third party imports
 import numpy as np
@@ -494,24 +495,23 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     # -> Get the 2D histogram and fit with a 2D Gaussian
     # use +- 2 FWHM in either direction
     range = [[-4.7*pstd[0], 4.7*pstd[0]], [-4.7*pstd[1], 4.7*pstd[1]]]
-    p_2dh, px_edge, py_edge = np.histogram2d(chainvals[:, 0], chainvals[:, 1], bins=bins, range=range)
-    
+    p_2dh, px_edge, py_edge = np.histogram2d(valshift[:, 0], valshift[:, 1], bins=bins, range=range)
     
     px_cnt = (px_edge[1:] + px_edge[:-1]) / 2.
     py_cnt = (py_edge[1:] + py_edge[:-1]) / 2.
     pxx_cnt, pyy_cnt = np.meshgrid(px_cnt, py_cnt)
     m_init = apy_mod.models.Gaussian2D(amplitude=np.max(p_2dh), x_mean=0, y_mean=0,
                                x_stddev=pstd[0], y_stddev=pstd[1], theta=0.)
-    fit_m = fitting.LevMarLSQFitter()
+    fit_m = apy_mod.fitting.LevMarLSQFitter()
     with warnings.catch_warnings():
         # Ignore model linearity warning from the fitter
         warnings.simplefilter('ignore')
         m = fit_m(m_init, pxx_cnt, pyy_cnt, p_2dh)
     # pars = m.parameters
     
-    PA =        m.parameters['theta'] * 180./np.pi
-    stddev_x =  m.parameters['x_stddev']
-    stddev_y =  m.parameters['y_stddev']
+    PA =        m.theta.value * 180./np.pi
+    stddev_x =  m.x_stddev.value
+    stddev_y =  m.y_stddev.value
     
     return PA, stddev_x, stddev_y 
     
