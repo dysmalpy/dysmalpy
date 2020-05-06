@@ -22,6 +22,8 @@ from dysmalpy import galaxy
 from dysmalpy.parameters import UniformLinearPrior
 from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 
+from dysmalpy.utils import fit_uncertainty_ellipse
+
 # Third party imports
 import os
 import numpy as np
@@ -33,7 +35,6 @@ import copy
 from dysmalpy.extern.cap_mpfit import mpfit
 import emcee
 import acor
-
 
 import time, datetime
 
@@ -483,7 +484,8 @@ def fit(gal, nWalkers=10,
                               f_plot_param_corner = f_plot_param_corner,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
-                              f_chain_ascii = f_chain_ascii)
+                              f_chain_ascii = f_chain_ascii,
+                              blob_name=blob_name)
     if oversampled_chisq:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
                               
@@ -813,7 +815,8 @@ class MCMCResults(FitResults):
                  f_plot_bestfit=None,
                  f_results=None,
                  f_chain_ascii=None,
-                 linked_posterior_names=None):
+                 linked_posterior_names=None,
+                 blob_name=None):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
@@ -830,6 +833,8 @@ class MCMCResults(FitResults):
         self.f_sampler = f_sampler
         self.f_plot_param_corner = f_plot_param_corner
         self.f_chain_ascii = f_chain_ascii
+        
+        self.blob_name = blob_name
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                           f_results=f_results)
@@ -1062,11 +1067,6 @@ class MCMCResults(FitResults):
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         
-        # # mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile = \
-        # #         self.back_map_linear_param_bestfits(mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile)
-        # mcmc_param_bestfit_linear = mcmc_param_bestfit.copy()
-        # mcmc_limits_linear = mcmc_limits.copy()
-        
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
         
@@ -1110,12 +1110,6 @@ class MCMCResults(FitResults):
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
         
         
-        # # If things have been mapped to linear space for posterior analysis:
-        # self.bestfit_parameters_linear = mcmc_param_bestfit_linear
-        # self.bestfit_parameters_linear_l68_err = mcmc_param_bestfit_linear - mcmc_limits_linear[0]
-        # self.bestfit_parameters_linear_u68_err = mcmc_limits_linear[1] - mcmc_param_bestfit_linear
-        
-        
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None, blob_name=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
         if self.sampler is None:
@@ -1139,7 +1133,7 @@ class MCMCResults(FitResults):
         else:
             pname = parname.strip()
             indv = blob_name.index(pname)
-            blobs = self.sampler['flatblobs'][indv]
+            blobs = self.sampler['flatblobs'][:,indv]
             
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(blobs, [15.865, 84.135], axis=0)
@@ -1179,6 +1173,27 @@ class MCMCResults(FitResults):
     def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
         self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb', blob_name=blob_name)
+        
+    def get_uncertainty_ellipse(self, namex=None, namey=None, bins=50):
+        """
+        Using component name, get sampler chain for param x and y, and estimate joint uncertainty ellipse
+        Input:
+            name[x,y]:      List: ['flatchain', ind] or ['flatblobs', ind]
+        """
+        try:
+            chain_x = self.sampler[namex[0]][:,namex[1]]
+        except:
+            # eg, Single blob value flatblobs
+            chain_x = self.sampler[namex[0]]
+        try:
+            chain_y = self.sampler[namey[0]][:,namey[1]]
+        except:
+            # eg, Single blob value flatblobs
+            chain_y = self.sampler[namey[0]]
+        
+        PA, stddev_x, stddev_y  = fit_uncertainty_ellipse(chain_x, chain_y, bins=bins)
+        return PA, stddev_x, stddev_y 
+        
         
     def save_chain_ascii(self, filename=None, blob_name=None):
         if filename is not None:
@@ -1220,7 +1235,7 @@ class MCMCResults(FitResults):
                             datstr += '  {}'.format(self.sampler['flatblobs'][i])
                         else:
                             for k in range(len(blob_name)):
-                                datstr += '  {}'.format(self.sampler['flatblobs'][i][k])
+                                datstr += '  {}'.format(self.sampler['flatblobs'][i,k])
                                 
                     f.write(datstr+'\n')
 
@@ -2124,6 +2139,7 @@ def get_linked_posterior_peak_values(flatchain,
 
     return bestfit_theta_linked
 
+    
 
 def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     """
@@ -2173,13 +2189,18 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
             # This is an array of len-2 arrays/tuples with cmp, param names
             linked_post_inds = []
             for j in six.moves.xrange(len(linked_posterior_names[k])):
-                cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
-                            linked_posterior_names[k][j][1].strip().lower()
-                try:
-                    whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
-                    linked_post_inds.append(whmatch)
-                except:
-                    raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
+                
+                indp = get_param_index(mcmcResults, linked_posterior_names[k][j], 
+                            free_cmp_param_arr=free_cmp_param_arr)
+                linked_post_inds.append(indp)
+                
+                # cmp_param = linked_posterior_names[k][j][0].strip().lower()+':'+\
+                #             linked_posterior_names[k][j][1].strip().lower()
+                # try:
+                #     whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
+                #     linked_post_inds.append(whmatch)
+                # except:
+                #     raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
 
             # # SORT THIS TO GET ACENDING ORDER
             # linked_post_inds = sorted(linked_post_inds)
@@ -2189,6 +2210,18 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
         
     return linked_posterior_ind_arr
 
+def get_param_index(mcmcResults, param_name, free_cmp_param_arr=None):
+    if free_cmp_param_arr is None:
+        free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
+    
+    cmp_param = param_name[0].strip().lower()+':'+param_name[1].strip().lower()
+    
+    try:
+        whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
+    except:
+        raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
+    return whmatch
+    
 
 def make_arr_cmp_params(mcmcResults):
     arr = np.array([])

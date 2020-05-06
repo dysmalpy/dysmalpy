@@ -460,3 +460,57 @@ def lnlike_truncnorm(params, x):
     # Function for the negative log-likelihood of a truncated Gaussian
     return -np.sum(np.log(norm.pdf(x, loc=params[0], scale=params[1])) - np.log(1.0 - norm.cdf(0, loc=params[0], scale=params[1])))
 
+
+def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
+    """
+    Get the uncertainty ellipse of the sample for each photocenter.
+    (Modified from code from Jinyi Shangguan to do photocenter uncertainty ellipses) 
+    Parameters
+    ----------
+    pos_list: 2D array
+        Sampler chains for photocenter positions
+    bins: integer
+        The number of bins to use in the 2D histogram
+    Returns
+    -------
+    PA, stddev_x, stddev_y:
+        PA:         angle of ellipse, in degrees
+        stddev_x:   stddev of the "x" axis of the 2D gaussian; 
+                            double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
+        stddev_y:   stddev of the "y" axis of the 2D gaussian
+    """
+    
+    nSamp = len(chain_x)
+    
+    chainvals = np.stack([chain_x.T,chain_y.T], axis=1)
+    # shape: nSamp, 2
+    
+    pmean, pmed, pstd = sigma_clipped_stats(chainvals, axis=0)
+    
+    # -> Shift the position to center at zero.
+    valshift = chainvals - pmed
+    
+    # -> Get the 2D histogram and fit with a 2D Gaussian
+    # use +- 2 FWHM in either direction
+    range = [[-4.7*pstd[0], 4.7*pstd[0]], [-4.7*pstd[1], 4.7*pstd[1]]]
+    p_2dh, px_edge, py_edge = np.histogram2d(chainvals[:, 0], chainvals[:, 1], bins=bins, range=range)
+    
+    
+    px_cnt = (px_edge[1:] + px_edge[:-1]) / 2.
+    py_cnt = (py_edge[1:] + py_edge[:-1]) / 2.
+    pxx_cnt, pyy_cnt = np.meshgrid(px_cnt, py_cnt)
+    m_init = models.Gaussian2D(amplitude=np.max(p_2dh), x_mean=0, y_mean=0,
+                               x_stddev=pstd[0], y_stddev=pstd[1], theta=0.)
+    fit_m = fitting.LevMarLSQFitter()
+    with warnings.catch_warnings():
+        # Ignore model linearity warning from the fitter
+        warnings.simplefilter('ignore')
+        m = fit_m(m_init, pxx_cnt, pyy_cnt, p_2dh)
+    # pars = m.parameters
+    
+    PA =        m.parameters['theta'] * 180./np.pi
+    stddev_x =  m.parameters['x_stddev']
+    stddev_y =  m.parameters['y_stddev']
+    
+    return PA, stddev_x, stddev_y 
+    

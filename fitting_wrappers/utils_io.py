@@ -718,7 +718,6 @@ def setup_mcmc_dict(params=None):
                     linked_post_arr.append(['disk+bulge', 'bt'])
                 elif lpost.strip().lower() == 'sigma0':
                     linked_post_arr.append(['dispprof', 'sigma0'])
-                #
                 elif lpost.strip().lower() == 'inc':
                     linked_post_arr.append(['geom', 'inc'])
                 elif lpost.strip().lower() == 'pa':
