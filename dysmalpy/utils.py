@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 # Third party imports
 import numpy as np
 import astropy.modeling as apy_mod
+import astropy.stats as apy_stats
 import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
@@ -485,7 +486,7 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     chainvals = np.stack([chain_x.T,chain_y.T], axis=1)
     # shape: nSamp, 2
     
-    pmean, pmed, pstd = sigma_clipped_stats(chainvals, axis=0)
+    pmean, pmed, pstd = apy_stats.sigma_clipped_stats(chainvals, axis=0)
     
     # -> Shift the position to center at zero.
     valshift = chainvals - pmed
