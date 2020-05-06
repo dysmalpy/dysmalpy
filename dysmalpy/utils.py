@@ -500,7 +500,7 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     px_cnt = (px_edge[1:] + px_edge[:-1]) / 2.
     py_cnt = (py_edge[1:] + py_edge[:-1]) / 2.
     pxx_cnt, pyy_cnt = np.meshgrid(px_cnt, py_cnt)
-    m_init = models.Gaussian2D(amplitude=np.max(p_2dh), x_mean=0, y_mean=0,
+    m_init = apy_mod.models.Gaussian2D(amplitude=np.max(p_2dh), x_mean=0, y_mean=0,
                                x_stddev=pstd[0], y_stddev=pstd[1], theta=0.)
     fit_m = fitting.LevMarLSQFitter()
     with warnings.catch_warnings():
