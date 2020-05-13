@@ -251,7 +251,8 @@ def fit(gal, nWalkers=10,
     
     #logger.info('\n')
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(oversample))
     
 
