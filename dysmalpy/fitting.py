@@ -251,6 +251,8 @@ def fit(gal, nWalkers=10,
     
     #logger.info('\n')
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(oversample))
