@@ -177,6 +177,10 @@ def read_fitting_params(fname=None):
                 params['mvirial_tied'] = True
                 
         # Put a default, if missing:
+        if ('mhalo_relation' not in params.keys()):
+            # Default to MISSING
+            params['mhalo_relation'] = None
+        
         if ('truncate_lmstar_halo' not in params.keys()):
             # Default to MISSING
             params['truncate_lmstar_halo'] = None
@@ -1161,7 +1165,7 @@ def m13_lshfm(lMh, z):
     
     return lmSMh
     
-def lmstar_solver(lMh, z, lmass):
+def lmstar_solver_moster(lMh, z, lmass):
     
     return m13_lshfm(lMh, z) - lmass + lMh
     
@@ -1177,11 +1181,32 @@ def moster13_halo_mass(z=None, lmass=None, truncate_lmstar_halo=None):
     else:
         lmstar = lmass
         
-    lmhalo = scp_opt.newton(lmstar_solver, lmstar + 2.,
+    lmhalo = scp_opt.newton(lmstar_solver_moster, lmstar + 2.,
                         args=(z, lmstar),
                         maxiter=200)
     
     return lmhalo
+    
+
+    
+def behroozi13_halo_mass(z=None, lmass=None):
+    # From the inverted relation fit by Omri Ginzburg (A Dekel student; email from A Dekel 2020-05-15)
+    # Valid for lM* = 10-12; z=0.5-3 at better than 0.5% accuracy 
+    
+    A0, A1, A2, A3, A4 = 13.3402, -1.8671, 1.3010, -0.4037, 0.0439
+    B0, B1, B2, B3, B4 = -0.1814, 0.1791, -0.1020, 0.0270, -2.85e-3
+    C0, C1, C2, C3 = 0.7361, 0.6427, -0.2737, 0.0280
+    D0, D1, D2, D3 = 5.3744, 6.2722, -2.6661, 0.2503
+    
+    A_OGAD_z = A0 + A1*z + A2*(z**2) + A3*(z**3) + A4*(z**4)
+    B_OGAD_z = B0 + B1*z + B2*(z**2) + B3*(z**3) + B4*(z**4)
+    C_OGAD_z = C0 + C1*z + C2*(z**2) + C3*(z**3)
+    D_OGAD_z = D0 + D1*z + D2*(z**2) + D3*(z**3)
+    
+    lmhalo = A_OGAD_z + B_OGAD_z*lmass * np.sin(C_OGAD_z * lmass - D_OGAD_z)
+    
+    return lmhalo
+    
     
 def tied_mhalo_mstar(model_set):
     # Uses constant fgas to go from lMbar to the stellar mass for the moster calculation
@@ -1193,12 +1218,23 @@ def tied_mhalo_mstar(model_set):
     Mstar = (1.-fgas)*Mbar
     
     try:
-        truncate_lmstar_halo = model_set.components['disk+bulge'].truncate_lmstar_halo
+        mhalo_relation = model_set.components['disk+bulge'].mhalo_relation
     except:
-        print("Missing truncate_lmstar_halo! setting truncate_lmstar_halo=True")
-        truncate_lmstar_halo = True
+        print("Missing mhalo_relation! setting mhalo_relation='Behroozi13' ! [options: 'Behroozi13', 'Moster13']")
+        mhalo_relation = 'Behroozi13'
+    
+    if mhalo_relation.lower().strip() == 'behroozi13':
+        lmhalo = behroozi13_halo_mass(z=z, lmass=np.log10(Mstar))
         
-    lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar), truncate_lmstar_halo=truncate_lmstar_halo)
+    elif mhalo_relation.lower().strip() == 'moster13':
+        try:
+            truncate_lmstar_halo = model_set.components['disk+bulge'].truncate_lmstar_halo
+        except:
+            print("Missing truncate_lmstar_halo! setting truncate_lmstar_halo=True")
+            truncate_lmstar_halo = True
+        
+        lmhalo = moster13_halo_mass(z=z, lmass=np.log10(Mstar), 
+                                truncate_lmstar_halo=truncate_lmstar_halo)
     
     return lmhalo
     
