@@ -2169,7 +2169,12 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     # aper_dist_pix = 2*rpix
     aper_centers_pix = aper_centers/rstep#1d
 
-    pa = slit_pa
+    if aper_centers[0] <= 0:
+        # Starts from neg -> pos:
+        pa = slit_pa
+    else:
+        # Goes "backwards": pos -> neg [but the aper shapes are ALSO stored this way]
+        pa = slit_pa + 180
 
     print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim, 
                                     gal.model.geometry.xshift.value, 
