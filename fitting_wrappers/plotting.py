@@ -286,8 +286,11 @@ def plot_results_multid_general(param_filename=None, data=None,
             fdata_mask = params['fdata_1d_mask']
         else:
             fdata_mask = None
+            
+        
+        #### 
+        # Setup params1d
         params1d = copy.deepcopy(params)
-
         
         test_keys = ['data_inst_corr', 'pixscale', 'psf_type', 'psf_fwhm', 
                     'psf_fwhm1', 'psf_fwhm2', 'psf_beta', 'psf_scale1', 'psf_scale2',
@@ -297,15 +300,18 @@ def plot_results_multid_general(param_filename=None, data=None,
             if '{}_1d'.format(tkey) in params1d.keys():
                 params1d['{}'.format(tkey)] = params1d['{}_1d'.format(tkey)]
         
-            
-        data1d = utils_io.load_single_object_1D_data(fdata=params['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
-        data1d.filename_velocity = params['fdata_1d']
         
-        if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
+        #### 
+        # Setup data1d
+        
+        data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
+        data1d.filename_velocity = params1d['fdata_1d']
+        
+        if (params1d['profile1d_type'] != 'circ_ap_pv') & (params1d['profile1d_type'] != 'single_pix_pv'):
             data_orig = copy.deepcopy(gal.data)
             gal.data = data1d
-            data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
-            data1d.profile1d_type = params['profile1d_type']
+            data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params1d)
+            data1d.profile1d_type = params1d['profile1d_type']
             # Reset:
             gal.data = data_orig
         
