@@ -301,23 +301,7 @@ def plot_results_multid_general(param_filename=None, data=None,
                 params1d['{}'.format(tkey)] = params1d['{}_1d'.format(tkey)]
         
         
-        #### 
-        # Setup data1d
-        
-        data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
-        data1d.filename_velocity = params1d['fdata_1d']
-        
-        if (params1d['profile1d_type'] != 'circ_ap_pv') & (params1d['profile1d_type'] != 'single_pix_pv'):
-            data_orig = copy.deepcopy(gal.data)
-            gal.data = data1d
-            data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params1d)
-            data1d.profile1d_type = params1d['profile1d_type']
-            # Reset:
-            gal.data = data_orig
-        
-        
-        gal.data1d = data1d
-        
+        #####
         # Setup instrument:
         try:
             if params1d['psf_type'].lower().strip() == 'gaussian':
@@ -372,6 +356,24 @@ def plot_results_multid_general(param_filename=None, data=None,
         except:
             gal.instrument1d = None
             
+        #### 
+        # Setup data1d
+        
+        data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
+        data1d.filename_velocity = params1d['fdata_1d']
+        
+        if (params1d['profile1d_type'] != 'circ_ap_pv') & (params1d['profile1d_type'] != 'single_pix_pv'):
+            data_orig = copy.deepcopy(gal.data)
+            inst_orig = copy.deepcopy(gal.instrument)
+            gal.data = data1d
+            gal.instrument = gal.instrument1d
+            data1d.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params1d)
+            data1d.profile1d_type = params1d['profile1d_type']
+            # Reset:
+            gal.data = data_orig
+            gal.instrument = inst_orig
+        
+        gal.data1d = data1d
         
         
     elif fit_ndim == 1:
