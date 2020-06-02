@@ -504,11 +504,17 @@ class Galaxy:
                                             np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
                     else:
                         try:
-                            center_pixel = (self.data.xcenter, self.data.ycenter)
+                            # Catch case where center_pixel is (None, None)
+                            if (self.data.xcenter is not None) & (self.data.ycenter is not None):
+                                center_pixel = (self.data.xcenter, self.data.ycenter)
+                            else:
+                                center_pixel = None
                         except:
                             center_pixel = None
                 else:
                     center_pixel = None
+                    
+                
                 
                 #----------------------------------------------------------
                 #try:
