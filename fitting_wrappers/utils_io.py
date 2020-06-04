@@ -845,6 +845,14 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
     err_vel =   dat_arr[:,2]
     err_disp =  dat_arr[:,4]
     
+    try:
+        gal_flux = dat_arr[:,5]
+        err_flux = dat_arr[:,6]
+    except:
+        gal_flux = None
+        err_flux = None
+        
+    
     if fdata_mask is not None:
         if os.path.isfile(fdata_mask):
             msk_arr =   np.loadtxt(fdata_mask)
