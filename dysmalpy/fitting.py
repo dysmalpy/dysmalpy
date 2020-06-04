@@ -1900,8 +1900,6 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         
         
         #####
-        if oversampled_chisq:
-            invnu = 1. / gal.data.oversample_factor_chisq
         
         # Data includes velocity
         fac_mask = 1
@@ -1920,7 +1918,7 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
             chisq_arr_sum += chisq_arr_raw_flux.sum()
             
         ####
-        if ((not oversampled_chisq) and (red_chisq)):
+        if red_chisq:
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
