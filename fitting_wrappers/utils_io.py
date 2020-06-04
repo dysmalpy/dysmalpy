@@ -402,6 +402,12 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
             f.write(datstr+'\n')
             
+            f.write('\n')
+            f.write('-----------'+'\n')
+            Routmax2D = calc_Rout_max_2D(gal=gal, fit_results=fit_results)
+            datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
+            f.write(datstr+'\n')
+            
             if 'profile1d_type' in params.keys():
                 datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
                             '-----', params['profile1d_type'], -99, -99)
@@ -424,6 +430,7 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
                 datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
                             '-----', params['partial_weight'], -99, -99)
                 f.write(datstr+'\n')
+                
                 
 
             f.write('\n')
@@ -1353,3 +1360,80 @@ def ensure_path_trailing_slash(path):
     if (path[-1] != '/'):
         path += '/'
     return path
+    
+    
+
+############################################################################
+
+def calc_Rout_max_2D(gal=None, fit_results=None):
+    gal.model.update_parameters(fit_results.bestfit_parameters)
+    inc_gal = gal.model.geometry.inc.value
+    
+    
+    
+    ###############
+    # Get grid of data coords:
+    nx_sky = gal.data.data['velocity'].shape[1]
+    ny_sky = gal.data.data['velocity'].shape[0]
+    nz_sky = 1 #np.int(np.max([nx_sky, ny_sky]))
+    rstep = gal.data.pixscale
+    
+    
+    xcenter = gal.data.xcenter 
+    ycenter = gal.data.ycenter 
+    
+        
+    if xcenter is None:
+        xcenter = (nx_sky - 1) / 2.
+    if ycenter is None:
+        ycenter = (ny_sky - 1) / 2.
+        
+        
+    #
+    sh = (nz_sky, ny_sky, nx_sky)
+    zsky, ysky, xsky = np.indices(sh)
+    zsky = zsky - (nz_sky - 1) / 2.
+    ysky = ysky - ycenter 
+    xsky = xsky - xcenter 
+    
+    # Apply the geometric transformation to get galactic coordinates
+    xgal, ygal, zgal = gal.model.geometry(xsky, ysky, zsky)
+    
+    # Get the 4 corners sets:
+    gal.model.geometry.inc = 0
+    xskyp_ur, yskyp_ur, zskyp_ur = gal.model.geometry(xsky+0.5, ysky+0.5, zsky)
+    xskyp_ll, yskyp_ll, zskyp_ll = gal.model.geometry(xsky-0.5, ysky-0.5, zsky)
+    xskyp_lr, yskyp_lr, zskyp_lr = gal.model.geometry(xsky+0.5, ysky-0.5, zsky)
+    xskyp_ul, yskyp_ul, zskyp_ul = gal.model.geometry(xsky-0.5, ysky+0.5, zsky)
+    
+    #Reset:
+    gal.model.geometry.inc = inc_gal
+    
+    
+    yskyp_ur_flat = yskyp_ur[0,:,:]
+    yskyp_ll_flat = yskyp_ll[0,:,:]
+    yskyp_lr_flat = yskyp_lr[0,:,:]
+    yskyp_ul_flat = yskyp_ul[0,:,:]
+    
+    val_sgns = np.zeros(yskyp_ur_flat.shape)
+    val_sgns += np.sign(yskyp_ur_flat)
+    val_sgns += np.sign(yskyp_ll_flat)
+    val_sgns += np.sign(yskyp_lr_flat)
+    val_sgns += np.sign(yskyp_ul_flat)
+    
+    whgood = np.where( ( np.abs(val_sgns) < 4 ) & (gal.data.mask is True) )
+    
+    xgal_flat = xgal[0,:,:]
+    ygal_flat = ygal[0,:,:]
+    xgal_list = xgal_flat[whgood]
+    ygal_list = ygal_flat[whgood]
+    
+    
+    # The circular velocity at each position only depends on the radius
+    # Convert to kpc
+    rgal = np.sqrt(xgal_list ** 2 + ygal_list ** 2) * rstep / gal.dscale
+    
+    Routmax2D = np.max(rgal.flatten())
+    
+    
+    return Routmax2D 
