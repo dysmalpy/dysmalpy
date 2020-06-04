@@ -1901,7 +1901,9 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         
         #####
         
-        # Data includes velocity
+        ### Data includes velocity
+        # Includes velocity shift
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
         fac_mask = 1
         chisq_arr_sum = chisq_arr_raw_vel.sum()
         
