@@ -668,7 +668,7 @@ def fit_mpfit(gal,
         gal.model_cube.data.write(f_cube, overwrite=True)
 
     if do_plotting & (f_plot_bestfit is not None):
-        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux
+        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
                               oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
                               profile1d_type=profile1d_type)
 
