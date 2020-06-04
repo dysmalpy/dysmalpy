@@ -389,6 +389,7 @@ def plot_data_model_comparison_1D(gal,
             oversample=1,
             oversize=1,
             fitdispersion=True, 
+            fitflux=False, 
             profile1d_type=None, 
             fileout=None):
     ######################################
@@ -425,21 +426,23 @@ def plot_data_model_comparison_1D(gal,
     # Setup plot:
     f = plt.figure()
     scale = 3.5
+    ncols = 1
     if fitdispersion:
-        ncols = 2
-    else:
-        ncols = 1
+        ncols += 1
+    if fitflux:
+        ncols += 1
     nrows = 2
     f.set_size_inches(1.1*ncols*scale, nrows*scale)
     gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
 
     keyxtitle = r'$r$ [arcsec]'
-    keyyarr = ['velocity', 'dispersion']
-    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+    keyyarr = ['velocity', 'dispersion', 'flux']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', r'Flux [arb]']
     # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
     #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
     keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]']
+                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
+                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -468,6 +471,8 @@ def plot_data_model_comparison_1D(gal,
                     msk = gal.data.mask
             else:
                 msk = gal.data.mask
+        elif keyyarr[j] == 'flux':
+            msk = gal.data.mask
         else:
             msk = np.array(np.ones(len(data.rarr)), dtype=np.bool)
         
@@ -828,6 +833,7 @@ def plot_model_1D(gal,
             oversample=1,
             oversize=1,
             fitdispersion=True, 
+            fitflux=False, 
             best_dispersion=None, 
             inst_corr=True, 
             fileout=None):
@@ -847,22 +853,24 @@ def plot_model_1D(gal,
     # Setup plot:
     f = plt.figure()
     scale = 3.5
+    ncols = 1
     if fitdispersion:
-        ncols = 2
-    else:
-        ncols = 1
+        ncols += 1
+    if fitflux:
+        ncols += 1
     nrows = 1
     
     f.set_size_inches(1.1*ncols*scale, nrows*scale)
     gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
 
     keyxtitle = r'$r$ [arcsec]'
-    keyyarr = ['velocity', 'dispersion']
-    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]']
+    keyyarr = ['velocity', 'dispersion', 'flux']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
     # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
     #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
     keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]']
+                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
+                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -1739,6 +1747,7 @@ def plot_data_model_comparison(gal,
                                oversample=1,
                                oversize=1,
                                fitdispersion=True,
+                               fitflux=False, 
                                fileout=None,
                                vcrop=False,
                                show_1d_apers=False,
@@ -1769,6 +1778,7 @@ def plot_data_model_comparison(gal,
                     oversample=oversample,
                     oversize=oversize,
                     fitdispersion=fitdispersion, 
+                    fitflux=fitflux, 
                     profile1d_type=profile1d_type, 
                     fileout=fileout)
     elif gal.data.ndim == 2:
@@ -1808,6 +1818,7 @@ def plot_bestfit(mcmcResults, gal,
                  oversample=1,
                  oversize=1,
                  fitdispersion=True,
+                 fitflux=False, 
                  show_1d_apers=False,
                  fileout=None,
                  vcrop=False,
@@ -1818,7 +1829,7 @@ def plot_bestfit(mcmcResults, gal,
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
-            oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fileout=fileout,
+            oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift,
                                profile1d_type=profile1d_type)
                 

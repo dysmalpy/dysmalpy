@@ -62,6 +62,7 @@ class Data1D(Data):
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
                  vel_disp_err=None, 
                  flux=None, 
+                 flux_err=None, 
                  mask=None, 
                  mask_velocity=None, 
                  mask_vel_disp=None, 
@@ -97,13 +98,6 @@ class Data1D(Data):
         # Information about *dispersion* instrument correction
         data['inst_corr'] = inst_corr
         
-        if flux is None:
-            data['flux'] = None
-        else:
-            if flux.shape != velocity.shape:
-                raise ValueError("flux and velocity are not the same size.")
-                
-            data['flux'] = flux
             
         if vel_disp is None:
 
@@ -158,6 +152,17 @@ class Data1D(Data):
         else:
 
             error['dispersion'] = None
+            
+        #
+        if flux is None:
+            data['flux'] = None
+        else:
+            if flux.shape != velocity.shape:
+                raise ValueError("flux and velocity are not the same size.")
+                
+            data['flux'] = flux
+            
+            error['flux'] = flux_err
             
         ############
         self.aper_center_pix_shift = aper_center_pix_shift
