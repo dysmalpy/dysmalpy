@@ -1421,7 +1421,7 @@ def calc_Rout_max_2D(gal=None, fit_results=None):
     val_sgns += np.sign(yskyp_lr_flat)
     val_sgns += np.sign(yskyp_ul_flat)
     
-    whgood = np.where( ( np.abs(val_sgns) < 4 ) & (gal.data.mask is True) )
+    whgood = np.where( ( np.abs(val_sgns) < 4. ) & (gal.data.mask) )
     
     xgal_flat = xgal[0,:,:]
     ygal_flat = ygal[0,:,:]
