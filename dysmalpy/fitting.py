@@ -1573,7 +1573,9 @@ def log_like(gal, red_chisq=False,
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
-                    
+        else:
+            invnu = 1.
+            
         ####
         llike = -0.5*(chisq_arr_sum) * invnu
             
