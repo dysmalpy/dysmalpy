@@ -207,7 +207,7 @@ def fit(gal, nWalkers=10,
 
     
     
-    if (not continue_steps) & (not save_intermediate_sampler_chain):
+    if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                     args=[gal], kwargs=kwargs_dict,
                     a = scale_param_a, threads = nCPUs)
@@ -237,17 +237,21 @@ def fit(gal, nWalkers=10,
             
         # Close things
         input_sampler = None
-    elif save_intermediate_sampler_chain:
+    elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
         #nBurn = 0
         nBurn_orig = nBurn
-        if input_sampler is None:
-            try:
-                input_sampler = load_pickle(f_sampler_tmp)
-            except:
-                message = "Couldn't find existing sampler in {}.".format(f_sampler_tmp)
-                message += '\n'
-                message += "Must set input_sampler if you will restart the sampler."
-                raise ValueError(message)
+        input_sampler = load_pickle(f_sampler_tmp)
+        
+        
+        # if input_sampler is None:
+        #     try:
+        #         input_sampler = load_pickle(f_sampler_tmp)
+        #     except:
+        #         message = "Couldn't find existing sampler in {}.".format(f_sampler_tmp)
+        #         message += '\n'
+        #         message += "Must set input_sampler if you will restart the sampler."
+        #         raise ValueError(message)
+            
             
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
                             kwargs_dict=kwargs_dict, 
