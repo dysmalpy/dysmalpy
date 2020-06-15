@@ -205,7 +205,8 @@ def fit(gal, nWalkers=10,
                     'oversampled_chisq': oversampled_chisq, 
                     'profile1d_type':profile1d_type}
 
-    
+    if save_intermediate_sampler_chain:
+        nBurn_orig = nBurn
     
     if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
@@ -239,7 +240,7 @@ def fit(gal, nWalkers=10,
         input_sampler = None
     elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
         #nBurn = 0
-        nBurn_orig = nBurn
+        #
         input_sampler = load_pickle(f_sampler_tmp)
         
         
