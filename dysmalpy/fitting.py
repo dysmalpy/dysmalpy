@@ -82,12 +82,15 @@ def fit(gal, nWalkers=10,
            linked_posterior_names= None,
            nPostBins = 50,
            continue_steps = False,
+           save_intermediate_sampler_chain = False, 
+           nStep_intermediate_save = 5, 
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_model = None,
            f_cube = None,
            f_sampler = None,
+           f_sampler_tmp = None, 
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
@@ -166,6 +169,7 @@ def fit(gal, nWalkers=10,
 
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
     if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
+    if save_intermediate_sampler_chain and (f_sampler_tmp is None): outdir+'mcmc_sampler_INPROGRESS.pickle'
 
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
@@ -203,7 +207,7 @@ def fit(gal, nWalkers=10,
 
     
     
-    if not continue_steps:
+    if (not continue_steps) & (not save_intermediate_sampler_chain):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                     args=[gal], kwargs=kwargs_dict,
                     a = scale_param_a, threads = nCPUs)
@@ -211,7 +215,8 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Initialize walker starting positions
         initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
-    else:
+    #
+    elif continue_steps:
         nBurn = 0
         if input_sampler is None:
             try:
@@ -232,6 +237,59 @@ def fit(gal, nWalkers=10,
             
         # Close things
         input_sampler = None
+    elif save_intermediate_sampler_chain:
+        #nBurn = 0
+        nBurn_orig = nBurn
+        if input_sampler is None:
+            try:
+                input_sampler = load_pickle(f_sampler_tmp)
+            except:
+                message = "Couldn't find existing sampler in {}.".format(f_sampler_tmp)
+                message += '\n'
+                message += "Must set input_sampler if you will restart the sampler."
+                raise ValueError(message)
+            
+        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
+                            kwargs_dict=kwargs_dict, 
+                            scale_param_a=scale_param_a)
+        nBurn = nBurn_orig - (input_sampler['burn_step_cur'] + 1)
+            
+        initial_pos = input_sampler['chain'][:,-1,:]
+        if blob_name is not None:
+            blob = input_sampler['blobs']
+            
+        # If it saved after burn finished, but hasn't saved any of the normal steps: reset sampler
+        if ((nBurn == 0) & (input_sampler['step_cur'] < 0)):
+            blob = None
+            sampler.reset()
+            if blob_name is not None:
+                 sampler.clear_blobs()
+            
+        # Close things
+        input_sampler = None
+
+    # #####
+    # else:
+    #     nBurn = 0
+    #     if input_sampler is None:
+    #         try:
+    #             input_sampler = load_pickle(f_sampler)
+    #         except:
+    #             message = "Couldn't find existing sampler in {}.".format(f_sampler)
+    #             message += '\n'
+    #             message += "Must set input_sampler if you will restart the sampler."
+    #             raise ValueError(message)
+    #         
+    #     sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
+    #                         kwargs_dict=kwargs_dict, 
+    #                         scale_param_a=scale_param_a)
+    #         
+    #     initial_pos = input_sampler['chain'][:,-1,:]
+    #     if blob_name is not None:
+    #         blob = input_sampler['blobs']
+    #         
+    #     # Close things
+    #     input_sampler = None
             
     # --------------------------------
     # Output some fitting info to logger:
@@ -286,6 +344,20 @@ def fit(gal, nWalkers=10,
             else:
                 pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
                                                     rstate0=state)
+                                                    
+            
+            # --------------------------------
+            # Save intermediate steps if set:
+            if save_intermediate_sampler_chain:
+                if ((k+1) % nStep_intermediate_save == 0):
+                    sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
+                    sampler_dict_tmp['burn_step_cur'] = k # nBurn_orig
+                    sampler_dict_tmp['step_cur'] = -99
+                    if f_sampler_tmp is not None:
+                        # Save stuff to file, for future use:
+                        dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp)
+            # --------------------------------
+            
         #####
         ## This would run in one go:
         #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
@@ -360,7 +432,7 @@ def fit(gal, nWalkers=10,
         prob = None
         state = None
         
-        if not continue_steps:
+        if (not continue_steps) | (not save_intermediate_sampler_chain):
             blob = None
 
 
@@ -380,7 +452,7 @@ def fit(gal, nWalkers=10,
         
         # --------------------------------
         # If continuing chain, only start past existing chain length:
-        if continue_steps:
+        if continue_steps | save_intermediate_sampler_chain:
             if ii < sampler.chain.shape[1]:
                 continue
         
@@ -423,6 +495,18 @@ def fit(gal, nWalkers=10,
                     if ii >= acor_force_min:
                         logger.info(" Finishing calculations early at step {}.".format(ii+1))
                         break
+                        
+        # --------------------------------
+        # Save intermediate steps if set:
+        if save_intermediate_sampler_chain:
+            if ((ii+1) % nStep_intermediate_save == 0):
+                sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
+                sampler_dict_tmp['burn_step_cur'] = nBurn_orig - 1
+                sampler_dict_tmp['step_cur'] = ii
+                if f_sampler_tmp is not None:
+                    # Save stuff to file, for future use:
+                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp)
+        # --------------------------------
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
@@ -472,6 +556,14 @@ def fit(gal, nWalkers=10,
         # Save stuff to file, for future use:
         dump_pickle(sampler_dict, filename=f_sampler)
         
+    
+    # --------------------------------
+    # Cleanup intermediate saves:
+    if save_intermediate_sampler_chain:
+        if f_sampler_tmp is not None:
+            if os.path.isfile(f_sampler_tmp):
+                os.remove(f_sampler_tmp)
+    # --------------------------------
     
     if nCPUs > 1:
         sampler.pool.close()
