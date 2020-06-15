@@ -1601,6 +1601,8 @@ class Einasto(DarkMatterHalo):
     """
     Class for an Einasto dark matter halo
     See Retana-Montenegro et al 2012, A&A, 540, A70
+    
+    Using Mhalo = Mvirial = M200 (as following Mo, Mao, White 1998).
     """
 
     # Powerlaw slopes for the density model
@@ -1609,17 +1611,31 @@ class Einasto(DarkMatterHalo):
     nEinasto = DysmalParameter(default=1.0)
     alphaEinasto = DysmalParameter(default=-99., fixed=True)
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
-
+    
     _subtype = 'dark_matter'
 
     def __init__(self, mvirial, conc, alphaEinasto, nEinasto, fdm = None, 
-            z=0, cosmo=_default_cosmo, **kwargs):
+            z=0, cosmo=_default_cosmo, Einasto_param='nEinasto', **kwargs):
         self.z = z
         self.cosmo = cosmo
+        self.Einasto_param = Einasto_param
         super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
+        
+        # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
+        if self.Einasto_param.lower() == 'neinasto':
+            self.alphaEinasto.fixed = False
+            self.alphaEinasto.tied = self.tie_alphaEinasto
+        elif self.Einasto_param.lower() == 'alphaeinasto':
+            self.nEinasto.fixed = False
+            self.nEinasto.tied = self.tie_nEinasto
+        else:
+            raise ValueError("Einasto_param = {} not recognized! [options: 'nEinasto', 'alphaEinasto']".format(self.Einasto_param))
 
     def evaluate(self, r, mvirial, conc, alphaEinasto, nEinasto, fdm):
-
+        
+        if self.Einasto_param.lower() == 'alphaeinasto':
+            nEinasto = 1./alphaEinasto
+            
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / conc
@@ -1675,7 +1691,10 @@ class Einasto(DarkMatterHalo):
         
         nEinasto = self.calc_nEinasto_from_fdm(baryons, r_fdm)
         
-        return 1./nEinasto
+        if np.isfinite(nEinasto):
+            return 1./nEinasto
+        else:
+            return np.NaN
 
     def calc_nEinasto_from_fdm(self, baryons, r_fdm):
         if (self.fdm.value > self.bounds['fdm'][1]) | \
@@ -1712,6 +1731,11 @@ class Einasto(DarkMatterHalo):
         halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
+    def tie_nEinasto(self):
+        return 1./self.alphaEinasto
+        
+    def tie_alphaEinasto(self):
+        return 1./self.nEinasto
 
 
 class NFW(DarkMatterHalo):
