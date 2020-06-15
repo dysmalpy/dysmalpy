@@ -1596,6 +1596,123 @@ class Burkert(DarkMatterHalo):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
+#
+class Einasto(DarkMatterHalo):
+    """
+    Class for an Einasto dark matter halo
+    See Retana-Montenegro et al 2012, A&A, 540, A70
+    """
+
+    # Powerlaw slopes for the density model
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    conc = DysmalParameter(default=5.0, bounds=(2, 20))
+    nEinasto = DysmalParameter(default=1.0)
+    alphaEinasto = DysmalParameter(default=-99., fixed=True)
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
+
+    _subtype = 'dark_matter'
+
+    def __init__(self, mvirial, conc, alphaEinasto, nEinasto, fdm = None, 
+            z=0, cosmo=_default_cosmo, **kwargs):
+        self.z = z
+        self.cosmo = cosmo
+        super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
+
+    def evaluate(self, r, mvirial, conc, alphaEinasto, nEinasto, fdm):
+
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / conc
+        h = rs / np.power(2.*nEinasto, nEinasto)
+        
+        # Return the density at a given radius:
+        return rho0 * np.exp(- np.power(r/h, 1./nEinasto))
+        
+    def enclosed_mass(self, r):
+        
+        rvirial = self.calc_rvir()
+        rs = rvirial/self.conc
+        h = rs / np.power(2.*self.nEinasto, self.nEinasto)
+        
+        rho0 = self.calc_rho0()
+        
+        # Explicitly substituted for s = r/h before doing s^(1/nEinasto)
+        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, 2.*self.nEinastro * np.power(r/rs, 1./self.nEinasto) ) \
+                        * scp_spec.gamma(3*self.nEinasto)
+        
+        Menc = 4.*np.pi * rho0 * np.power(h, 3.) * self.nEinasto * incomp_gam
+        
+        return Menc
+
+    def calc_rho0(self):
+
+        rvir = self.calc_rvir()
+        rs = rvir/self.conc
+        h = rs / np.power(2.*self.nEinasto, self.nEinasto)
+        
+        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, (2.*self.nEinasto) * np.power(self.conc, 1./self.nEinasto) ) \
+                        * scp_spec.gamma(3*self.nEinasto)
+        
+        rho0 = 10**self.mvirial / (4.*np.pi*self.nEinasto * np.power(h, 3.) * incomp_gam)
+        
+        return rho0
+        
+
+    def calc_rvir(self):
+        """
+        Calculate the virial radius based on virial mass and redshift
+        M_vir = 100*H(z)^2/G * R_vir^3
+        """
+
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
+                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
+        
+    def calc_alphaEinasto_from_fdm(self, baryons, r_fdm):
+        
+        nEinasto = self.calc_nEinasto_from_fdm(baryons, r_fdm)
+        
+        return 1./nEinasto
+
+    def calc_nEinasto_from_fdm(self, baryons, r_fdm):
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
+            nEinasto = np.NaN
+        else:
+            
+            # NOTE: have not tested this yet
+            
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
+            
+            nEinastotest = np.arange(-50, 50, 1.)
+            vtest = np.array([self._minfunc_vdm(nEinast, vsqr_dm_re_target, self.mvirial, self.conc, 
+                                    self.alphaEinasto, self.z, r_fdm) for nEinast in nEinastotest])
+            
+            try:
+                a = nEinastotest[vtest < 0][-1]
+                try:
+                    b = nEinastotest[vtest > 0][0]
+                except:
+                    a = nEinastotest[-2] # Even if not perfect, force in case of no convergence...
+                    b = nEinastotest[-1]
+            except:
+                a = nEinastotest[0]    # Even if not perfect, force in case of no convergence...
+                b = nEinastotest[1]
+            
+            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc, 
+                                        self.alphaEinasto, self.z, r_fdm))
+        
+        return nEinasto
+    
+    def _minfunc_vdm(self, nEinasto, vtarget, mass, conc, alphaEinasto, z, r_eff):
+        halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
+        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        
+
 
 class NFW(DarkMatterHalo):
     """
