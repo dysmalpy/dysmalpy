@@ -988,13 +988,13 @@ class _DysmalFittable1DModel(_DysmalModel):
 
 
 class MassModel(_DysmalFittable1DModel):
-
+    
     _type = 'mass'
-
+    
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
-
+        
     def circular_velocity(self, r):
         """
         Default method to evaluate the circular velocity
