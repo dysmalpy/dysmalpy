@@ -206,8 +206,7 @@ def fit(gal, nWalkers=10,
                     'oversampled_chisq': oversampled_chisq, 
                     'profile1d_type':profile1d_type}
 
-    if save_intermediate_sampler_chain:
-        nBurn_orig = nBurn
+    nBurn_orig = nBurn
     
     if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
@@ -338,7 +337,13 @@ def fit(gal, nWalkers=10,
         prob = None
         state = None
         blob = None
-        for k in six.moves.xrange(nBurn):
+        for k in six.moves.xrange(nBurn_orig):
+            # --------------------------------
+            # If recovering intermediate save, only start past existing chain length:
+            if save_intermediate_sampler_chain:
+                if k < sampler.chain.shape[1]:
+                    continue
+        
             #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
             # Temp for debugging:
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
