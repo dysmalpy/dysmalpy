@@ -146,63 +146,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
     
     return None
 
-# #
-# def dysmalpy_reanalyze_posterior_single_1D(param_filename=None, data=None):
-#     
-#     # Read in the parameters from param_filename:
-#     params = utils_io.read_fitting_params(fname=param_filename)
-#     
-#     # Setup some paths:
-#     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
-#     params['outdir'] = outdir
-#     
-#     
-#     #######################
-#     # Setup
-#     gal, fit_dict = setup_single_object_1D(params=params, data=data)
-#     
-#     # Reload object:
-#     gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-#                                             filename_mcmc_results=fit_dict['f_mcmc_results'])
-#     
-#     # Reanalyze sampler:
-#     results.analyze_plot_save_results(gal,                           
-#                   blob_name=fit_dict['blob_name'], 
-#                   linked_posterior_names=fit_dict['linked_posterior_names'], 
-#                   nPostBins = 50, 
-#                   model_key_re = ['disk+bulge','r_eff_disk'],
-#                   model_key_halo=['halo'],
-#                   oversample=fit_dict['oversample'], 
-#                   oversize=fit_dict['oversize'], 
-#                   profile1d_type=fit_dict['profile1d_type'], 
-#                   fitdispersion=fit_dict['fitdispersion'], 
-#                   save_data=True, 
-#                   save_bestfit_cube=True,
-#                   f_cube=fit_dict['f_cube'], 
-#                   f_model=fit_dict['f_model'], 
-#                   f_vel_ascii = fit_dict['f_vel_ascii'], 
-#                   do_plotting = fit_dict['do_plotting'])
-#     
-#     # Save results
-#     utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
-#     
-#     # Make component plot:
-#     if fit_dict['do_plotting']:
-#         if 'aperture_radius' not in params.keys():
-#             params['aperture_radius'] = -99.
-#             
-#         # Reload bestfit case
-#         gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
-#         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
-#                 profile1d_type = fit_dict['profile1d_type'], 
-#                 oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
-#                 aperture_radius=params['aperture_radius'],
-#                 overwrite=True, overwrite_curve_files=True)
-#     
-#     
-#     return None
 
-#
 def dysmalpy_reanalyze_single_1D(param_filename=None, data=None):
     
     # Read in the parameters from param_filename:
@@ -372,7 +316,7 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                             noord_flat=noord_flat,
                             name='disk+bulge',
                             fixed=bary_fixed, bounds=bary_bounds)
-    #
+    
     if 'linear_masses' in params.keys():
         if params['linear_masses']:
             bary = models.LinearDiskBulge(total_mass=total_mass, bt=bt,
@@ -436,6 +380,8 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
             # Add values needed:
             bary.lmstar = params['lmstar']
             bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
             
             # Setup parameters:
             mvirial =  params['mvirial']
@@ -461,7 +407,8 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                                 fixed=halo_fixed, bounds=halo_bounds, name='halo')
             
             # Tie the virial mass to Mstar
-            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
             
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
@@ -475,6 +422,12 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
             
         elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
             # Burkert halo profile:
+            
+            # Add values needed:
+            bary.lmstar = params['lmstar']
+            bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
             
             # Setup parameters:
             mvirial =  params['mvirial']
@@ -493,7 +446,8 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
                               
             # Tie the virial mass to Mstar
-            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
             
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
@@ -501,6 +455,53 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
             if params['fdm_fixed'] is False:
                 # Tie the virial mass to fDM
                 halo.rB.tied = utils_io.tie_rB_Burkert
+                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+            
+        elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
+            # Einastro halo profile:
+            # Add values needed:
+            bary.lmstar = params['lmstar']
+            bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+            
+            # Setup parameters:
+            mvirial =           params['mvirial']
+            fdm =               params['fdm']
+            
+            halo_fixed = {'mvirial':        params['mvirial_fixed'],
+                          'fdm':            params['fdm_fixed']}
+                          
+            halo_bounds = {'mvirial':       (params['mvirial_bounds'][0], params['mvirial_bounds'][1]), 
+                           'fdm':           (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+            
+            if 'alphaEinasto' in params.keys():
+                alphaEinasto =                  params['alphaEinasto']
+                halo_fixed['alphaEinasto'] =    params['alphaEinasto_fixed']
+                halo_bounds['alphaEinasto'] =   (params['alphaEinasto_bounds'][0], 
+                                                 params['alphaEinasto_bounds'][1])
+                halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, fdm=fdm, z=gal.z, 
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+            elif 'nEinasto' in params.keys():
+                nEinasto =                  params['nEinasto']
+                halo_fixed['nEinasto'] =    params['nEinasto_fixed']
+                halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
+                halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, fdm=fdm, z=gal.z, 
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+                              
+            # Tie the virial mass to Mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
+            
+            if params['fdm_fixed'] is False:
+                # Tie the virial mass to fDM
+                if 'alphaEinasto' in params.keys():
+                    halo.alphaEinasto.tied = utils_io.tie_alphaEinasto_Einasto
+                elif 'nEinasto' in params.keys():
+                    halo.alphaEinasto.tied = utils_io.tie_nEinasto_Einasto
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
             
         else:

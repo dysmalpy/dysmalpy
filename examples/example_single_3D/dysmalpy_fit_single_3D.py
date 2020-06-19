@@ -296,6 +296,8 @@ def setup_gal_inst_mod_3D(params=None):
             # Add values needed:
             bary.lmstar = params['lmstar']
             bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
 
             # Setup parameters:
             mvirial =  params['mvirial']
@@ -321,7 +323,8 @@ def setup_gal_inst_mod_3D(params=None):
                                 fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
             # Tie the virial mass to Mstar
-            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
 
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
@@ -332,10 +335,16 @@ def setup_gal_inst_mod_3D(params=None):
                 # Tie the virial mass to fDM
                 halo.alpha.tied = utils_io.tie_alpha_TwoPower
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
+                
         elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
             # Burkert halo profile:
-
+            
+            # Add values needed:
+            bary.lmstar = params['lmstar']
+            bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+            
             # Setup parameters:
             mvirial =  params['mvirial']
             rB =       params['rB']
@@ -353,7 +362,8 @@ def setup_gal_inst_mod_3D(params=None):
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
             # Tie the virial mass to Mstar
-            halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
 
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
@@ -362,7 +372,55 @@ def setup_gal_inst_mod_3D(params=None):
                 # Tie the virial mass to fDM
                 halo.rB.tied = utils_io.tie_rB_Burkert
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
+        
+        elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
+            # Einastro halo profile:
+            # Add values needed:
+            bary.lmstar = params['lmstar']
+            bary.fgas =  params['fgas']
+            bary.mhalo_relation = params['mhalo_relation']
+            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+            
+            # Setup parameters:
+            mvirial =           params['mvirial']
+            fdm =               params['fdm']
+            
+            halo_fixed = {'mvirial':        params['mvirial_fixed'],
+                          'fdm':            params['fdm_fixed']}
+                          
+            halo_bounds = {'mvirial':       (params['mvirial_bounds'][0], params['mvirial_bounds'][1]), 
+                           'fdm':           (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+            
+            if 'alphaEinasto' in params.keys():
+                alphaEinasto =                  params['alphaEinasto']
+                halo_fixed['alphaEinasto'] =    params['alphaEinasto_fixed']
+                halo_bounds['alphaEinasto'] =   (params['alphaEinasto_bounds'][0], 
+                                                 params['alphaEinasto_bounds'][1])
+                halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, fdm=fdm, z=gal.z, 
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+            elif 'nEinasto' in params.keys():
+                nEinasto =                  params['nEinasto']
+                halo_fixed['nEinasto'] =    params['nEinasto_fixed']
+                halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
+                halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, fdm=fdm, z=gal.z, 
+                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
+                              
+            # Tie the virial mass to Mstar
+            if params['mvirial_tied']:
+                halo.mvirial.tied = utils_io.tied_mhalo_mstar
+            
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+            halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
+            
+            if params['fdm_fixed'] is False:
+                # Tie the virial mass to fDM
+                if 'alphaEinasto' in params.keys():
+                    halo.alphaEinasto.tied = utils_io.tie_alphaEinasto_Einasto
+                elif 'nEinasto' in params.keys():
+                    halo.alphaEinasto.tied = utils_io.tie_nEinasto_Einasto
+                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+            
+        
         else:
             raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
     # ------------------------------------------------------------
