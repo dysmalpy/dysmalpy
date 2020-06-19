@@ -170,8 +170,8 @@ def fit(gal, nWalkers=10,
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
     if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
     #if save_intermediate_sampler_chain and (f_sampler_tmp is None): outdir+'mcmc_sampler_INPROGRESS.pickle'
-    if (f_sampler_tmp is None): outdir+'mcmc_sampler_INPROGRESS.pickle'
-
+    if (f_sampler_tmp is None): f_sampler_tmp = outdir+'mcmc_sampler_INPROGRESS.pickle'
+    
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
     if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.pdf'
