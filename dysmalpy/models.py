@@ -1628,16 +1628,16 @@ class Einasto(DarkMatterHalo):
         super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
         
         # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
-        if (self.Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
+        if (Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
             self.Einasto_param = 'nEinasto'
             self.alphaEinasto.fixed = False
             self.alphaEinasto.tied = self.tie_alphaEinasto
-        elif (self.Einasto_param.lower() == 'alphaeinasto') | (nEinasto is None):
+        elif (Einasto_param.lower() == 'alphaeinasto') | (nEinasto is None):
             self.Einasto_param = 'alphaEinasto'
             self.nEinasto.fixed = False
             self.nEinasto.tied = self.tie_nEinasto
         else:
-            raise ValueError("Einasto_param = {} not recognized! [options: 'nEinasto', 'alphaEinasto']".format(self.Einasto_param))
+            raise ValueError("Einasto_param = {} not recognized! [options: 'nEinasto', 'alphaEinasto']".format(Einasto_param))
 
     def evaluate(self, r, mvirial, conc, alphaEinasto, nEinasto, fdm):
         
