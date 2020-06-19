@@ -384,11 +384,14 @@ def setup_gal_inst_mod_3D(params=None):
             # Setup parameters:
             mvirial =           params['mvirial']
             fdm =               params['fdm']
+            conc =              params['conc']
             
             halo_fixed = {'mvirial':        params['mvirial_fixed'],
+                          'conc':           params['halo_conc_fixed'],
                           'fdm':            params['fdm_fixed']}
                           
             halo_bounds = {'mvirial':       (params['mvirial_bounds'][0], params['mvirial_bounds'][1]), 
+                           'conc':          (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
                            'fdm':           (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
             
             if 'alphaEinasto' in params.keys():
