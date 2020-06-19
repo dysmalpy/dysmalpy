@@ -33,7 +33,7 @@ from . import cutils
 from .parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'LinearNFW', 
-           'TwoPowerHalo', 'Burkert', 
+           'TwoPowerHalo', 'Burkert', 'Einasto', 
            'DispersionConst', 'Geometry', 'BiconicalOutflow',
            'KinematicOptions', 'ZHeightGauss', 'DiskBulge', 'LinearDiskBulge']
 
@@ -1688,9 +1688,7 @@ class Einasto(DarkMatterHalo):
         return rvir
         
     def calc_alphaEinasto_from_fdm(self, baryons, r_fdm):
-        
         nEinasto = self.calc_nEinasto_from_fdm(baryons, r_fdm)
-        
         if np.isfinite(nEinasto):
             return 1./nEinasto
         else:

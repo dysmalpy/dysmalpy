@@ -1365,7 +1365,7 @@ def plot_model_multid_base(gal,
                     
                     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
                     # ++++++++++++++++++++++++++
-                                     
+                    
                     if (show_1d_apers) & (data1d is not None):
                         
                         ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
@@ -1725,6 +1725,436 @@ def plot_model_multid_base(gal,
     ######################################
     
             
+    ################
+    
+    f.suptitle(suptitle, fontsize=16, y=0.95)
+    
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+    
+    return None
+    
+    
+    
+#
+def plot_model_2D_residual(gal, 
+            data1d=None, 
+            data2d=None, 
+            theta=None,
+            fitdispersion=True,  
+            symmetric_residuals=True, 
+            max_residual=100.,
+            xshift = None,
+            yshift = None, 
+            oversample=1, 
+            oversize=1, 
+            fileout=None,
+            vcrop = False, 
+            vcrop_value = 800., 
+            show_1d_apers=False, 
+            remove_shift = True,
+            inst_corr=None):
+        
+    #
+    ######################################
+    # Setup plot:
+    
+    if fitdispersion:
+        ncols = 2
+    else:
+        ncols = 1
+        
+    nrows = 1
+    
+    
+    padx = 0.25
+    pady = 0.25
+    
+    xextra = 0.15 #0.2
+    yextra = 0. #0.75
+    
+    scale = 2.5 #3.5
+    
+    f = plt.figure()
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
+    
+    
+    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
+    
+    
+    padx = 0.2 #0.4
+    pady = 0.1 #0.35
+    gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+    grid_2D = []
+    # grid_2D_cax = []
+    for jj in six.moves.xrange(nrows):
+        for mm in six.moves.xrange(ncols):
+            grid_2D.append(plt.subplot(gs02[jj,mm]))
+            
+            
+    
+    if theta is not None:
+        gal.model.update_parameters(theta)     # Update the parameters
+        
+    #
+    inst_corr_2d = None
+    if inst_corr is None:
+        if 'inst_corr' in data2d.data.keys():
+            inst_corr_2d = data2d.data['inst_corr']
+    else:
+        inst_corr_2d = inst_corr
+        
+        
+    if inst_corr_2d:
+        inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
+    else:
+        inst_corr_sigma = 0.
+        
+    galorig = copy.deepcopy(gal)
+    instorig = copy.deepcopy(gal.instrument)
+    try:
+        instorig2d = copy.deepcopy(gal.instrument2d)
+    except:
+        instorig2d = copy.deepcopy(gal.instrument)
+
+    
+    # In case missing / set to None:
+    if instorig2d is None:
+        instorig2d = copy.deepcopy(gal.instrument)
+    # ----------------------------------------------------------------------
+    # 2D plotting
+    
+    if data2d is None:
+        for ax in grid_2D:
+            ax.set_axis_off()
+            
+    else:
+        gal = copy.deepcopy(galorig)
+        if gal.data.ndim == 1:
+            apply_shift = True
+        else:
+            apply_shift = False
+            
+        
+        gal.data = copy.deepcopy(data2d)
+        gal.instrument = copy.deepcopy(instorig2d)
+        pixscale = gal.instrument.pixscale.value
+    
+        gal.model.update_parameters(theta) 
+        
+        if apply_shift:
+            if xshift is not None:
+                gal.model.geometry.xshift = xshift
+            if yshift is not None:
+                gal.model.geometry.yshift = yshift
+    
+        gal.create_model_data(oversample=oversample, oversize=oversize,
+                                  line_center=gal.model.line_center, ndim_final=2, 
+                                  from_data=True)
+                              
+    
+        keyyarr = ['residual']
+        keyxarr = ['velocity', 'dispersion']
+        keyytitlearr = ['Residual']
+        keyxtitlearr = [r'$V$', r'$\sigma$']
+    
+        int_mode = "nearest"
+        origin = 'lower'
+        cmap =  cm.Spectral_r 
+        cmap.set_bad(color='k')
+        
+        
+        gamma = 1.5 
+        cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5, 
+                    gamma_lower=gamma, gamma_upper=gamma, 
+                    name_new='RdBu_r_stretch')
+        
+        
+        cmap.set_bad(color='k')
+        
+        color_annotate = 'white'
+        
+        
+        # -----------------------
+        vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+        vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
+        
+        
+        # Check for not too crazy:
+        if vcrop:
+            if vel_vmin < -vcrop_value:
+                vel_vmin = -vcrop_value
+            if vel_vmax > vcrop_value:
+                vel_vmax = vcrop_value
+            
+        
+        vel_shift = gal.model.geometry.vel_shift.value
+        
+        #
+        vel_vmin -= vel_shift
+        vel_vmax -= vel_shift
+    
+        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        
+        # Check for not too crazy:
+        if vcrop:
+            if disp_vmin < 0:
+                disp_vmin = 0
+            if disp_vmax > vcrop_value:
+                disp_vmax = vcrop_value
+        
+        
+        alpha_unmasked = 1. #0.7 #0.6
+        alpha_masked = 0.5   # 0.
+        alpha_bkgd = 1. #0.5 #1. #0.5
+        alpha_aper = 0.8
+        
+        vmin_2d = []
+        vmax_2d = []
+        vmin_2d_resid = []
+        vmax_2d_resid = []
+    
+        #for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
+        for j in six.moves.xrange(len(keyxarr)):
+            for mm in six.moves.xrange(len(keyyarr)):
+                kk = j*len(keyyarr) + mm
+            
+                k = keyyarr[mm]
+            
+                ax = grid_2D[kk]
+            
+                xt = keyxtitlearr[j]
+                yt = keyytitlearr[mm]
+                
+                print("plot_model_2D_residual: doing j={}: {} // mm={}: {}".format(j, keyxarr[j], mm, k))
+            
+                # -----------------------------------
+                if keyxarr[j] == 'velocity':
+                    if k == 'residual':
+                        im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                        im[~gal.data.mask] = np.nan
+                        if symmetric_residuals:
+                            vel_vmin = -max_residual
+                            vel_vmax = max_residual
+                            
+                        cmaptmp = cmap_resid
+                        
+                        vmin_2d_resid.append(vel_vmin)
+                        vmax_2d_resid.append(vel_vmax)
+                    else:
+                        raise ValueError("key not supported.")
+
+                        
+                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                                     vmin=vel_vmin, vmax=vel_vmax, origin=origin)
+                                     
+                    # ++++++++++++++++++++++++++
+                    imtmp = im.copy()
+                    imtmp[gal.data.mask] = vel_vmax
+                    imtmp[~gal.data.mask] = np.nan
+                    
+                    # Create an alpha channel of linearly increasing values moving to the right.
+                    alphas = np.ones(im.shape)
+                    alphas[~gal.data.mask] = alpha_masked
+                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                    imtmpalph = mplcolors.Normalize(vel_vmin, vel_vmax, clip=True)(imtmp)
+                    imtmpalph = cm.Greys_r(imtmpalph)
+                    # Now set the alpha channel to the one we created above
+                    imtmpalph[..., -1] = alphas
+                    
+                    
+                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                    # ++++++++++++++++++++++++++
+                                     
+                    if (show_1d_apers) & (data1d is not None):
+                        
+                        ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
+                                        galorig=galorig, alpha_aper=alpha_aper,
+                                        remove_shift=remove_shift)
+                        
+                        
+                    ####################################
+                    # Show a 1arcsec line:
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
+                        
+                    #
+                    ybase_offset = 0.035 #0.065
+                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                    len_line_angular = 1./(pixscale)
+
+                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
+                                c=color_annotate, ls='-',lw=2)
+                    string = '1"'
+                    y_text = y_base
+                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
+                                    xycoords="data", 
+                                    xytext=(0,0),
+                                    color=color_annotate, 
+                                    textcoords="offset points", ha="left", va="center",
+                                    fontsize=8)
+                    ####################################
+                                        
+                    #ax.set_ylabel(yt)
+                    #if k == 'residual':
+                    ax.set_ylabel(yt)
+                    ax.tick_params(which='both', top='off', bottom='off',
+                                   left='off', right='off', labelbottom='off',
+                                   labelleft='off')
+                    for sp in ax.spines.values():
+                        sp.set_visible(False)
+                    print("ytitle={}".format(yt))
+
+                    ax.set_title(xt)
+                    
+                    #########
+                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01, 
+                            fraction=5./101., aspect=20.)
+                    cbar = plt.colorbar(imax, cax=cax, **kw)
+                    cbar.ax.tick_params(labelsize=8)
+                    
+                    
+                    if k == 'residual':
+                        med = np.median(im[gal.data.mask])
+                        rms = np.std(im[gal.data.mask])
+                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                        ax.annotate(median_str,
+                            (0.01,-0.05), xycoords='axes fraction', 
+                            ha='left', va='top', fontsize=8)
+                        ax.annotate(scatter_str,
+                            (0.99,-0.05), xycoords='axes fraction', 
+                            ha='right', va='top', fontsize=8)
+                            
+                    
+                # -----------------------------------
+                if keyxarr[j] == 'dispersion':
+                    if k == 'residual':
+                        im_model = gal.model_data.data['dispersion'].copy()
+                        im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
+                        
+                        im = gal.data.data['dispersion'] - im_model
+                        im[~gal.data.mask] = np.nan
+
+                        if symmetric_residuals:
+                            disp_vmin = -max_residual
+                            disp_vmax = max_residual
+                        cmaptmp = cmap_resid
+                        
+                        vmin_2d_resid.append(disp_vmin)
+                        vmax_2d_resid.append(disp_vmax)
+                        
+                    else:
+                        raise ValueError("key not supported.")
+
+                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                                     vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+                    
+                    
+                    # ++++++++++++++++++++++++++
+                    imtmp = im.copy()
+                    imtmp[gal.data.mask] = disp_vmax
+                    imtmp[~gal.data.mask] = np.nan
+                    
+                    # Create an alpha channel of linearly increasing values moving to the right.
+                    alphas = np.ones(im.shape)
+                    alphas[~gal.data.mask] = alpha_masked
+                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                    imtmpalph = mplcolors.Normalize(disp_vmin, disp_vmax, clip=True)(imtmp)
+                    imtmpalph = cm.Greys_r(imtmpalph)
+                    # Now set the alpha channel to the one we created above
+                    imtmpalph[..., -1] = alphas
+                    
+                    
+                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                    # ++++++++++++++++++++++++++
+                    
+                    # -------------------------------------------
+                    if (show_1d_apers) & (data1d is not None):
+                        
+                        ax = show_1d_apers_plot(ax, gal, data1d, data2d, 
+                                    galorig=galorig, alpha_aper=alpha_aper,
+                                    remove_shift=remove_shift)
+                                    
+                    # -------------------------------------------
+                    
+                    ####################################
+                    # Show a 1arcsec line:
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
+
+                    #
+                    ybase_offset = 0.035 #0.065
+                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                    len_line_angular = 1./(pixscale)
+
+                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base], 
+                                c=color_annotate, ls='-',lw=2)
+                    string = '1"'
+                    y_text = y_base
+                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text), 
+                                    xycoords="data", 
+                                    xytext=(0,0),
+                                    color=color_annotate, 
+                                    textcoords="offset points", ha="left", va="center",
+                                    fontsize=8)
+                    ####################################
+                    
+                    
+                    # if k == 'residual':
+                    #     ax.set_ylabel(yt)
+                    #     ax.tick_params(which='both', top='off', bottom='off',
+                    #                    left='off', right='off', labelbottom='off',
+                    #                    labelleft='off')
+                    #     for sp in ax.spines.values():
+                    #         sp.set_visible(False)
+                    # else:
+                    ax.tick_params(which='both', top='off', bottom='off',
+                                   left='off', right='off', labelbottom='off',
+                                   labelleft='off')
+                    for sp in ax.spines.values():
+                        sp.set_visible(False)
+                        
+                    ax.set_title(xt)
+                    
+                    #########
+                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01, 
+                            fraction=5./101., aspect=20.)
+                    cbar = plt.colorbar(imax, cax=cax, **kw)
+                    cbar.ax.tick_params(labelsize=8)
+                    
+                    #
+                    if k == 'residual':
+                        med = np.median(im[gal.data.mask])
+                        rms = np.std(im[gal.data.mask])
+                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                        ax.annotate(median_str,
+                            (0.01,-0.05), xycoords='axes fraction', 
+                            ha='left', va='top', fontsize=8)
+                        ax.annotate(scatter_str,
+                            (0.99,-0.05), xycoords='axes fraction', 
+                            ha='right', va='top', fontsize=8)
+                            
+                #
+                ax.tick_params(which='both', top='off', bottom='off',
+                               left='off', right='off', labelbottom='off',
+                               labelleft='off')
+                for sp in ax.spines.values():
+                    sp.set_visible(False)
+                ax.set_xticks([])
+                ax.set_yticks([])
     ################
     
     f.suptitle(suptitle, fontsize=16, y=0.95)
@@ -2165,7 +2595,7 @@ def make_clean_mcmc_plot_names(mcmcResults):
     return names
 
 
-
+#############################################################
 def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
 
     aper_centers = data1d.rarr
@@ -2235,46 +2665,18 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
                         np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
     # +++++++++++++++++
-    # #if (gal.data.ndim == 2):
     
     pyoff = 0. 
     ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
     ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
     ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
     
-    # # TESTTESTTEST
-    # pyoff = 0. #-0.1#-0.25
-    # # ax.axvline(x=np.int(nx / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
-    # # ax.axhline(y=np.int(ny / 2.)+pyoff, lw=0.1, ls='-', color='cyan')
-    # 
-    # 
-    # ax.scatter(center_pixel[0]+pyoff, center_pixel[1]+pyoff, color='magenta', marker='.', s=0.25)
-    # ax.scatter(center_pixel_kin[0]+pyoff, center_pixel_kin[1]+pyoff, color='cyan', marker='.', s=0.25)
-    # ax.scatter(np.int(nx / 2.)+pyoff, np.int(ny / 2.)+pyoff, color='lime', marker='.', s=0.25)
-    # print("magenta: center_pixel={}".format(center_pixel))
-    # print("lime: np.int(nx / 2), np.int(ny / 2)={}, {}".format(np.int(nx / 2.), np.int(ny / 2.)))
-    # 
-    # print("xlim={}, ylim={}".format(ax.get_xlim(), ax.get_ylim()))
-    # 
-    # 
-    # ax.scatter(0+pyoff, 0+pyoff, color='magenta', marker='.', s=0.25)
-    # ax.scatter(nx-1+pyoff, ny-1+pyoff, color='magenta', marker='.', s=0.25)
-    
-    
     # +++++++++++++++++
-
-    # # Assume equal distance between successive apertures equal to diameter of aperture
-    # dr = aper_dist_pix
 
     # First determine the centers of all the apertures that fit within the cube
     xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
     
-    # print("aper_centers_pix={}".format(aper_centers_pix))
-    # print("xaps={}".format(xaps))
-    # print("yaps={}".format(yaps))
     
-    #pyoff = 0.
-
     cmstar = cm.plasma
     cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
     cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
@@ -2288,11 +2690,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
     return ax
     
-    
-    
-    
-    
-#
+#############################################################
+
 
 def extract_1D_2D_data_moments_from_cube(gal, 
             slit_width=None, slit_pa=None, 

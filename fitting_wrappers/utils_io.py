@@ -1298,7 +1298,8 @@ def tie_lmvirial_NFW(model_set):
     comp_halo = model_set.components.__getitem__('halo')
     comp_baryons = model_set.components.__getitem__('disk+bulge')
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm, adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
+    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm, 
+                    adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
     return mvirial
 
 def tie_alpha_TwoPower(model_set):
@@ -1314,6 +1315,21 @@ def tie_rB_Burkert(model_set):
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     rB = comp_halo.calc_rB_from_fdm(comp_baryons, r_fdm)
     return rB
+    
+    
+def tie_alphaEinasto_Einasto(model_set):
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    alphaEinasto = comp_halo.calc_alphaEinasto_from_fdm(comp_baryons, r_fdm)
+    return alphaEinasto
+    
+def tie_nEinasto_Einasto(model_set)::
+    comp_halo = model_set.components.__getitem__('halo')
+    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    nEinasto = comp_halo.calc_nEinasto_from_fdm(comp_baryons, r_fdm)
+    return nEinasto
     
 def tie_fdm(model_set):
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
@@ -1439,3 +1455,8 @@ def calc_Rout_max_2D(gal=None, fit_results=None):
     
     
     return Routmax2D 
+    
+    
+    
+
+
