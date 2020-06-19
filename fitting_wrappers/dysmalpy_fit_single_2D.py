@@ -452,13 +452,13 @@ def setup_gal_inst_mod_2D(params=None):
                 halo_fixed['alphaEinasto'] =    params['alphaEinasto_fixed']
                 halo_bounds['alphaEinasto'] =   (params['alphaEinasto_bounds'][0], 
                                                  params['alphaEinasto_bounds'][1])
-                halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, fdm=fdm, z=gal.z, 
+                halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, conc=conc, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
             elif 'nEinasto' in params.keys():
                 nEinasto =                  params['nEinasto']
                 halo_fixed['nEinasto'] =    params['nEinasto_fixed']
                 halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
-                halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, fdm=fdm, z=gal.z, 
+                halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, conc=conc, fdm=fdm, z=gal.z, 
                               fixed=halo_fixed, bounds=halo_bounds, name='halo')
                               
             # Tie the virial mass to Mstar
