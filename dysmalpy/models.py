@@ -1620,9 +1620,9 @@ class Einasto(DarkMatterHalo):
         self.cosmo = cosmo
         
         # Check whether at least *one* of alphaEinasto and nEinasto is set:
-        if (alphaEinsato is None) & (nEinasto is None):
+        if (alphaEinasto is None) & (nEinasto is None):
             raise ValueError("Must set at least one of alphaEinasto and nEinasto!")
-        if (alphaEinsato is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
+        if (alphaEinasto is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
             raise ValueError("If both 'alphaEinasto' and 'nEinasto' are set, must specify which is the fit variable with 'Einasto_param'")
         
         super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
