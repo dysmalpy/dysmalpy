@@ -1614,18 +1614,26 @@ class Einasto(DarkMatterHalo):
     
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alphaEinasto, nEinasto, fdm = None, 
-            z=0, cosmo=_default_cosmo, Einasto_param='nEinasto', **kwargs):
+    def __init__(self, mvirial, conc, alphaEinasto=None, nEinasto=None, fdm = None, 
+            z=0, cosmo=_default_cosmo, Einasto_param='None', **kwargs):
         self.z = z
         self.cosmo = cosmo
-        self.Einasto_param = Einasto_param
+        
+        # Check whether at least *one* of alphaEinasto and nEinasto is set:
+        if (alphaEinsato is None) & (nEinasto is None):
+            raise ValueError("Must set at least one of alphaEinasto and nEinasto!")
+        if (alphaEinsato is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
+            raise ValueError("If both 'alphaEinasto' and 'nEinasto' are set, must specify which is the fit variable with 'Einasto_param'")
+        
         super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
         
         # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
-        if self.Einasto_param.lower() == 'neinasto':
+        if (self.Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
+            self.Einasto_param = 'nEinasto'
             self.alphaEinasto.fixed = False
             self.alphaEinasto.tied = self.tie_alphaEinasto
-        elif self.Einasto_param.lower() == 'alphaeinasto':
+        elif (self.Einasto_param.lower() == 'alphaeinasto') | (nEinasto is None):
+            self.Einasto_param = 'alphaEinasto'
             self.nEinasto.fixed = False
             self.nEinasto.tied = self.tie_nEinasto
         else:
