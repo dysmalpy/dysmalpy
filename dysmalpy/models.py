@@ -1661,7 +1661,7 @@ class Einasto(DarkMatterHalo):
         rho0 = self.calc_rho0()
         
         # Explicitly substituted for s = r/h before doing s^(1/nEinasto)
-        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, 2.*self.nEinastro * np.power(r/rs, 1./self.nEinasto) ) \
+        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, 2.*self.nEinasto * np.power(r/rs, 1./self.nEinasto) ) \
                         * scp_spec.gamma(3*self.nEinasto)
         
         Menc = 4.*np.pi * rho0 * np.power(h, 3.) * self.nEinasto * incomp_gam
