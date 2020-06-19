@@ -1737,10 +1737,12 @@ class Einasto(DarkMatterHalo):
         halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
-    def tie_nEinasto(self):
+    def tie_nEinasto(self, model_set):
+        if model_set.components['halo'].alphaEinasto.value != self.alphaEinasto:
+            raise ValueError
         return 1./self.alphaEinasto
         
-    def tie_alphaEinasto(self):
+    def tie_alphaEinasto(self, model_set):
         return 1./self.nEinasto
 
 
