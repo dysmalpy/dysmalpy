@@ -575,7 +575,7 @@ class ModelSet:
         
         return menc_from_vcirc(vc, r_eff)
         
-    def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Method to calculate the total enclosed mass for the whole model
         as a function of radius
@@ -610,7 +610,7 @@ class ModelSet:
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
 
-                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, model_key_re=model_key_re)
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, model_key_re=model_key_re, step1d=step1d)
                 # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
                 #               (G.cgs.value * Msun.cgs.value))
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
@@ -620,7 +620,7 @@ class ModelSet:
         return enc_mass, enc_bary, enc_dm
 
         
-    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Method to calculate the 1D circular velocity profile
         as a function of radius, from the enclosed mass
@@ -658,7 +658,7 @@ class ModelSet:
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
             vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm, compute_dm=compute_dm,
-                            model_key_re=model_key_re)
+                            model_key_re=model_key_re, step1d=step1d)
                             
             if compute_dm:
                 vel = vels[0]
@@ -2043,13 +2043,14 @@ class KinematicOptions:
         self.pressure_support_re = pressure_support_re
 
     def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, 
-                compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk']):
+                compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
+                step1d = 0.2):
         
         if self.adiabatic_contract:
             #logger.info("Applying adiabatic contraction.")
             
             # Define 1d radius array for calculation
-            step1d = 0.2  # kpc
+            #step1d = 0.2  # kpc
             # r1d = np.arange(step1d, np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
             try:
                 rmaxin = r.max()
