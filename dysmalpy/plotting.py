@@ -1176,7 +1176,7 @@ def plot_model_multid_base(gal,
         if 'inst_corr' in data1d.data.keys():
             inst_corr_1d = data1d.data['inst_corr']
         if 'inst_corr' in data2d.data.keys():
-            inst_corr_2d = data1d.data['inst_corr']
+            inst_corr_2d = data2d.data['inst_corr']
     else:
         inst_corr_1d = inst_corr
         inst_corr_2d = inst_corr
@@ -1610,7 +1610,8 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.xshift = 0
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
-    
+                #pass
+                gal.model.geometry.vel_shift = 0
         #try:
         if True:
             gal.create_model_data(oversample=oversample, oversize=oversize,
