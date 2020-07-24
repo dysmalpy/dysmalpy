@@ -1820,40 +1820,43 @@ class NFW(DarkMatterHalo):
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-    
-            mtest = np.arange(-5, 50, 1.0)
-            if adiabatic_contract:
-                vtest = np.array([self._minfunc_vdm_AC(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons) for m in mtest])
-                # TEST
-                vtest_noAC = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+            
+            if not np.isfinite(vsqr_dm_re_target):
+                mvirial = np.NaN
             else:
-                vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
-        
-            try:
-                a = mtest[vtest < 0][-1]
-                b = mtest[vtest > 0][0]
-                # TEST
+                mtest = np.arange(-5, 50, 1.0)
                 if adiabatic_contract:
-                    a_noAC = mtest[vtest_noAC < 0][-1]
-                    b_noAC = mtest[vtest_noAC > 0][0]
-            except:
-                print("adiabatic_contract={}".format(adiabatic_contract))
-                print("fdm={}".format(self.fdm.value))
-                print("r_fdm={}".format(r_fdm))
-                print(mtest, vtest)
-                raise ValueError
+                    vtest = np.array([self._minfunc_vdm_AC(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons) for m in mtest])
+                    # TEST
+                    vtest_noAC = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+                else:
+                    vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
+        
+                try:
+                    a = mtest[vtest < 0][-1]
+                    b = mtest[vtest > 0][0]
+                    # TEST
+                    if adiabatic_contract:
+                        a_noAC = mtest[vtest_noAC < 0][-1]
+                        b_noAC = mtest[vtest_noAC > 0][0]
+                except:
+                    print("adiabatic_contract={}".format(adiabatic_contract))
+                    print("fdm={}".format(self.fdm.value))
+                    print("r_fdm={}".format(r_fdm))
+                    print(mtest, vtest)
+                    raise ValueError
                 
-            if adiabatic_contract:    
-                # # TEST
-                # print("mtest={}".format(mtest))
-                # print("vtest={}".format(vtest))
-                mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
+                if adiabatic_contract:    
+                    # # TEST
+                    # print("mtest={}".format(mtest))
+                    # print("vtest={}".format(vtest))
+                    mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
                 
-                # TEST
-                mvirial_noAC = scp_opt.brentq(self._minfunc_vdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
-                print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
-            else:
-                mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
+                    # TEST
+                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
+                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
+                else:
+                    mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
     
         return mvirial
     
