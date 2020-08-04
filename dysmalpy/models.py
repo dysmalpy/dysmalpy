@@ -291,6 +291,10 @@ class ModelSet:
         self.outflow_geometry = None
         self.outflow_dispersion = None
         self.outflow_flux = None
+        self.inflow = None
+        self.inflow_geometry = None
+        self.inflow_dispersion = None
+        self.inflow_flux = None
         self.extinction = None
         self.parameters = None
         self.fixed = OrderedDict()
@@ -340,10 +344,14 @@ class ModelSet:
                 elif geom_type == 'outflow':
 
                     self.outflow_geometry = model
+                    
+                elif geom_type == 'inflow':
+                    
+                    self.inflow_geometry = model
 
                 else:
-                    logger.error("geom_type can only be either 'galaxy' or "
-                                 "'outflow'.")
+                    logger.error("geom_type can only be either 'galaxy', "
+                                 "'inflow', or 'outflow'.")
 
                 self.mass_components[model.name] = False
 
@@ -358,6 +366,10 @@ class ModelSet:
                 elif disp_type == 'outflow':
 
                     self.outflow_dispersion = model
+                    
+                elif disp_type == 'inflow':
+                    
+                    self.inflow_dispersion = model
 
                 self.mass_components[model.name] = False
 
@@ -374,7 +386,14 @@ class ModelSet:
                                    'overwritten!')
                 self.outflow = model
                 self.mass_components[model.name] = False
-
+                
+            elif model._type == 'inflow':
+                if self.inflow is not None:
+                    logger.warning('Current inflow model is being '
+                                   'overwritten!')
+                self.inflow = model
+                self.mass_components[model.name] = False
+                
             elif model._type == 'extinction':
                 if self.extinction is not None:
                     logger.warning('Current extinction model is being overwritten!')
@@ -384,7 +403,7 @@ class ModelSet:
             else:
                 raise TypeError("This model type is not known. Must be one of"
                                 "'mass', 'geometry', 'dispersion', 'zheight',"
-                                "'outflow', or 'extinction'.")
+                                "'outflow', 'inflow', or 'extinction'.")
 
             if light:
                 self.light_components[model.name] = True
@@ -784,6 +803,18 @@ class ModelSet:
         # if ycenter is None:
         #     ycenter = (nx_sky - 1) / 2.
         
+        # Backwards compatibility:
+        if 'outflow' not in self.__dict__.keys():
+            self.outflow = None
+            self.outflow_geometry = None
+            self.outflow_dispersion = None
+            self.outflow_flux = None
+        if 'inflow' not in self.__dict__.keys():
+            self.inflow = None
+            self.inflow_geometry = None
+            self.inflow_dispersion = None
+            self.inflow_flux = None
+        
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
@@ -855,22 +886,40 @@ class ModelSet:
             v_sys = self.geometry.vel_shift.value  # systemic velocity
             vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
+            
             vobs_mass[rgal == 0] = 0.
-
+            
+            #######
+            if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2) 
+                # 3D radius, converted to kpc
+                rgal3D_kpc = rgal3D * rstep_samp / dscale
+                xgal_kpc = xgal * rstep_samp / dscale
+                ygal_kpc = ygal * rstep_samp / dscale
+                zgal_kpc = ygal * rstep_samp / dscale
+                vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                
+                # Negative of inflow is already included in the definition of the inflow
+                #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
+                vin_obs = - vin * zsky/rgal3D
+                vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                vobs_mass += vin_obs
+            #######
+            
             # Calculate "flux" for each position
-
+            
             flux_mass = np.zeros(vobs_mass.shape)
-
+            
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
                     flux_mass += self.components[cmp].mass_to_light(rgal) * zscale
-
+                    
             # Apply extinction if a component exists
             if self.extinction is not None:
-
+                
                 flux_mass *= self.extinction(xsky, ysky, zsky)
-
+                
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
@@ -878,9 +927,9 @@ class ModelSet:
             
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
-
+            
         if self.outflow is not None:
-
+            
             if self.outflow._spatial_type == 'resolved':
                 # Create 3D arrays of the sky pixel coordinates
                 sin_inc = np.sin(self.outflow_geometry.inc * np.pi / 180.)
@@ -890,7 +939,7 @@ class ModelSet:
                 nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
                 if np.mod(nz_sky_samp, 2) < 0.5:
                     nz_sky_samp += 1
-
+                    
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
@@ -958,7 +1007,65 @@ class ModelSet:
                 
                 xshift = self.outflow_geometry.xshift.value / oversample
                 yshift = self.outflow_geometry.yshift.value / oversample
+                
+                
+        ####
+        if (self.inflow is not None) & (self.inflow_geometry is not None):
+            # If self.inflow_geometry is None:
+            #   Just us the galaxy geometry and light profile: is just a superimposed kinematic signature 
+            #       on the normal disk rotation:
+            # CALCULATED EARLIER
+            
+            if self.inflow._spatial_type == 'resolved':
+                
+                # Create 3D arrays of the sky pixel coordinates
+                sin_inc = np.sin(self.inflow_geometry.inc * np.pi / 180.)
+            
+                maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
+                maxr_y = np.max(np.array([maxr * 1.5, np.min(
+                    np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
+                nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+            
+                if np.mod(nz_sky_samp, 2) < 0.5:
+                    nz_sky_samp += 1
 
+                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+                zsky, ysky, xsky = np.indices(sh)
+                zsky = zsky - (nz_sky_samp - 1) / 2.
+                ysky = ysky - ycenter_samp 
+                xsky = xsky - xcenter_samp 
+            
+                # Apply the geometric transformation to get inflow coordinates
+                # Account for oversampling
+                self.inflow_geometry.xshift = self.inflow_geometry.xshift.value * oversample
+                self.inflow_geometry.yshift = self.inflow_geometry.yshift.value * oversample
+                xin, yin, zin = self.inflow_geometry(xsky, ysky, zsky)
+
+                # Convert to kpc
+                xin_kpc = xin * rstep_samp / dscale
+                yin_kpc = yin * rstep_samp / dscale
+                zin_kpc = zin * rstep_samp / dscale
+
+                rin = np.sqrt(xin**2 + yin**2 + zin**2)
+                vin = self.inflow(xin_kpc, yin_kpc, zin_kpc)
+                fin = self.inflow.light_profile(xin_kpc, yin_kpc, zin_kpc)
+
+                # Apply extinction if it exists
+                if self.extinction is not None:
+                    fin *= self.extinction(xsky, ysky, zsky)
+
+                # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
+                v_sys = self.inflow_geometry.vel_shift.value  # systemic velocity
+                vobs = v_sys - vin * zsky/rin
+                vobs[rin == 0] = vin[rin == 0]
+
+                sigma_in = self.inflow_dispersion(rin)
+                cube_final += cutils.populate_cube(fin, vobs, sigma_in, vx)
+            
+                self.inflow_geometry.xshift = self.inflow_geometry.xshift.value / oversample
+                self.inflow_geometry.yshift = self.inflow_geometry.yshift.value / oversample
+                    
+        
         if debug:
             return cube_final, spec, flux_mass, vobs_mass
 
@@ -2348,6 +2455,30 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
     def evaluate(v, vcenter, fwhm, amplitude):
 
         return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
+
+
+class UniformRadialInflow(_DysmalFittable3DModel):
+    """Model for a uniform radial inflow. 
+       Assumption is spherical symmetry with a constant velocity."""
+   
+    # vin = DysmalParameter(min=0)
+    vin = DysmalParameter(default=30.) 
+    
+    _type = 'inflow'
+    _spatial_type = 'resolved'
+    outputs = ('vinfl',)
+
+    def __init__(self, vin, **kwargs):
+
+        super(UniformRadialInflow, self).__init__(vin, **kwargs)
+
+    def evaluate(self, x, y, z, vin):
+        """Evaluate the inflow velocity as a function of position x, y, z"""
+        
+        vel = np.ones(x.shape) * (- vin)   # negative because of inflow
+        
+        return vel
+
 
 
 class DustExtinction(_DysmalFittable3DModel):
