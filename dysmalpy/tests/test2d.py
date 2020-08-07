@@ -193,4 +193,4 @@ mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
                            scale_param_a=scale_param_a, nBurn=nburn,
                            nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                            nEff=neff, do_plotting=do_plotting,
-                           oversample=oversample, out_dir=out_dir)
+                           oversample=oversample, outdir=out_dir)

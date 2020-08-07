@@ -528,7 +528,7 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         slit_width = gal.data.slit_width
         aper_centers = gal.data.rarr
         slit_pa = gal.data.slit_pa
-
+    
     rstep = gal.instrument.pixscale.value
     nx = gal.instrument.fov[0]
     ny = gal.instrument.fov[1]

@@ -79,14 +79,30 @@ def sersic_mr(r, mass, n, r_eff):
     return mr
 
 
-def sersic_menc(r, mass, n, r_eff):
-    """Enclosed mass as a function of r for a sersic model"""
+def sersic_menc_2D_proj(r, mass, n, r_eff):
+    """Enclosed mass as a function of r for a sersic model
+    -- THIS ONLY VALID for 2D projection (eg, infinite cylinder)"""
 
     bn = scp_spec.gammaincinv(2. * n, 0.5)
     integ = scp_spec.gammainc(2 * n, bn * (r / r_eff) ** (1. / n))
     norm = mass
 
     return norm*integ
+    
+def sersic_menc(r, mass, n, r_eff):
+    """** PROJECTED** Enclosed mass as a function of r for a sersic model
+    Retained for backwards compatibility"""
+    return sersic_menc_2D_proj(r, mass, n, r_eff)
+    
+# def sersic_menc(r, mass, n, r_eff):
+#     """Enclosed mass as a function of r for a sersic model: 3D Abel deprojection"""
+#     
+#     
+#     raise ValueError("Implement: lookup table, or 3D integral")
+#     
+#     menc = None
+#     
+#     return menc
     
 def v_circular(mass_enc, r):
     """
@@ -1159,7 +1175,11 @@ class Sersic(MassModel):
                                      self.n, self.invq), r)
             
         else:
-            return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
+            #return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
+            return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
+            
+    def projected_enclosed_mass(self, r):
+        return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
 
     def circular_velocity(self, r):
         if self.noord_flat:
@@ -1216,38 +1236,61 @@ class DiskBulge(MassModel):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
         
         if self.noord_flat:
+            # TO FIX
             menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
                         self.n_bulge, self.invq_bulge), r)
             menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
                         self.n_disk,  self.invq_disk),  r)
         else:
-            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
-        
+            #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            # 2D projected:
+            menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            
         return menc_disk+menc_bulge
         
     def enclosed_mass_disk(self, r):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
         
         if self.noord_flat:
+            # TO FIX
             menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
                         self.n_disk,  self.invq_disk),  r)
         else:
-            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
-            
+            #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            # 2D projected:
+            menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
         return menc_disk
         
     def enclosed_mass_bulge(self, r):
         mbulge_total = 10 ** self.total_mass * self.bt
         
         if self.noord_flat:
+            # TO FIX
             menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
                         self.n_bulge, self.invq_bulge), r)
         else:
-            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            # 2D projected:
+            menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
         
         return menc_bulge
         
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    def projected_enclosed_mass(self, r):
+        menc_disk = self.projected_enclosed_mass_disk(r)
+        menc_bulge = self.projected_enclosed_mass_bulge(r)
+        return menc_disk + menc_bulge
+        
+    def projected_enclosed_mass_disk(self, r):
+        mdisk_total = 10 ** self.total_mass * (1 - self.bt)
+        return sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
+    def projected_enclosed_mass_bulge(self, r):
+        mbulge_total = 10 ** self.total_mass * self.bt
+        return sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     def circular_velocity_disk(self, r):
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
@@ -1363,13 +1406,17 @@ class LinearDiskBulge(MassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
         
         if self.noord_flat:
+            # TO FIX
             menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
                         self.n_bulge, self.invq_bulge), r)
             menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
                         self.n_disk,  self.invq_disk),  r)
         else:
-            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            # 2D projected:
+            menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
         
         return menc_disk+menc_bulge
         
@@ -1377,10 +1424,13 @@ class LinearDiskBulge(MassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
         
         if self.noord_flat:
+            # TO FIX
             menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
                         self.n_disk,  self.invq_disk),  r)
         else:
-            menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            # 2D projected:
+            menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
             
         return menc_disk
         
@@ -1388,11 +1438,14 @@ class LinearDiskBulge(MassModel):
         mbulge_total = self.total_mass * self.bt
         
         if self.noord_flat:
+            # TO FIX
             menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
                         self.n_bulge, self.invq_bulge), r)
         else:
-            menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-        
+            #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            # 2D projected:
+            menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            
         return menc_bulge
         
     def circular_velocity_disk(self, r):
@@ -1708,6 +1761,7 @@ class Einasto(DarkMatterHalo):
     """
     Class for an Einasto dark matter halo
     See Retana-Montenegro et al 2012, A&A, 540, A70
+    or Dutton and Maccio 2014, MNRAS, 441, 3359
     
     Using Mhalo = Mvirial = M200 (as following Mo, Mao, White 1998).
     """
@@ -1758,6 +1812,12 @@ class Einasto(DarkMatterHalo):
         
         # Return the density at a given radius:
         return rho0 * np.exp(- np.power(r/h, 1./nEinasto))
+        
+        # Equivalent to:
+        #  rho0 * np.exp( - 2 * nEinasto * ( np.power(r/rs, 1./nEinasto) -1.) )
+        # or
+        #  rho0 * np.exp( - 2 / alphaEinasto * ( np.power(r/rs, alphaEinasto) -1.) )
+        
         
     def enclosed_mass(self, r):
         

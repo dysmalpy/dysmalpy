@@ -498,8 +498,11 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             f.write('Paramfile: {}'.format(params['param_filename']) + '\n')
 
             f.write('\n')
-            f.write('Fitting method: MPFIT')
+            f.write('Fitting method: {}'.format(params['fit_method'].upper()))
             f.write('\n')
+            if 'fit_module' in params.keys():
+                f.write('   fit_module: {}'.format(params['fit_module']))
+                f.write('\n')
             f.write('\n')
             f.write('moment_calc: {}'.format(params['moment_calc']))
             f.write('\n')
