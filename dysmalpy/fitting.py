@@ -32,8 +32,7 @@ from astropy.extern import six
 import astropy.units as u
 import dill as _pickle
 import copy
-from dysmalpy.extern.cap_mpfit import mpfit
-#from dysmalpy.extern.mpfit import mpfit
+from dysmalpy.extern.mpfit import mpfit
 import emcee
 import acor
 
