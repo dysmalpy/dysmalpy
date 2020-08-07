@@ -33,6 +33,7 @@ import astropy.units as u
 import dill as _pickle
 import copy
 from dysmalpy.extern.cap_mpfit import mpfit
+#from dysmalpy.extern.mpfit import mpfit
 import emcee
 import acor
 
@@ -662,7 +663,7 @@ def fit_mpfit(gal,
     if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
     if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mpfit_bestfit_cube.fits'
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
-    if f_results is None:                f_results = outdir + 'mcmc_results.pickle'
+    if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
 
     # Setup file redirect logging:
@@ -705,7 +706,10 @@ def fit_mpfit(gal,
 
     #logger.info('\n')
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(oversample))
 
     logger.info('\nMPFIT Fitting:\n'
@@ -1401,6 +1405,9 @@ class MPFITResults(FitResults):
         """
 
         self._mpfit_object = mpfit_obj
+        if 'blas_enorm' in self._mpfit_object.__dict__.keys():
+            # Can't pickle this object if this is a FORTRAN OBJECT // eg as defined in mpfit.py
+            self._mpfit_object.blas_enorm = None
         self.status = mpfit_obj.status
         self.errmsg = mpfit_obj.errmsg
         self.niter = mpfit_obj.niter

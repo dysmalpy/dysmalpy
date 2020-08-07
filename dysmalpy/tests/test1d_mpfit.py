@@ -3,22 +3,27 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from .. import galaxy
-from .. import models
-from .. import fitting
-from .. import instrument
-from .. import data_classes
-from .. import parameters
+from dysmalpy import galaxy
+from dysmalpy import models
+from dysmalpy import fitting
+from dysmalpy import aperture_classes
+from dysmalpy import instrument
+from dysmalpy import data_classes
+from dysmalpy import parameters
+from fitting_wrappers import utils_io
 
 import numpy as np
 import astropy.units as u
 import astropy.io.fits as fits
 
 # Directory where the data lives
-data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
+#data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
+data_dir = '/Users/sedona/Dropbox/RCOut_Reinhard/rc_2019_analysis/1D_profiles/'
 
 # Directory where to save output files
-out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+#out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+out_dir = '/Users/sedona/Desktop/mpfit_1d_test/cap_test/'
+#out_dir = '/Users/sedona/Desktop/mpfit_1d_test/mpfit_test/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
@@ -109,7 +114,7 @@ pa = 142.     # degrees, blue-shifted side CCW from north
 xshift = 0    # pixels from center
 yshift = 0    # pixels from center
 
-geom_fixed = {'inc': False,
+geom_fixed = {'inc': True, #False,
               'pa': True,
               'xshift': True,
               'yshift': True}
@@ -182,29 +187,44 @@ inst_corr = True                  # Flag for if the measured dispersion has been
 
 test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
-                                  vel_disp_err=err_disp, slit_width=0.22,
-                                  slit_pa=-37., inst_corr=inst_corr)
+                                  vel_disp_err=err_disp, slit_width=0.55, #0.22,
+                                  slit_pa=pa, inst_corr=inst_corr)
 
 gal.data = test_data1d
+gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal, 
+            profile1d_type='circ_ap_cube', 
+            from_data=True, 
+            partial_weight=False,
+            moment=False)
+gal.data.profile1d_type = 'circ_ap_cube'
 
-# Parameters for the MCMC fitting
-nwalkers = 20
-ncpus = 4
-scale_param_a = 2
-minaf = None
-maxaf = None
-neff = 10
-do_plotting = True
+
+# Parameters for the MPFIT fitting
+maxiter = 200
 oversample = 1
+do_plotting = True
 fitdispersion = True
 
+
+params = {'outdir': out_dir, 
+          'galID': 'GS4_43501',
+          'fit_method': 'mpfit',
+          'fit_module': fitting.mpfit.__module__, 
+          'fdata': data_dir+'GS4_43501.obs_prof.txt',
+          'profile1d_type': 'circ_ap_cube',
+          'moment_calc': False, 
+          'partial_weight': False, 
+          'param_filename': None}
+
+              
 def run_1d_test():
-    mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
-                               scale_param_a=scale_param_a, nBurn=nburn,
-                               nSteps=nsteps, minAF=minaf, maxAF=maxaf,
-                               nEff=neff, do_plotting=do_plotting,
+    mpfit_results = fitting.fit_mpfit(gal, maxiter=maxiter, 
+                               do_plotting=do_plotting,
                                oversample=oversample, outdir=out_dir,
                                fitdispersion=fitdispersion)
+                               
+    # Save results
+    utils_io.save_results_ascii_files(fit_results=mpfit_results, gal=gal, params=params)
 
 def reload_1d_test():
     
@@ -213,41 +233,13 @@ def reload_1d_test():
     gal.model = mod_in
     
     # Initialize a basic dummy results class
-    mcmc_results = fitting.MCMCResults(model=gal.model)
+    mpfit_results = fitting.MPFITResults(model=gal.model)
     # Set what the names are for reloading
-    fsampler = out_dir+'mcmc_sampler.pickle'
-    fresults = out_dir+'mcmc_results.pickle'
-
-    mcmc_results.reload_results(filename=fresults)
-    mcmc_results.reload_sampler(filename=fsampler)
+    fresults = out_dir+'mpfit_results.pickle'
     
-    return mcmc_results
+    mpfit_results.reload_results(filename=fresults)
     
-def reanalyze_chain_1d_test():
-    mcmc_results = reload_1d_test()
-    
-    # Reanalyze chain, with possible linked parameters if desired:
-    lpostname = None
-    mcmc_results.analyze_posterior_dist(linked_posterior_names=lpostname)
-    
-    # Resave results to file
-    # Set what the names are for resaving
-    fresults = out_dir+'mcmc_results.pickle'
-    mcmc_results.save_results(filename=fresults)
-    
-    # ### NOTE: ###
-    # Name of parameters in chain are in :
-    # mcmc_results.chain_param_names
-    # matching: mcmc_results.sampler['flatchain']
-    
-    # Sav the ascii file, in case it didn't exist already.
-    fchainascii = out_dir+'mcmc_chain_blobs.dat'
-    mcmc_results.save_chain_ascii(filename=fchainascii)
-    
-    # Need to initialize the model for plotting 
-    gal.create_model_data(oversample=1,
-                          line_center=gal.model.line_center)
-    mcmc_results.plot_results(gal)
+    return mpfit_results
     
     
     
