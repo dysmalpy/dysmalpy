@@ -422,17 +422,16 @@ class Galaxy:
                             disp[i,j] = best_fit.stddev.value
                     
             elif spec_type == "wavelength":
-
+                
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
                     velocity_convention='optical',
                     rest_value=line_center)
-
+                    
                 if self.data.moment:
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
                 else:
-                    vel = lksjdflksdjf
-                    disp = lksjdflksdjflskd
+                    raise ValueError("Not yet supported!")
                     
                 disp[np.isnan(disp)] = 0.
 
