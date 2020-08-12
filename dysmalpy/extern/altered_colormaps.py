@@ -43,8 +43,12 @@ def new_sequential_cmap(name_original, gamma, bad=None, over=None, under=None,
   # Define new colormap data
   cmap_new_data = {}
   for color in ('red', 'green', 'blue'):
-    cmap_new_data[color] = np.copy(cmap_original_data[color])
-    cmap_new_data[color][:,0] **= gamma
+    try:
+        cmap_new_data[color] = np.copy(cmap_original_data[color])
+        cmap_new_data[color][:,0] **= gamma
+    except:
+        cmap_new_data[color] = np.array(cmap_original._segmentdata[color])
+        cmap_new_data[color][:,0] **= gamma
 
   # Create new colormap
   if name_new is None:
