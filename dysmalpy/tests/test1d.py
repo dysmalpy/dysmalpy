@@ -3,22 +3,26 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from .. import galaxy
-from .. import models
-from .. import fitting
-from .. import instrument
-from .. import data_classes
-from .. import parameters
+from dysmalpy import galaxy
+from dysmalpy import models
+from dysmalpy import fitting
+from dysmalpy import aperture_classes
+from dysmalpy import instrument
+from dysmalpy import data_classes
+from dysmalpy import parameters
 
 import numpy as np
 import astropy.units as u
 import astropy.io.fits as fits
 
 # Directory where the data lives
-data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
+#data_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/input/obs_prof/'
+data_dir = '/Users/sedona/Dropbox/RCOut_Reinhard/rc_2019_analysis/1D_profiles/'
 
 # Directory where to save output files
-out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+#out_dir = '/Users/ttshimiz/Dropbox/Research/LLAMA/dysmal/testing/1D_tests/fix_conc5_gaussian_prior_reffANDmvirial_nodispersion/'
+#out_dir = '/Users/sedona/Desktop/dysmalpy_asym_drift_test/'
+out_dir = '/Users/sedona/Desktop/dysmalpy_asym_drift_test_exact/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
@@ -133,8 +137,11 @@ mod_set.add_component(geom)
 # Set some kinematic options for calculating the velocity profile
 adiabatic_contract = False
 pressure_support = True
+pressure_support_type = 1    #  Exponential derived; Burkert+10
+#pressure_support_type = 2    #  Exact nSersic.   For exponential derivation: pressure_support_type = 1
 mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
 mod_set.kinematic_options.pressure_support = pressure_support
+mod_set.kinematic_options.pressure_support_type = pressure_support_type
 
 
 # Set the line central wavelength that is being modeled
@@ -150,7 +157,7 @@ spec_step = 10*u.km/u.s                  # Spectral step
 nspec = 201                              # Number of spectral pixels
 sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
 
-beam = instrument.Beam(major=beamsize)
+beam = instrument.GaussianBeam(major=beamsize)
 lsf = instrument.LSF(sig_inst)
 
 inst.beam = beam
@@ -182,10 +189,16 @@ inst_corr = True                  # Flag for if the measured dispersion has been
 
 test_data1d = data_classes.Data1D(r=gs4_r, velocity=gs4_vel,
                                   vel_disp=gs4_disp, vel_err=err_vel,
-                                  vel_disp_err=err_disp, slit_width=0.22,
-                                  slit_pa=-37., inst_corr=inst_corr)
+                                  vel_disp_err=err_disp, slit_width=0.55, #0.22,
+                                  slit_pa=pa, inst_corr=inst_corr)
 
 gal.data = test_data1d
+gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal, 
+            profile1d_type='circ_ap_cube', 
+            from_data=True, 
+            partial_weight=False,
+            moment=False)
+gal.data.profile1d_type = 'circ_ap_cube'
 
 # Parameters for the MCMC fitting
 nwalkers = 20
@@ -197,6 +210,9 @@ neff = 10
 do_plotting = True
 oversample = 1
 fitdispersion = True
+nburn = 5
+nsteps = 20
+oversampled_chisq = True
 
 def run_1d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
@@ -204,7 +220,8 @@ def run_1d_test():
                                nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                nEff=neff, do_plotting=do_plotting,
                                oversample=oversample, outdir=out_dir,
-                               fitdispersion=fitdispersion)
+                               fitdispersion=fitdispersion, 
+                               oversampled_chisq=oversampled_chisq)
 
 def reload_1d_test():
     
