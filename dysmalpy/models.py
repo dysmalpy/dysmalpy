@@ -2207,10 +2207,13 @@ class KinematicOptions:
     """
 
     def __init__(self, adiabatic_contract=False, pressure_support=False,
-                 pressure_support_re=None):
+                 pressure_support_re=None, pressure_support_type=1,
+                 pressure_support_n=None):
         self.adiabatic_contract = adiabatic_contract
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
+        self.pressure_support_n = pressure_support_n
+        self.pressure_support_type = pressure_support_type
 
     def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, 
                 compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
@@ -2325,40 +2328,10 @@ class KinematicOptions:
             return vel
 
     def apply_pressure_support(self, r, model, vel):
-
         if self.pressure_support:
-
-            if self.pressure_support_re is None:
-                pre = None
-                for cmp in model.mass_components:
-                    if model.mass_components[cmp]:
-                        mcomp = model.components[cmp]
-                        if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
-                            #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
-                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
-                                pre = mcomp.r_eff_disk.value
-                            else:
-                                pre = mcomp.r_eff.value
-                            break
-
-                if pre is None:
-                    logger.warning("No baryonic mass component found. Using "
-                                   "1 kpc as the pressure support effective"
-                                   " radius")
-                    pre = 1.0
-
-            else:
-                pre = self.pressure_support_re
-
-            if model.dispersion_profile is None:
-                raise AttributeError("Can't apply pressure support without "
-                                     "a dispersion profile!")
-
-            #logger.info("Applying pressure support with effective radius of {} "
-            #            "kpc.".format(pre))
-            sigma = model.dispersion_profile(r)
-            vel_squared = (
-                vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
+            vel_asymm_drift = self.get_asymm_drift_profile(r, model)
+            vel_squared = (vel **2 - vel_asymm_drift**2)
+            
             # if array:
             try:
                 vel_squared[vel_squared < 0] = 0.
@@ -2367,42 +2340,15 @@ class KinematicOptions:
                 if vel_squared < 0:
                     vel_squared = 0.
             vel = np.sqrt(vel_squared)
-
+            
         return vel
     
     def correct_for_pressure_support(self, r, model, vel):
         if self.pressure_support:
-            if self.pressure_support_re is None:
-                pre = None
-                for cmp in model.mass_components:
-                    if model.mass_components[cmp]:
-                        mcomp = model.components[cmp]
-                        if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
-                            #if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, DiskBulgeNFW)):
-                            if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
-                                pre = mcomp.r_eff_disk.value
-                            else:
-                                pre = mcomp.r_eff.value
-                            break
-
-                if pre is None:
-                    logger.warning("No baryonic mass component found. Using "
-                                   "1 kpc as the pressure support effective"
-                                   " radius")
-                    pre = 1.0
-
-            else:
-                pre = self.pressure_support_re
-
-            if model.dispersion_profile is None:
-                raise AttributeError("Can't apply pressure support without "
-                                     "a dispersion profile!")
-
-            #logger.info("Correcting for pressure support with effective radius of {} "
-            #            "kpc.".format(pre))
-            sigma = model.dispersion_profile(r)
-            vel_squared = (
-                vel ** 2 + 3.36 * (r / pre) * sigma ** 2)
+            #
+            vel_asymm_drift = self.get_asymm_drift_profile(r, model)
+            vel_squared = (vel **2 + vel_asymm_drift**2)
+                
             # if array:
             try:
                 vel_squared[vel_squared < 0] = 0.
@@ -2411,7 +2357,68 @@ class KinematicOptions:
                 if (vel_squared < 0):
                     vel_squared = 0.
             vel = np.sqrt(vel_squared)
+            
         return vel
+        
+    def get_asymm_drift_profile(self, r, model):
+        pre = self.get_pressure_support_param(model, param='re')
+        
+        if model.dispersion_profile is None:
+            raise AttributeError("Can't apply pressure support without "
+                                 "a dispersion profile!")
+                                 
+        sigma = model.dispersion_profile(r)
+        if self.pressure_support_type == 1:
+            # Pure exponential derivation // n = 1
+            # vel_squared = (vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
+            vel_asymm_drift = np.sqrt( 3.36 * (r / pre) * sigma ** 2 )
+        elif self.pressure_support_type == 2:
+            # Modified derivation that takes into account n_disk / n
+            pn = self.get_pressure_support_param(model, param='n')
+            
+            bn = scp_spec.gammaincinv(2. * pn, 0.5)
+            #vel_squared = (vel ** 2 - 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
+            vel_asymm_drift = np.sqrt( 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
+        
+        return vel_asymm_drift
+        
+        
+    def get_pressure_support_param(self, model, param=None):
+        p_altnames = {'n': 'n', 
+                      're': 'r_eff'}
+        if param not in ['n', 're']:
+            raise ValueError("get_pressure_support_param() only works for param='n', 're'")
+        
+        paramkey = 'pressure_support_{}'.format(param)
+        p_altname = p_altnames[param]
+        
+        if self.__dict__[paramkey] is None:
+            p_val = None
+            for cmp in model.mass_components:
+                if model.mass_components[cmp]:
+                    mcomp = model.components[cmp]
+                    if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
+                        if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
+                            p_val = mcomp.__getattribute__('{}_disk'.format(p_altname)).value
+                        else:
+                            p_val = mcomp.__getattribute__('{}'.format(p_altname)).value
+                        break
+
+            if p_val is None:
+                if param == 're':
+                    logger.warning("No baryonic mass component found. Using "
+                               "1 kpc as the pressure support effective"
+                               " radius")
+                    p_val = 1.0
+                elif param == 'n':
+                    logger.warning("No baryonic mass component found. Using "
+                               "n=1 as the pressure support Sersic index")
+                    p_val = 1.0
+
+        else:
+            p_val = self.__dict__[paramkey]
+
+        return p_val
 
 class BiconicalOutflow(_DysmalFittable3DModel):
     """Model for a biconical outflow. Assumption is symmetry above and below
