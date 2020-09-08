@@ -67,6 +67,44 @@ np.warnings.filterwarnings('ignore')
 # TODO: Need to keep track during the fitting!
 
 
+def surf_dens_exp_disk(r, mass, rd):
+    """Radial surface density function for infinitely thin exponential disk"""
+    
+    #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
+    #rd = r_eff / b1
+    Sig0 = mass / (2. * np.pi * rd**2)
+    Sigr = Sig0 * np.exp(-r/rd)
+    
+    return Sigr
+    
+
+def menc_exp_disk(r, mass, rd):
+    """Enclosed mass function for exponential disk"""
+    #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
+    #rd = r_eff / b1
+    Sig0 = mass / (2. * np.pi * rd**2)
+    
+    menc = 2. * np.pi * Sig0 * rd**2 * ( 1 - np.exp(-r/rd)*(1.+r/rd) )
+    
+    return menc
+    
+    
+def vcirc_exp_disk(r, mass, rd):
+    """Rotation curve function for exponential disk"""
+    
+    #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
+    #rd = r_eff / b1
+    Sig0 = mass / (2. * np.pi * rd**2)
+    
+    y = r / (2.*rd)
+    expdisk = y**2 * ( scp_spec.i0(y) * scp_spec.k0(y) - scp_spec.i1(y)*scp_spec.k1(y) )
+    VCsq = 4 * np.pi * G.cgs.value*Msun.cgs.value / (1000.*pc.cgs.value) * Sig0 * rd * expdisk
+    
+    VCsq[r==0] = 0.
+    
+    return np.sqrt(VCsq) / 1.e5
+    
+
 def sersic_mr(r, mass, n, r_eff):
     """Radial mass function for a generic sersic model"""
 
@@ -1122,9 +1160,10 @@ class MassModel(_DysmalFittable1DModel):
         """
         Default method to evaluate the circular velocity
         as a function of radius using the standard equation:
-        v(r) = SQRT(GM(r)/r)
+        v(r) = SQRT(GM(r)/r).
+        Valid for SPHERICAL mass distribution
         """
-
+        
         mass_enc = self.enclosed_mass(r)
         # vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
         #                 (r * 1000. * pc.cgs.value))
@@ -1133,7 +1172,53 @@ class MassModel(_DysmalFittable1DModel):
         vcirc = v_circular(mass_enc, r)
 
         return vcirc
+        
 
+class ExpDisk(MassModel):
+    """
+    1D infinitely thin exponential disk (Freeman) mass model,  
+    with parameters defined by the total mass and effective radius.
+    
+    Fitting parameters: total mass, r_eff.
+    """
+    
+    total_mass = DysmalParameter(default=1, bounds=(5, 14))
+    r_eff = DysmalParameter(default=1, bounds=(0, 50))
+    _subtype = 'baryonic'
+    
+    def __init__(self, total_mass, r_eff, **kwargs):
+        
+        super(ExpDisk, self).__init__(total_mass, r_eff)
+        
+    @staticmethod
+    def evaluate(r, total_mass, r_eff):
+        """
+        1D Exp inf thin disk profile parameterized by the total mass and
+        effective radius
+        """
+        return surf_dens_exp_disk(r, 10.**total_mass, r_eff / 1.6783469900166612)
+    
+    @property
+    def rd(self):
+        #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
+        return self.r_eff / 1.6783469900166612
+        
+    def enclosed_mass(self, r):
+        """
+        Calculate the enclosed mass as a function of radius
+        :param r: Radii at which to calculate the enclosed mass
+        :return: 1D enclosed mass profile
+        """
+        return menc_exp_disk(r, 10**self.total_mass, self.rd)
+        
+    def circular_velocity(self, r):
+        return vcirc_exp_disk(r, 10**self.total_mass, self.rd)
+        
+    def mass_to_light(self, r):
+        return surf_dens_exp_disk(r, 1.0, self.rd)
+        
+    
+        
 
 class Sersic(MassModel):
     """
