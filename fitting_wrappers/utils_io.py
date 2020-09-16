@@ -150,7 +150,10 @@ def read_fitting_params(fname=None):
                     #params['blob_name'] = 'fdm'
                     
                     if params['halo_profile_type'].upper() == 'NFW':
-                        params['blob_name'] = 'fdm'
+                        if params['halo_conc_fixed'] is False:
+                            params['blob_name'] = ['fdm', 'mvirial']
+                        else:
+                            params['blob_name'] = 'fdm'
                     else:
                         params['blob_name'] = ['fdm', 'mvirial']
         
