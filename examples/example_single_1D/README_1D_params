@@ -21,11 +21,16 @@ following order:
 4.) Velocity dispersion in km/s.
 5.) Velocity dispersion error in km/s.
 
-fdata: Full path to your data. If the data is inside this directory, then just
+fdata: Full path to your data. If the data is inside this directory, or if 'datadir' is set, then just
        the file name.
+
+datadir: Optional: Full path to data directory. If set, then fdata should just be the filename.
 
 data_inst_corr: True/False for whether the dispersion profile has been corrected
                 for the instrumental broadening.
+
+
+profile1d_type: Default 1D aperture extraction shape.
 
 slit_width: Circular aperture diameter in arcsecs used to create the 1D profile
 
@@ -35,7 +40,6 @@ slit_pa: Position angle in degrees that the apertures were placed on.
 
 symmetrize_data: True/False for whether you want the data to be symmetrized.
 
-profile1d_type: Default 1D aperture extraction shape. For now, we recommend to NOT change this parameter in the file.
 aperture_radius: Circular aperture radius. Have used half slit width in past 
                    -- Eg, aperture diam = slit width
                    * If this kwarg is missing, set equal to half of the slit width by default.

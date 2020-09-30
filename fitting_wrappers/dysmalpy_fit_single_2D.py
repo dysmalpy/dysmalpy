@@ -69,9 +69,6 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None):
         print('------------------------------------------------------------------')
         print(" ")
     else:
-        
-        # Copy paramfile into outdir for posterity:
-        #os.system('cp {} {}'.format(param_filename, outdir))
 
         # Copy paramfile that is OS independent
         shutil.copy(param_filename, outdir)
@@ -224,10 +221,6 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
         raise ValueError(
             '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
                 params['fit_method']))
-    #
-    ## SKIP THIS REWRITE FOR MPFIT -- not reanalyzing anything for MPFIT.
-    # # Save results
-    # utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
     
     
     # Plot multid, if enabled:
@@ -338,12 +331,29 @@ def setup_gal_inst_mod_2D(params=None):
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
             halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
 
-            if params['fdm_fixed'] is False:
+            if (params['fdm_fixed'] is False):
                 # Tie the virial mass to fDM
                 halo.mvirial.tied = utils_io.tie_lmvirial_NFW
                 halo.mvirial.fixed = False
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
+            else:
+                if params['mvirial_fixed'] is False:
+                    # Tie fDM to the virial mass
+                    halo.fdm.tied = utils_io.tie_fdm
+                    halo.fdm.fixed = False
+            #
+            if 'fdm_tied' in params.keys():
+                if params['fdm_tied']:
+                    # Tie fDM to the virial mass
+                    halo.fdm.tied = utils_io.tie_fdm
+                    halo.fdm.fixed = False
+            #
+            if 'mvirial_tied' in params.keys():
+                if params['mvirial_tied']:
+                    # Tie the virial mass to fDM
+                    halo.mvirial.tied = utils_io.tie_lmvirial_NFW
+                    halo.mvirial.fixed = False
+                    
         elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
             # Two-power halo fit:
             

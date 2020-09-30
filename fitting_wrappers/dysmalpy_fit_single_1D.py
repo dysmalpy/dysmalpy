@@ -65,9 +65,6 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None):
         print('------------------------------------------------------------------')
         print(" ")
     else:
-        # Copy paramfile into outdir for posterity:
-        #os.system('cp {} {}'.format(param_filename, outdir))
-
         # Copy paramfile that is OS independent
         shutil.copy(param_filename, outdir)
         
@@ -206,18 +203,12 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None):
         raise ValueError(
             '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
                 params['fit_method']))
-    #
-    ## SKIP THIS REWRITE FOR MPFIT -- not reanalyzing anything for MPFIT.
-    # # Save results
-    # utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
     
     # Make component plot:
     if fit_dict['do_plotting']:
         if 'aperture_radius' not in params.keys():
             params['aperture_radius'] = -99.
             
-        # Reload bestfit case
-        # # gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                 profile1d_type = fit_dict['profile1d_type'], 
                 oversample=fit_dict['oversample'], oversize=fit_dict['oversize'], 
@@ -236,26 +227,29 @@ def setup_single_object_1D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup galaxy, instrument, model:
     
-    # if (params['profile1d_type'].lower() != 'circ_ap_cube'):
-    #     raise ValueError(" Are you really sure the data is extracted as {}? Everything tested for 'circ_ap_cube'.".format(params['profile1d_type']))
-    # 
-    
     gal = setup_gal_inst_mod_1D(params=params)
     
     # ------------------------------------------------------------
     # Load data:
     if data is None:
+        # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+        else:
+            datadir = None
+        if datadir is None:
+            datadir = ''
+            
+            
         if 'fdata_mask' in params.keys():
             fdata_mask = params['fdata_mask']
         else:
             fdata_mask = None
-        gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params)
-        gal.data.filename_velocity = params['fdata']
+        gal.data = utils_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params, datadir=datadir)
+        gal.data.filename_velocity = datadir+params['fdata']
         
-        #if params['profile1d_type'] != 'circ_ap_pv':
         if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
             gal.data.apertures = utils_io.setup_basic_aperture_types(gal=gal, params=params)
-        #params['profile1d_type']
     else:
         gal.data = data
         if gal.data.apertures is None:
@@ -373,6 +367,24 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
                 halo.mvirial.tied = utils_io.tie_lmvirial_NFW
                 halo.mvirial.fixed = False
                 halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+            else:
+                if params['mvirial_fixed'] is False:
+                    # Tie fDM to the virial mass
+                    halo.fdm.tied = utils_io.tie_fdm
+                    halo.fdm.fixed = False
+                    
+            #
+            if 'fdm_tied' in params.keys():
+                if params['fdm_tied']:
+                    # Tie fDM to the virial mass
+                    halo.fdm.tied = utils_io.tie_fdm
+                    halo.fdm.fixed = False
+                    
+            if 'mvirial_tied' in params.keys():
+                if params['mvirial_tied']:
+                    # Tie the virial mass to fDM
+                    halo.mvirial.tied = utils_io.tie_lmvirial_NFW
+                    halo.mvirial.fixed = False
             
         elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
             # Two-power halo fit:
@@ -599,8 +611,8 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
     else:
         raise ValueError("not implemented for wavelength yet!")
     nspec = params['nspec']                               # Number of spectral pixels
-
-
+    
+    
     
     if params['psf_type'].lower().strip() == 'gaussian':
         beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
@@ -627,13 +639,13 @@ def setup_gal_inst_mod_1D(params=None, no_baryons=False):
         
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
-
+        
     if params['use_lsf']:
         sig_inst = params['sig_inst_res'] * u.km / u.s  # Instrumental spectral resolution  [km/s]
         lsf = instrument.LSF(sig_inst)
         inst.lsf = lsf
         inst.set_lsf_kernel()
-
+        
     inst.beam = beam
     inst.pixscale = pixscale
     inst.fov = fov

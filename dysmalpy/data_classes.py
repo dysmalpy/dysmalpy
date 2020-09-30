@@ -315,6 +315,7 @@ class Data3D(Data):
 
     def __init__(self, cube, pixscale, spec_type, spec_arr,
                  err_cube=None, weight=None, 
+                 mask_cube=None, 
                  mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
                  ref_pixel=None, spec_unit=None, flux_map=None,
@@ -336,7 +337,10 @@ class Data3D(Data):
             mask_spec = np.ones(len(spec_arr))
 
         mask = _create_cube_mask(mask_sky=mask_sky, mask_spec=mask_spec)
-
+        
+        if mask_cube is not None:
+            mask = mask*mask_cube
+        
         if err_cube is not None:
             if err_cube.shape != cube.shape:
                 raise ValueError("err_cube and cube are not the same size.")

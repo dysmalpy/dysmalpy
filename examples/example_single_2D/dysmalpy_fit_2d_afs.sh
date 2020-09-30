@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Usage: dysmalpy_fit_1d.sh fitting_1D.params
+# Usage: dysmalpy_fit_2d_afs.sh fitting_2D_mpfit.params
 
 # Setup paths on AFS:
 source /afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy_setup.sh
@@ -8,7 +8,7 @@ source /afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy_setup.sh
 # Run fitting
 export DPY_PATH='/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy'
 
-python $DPY_PATH/fitting_wrappers/dysmalpy_fit_single_1D.py $1
+python $DPY_PATH/fitting_wrappers/dysmalpy_fit_single_2D.py $1
 
 
 

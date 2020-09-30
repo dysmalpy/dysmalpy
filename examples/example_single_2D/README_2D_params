@@ -24,11 +24,14 @@ are needed are the following:
 It is strongly recommended to include a mask because the 2D fitting can crucially
 change based on one bad pixel.
 
-fdata_vel: Full path to the velocity map
-fdata_verr: Full path to the velocity err map
-fdata_disp: Full path to the dispersion map
-fdata_derr: Full path to dispersion error map
-fdata_mask: Full path to the mask map
+fdata_vel: Full path to the velocity map. If the data is inside this directory, or if 'datadir' is set, then just
+       the file name.
+fdata_verr: Full path to the velocity err map   (though see 'fdata_vel' and 'datadir')
+fdata_disp: Full path to the dispersion map     (though see 'fdata_vel' and 'datadir')
+fdata_derr: Full path to dispersion error map   (though see 'fdata_vel' and 'datadir')
+fdata_mask: Full path to the mask map           (though see 'fdata_vel' and 'datadir')
+
+datadir: Optional: Full path to data directory. If set, then fdata_vel, etc, should just be the filename.
 
 data_inst_corr: True/False for whether the dispersion map has been corrected
                 for the instrumental broadening.

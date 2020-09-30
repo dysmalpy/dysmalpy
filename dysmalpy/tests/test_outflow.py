@@ -260,10 +260,10 @@ oversample = 1
 
 def run3d_test():
     mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
-	                           scale_param_a=scale_param_a, nBurn=nburn,
-	                           nSteps=nsteps, minAF=minaf, maxAF=maxaf,
-	                           nEff=neff, do_plotting=do_plotting,
-	                           oversample=oversample, out_dir=out_dir)
+                               scale_param_a=scale_param_a, nBurn=nburn,
+                               nSteps=nsteps, minAF=minaf, maxAF=maxaf,
+                               nEff=neff, do_plotting=do_plotting,
+                               oversample=oversample, out_dir=out_dir)
 
     return mcmc_results
 

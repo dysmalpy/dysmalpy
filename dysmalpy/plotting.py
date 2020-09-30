@@ -686,18 +686,16 @@ def plot_data_model_comparison_2D(gal,
 
         if k == 'data':
             ax.set_ylabel(keyytitlearr[0])
-            ax.tick_params(which='both', top='off', bottom='off',
-                           left='off', right='off', labelbottom='off',
-                           labelleft='off')
-            for sp in ax.spines.values():
-                sp.set_visible(False)
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
         else:
-            #ax.set_axis_off()
-            ax.tick_params(which='both', top='off', bottom='off',
-                           left='off', right='off', labelbottom='off',
-                           labelleft='off')
-            for sp in ax.spines.values():
-                sp.set_visible(False)
+            # #ax.set_axis_off()
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
             
         #
         if k == 'residual':
@@ -765,18 +763,16 @@ def plot_data_model_comparison_2D(gal,
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
-                ax.tick_params(which='both', top='off', bottom='off',
-                               left='off', right='off', labelbottom='off',
-                               labelleft='off')
-                for sp in ax.spines.values():
-                    sp.set_visible(False)
+                for pos in ['top', 'bottom', 'left', 'right']:
+                    ax.spines[pos].set_visible(False)
+                ax.set_xticks([])
+                ax.set_yticks([])
             else:
-                #ax.set_axis_off()
-                ax.tick_params(which='both', top='off', bottom='off',
-                               left='off', right='off', labelbottom='off',
-                               labelleft='off')
-                for sp in ax.spines.values():
-                    sp.set_visible(False)
+                # #ax.set_axis_off()
+                for pos in ['top', 'bottom', 'left', 'right']:
+                    ax.spines[pos].set_visible(False)
+                ax.set_xticks([])
+                ax.set_yticks([])
                 
             #
             if k == 'residual':
@@ -997,15 +993,13 @@ def plot_model_2D(gal,
         imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
                          vmin=vel_vmin, vmax=vel_vmax, origin=origin)
 
-        ax.set_ylabel(keyytitlearr[0])
-        ax.tick_params(which='both', top='off', bottom='off',
-                       left='off', right='off', labelbottom='off',
-                       labelleft='off')
-        for sp in ax.spines.values():
-            sp.set_visible(False)
+        for pos in ['top', 'bottom', 'left', 'right']:
+            ax.spines[pos].set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
         
         ax.set_ylabel(keyytitlearr[0])
-
+        
         cbar = ax.cax.colorbar(imax)
         cbar.ax.tick_params(labelsize=8)
 
@@ -1033,11 +1027,11 @@ def plot_model_2D(gal,
                              vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
             ax.set_ylabel(keyytitlearr[1])
-            ax.tick_params(which='both', top='off', bottom='off',
-                           left='off', right='off', labelbottom='off',
-                           labelleft='off')
-            for sp in ax.spines.values():
-                sp.set_visible(False)
+            
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
@@ -1310,7 +1304,7 @@ def plot_model_multid_base(gal,
                 xt = keyxtitlearr[mm]
                 yt = keyytitlearr[j]
                 
-                print("plot_model_multid_base: doing j={}: {} // mm={}: {}".format(j, keyyarr[j], mm, k))
+                #print("plot_model_multid_base: doing j={}: {} // mm={}: {}".format(j, keyyarr[j], mm, k))
             
                 # -----------------------------------
                 if keyyarr[j] == 'velocity':
@@ -1399,20 +1393,21 @@ def plot_model_multid_base(gal,
                     #ax.set_ylabel(yt)
                     if k == 'data':
                         ax.set_ylabel(yt)
-                        ax.tick_params(which='both', top='off', bottom='off',
-                                       left='off', right='off', labelbottom='off',
-                                       labelleft='off')
-                        for sp in ax.spines.values():
-                            sp.set_visible(False)
+                        
+                        for pos in ['top', 'bottom', 'left', 'right']:
+                            ax.spines[pos].set_visible(False)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+                        
                         #
-                        print("ytitle={}".format(yt))
+                        #print("ytitle={}".format(yt))
                     else:
-                        #ax.set_axis_off()
-                        ax.tick_params(which='both', top='off', bottom='off',
-                                       left='off', right='off', labelbottom='off',
-                                       labelleft='off')
-                        for sp in ax.spines.values():
-                            sp.set_visible(False)
+                        ##ax.set_axis_off()
+                        
+                        for pos in ['top', 'bottom', 'left', 'right']:
+                            ax.spines[pos].set_visible(False)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
 
                     ax.set_title(xt)
                     
@@ -1535,18 +1530,18 @@ def plot_model_multid_base(gal,
                     
                     if k == 'data':
                         ax.set_ylabel(yt)
-                        ax.tick_params(which='both', top='off', bottom='off',
-                                       left='off', right='off', labelbottom='off',
-                                       labelleft='off')
-                        for sp in ax.spines.values():
-                            sp.set_visible(False)
+                        
+                        for pos in ['top', 'bottom', 'left', 'right']:
+                            ax.spines[pos].set_visible(False)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
                     else:
-                        #ax.set_axis_off()
-                        ax.tick_params(which='both', top='off', bottom='off',
-                                       left='off', right='off', labelbottom='off',
-                                       labelleft='off')
-                        for sp in ax.spines.values():
-                            sp.set_visible(False)
+                        # #ax.set_axis_off()
+                        
+                        for pos in ['top', 'bottom', 'left', 'right']:
+                            ax.spines[pos].set_visible(False)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
                         
                     
                     #########
@@ -2004,15 +1999,13 @@ def plot_model_2D_residual(gal,
                                     textcoords="offset points", ha="left", va="center",
                                     fontsize=8)
                     ####################################
-                                        
-                    #ax.set_ylabel(yt)
-                    #if k == 'residual':
+                                      
                     ax.set_ylabel(yt)
-                    ax.tick_params(which='both', top='off', bottom='off',
-                                   left='off', right='off', labelbottom='off',
-                                   labelleft='off')
-                    for sp in ax.spines.values():
-                        sp.set_visible(False)
+                    
+                    for pos in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[pos].set_visible(False)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
                     print("ytitle={}".format(yt))
 
                     ax.set_title(xt)
@@ -2112,20 +2105,10 @@ def plot_model_2D_residual(gal,
                                     fontsize=8)
                     ####################################
                     
-                    
-                    # if k == 'residual':
-                    #     ax.set_ylabel(yt)
-                    #     ax.tick_params(which='both', top='off', bottom='off',
-                    #                    left='off', right='off', labelbottom='off',
-                    #                    labelleft='off')
-                    #     for sp in ax.spines.values():
-                    #         sp.set_visible(False)
-                    # else:
-                    ax.tick_params(which='both', top='off', bottom='off',
-                                   left='off', right='off', labelbottom='off',
-                                   labelleft='off')
-                    for sp in ax.spines.values():
-                        sp.set_visible(False)
+                    for pos in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[pos].set_visible(False)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
                         
                     ax.set_title(xt)
                     
@@ -2148,12 +2131,9 @@ def plot_model_2D_residual(gal,
                             (0.99,-0.05), xycoords='axes fraction', 
                             ha='right', va='top', fontsize=8)
                             
-                #
-                ax.tick_params(which='both', top='off', bottom='off',
-                               left='off', right='off', labelbottom='off',
-                               labelleft='off')
-                for sp in ax.spines.values():
-                    sp.set_visible(False)
+                # #
+                for pos in ['top', 'bottom', 'left', 'right']:
+                    ax.spines[pos].set_visible(False)
                 ax.set_xticks([])
                 ax.set_yticks([])
     ################
