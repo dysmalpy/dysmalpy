@@ -50,8 +50,6 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     
     # Reload the galaxy:
     gal = galaxy.load_galaxy_object(filename=fname_gal)
-    # gal, results = fitting.reload_all_fitting(filename_galmodel=fname_gal, 
-    #                     filename_mcmc_results=fname_results)
     
     params = utils_io.read_fitting_params(fname=param_filename)
     
@@ -165,6 +163,30 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     
+    # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+    if 'datadir' in params.keys():
+        datadir = params['datadir']
+    else:
+        datadir = None
+    if datadir is None:
+        datadir = ''
+    ####
+    if 'datadir1d' in params.keys():
+        datadir1d = params['datadir1d']
+    else:
+        datadir1d = None
+    if datadir1d is None:
+        datadir1d = datadir
+    #
+    ####
+    if 'datadir2d' in params.keys():
+        datadir2d = params['datadir2d']
+    else:
+        datadir2d = None
+    if datadir2d is None:
+        datadir2d = datadir
+    ####
+    
     if fit_ndim == 2:
         gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)
     elif fit_ndim == 1:
@@ -182,7 +204,7 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
     # Load the other data:
     if fit_ndim == 2:
         if 'fdata_1d_mask' in params.keys():
-            fdata_mask = params['fdata_1d_mask']
+            fdata_mask = datadir1d+params['fdata_1d_mask']
         else:
             fdata_mask = None
         
@@ -257,8 +279,8 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
         #### 
         # Setup data1d
     
-        data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d)
-        data1d.filename_velocity = params1d['fdata_1d']
+        data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d, datadir=datadir1d)
+        data1d.filename_velocity = datadir1d+params1d['fdata_1d']
     
         if (params1d['profile1d_type'] != 'circ_ap_pv') & (params1d['profile1d_type'] != 'single_pix_pv'):
             data_orig = copy.deepcopy(gal.data)
@@ -275,7 +297,7 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
     
     
     elif fit_ndim == 1:
-        data2d = utils_io.load_single_object_2D_data(params=params, skip_crop=True)
+        data2d = utils_io.load_single_object_2D_data(params=params, skip_crop=True, datadir=datadir2d)
         gal.data2d = data2d
     
     
@@ -312,7 +334,7 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
                 try:
                     scale1 = params2d['psf_scale1']                     # Flux scaling of component 1
                 except:
-                    scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
+                    scale1 = 1.                                         # If omitted, assume scale2 is rel to scale1=1.
                 scale2 = params2d['psf_scale2']                         # Flux scaling of component 2
 
                 beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2, 

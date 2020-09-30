@@ -65,7 +65,7 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
-           oversampled_chisq = None, 
+           oversampled_chisq = True, 
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
@@ -134,8 +134,8 @@ def fit(gal, nWalkers=10,
         # if blob_name.lower().strip() not in valid_blobnames:
         #     raise ValueError("blob_name={} not recognized as option!".format(blob_name))
             
-    if oversampled_chisq is None:
-        raise ValueError("Must set 'oversampled_chisq'!")
+    # if oversampled_chisq is None:
+    #     raise ValueError("Must set 'oversampled_chisq'!")
             
     # Temporary: testing:
     if red_chisq:
@@ -769,9 +769,18 @@ def fit_mpfit(gal,
     if f_model is not None:
         # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model, save_data=save_data)
+        
 
     if save_bestfit_cube:
         gal.model_cube.data.write(f_cube, overwrite=True)
+        
+        #######
+        # DEBUGGING:
+        if gal.data.ndim == 3:
+            gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=True)
+        
+            gal.data.data.write(f_cube+'.data.fits', overwrite=True)
+        #######
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
@@ -1988,27 +1997,6 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
         
-        # #### ORIG
-        # # Includes velocity shift
-        # chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
-        # if fitdispersion:
-        #     if red_chisq:
-        #         if gal.model.nparams_free > 2.*np.sum(msk) :
-        #             raise ValueError("More free parameters than data points!")
-        #         invnu = 1./ (1.*(2.*np.sum(msk) - gal.model.nparams_free))
-        #     else:
-        #         invnu = 1.
-        #     chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
-        #     redchsq = ( chisq_arr_raw_vel.sum() + chisq_arr_raw_disp.sum()) * invnu
-        # else:
-        #     if red_chisq:
-        #         if gal.model.nparams_free > np.sum(msk) :
-        #             raise ValueError("More free parameters than data points!")
-        #         invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
-        #     else:
-        #         invnu = 1.
-        #     redchsq = chisq_arr_raw_vel.sum() * invnu
-        
         
         #####
         
@@ -2020,14 +2008,12 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         
         if fitdispersion:
             fac_mask += 1
-            chisq_arr_raw_disp = ((((disp_dat - disp_mod)/disp_err)**2) * wgt +
-                                    np.log( (2.*np.pi*disp_err**2) / wgt))
+            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt 
             chisq_arr_sum += chisq_arr_raw_disp.sum()
             
         if fitflux:
             fac_mask += 1
-            chisq_arr_raw_flux = ((((flux_dat - flux_mod)/flux_err)**2) * wgt +
-                                    np.log( (2.*np.pi*flux_err**2) / wgt))
+            chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt 
             chisq_arr_sum += chisq_arr_raw_flux.sum()
             
         ####
@@ -2072,11 +2058,6 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
         
-    # if compute_dm:
-    #     dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-    #     return redchsq, dm_frac
-    # else:
-    #     return redchsq
 
     return redchsq
 
@@ -2187,7 +2168,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
         raise ValueError
 
     status = 0
-
+    
     return [status, chisq_arr_raw]
 
 def setup_oversampled_chisq(gal):

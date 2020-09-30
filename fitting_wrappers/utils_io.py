@@ -12,6 +12,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import astropy.units as u
+import astropy.constants as apy_con
 
 from dysmalpy import data_classes
 from dysmalpy import parameters
@@ -112,7 +113,7 @@ def read_fitting_params(fname=None):
               'halo_profile_type': 'NFW',
               'blob_name': None, 
               'red_chisq': False, 
-              'oversampled_chisq': None, 
+              'oversampled_chisq': True, 
               'linked_posteriors': None, 
               'weighting_method': None}
 
@@ -140,15 +141,10 @@ def read_fitting_params(fname=None):
                     if params['halo_profile_type'].upper() == 'NFW':
                         params['blob_name'] = 'mvirial'
                     elif params['halo_profile_type'].lower() == 'twopowerhalo':
-                        #params['blob_name'] = 'alpha'
                         params['blob_name'] = ['alpha', 'mvirial']
                     elif params['halo_profile_type'].lower() == 'burkert':
-                        #params['blob_name'] = 'rb'
                         params['blob_name'] = ['rb', 'mvirial']
                 else:
-                    # fdm is fixed
-                    #params['blob_name'] = 'fdm'
-                    
                     if params['halo_profile_type'].upper() == 'NFW':
                         if params['halo_conc_fixed'] is False:
                             params['blob_name'] = ['fdm', 'mvirial']
@@ -196,15 +192,191 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
     galID = params['galID']
 
     if params['fit_method'] == 'mcmc':
-        f_ascii_machine = outdir+'{}_mcmc_best_fit_results.dat'.format(galID)
+        
+        save_results_ascii_files_mcmc(fit_results=fit_results, gal=gal, params=params, outdir=outdir, galID=galID)
+        
 
-        f_ascii_pretty = outdir+'{}_mcmc_best_fit_results.info'.format(galID)
+
+    elif params['fit_method'] == 'mpfit':
+        save_results_ascii_files_mpfit(fit_results=fit_results, gal=gal, params=params, outdir=outdir, galID=galID)
         
+
+    
+    return None
+    
+#
+def save_results_ascii_files_mcmc(fit_results=None, gal=None, params=None, outdir=None, galID=None):
+    
+    f_ascii_machine = outdir+'{}_mcmc_best_fit_results.dat'.format(galID)
+
+    f_ascii_pretty = outdir+'{}_mcmc_best_fit_results.info'.format(galID)
+    
+    
+    # --------------------------------------------
+    if 'blob_name' in params.keys():
+        blob_name = params['blob_name']
+        if isinstance(blob_name, str):
+            blob_names = [blob_name]
+        else:
+            blob_names = blob_name[:]
         
-        # --------------------------------------------
-        # get fdm_best, lfdm, ufdm
-        #if params['include_halo']:
+    # --------------------------------------------
+    
+    
+    with open(f_ascii_machine, 'w') as f:
+        namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
+        f.write(namestr+'\n')
+        
+        for cmp_n in gal.model.param_names.keys():
+            for param_n in gal.model.param_names[cmp_n]:
+                
+                if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
+                    whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    best = fit_results.bestfit_parameters[whparam]
+                    l68 = fit_results.bestfit_parameters_l68_err[whparam]
+                    u68 = fit_results.bestfit_parameters_u68_err[whparam]
+                else:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+                    l68 = -99.
+                    u68 = -99.
+                    
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                            "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
+                f.write(datstr+'\n')
+                
+        ###
+        
+        if 'blob_name' in params.keys():
+            for blobn in blob_names:
+                blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
+                l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                            '-----', blob_best, l68_blob, u68_blob)
+                f.write(datstr+'\n')
             
+        
+        ###
+        datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
+                    '-----', gal.model.kinematic_options.adiabatic_contract, -99, -99)
+        f.write(datstr+'\n')
+        
+        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+                    '-----', fit_results.bestfit_redchisq, -99, -99)
+        f.write(datstr+'\n')
+        
+        if 'profile1d_type' in params.keys():
+            datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
+                        '-----', params['profile1d_type'], -99, -99)
+            f.write(datstr+'\n')
+        
+        #
+        if 'weighting_method' in params.keys():
+            if params['weighting_method'] is not None:
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+                            '-----', params['weighting_method'], -99, -99)
+                f.write(datstr+'\n')
+            
+        if 'moment_calc' in params.keys():
+            datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
+                        '-----', params['moment_calc'], -99, -99)
+            f.write(datstr+'\n')
+            
+        #
+        if 'partial_weight' in params.keys():
+            datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
+                        '-----', params['partial_weight'], -99, -99)
+            f.write(datstr+'\n')
+        #
+        # INFO on pressure support type:
+        datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
+                    '-----', gal.model.kinematic_options.pressure_support_type, -99, -99)
+        f.write(datstr+'\n')
+
+    #
+    with open(f_ascii_pretty, 'w') as f:
+        f.write('###############################'+'\n')
+        f.write(' Fitting for {}'.format(params['galID'])+'\n')
+        f.write('\n')
+
+        f.write("Date: {}".format(datetime.datetime.now())+'\n')
+        f.write('\n')
+
+        try:
+            f.write('Datafile: {}'.format(params['fdata'])+'\n')
+        except:
+            try:
+                f.write('Datafiles:\n')
+                f.write(' vel:  {}'.format(params['fdata_vel'])+'\n')
+                f.write(' verr: {}'.format(params['fdata_verr'])+'\n')
+                f.write(' disp: {}'.format(params['fdata_disp'])+'\n')
+                f.write(' derr: {}'.format(params['fdata_derr'])+'\n')
+                try:
+                    f.write(' mask: {}'.format(params['fdata_mask'])+'\n')
+                except:
+                    pass
+            except:
+                pass
+        f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
+
+        f.write('\n')
+        f.write('Fitting method: {}'.format(params['fit_method'].upper()))
+        f.write('\n')
+        if 'fit_module' in params.keys():
+            f.write('   fit_module: {}'.format(params['fit_module']))
+            f.write('\n')
+        f.write('\n')
+        # --------------------------------------
+        if 'profile1d_type' in params.keys():
+            f.write('profile1d_type: {}'.format(params['profile1d_type']))
+            f.write('\n')
+        if 'weighting_method' in params.keys():
+            if params['weighting_method'] is not None:
+                f.write('weighting_method: {}'.format(params['weighting_method']))
+                f.write('\n')
+        if 'moment_calc' in params.keys():
+            f.write('moment_calc: {}'.format(params['moment_calc']))
+            f.write('\n')
+        if 'partial_weight' in params.keys():
+            f.write('partial_weight: {}'.format(params['partial_weight']))
+            f.write('\n')
+        #
+        # INFO on pressure support type:
+        f.write('pressure_support_type: {}'.format(gal.model.kinematic_options.pressure_support_type))
+        f.write('\n')
+        # --------------------------------------
+        f.write('\n')
+        f.write('###############################'+'\n')
+        f.write(' Fitting results'+'\n')
+
+        for cmp_n in gal.model.param_names.keys():
+            f.write('-----------'+'\n')
+            f.write(' {}'.format(cmp_n)+'\n')
+
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
+                    whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    best = fit_results.bestfit_parameters[whparam]
+                    l68 = fit_results.bestfit_parameters_l68_err[whparam]
+                    u68 = fit_results.bestfit_parameters_u68_err[whparam]
+
+
+                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+                    f.write(datstr+'\n')
+            #
+            f.write('\n')
+            #
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n,param_n) not in fit_results.chain_param_names:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+
+                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                    f.write(datstr+'\n')
+
+        
+        ####
         if 'blob_name' in params.keys():
             blob_name = params['blob_name']
             if isinstance(blob_name, str):
@@ -212,367 +384,184 @@ def save_results_ascii_files(fit_results=None, gal=None, params=None):
             else:
                 blob_names = blob_name[:]
             
-            ## ORIGINAL
-            # #fit_results.analyze_dm_posterior_dist()
-            # 
-            # blob_best = fit_results.__dict__['bestfit_{}'.format(params['blob_name'])]
-            # l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(params['blob_name'])]
-            # u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(params['blob_name'])]
+            f.write('\n')
+            f.write('-----------'+'\n')
+            for blobn in blob_names:
+                blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
+                l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                f.write(datstr+'\n')
             
-        # --------------------------------------------
+
+        ####
+        f.write('\n')
+        f.write('-----------'+'\n')
+        datstr = 'Adiabatic contraction: {}'.format(gal.model.kinematic_options.adiabatic_contract)
+        f.write(datstr+'\n')
+
+        f.write('\n')
+        f.write('-----------'+'\n')
+        datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
+        f.write(datstr+'\n')
         
-        
-        with open(f_ascii_machine, 'w') as f:
-            namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
-            f.write(namestr+'\n')
-            
-            for cmp_n in gal.model.param_names.keys():
-                for param_n in gal.model.param_names[cmp_n]:
-                    
-                    if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
-                        whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
-                        best = fit_results.bestfit_parameters[whparam]
-                        l68 = fit_results.bestfit_parameters_l68_err[whparam]
-                        u68 = fit_results.bestfit_parameters_u68_err[whparam]
-                    else:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-                        l68 = -99.
-                        u68 = -99.
-                        
-                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
-                                "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
-                    f.write(datstr+'\n')
-                    
-            ###
-            
-            if 'blob_name' in params.keys():
-                for blobn in blob_names:
-                    blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
-                    l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                    u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
-                                '-----', blob_best, l68_blob, u68_blob)
-                    f.write(datstr+'\n')
-                
-                # # ORIGINAL
-                # #fit_results.analyze_dm_posterior_dist()
-                # datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(params['blob_name'], '-----',
-                #             '-----', blob_best, l68_blob, u68_blob)
-                # f.write(datstr+'\n')
-            
-            ###
-            datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
-                        '-----', gal.model.kinematic_options.adiabatic_contract, -99, -99)
-            f.write(datstr+'\n')
-            
-            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
-                        '-----', fit_results.bestfit_redchisq, -99, -99)
-            f.write(datstr+'\n')
-            
-            if 'profile1d_type' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
-                            '-----', params['profile1d_type'], -99, -99)
-                f.write(datstr+'\n')
-            
-            #
-            if 'weighting_method' in params.keys():
-                if params['weighting_method'] is not None:
-                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
-                                '-----', params['weighting_method'], -99, -99)
-                    f.write(datstr+'\n')
-                
-            if 'moment_calc' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
-                            '-----', params['moment_calc'], -99, -99)
-                f.write(datstr+'\n')
-                
-            #
-            if 'partial_weight' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
-                            '-----', params['partial_weight'], -99, -99)
-                f.write(datstr+'\n')
-            #
-            # INFO on pressure support type:
-            datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
-                        '-----', gal.model.mod_set.kinematic_options.pressure_support_type, -99, -99)
-            f.write(datstr+'\n')
-
-        #
-        with open(f_ascii_pretty, 'w') as f:
-            f.write('###############################'+'\n')
-            f.write(' Fitting for {}'.format(params['galID'])+'\n')
-            f.write('\n')
-
-            f.write("Date: {}".format(datetime.datetime.now())+'\n')
-            f.write('\n')
-
-            try:
-                f.write('Datafile: {}'.format(params['fdata'])+'\n')
-            except:
-                try:
-                    f.write('Datafiles:\n')
-                    f.write(' vel:  {}'.format(params['fdata_vel'])+'\n')
-                    f.write(' verr: {}'.format(params['fdata_verr'])+'\n')
-                    f.write(' disp: {}'.format(params['fdata_disp'])+'\n')
-                    f.write(' derr: {}'.format(params['fdata_derr'])+'\n')
-                    try:
-                        f.write(' mask: {}'.format(params['fdata_mask'])+'\n')
-                    except:
-                        pass
-                except:
-                    pass
-            f.write('Paramfile: {}'.format(params['param_filename'])+'\n')
-
-            f.write('\n')
-            f.write('Fitting method: {}'.format(params['fit_method'].upper()))
-            f.write('\n')
-            f.write('moment_calc: {}'.format(params['moment_calc']))
-            f.write('\n')
-            # --------------------------------------
-            if 'profile1d_type' in params.keys():
-                f.write('profile1d_type: {}'.format(params['profile1d_type']))
-                f.write('\n')
-            if 'weighting_method' in params.keys():
-                if params['weighting_method'] is not None:
-                    f.write('weighting_method: {}'.format(params['weighting_method']))
-                    f.write('\n')
-            if 'moment_calc' in params.keys():
-                f.write('moment_calc: {}'.format(params['moment_calc']))
-                f.write('\n')
-            if 'partial_weight' in params.keys():
-                f.write('partial_weight: {}'.format(params['partial_weight']))
-                f.write('\n')
-            #
-            # INFO on pressure support type:
-            f.write('pressure_support_type: {}'.format(gal.model.mod_set.kinematic_options.pressure_support_type))
-            f.write(datstr+'\n')
-            # --------------------------------------
-            f.write('\n')
-            f.write('###############################'+'\n')
-            f.write(' Fitting results'+'\n')
-
-            for cmp_n in gal.model.param_names.keys():
-                f.write('-----------'+'\n')
-                f.write(' {}'.format(cmp_n)+'\n')
-
-                for param_n in gal.model.param_names[cmp_n]:
-
-                    if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
-                        whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
-                        best = fit_results.bestfit_parameters[whparam]
-                        l68 = fit_results.bestfit_parameters_l68_err[whparam]
-                        u68 = fit_results.bestfit_parameters_u68_err[whparam]
-
-
-                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
-                        f.write(datstr+'\n')
-                #
-                f.write('\n')
-                #
-                for param_n in gal.model.param_names[cmp_n]:
-
-                    if '{}:{}'.format(cmp_n,param_n) not in fit_results.chain_param_names:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-
-                        datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
-                        f.write(datstr+'\n')
-
-            
-            ####
-            if 'blob_name' in params.keys():
-                blob_name = params['blob_name']
-                if isinstance(blob_name, str):
-                    blob_names = [blob_name]
-                else:
-                    blob_names = blob_name[:]
-                
-                f.write('\n')
-                f.write('-----------'+'\n')
-                for blobn in blob_names:
-                    blob_best = fit_results.__dict__['bestfit_{}'.format(blobn)]
-                    l68_blob = fit_results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                    u68_blob = fit_results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
-                    f.write(datstr+'\n')
-                
-                
-                ## ORIGINAL
-                # f.write('\n')
-                # f.write('-----------'+'\n')
-                # datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(params['blob_name'],
-                #             blob_best, l68_blob, u68_blob)
-                # f.write(datstr+'\n')
-
-            ####
-            f.write('\n')
-            f.write('-----------'+'\n')
-            datstr = 'Adiabatic contraction: {}'.format(gal.model.kinematic_options.adiabatic_contract)
-            f.write(datstr+'\n')
-
-            f.write('\n')
-            f.write('-----------'+'\n')
-            datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
-            f.write(datstr+'\n')
-            
-            f.write('\n')
-            f.write('-----------'+'\n')
+        try:
             Routmax2D = calc_Rout_max_2D(gal=gal, fit_results=fit_results)
+            f.write('\n')
+            f.write('-----------'+'\n')
             datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
             f.write(datstr+'\n')
+        except:
+            pass
+        
             
-            if 'profile1d_type' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
-                            '-----', params['profile1d_type'], -99, -99)
-                f.write(datstr+'\n')
             
-            #
-            if 'weighting_method' in params.keys():
-                if params['weighting_method'] is not None:
-                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
-                            '-----', params['weighting_method'], -99, -99)
-                    f.write(datstr+'\n')
-                
-            if 'moment_calc' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
-                            '-----', params['moment_calc'], -99, -99)
-                f.write(datstr+'\n')
-                
-            #
-            if 'partial_weight' in params.keys():
-                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
-                            '-----', params['partial_weight'], -99, -99)
-                f.write(datstr+'\n')
-                
-                
 
-            f.write('\n')
-
-    elif params['fit_method'] == 'mpfit':
-
-        f_ascii_machine = outdir + '{}_mpfit_best_fit_results.dat'.format(galID)
-
-        f_ascii_pretty = outdir + '{}_mpfit_best_fit_results.info'.format(galID)
-
-        with open(f_ascii_machine, 'w') as f:
-            namestr = '# component    param_name    fixed    best_value   error'
-            f.write(namestr + '\n')
-
-            for cmp_n in gal.model.param_names.keys():
-                for param_n in gal.model.param_names[cmp_n]:
-
-                    if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
-                        whparam = \
-                        np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
-                            0][0]
-                        best = fit_results.bestfit_parameters[whparam]
-                        err = fit_results.bestfit_parameters_err[whparam]
-                    else:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-                        err = -99
-
-                    datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format(
-                        cmp_n, param_n,
-                        "{}".format(gal.model.fixed[cmp_n][param_n]), best, err)
-                    f.write(datstr + '\n')
-
-            #
-            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format('redchisq',
-                                                                                       '-----',
-                                                                                       '-----',
-                                                                                       fit_results.bestfit_redchisq,
-                                                                                       -99)
-            f.write(datstr + '\n')
-
-        #
-        with open(f_ascii_pretty, 'w') as f:
-            f.write('###############################' + '\n')
-            f.write(' Fitting for {}'.format(params['galID']) + '\n')
-            f.write('\n')
-
-            f.write("Date: {}".format(datetime.datetime.now()) + '\n')
-            f.write('\n')
-
-            try:
-                f.write('Datafile: {}'.format(params['fdata']) + '\n')
-            except:
-                try:
-                    f.write('Datafiles:\n')
-                    f.write(' vel:  {}'.format(params['fdata_vel']) + '\n')
-                    f.write(' verr: {}'.format(params['fdata_verr']) + '\n')
-                    f.write(' disp: {}'.format(params['fdata_disp']) + '\n')
-                    f.write(' derr: {}'.format(params['fdata_derr']) + '\n')
-                    try:
-                        f.write(' mask: {}'.format(params['fdata_mask']) + '\n')
-                    except:
-                        pass
-                except:
-                    pass
-            f.write('Paramfile: {}'.format(params['param_filename']) + '\n')
-
-            f.write('\n')
-            f.write('Fitting method: {}'.format(params['fit_method'].upper()))
-            f.write('\n')
-            if 'fit_module' in params.keys():
-                f.write('   fit_module: {}'.format(params['fit_module']))
-                f.write('\n')
-            f.write('\n')
-            f.write('moment_calc: {}'.format(params['moment_calc']))
-            f.write('\n')
-            # --------------------------------------
-            if 'profile1d_type' in params.keys():
-                f.write('profile1d_type: {}'.format(params['profile1d_type']))
-                f.write('\n')
-            if 'weighting_method' in params.keys():
-                if params['weighting_method'] is not None:
-                    f.write('weighting_method: {}'.format(params['weighting_method']))
-                    f.write('\n')
-            if 'moment_calc' in params.keys():
-                f.write('moment_calc: {}'.format(params['moment_calc']))
-                f.write('\n')
-            if 'partial_weight' in params.keys():
-                f.write('partial_weight: {}'.format(params['partial_weight']))
-                f.write('\n')
-            # --------------------------------------
-            f.write('###############################' + '\n')
-            f.write(' Fitting results' + '\n')
-
-            for cmp_n in gal.model.param_names.keys():
-                f.write('-----------' + '\n')
-                f.write(' {}'.format(cmp_n) + '\n')
-
-                for param_n in gal.model.param_names[cmp_n]:
-
-                    if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
-                        whparam = \
-                        np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
-                            0][0]
-                        best = fit_results.bestfit_parameters[whparam]
-                        err = fit_results.bestfit_parameters_err[whparam]
-
-                        datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best,
-                                                                                    err)
-                        f.write(datstr + '\n')
-                #
-                f.write('\n')
-                #
-                for param_n in gal.model.param_names[cmp_n]:
-
-                    if '{}:{}'.format(cmp_n, param_n) not in fit_results.chain_param_names:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-
-                        datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
-                        f.write(datstr + '\n')
-
-            #
-            f.write('\n')
-            f.write('-----------' + '\n')
-            datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
-            f.write(datstr + '\n')
-
-            f.write('\n')
+        f.write('\n')
     
     
     return None
+    
+#
+def save_results_ascii_files_mpfit(fit_results=None, gal=None, params=None, outdir=None, galID=None):
+    f_ascii_machine = outdir + '{}_mpfit_best_fit_results.dat'.format(galID)
+
+    f_ascii_pretty = outdir + '{}_mpfit_best_fit_results.info'.format(galID)
+
+    with open(f_ascii_machine, 'w') as f:
+        namestr = '# component    param_name    fixed    best_value   error'
+        f.write(namestr + '\n')
+
+        for cmp_n in gal.model.param_names.keys():
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
+                    whparam = \
+                    np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
+                        0][0]
+                    best = fit_results.bestfit_parameters[whparam]
+                    err = fit_results.bestfit_parameters_err[whparam]
+                else:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+                    err = -99
+
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format(
+                    cmp_n, param_n,
+                    "{}".format(gal.model.fixed[cmp_n][param_n]), best, err)
+                f.write(datstr + '\n')
+
+        #
+        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}'.format('redchisq',
+                                                                                   '-----',
+                                                                                   '-----',
+                                                                                   fit_results.bestfit_redchisq,
+                                                                                   -99)
+        f.write(datstr + '\n')
+
+    #
+    with open(f_ascii_pretty, 'w') as f:
+        f.write('###############################' + '\n')
+        f.write(' Fitting for {}'.format(params['galID']) + '\n')
+        f.write('\n')
+
+        f.write("Date: {}".format(datetime.datetime.now()) + '\n')
+        f.write('\n')
+
+        try:
+            f.write('Datafile: {}'.format(params['fdata']) + '\n')
+        except:
+            try:
+                f.write('Datafiles:\n')
+                f.write(' vel:  {}'.format(params['fdata_vel']) + '\n')
+                f.write(' verr: {}'.format(params['fdata_verr']) + '\n')
+                f.write(' disp: {}'.format(params['fdata_disp']) + '\n')
+                f.write(' derr: {}'.format(params['fdata_derr']) + '\n')
+                try:
+                    f.write(' mask: {}'.format(params['fdata_mask']) + '\n')
+                except:
+                    pass
+            except:
+                pass
+        f.write('Paramfile: {}'.format(params['param_filename']) + '\n')
+
+        f.write('\n')
+        f.write('Fitting method: {}'.format(params['fit_method'].upper()))
+        f.write('\n')
+        if 'fit_module' in params.keys():
+            f.write('   fit_module: {}'.format(params['fit_module']))
+            f.write('\n')
+        f.write('\n')
+        # --------------------------------------
+        if 'profile1d_type' in params.keys():
+            f.write('profile1d_type: {}'.format(params['profile1d_type']))
+            f.write('\n')
+        if 'weighting_method' in params.keys():
+            if params['weighting_method'] is not None:
+                f.write('weighting_method: {}'.format(params['weighting_method']))
+                f.write('\n')
+        if 'moment_calc' in params.keys():
+            f.write('moment_calc: {}'.format(params['moment_calc']))
+            f.write('\n')
+        if 'partial_weight' in params.keys():
+            f.write('partial_weight: {}'.format(params['partial_weight']))
+            f.write('\n')
+        
+        # INFO on pressure support type:
+        #if 'pressure_support_type' in params.keys():
+        f.write('pressure_support_type: {}'.format(gal.model.kinematic_options.pressure_support_type))
+        f.write('\n')
+            
+        # --------------------------------------
+        f.write('\n')
+        f.write('###############################' + '\n')
+        f.write(' Fitting results' + '\n')
+
+        for cmp_n in gal.model.param_names.keys():
+            f.write('-----------' + '\n')
+            f.write(' {}'.format(cmp_n) + '\n')
+
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
+                    whparam = \
+                    np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
+                        0][0]
+                    best = fit_results.bestfit_parameters[whparam]
+                    err = fit_results.bestfit_parameters_err[whparam]
+
+                    datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best,
+                                                                                err)
+                    f.write(datstr + '\n')
+            #
+            f.write('\n')
+            #
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n, param_n) not in fit_results.chain_param_names:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+
+                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                    f.write(datstr + '\n')
+
+        #
+        f.write('\n')
+        f.write('-----------' + '\n')
+        datstr = 'Red. chisq: {:0.4f}'.format(fit_results.bestfit_redchisq)
+        f.write(datstr + '\n')
+        
+        try:
+            Routmax2D = calc_Rout_max_2D(gal=gal, fit_results=fit_results)
+            f.write('\n')
+            f.write('-----------'+'\n')
+            datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
+            f.write(datstr+'\n')
+        except:
+            pass
+
+        f.write('\n')
+
+    return None
+    
     
     
 def read_results_ascii_file(fname=None):
@@ -602,11 +591,6 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
                fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
                header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
     
-    # # Write 1D circular aperture plots to text file
-    # np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
-    #            fmt='%2.8f\t%2.8f\t%5.16f\t%5.16f',
-    #            header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
-    # 
     
     return None
     
@@ -854,15 +838,23 @@ def setup_basic_aperture_types(gal=None, params=None):
                 partial_weight=partial_weight,
                 moment=moment_calc)
                 
-    # apertures.profile1d_type = params['profile1d_type']
     
     return apertures
 
     
-def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
+def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir=None):
+    
+    # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+    if datadir is None:
+        # If datadir not passed directly, look for entry in params file:
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+        # If not passed directly as kwarg, and missing from params file, set to empty -- filenames must be full path.
+        if datadir is None:
+            datadir = ''
     
     # Load the data set to be fit
-    dat_arr =   np.loadtxt(fdata)
+    dat_arr =   np.loadtxt(datadir+fdata)
     gal_r =     dat_arr[:,0]
     gal_vel =   dat_arr[:,1]
     gal_disp =  dat_arr[:,3]
@@ -878,8 +870,8 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
         
     
     if fdata_mask is not None:
-        if os.path.isfile(fdata_mask):
-            msk_arr =   np.loadtxt(fdata_mask)
+        if os.path.isfile(datadir+fdata_mask):
+            msk_arr =   np.loadtxt(datadir+fdata_mask)
             msk_r =     msk_arr[:,0]
             msk_vel =   msk_arr[:,1]
             msk_disp =  msk_arr[:,2]
@@ -926,15 +918,27 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None):
     
 def load_single_object_2D_data(params=None, adjust_error=True, 
             automask=True, vmax=500., dispmax=600.,
-            skip_crop=False):
+            skip_crop=False, datadir=None):
     
     # +++++++++++++++++++++++++++++++++++++++++++
     # Upload the data set to be fit
-    gal_vel = fits.getdata(params['fdata_vel'])
-    err_vel = fits.getdata(params['fdata_verr'])
-    gal_disp = fits.getdata(params['fdata_disp'])
-    err_disp = fits.getdata(params['fdata_derr'])
-    mask = fits.getdata(params['fdata_mask'])
+    
+    
+    # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+    if datadir is None:
+        # If datadir not passed directly, look for entry in params file:
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+        # If not passed directly as kwarg, and missing from params file, set to empty -- filenames must be full path.
+        if datadir is None:
+            datadir = ''
+    
+    
+    gal_vel = fits.getdata(datadir+params['fdata_vel'])
+    err_vel = fits.getdata(datadir+params['fdata_verr'])
+    gal_disp = fits.getdata(datadir+params['fdata_disp'])
+    err_disp = fits.getdata(datadir+params['fdata_derr'])
+    mask = fits.getdata(datadir+params['fdata_mask'])
     
     
     # Mask NaNs:
@@ -1051,8 +1055,8 @@ def load_single_object_2D_data(params=None, adjust_error=True,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp, mask=mask,
                                       weight=gal_weight, 
-                                      filename_velocity=params['fdata_vel'],
-                                      filename_dispersion=params['fdata_disp'],
+                                      filename_velocity=datadir+params['fdata_vel'],
+                                      filename_dispersion=datadir+params['fdata_disp'],
                                       smoothing_type=params['smoothing_type'],
                                       smoothing_npix=params['smoothing_npix'],
                                       inst_corr=params['data_inst_corr'],
@@ -1063,16 +1067,137 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     return data2d
     
 #
-def load_single_object_3D_data(params=None):
+def load_single_object_3D_data(params=None, datadir=None):
     
-    raise ValueError("Not generically supported for now: will need to write your own wrapper to load cubes.")
+    
+    # +++++++++++++++++++++++++++++++++++++++++++
+    # Upload the data set to be fit
+    
+    # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+    if datadir is None:
+        # If datadir not passed directly, look for entry in params file:
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+        # If not passed directly as kwarg, and missing from params file, set to empty -- filenames must be full path.
+        if datadir is None:
+            datadir = ''
+    
+    
+    cube = fits.getdata(datadir+params['fdata_cube'])
+    err_cube = fits.getdata(datadir+params['fdata_err'])
+    header = fits.getheader(datadir+params['fdata_cube'])
+    
+    mask = None
+    if 'fdata_mask' in params.keys():
+        if params['fdata_mask'] is not None:
+            mask = fits.getdata(datadir+params['fdata_mask'])
+            
+    #
+    mask_sky=None
+    if 'fdata_mask_sky' in params.keys():
+        if params['fdata_mask_sky'] is not None:
+            mask_sky = fits.getdata(datadir+params['fdata_mask_sky'])
+    #
+    mask_spec=None
+    if 'fdata_mask_spec' in params.keys():
+        if params['fdata_mask_spec'] is not None:
+            mask_spec = fits.getdata(datadir+params['fdata_mask_spec'])
+            
     
     if 'weighting_method' in params.keys():
         gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=None)
     else:
         gal_weight = None
         
-    data3d = None
+    
+    
+    if (mask is None) & ('auto_gen_3D_mask' in params.keys()):
+        if params['auto_gen_3D_mask']:
+            mask = _auto_gen_3D_mask(cube=cube, err=err_cube, snr_thresh=params['auto_gen_mask_snr_thresh'])
+        else:
+            mask = np.ones(cube.shape)
+            
+    ####################################
+    # Mask NaNs:
+    mask[~np.isfinite(cube)] = 0
+    cube[~np.isfinite(cube)] = -99.
+    
+    mask[~np.isfinite(cube)] = 0
+    err_cube[~np.isfinite(err_cube)] = -99.
+    
+    # Clean up 0s in error, if it's masked
+    err_cube[mask == 0] = 99.
+    
+            
+    ####################################
+    # Convert spectrum:
+    if 'spec_orig_type' in params.keys():
+        spec_arr_orig = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
+        spec_line = params['spec_line_rest'] * (1.+params['z'])
+        if params['spec_orig_type'].strip().upper() == 'WAVE':
+            if params['spec_line_rest_unit'].strip().upper() == 'ANGSTROM':
+                l0 = spec_line * u.angstrom
+            elif (params['spec_line_rest_unit'].strip().upper() == 'MICRON') | (params['spec_line_rest_unit'].strip().upper() == 'UM'):
+                l0 = spec_line * u.micrometer
+            #
+            if (header['CUNIT3'].strip().upper() == 'MICRON') | (header['CUNIT3'].strip().upper() == 'UM'):
+                spec_arr_unit = u.micrometer
+            elif (header['CUNIT3'].strip().upper() == 'ANGSTROM'):
+                spec_arr_unit = u.angstrom
+            elif (header['CUNIT3'].strip().upper() == 'M'):
+                spec_arr_unit = u.meter
+            elif (header['CUNIT3'].strip().upper() == 'CM'):
+                spec_arr_unit = u.centimeter
+                
+            spec_arr_wave = spec_arr_orig * spec_arr_unit
+            
+            c_kms = apy_con.c.cgs.to(u.km/u.s)
+            
+            spec_arr_tmp = (spec_arr_wave - l0.to(spec_arr_unit))/l0.to(spec_arr_unit) * c_kms
+            spec_arr = spec_arr_tmp.value
+            spec_unit = u.km/u.s
+            
+            
+        elif params['spec_orig_type'].strip().upper() == 'VELOCITY':
+            spec_arr = spec_arr_orig
+            spec_unit = u.km/u.s
+            
+            if header['CUNIT3'].strip().upper() == 'M/S':
+                spec_arr /= 1000.
+        
+        
+    else:
+        # ASSUME IN KM/S
+        spec_arr = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
+        spec_unit = u.km/u.s
+        
+        if header['CUNIT3'].strip().upper() == 'M/S':
+            spec_arr /= 1000.
+        elif header['CUNIT3'].strip().upper() == 'MICRON':
+            raise ValueError('Assumed unit was km/s -- but does not match the cube header! CUNIT3={}'.format(header['CUNIT3']))
+    
+    
+    
+    
+    pscale = np.abs(header['CDELT1']) * 3600.    # convert from deg CDELT1 to arcsec
+    
+    ####################################
+    
+    
+    cube, err_cube, mask, mask_sky, mask_spec, gal_weight, spec_arr = _auto_truncate_crop_cube(cube,
+                                            params=params, 
+                                            pixscale=pscale, 
+                                            spec_type='velocity', spec_arr=spec_arr,
+                                            err_cube=err_cube, mask_cube=mask, 
+                                            mask_sky=mask_sky, mask_spec=mask_spec,
+                                            spec_unit=spec_unit,weight=gal_weight)
+    
+    
+    data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', spec_arr=spec_arr,
+                                      err_cube=err_cube, mask_cube=mask, 
+                                      mask_sky=mask_sky, mask_spec=mask_spec, 
+                                      spec_unit=u.km/u.s,
+                                      weight=gal_weight)
     
     return data3d
     
@@ -1116,13 +1241,106 @@ def setup_data_weighting_method(method='UNSET', r=None):
         raise ValueError("Weighting method not implmented yet!: {}".format(method))
     
     return weight
+    
+    
+def _auto_gen_3D_mask(cube=None, err=None, snr_thresh=3.):
+    # Crude first-pass on auto-generated 3D cube mask, based on S/N:
+    
+    snr_cube = np.abs(cube)/np.abs(err)
+    # Set NaNs / 0 err to SNR=0.
+    snr_cube[~np.isfinite(snr_cube)] = 0.
+    
+    mask = np.ones(cube.shape)
+    mask[snr_cube < snr_thresh] = 0
+    
+    
+    return mask
+    
+def _auto_truncate_crop_cube(cube, params=None, 
+            pixscale=None, spec_type='velocity', spec_arr=None,
+                                            err_cube=None, mask_cube=None, 
+                                            mask_sky=None, mask_spec=None,
+                                            spec_unit=u.km/u.s,weight=None):
+    
+    # First truncate by spec:
+    if 'spec_vel_trim' in params.keys():
+        whin = np.where((spec_arr >= params['spec_vel_trim'][0]) & (spec_arr <= params['spec_vel_trim'][1]))[0]
+        spec_arr = spec_arr[whin]
+        cube = cube[whin, :, :]
+        err_cube = err_cube[whin, :, :]
+    
+        if mask_cube is not None:
+            mask_cube = mask_cube[whin, :, :]
+        if mask_sky is not None:
+            mask_sky = mask_sky[whin, :, :]
+        if mask_spec is not None:
+            mask_spec = mask_spec[whin, :, :]
+        if weight is not None:
+            weight = weight[whin, :, :]
+            
+            
+    # Then truncate area:
+    if 'spatial_crop_trim' in params.keys():
+        # left right bottom top
+        sp_trm = np.array(params['spatial_crop_trim'], dtype=np.int32)
+        cube = cube[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+        err_cube = err_cube[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+        if mask_cube is not None:
+            mask_cube = mask_cube[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+        if mask_sky is not None:
+            mask_sky = mask_sky[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+        if mask_spec is not None:
+            mask_spec = mask_spec[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+        if weight is not None:
+            weight = weight[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
+    
+    
+    
+    ##############
+    # Then check for first / last non-masked parts:
+    if mask_cube is not None:
+        mcube = cube.copy()*mask_cube.copy()
+    else:
+        mcube = cube.copy()
+        
+    mcube[~np.isfinite(mcube)] = 0.
+    mcube=np.abs(mcube)
+    c_sum_spec = mcube.sum(axis=(1,2))
+    c_spec_up = np.cumsum(c_sum_spec)
+    c_spec_down = np.cumsum(c_sum_spec[::-1])
+    
+    wh_l = np.where(c_spec_up > 0.)[0][0]
+    wh_r = np.where(c_spec_down > 0.)[0][0]
+    if (wh_l > 0) | (wh_r > 0):
+        if wh_r == 0:
+            v_wh_r = len(c_spec_down)
+        else:
+            v_wh_r = -wh_r
+        #
+        #c_sum_trim = c_sum_spec[wh_l:]
+        
+        
+        spec_arr = spec_arr[wh_l:v_wh_r]
+        cube = cube[wh_l:v_wh_r, :, :]
+        err_cube = err_cube[wh_l:v_wh_r, :, :]
+        
+        if mask_cube is not None:
+            mask_cube = mask_cube[wh_l:v_wh_r, :, :]
+        if mask_sky is not None:
+            mask_sky = mask_sky[wh_l:v_wh_r, :, :]
+        if mask_spec is not None:
+            mask_spec = mask_spec[wh_l:v_wh_r, :, :]
+        if weight is not None:
+            weight = weight[wh_l:v_wh_r, :, :]
+    
+    
+    #####
+    return cube, err_cube, mask_cube, mask_sky, mask_spec, weight, spec_arr
+    
 
 def set_comp_param_prior(comp=None, param_name=None, params=None):
     if params['{}_fixed'.format(param_name)] is False:
         if '{}_prior'.format(param_name) in list(params.keys()):
-            # OLD! Problematic for case w/ catalog + params diff...
-            # center = params[param_name] 
-            
             # Default to using pre-set value!
             try:
                 try:
@@ -1278,8 +1496,6 @@ def tied_mhalo_mstar(model_set):
     try:
         mhalo_relation = model_set.components['disk+bulge'].mhalo_relation
     except:
-        ## print("Missing mhalo_relation! setting mhalo_relation='Behroozi13' ! [options: 'Behroozi13', 'Moster13']")
-        ## mhalo_relation = 'Behroozi13'
         
         print("Missing mhalo_relation! setting mhalo_relation='Moster18' ! [options: 'Moster18', 'Behroozi13', 'Moster13']")
         mhalo_relation = 'Moster18'

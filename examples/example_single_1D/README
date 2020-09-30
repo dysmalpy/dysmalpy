@@ -3,12 +3,20 @@ profile using the DYSMALPY wrappers and provides a description of all of the
 parameters that can be tuned in the modelling and fitting procedure.
 
 The following files should be provided in this example_single_1D directory:
--- dysmalpy_fit_1d.sh: Bash shell script to run everything
--- fitting_1D.params: Example parameter file that is input to the shell script
+-- dysmalpy_fit_1d_afs.sh: Bash shell script to run everything
+-- fitting_1D_mpfit.params: Example parameter file that is input to the shell script
 -- README: This file!
 -- README_1D_params: Description of all parameters in fitting_1D.params
--- COS3_18434.obs_prof.txt: Example 1D data file
--- COS3_18434_1D_out/: Example output directory for fitting in 1D
+
+
+
+Additionally, you need the "dysmalpy_example_data" data directory:
+...PATH.../dysmalpy_example_data/
+-- GS4_43501.obs_prof.txt: Example 1D data file
+
+
+Finally: specify the full output path:
+-- GS4_43501_1D_out/: Example output directory for fitting in 1D
 
 Overview
 --------
@@ -31,13 +39,13 @@ Within the output directory that you specify in fitting_1D.params, you should
 find the following files depending on which fitting method you used:
 
 Both MCMC and MPFIT (with only difference being replace 'mcmc' with 'mpfit'
-in the filenames and 'COS3_18434' with the name of your galaxy)
+in the filenames and 'GS4_43501' with the name of your galaxy)
 -------------------
-1.) COS3_18434_mcmc_best_fit_results.info
+1.) GS4_43501_mcmc_best_fit_results.info
     -- Contains a nice human readable output of the best fit parameters of your
        model with uncertainties
 
-2.) COS3_18434_mcmc_best_fit_results.dat
+2.) GS4_43501_mcmc_best_fit_results.dat
     -- Results of the fitting in a machine readable format with the following
        columns
         -- component: String with the model component name
@@ -57,23 +65,23 @@ in the filenames and 'COS3_18434' with the name of your galaxy)
     -- The last line of the table contains the reduced chi-square of the fit
        with the value in the "best_value" column.
 
-3.) COS3_18434_mcmc_best_fit.pdf
+3.) GS4_43501_mcmc_best_fit.pdf
     -- Plot of the data with the best fitting model
 
-4.) COS3_18434_mcmc_besfit_model_cube.fits
+4.) GS4_43501_mcmc_besfit_model_cube.fits
     -- FITS file containing the best fit model cube
 
-5.) COS3_18434_galaxy_bestfit_vel_profile.dat
+5.) GS4_43501_galaxy_bestfit_vel_profile.dat
     -- Best fit circular and rotational velocity profile as a function of radius
        with steps of 0.1 kpc and a maximum of 3 effective radii
 
-6.) COS3_18434_galaxy_model.pickle
+6.) GS4_43501_galaxy_model.pickle
     -- Python pickle file containing the setup for the model and the instrument
 
-7.) COS3_18434_mcmc_results.pickle
+7.) GS4_43501_mcmc_results.pickle
      -- Python pickle file containing the fitting results of the run
 
-8.) COS3_18434_info.log
+8.) GS4_43501_info.log
      -- Log file that records the output during the run and will show if any
         errors occurred
 
@@ -83,11 +91,11 @@ in the filenames and 'COS3_18434' with the name of your galaxy)
 
 Only MCMC
 ---------
-1.) COS3_18434_mcmc_param_corner.pdf
+1.) GS4_43501_mcmc_param_corner.pdf
     -- "Corner" plot showing the joint 2D and marginalized posterior distributions
        for each free parameter
            
-2.) COS3_18434_mcmc_burnin_trace.pdf
+2.) GS4_43501_mcmc_burnin_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "burnin" phase
 
@@ -96,7 +104,7 @@ Only MCMC
        different than at the start. I.e the walkers should have "walked" away
        from their initial distribution.
 
-3.) COS3_18434_mcmc_trace.pdf
+3.) GS4_43501_mcmc_trace.pdf
     -- Plot of every MCMC walker for every free model parameter as it evolved
        during the "sampling" phase. These are the values that are used to define
        the posterior distribution of each free parameter.
@@ -104,12 +112,12 @@ Only MCMC
     -- Use this plot to assess visually whether the parameters have converged
        on a distribution or whether more steps are needed.
 
-4.) COS3_18434_mcmc_chain_blobs.dat
+4.) GS4_43501_mcmc_chain_blobs.dat
     -- Table of the values contained in the posterior distribution for each
        free parameter
 
 
-6.) COS3_18434_mcmc_sampler.pickle
+6.) GS4_43501_mcmc_sampler.pickle
      -- Python pickle file containing the MCMC setup and chains from the fit
 
 

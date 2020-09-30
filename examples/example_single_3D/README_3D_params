@@ -26,6 +26,10 @@ z:      Redshift of your object
 It is strongly recommended to include a mask because the 3D fitting can crucially
 change based on one bad pixel.
 
+
+datadir: Optional: Full path to data directory. If set, then fdata_cube, etc, should just be the filename.
+
+
 # fdata_vel: Full path to the velocity map
 # fdata_verr: Full path to the velocity err map
 # fdata_disp: Full path to the dispersion map

@@ -3,33 +3,46 @@
 # See README for a description of each parameter and its available options.
 
 # ******************************* OBJECT INFO **********************************
-galID,    COS3_18434    # Name of your object
-z,        0.9073057     # Redshift
+galID,    GS4_43501    # Name of your object
+z,        1.613        # Redshift
 
 
 # ****************************** DATA INFO *************************************
-fdata,            COS3_18434.obs_prof.txt    # Full path to your data
-data_inst_corr,   True                       # Is the dispersion corrected for
-                                             # instrumental broadening?
-slit_width,       1.0                        # arcsecs
-slit_pa,          -161.0                     # Degrees from N towards blue
-symmetrize_data,  False                      # Symmetrize data before fitting?
-profile1d_type,   circ_ap_cube               # Default 1D aperture extraction shape
-aperture_radius,  0.5                        # Circular aperture radius, in ARCSEC. Have used half slit width in past 
-                                             # -- Eg, aperture diam = slit width 
-                                             
 
+datadir,          None                                   # Optional: Full path to data directory.
+
+fdata_vel,            GS4_43501_Ha_vm.fits        # Full path to vel map. Alternatively, just the filename if 'datadir' is set.
+fdata_verr,           GS4_43501_Ha_vm_err.fits    # Full path to vel. err map. Alternatively, just the filename if 'datadir' is set.
+fdata_disp,           GS4_43501_Ha_dm.fits        # Full path to disp map. Alternatively, just the filename if 'datadir' is set.
+fdata_derr,           GS4_43501_Ha_dm_err.fits    # Full path to disp. err map. Alternatively, just the filename if 'datadir' is set.
+fdata_mask,           GS4_43501_Ha_m.fits         # Full path to mask
+                                                         #   -- strongly recommended to have a mask
+                                                         # Alternatively, just the filename if 'datadir' is set.
+data_inst_corr,   True
+symmetrize_data,  False                                  # Symmetrize data before fitting?
+
+
+smoothing_type,       median                             # Is the data median smoothed 
+                                                         #   before extracting maps?
+smoothing_npix,       3                                  # Number of pixels for smoothing aperture
+
+
+moment_calc,        True                        # Calculation shortcut; doesn't lead to much difference when fitting in 2D
+
+
+linked_posteriors,         total_mass   r_eff_disk   bt   fdm   sigma0
 
 # ***************************** OUTPUT *****************************************
-outdir,           COS3_18434_1D_out/         # Full path for output directory
+outdir,           GS4_43501_2D_out/         # Full path for output directory
+
 
 
 # ***************************** OBSERVATION SETUP ******************************
 
 # Instrument Setup
 # ------------------
-pixscale,         0.2          # Pixel scale in arcsec/pixel
-fov_npix,         25           # Number of pixels on a side of model cube
+pixscale,         0.125        # Pixel scale in arcsec/pixel
+fov_npix,         37           # Number of pixels on a side of model cube
 spec_type,   velocity          # DON'T CHANGE!
 spec_start,     -1000.         # Starting value for spectral axis
 spec_step,         10.         # Step size for spectral axis in km/s
@@ -38,21 +51,21 @@ nspec,            201          # Number of spectral steps
 # LSF Setup
 # ---------
 use_lsf,          True         # True/False if using an LSF
-sig_inst_res,     35.0         # Instrumental dispersion in km/s
+sig_inst_res,     51.0         # Instrumental dispersion in km/s
 
 
 # PSF Setup
 # ---------
-psf_type,         Moffat       # Gaussian or Moffat
-psf_fwhm,         0.452        # PSF FWHM in arcsecs
-psf_beta,         2.821        # Beta parameter for a Moffat PSF
+psf_type,         Gaussian     # Gaussian or Moffat
+psf_fwhm,         0.55         # PSF FWHM in arcsecs
+psf_beta,         -99.         # Beta parameter for a Moffat PSF
 
 
 # **************************** SETUP MODEL *************************************
 
 # Model Settings
 # -------------
-include_halo,        False     # Include the halo as a component in fitting?
+include_halo,        True     # Include the halo as a component in fitting?
 adiabatic_contract,  False     # Apply adiabatic contraction?
 pressure_support,    True      # Apply assymmetric drift correction?
 noord_flat,          True      # Apply Noordermeer flattenning?
@@ -65,10 +78,11 @@ oversize,            1         # Oversize factor
 
 # Initial Values
 total_mass,           11.0     # Total mass of disk and bulge log(Msun)
-bt,                   0.13     # Bulge-to-Total Ratio
-r_eff_disk,           5.03     # Effective radius of disk in kpc
+bt,                   0.3     # Bulge-to-Total Ratio
+r_eff_disk,           5.0     # Effective radius of disk in kpc
 n_disk,               1.0      # Sersic index for disk
-invq_disk,            4.0      # disk scale length to zheight ratio for disk
+invq_disk,            5.0      # disk scale length to zheight ratio for disk
+
 n_bulge,              4.0      # Sersic index for bulge
 invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
 r_eff_bulge,          1.0      # Effective radius of bulge in kpc
@@ -77,14 +91,15 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 total_mass_fixed,     False
 bt_fixed,             False
 r_eff_disk_fixed,     False
+
 n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True
 
 # Prior bounds. Lower and upper bounds on the prior
-total_mass_bounds,   9.0  13.0
+total_mass_bounds,   10.0  13.0
 bt_bounds,           0.0  1.0
-r_eff_disk_bounds,   0.1  20.0
+r_eff_disk_bounds,   0.1  30.0
 n_disk_bounds,       1.0  8.0
 r_eff_bulge_bounds,  1.0  5.0
 n_bulge_bounds,      1.0  8.0
@@ -99,9 +114,12 @@ n_bulge_prior,       flat
 
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
-total_mass_stddev,   1.0
+
 bt_stddev,           0.1
 r_eff_disk_stddev,   1.0
+
+total_mass_stddev,   1.0
+
 n_disk_stddev,       0.1
 r_eff_bulge_stddev,  1.0
 n_bulge_stddev,      0.1 
@@ -111,32 +129,37 @@ n_bulge_stddev,      0.1
 # ----------------
 
 # Initial Values
-mvirial,             12.0       # Halo virial mass in log(Msun)
+mvirial,             11.5       # Halo virial mass in log(Msun)
 halo_conc,           5.0        # Halo concentration parameter
+fdm,                 0.5        # Dark matter fraction at Reff
 
 # Fixed? True if its a fixed parameter, False otherwise
-mvirial_fixed,       False
+mvirial_fixed,       True #False
 halo_conc_fixed,     True
+fdm_fixed,           False
 
 # Prior bounds. Lower and upper bounds on the prior
-mvirial_bounds,      9.0 13.0
+mvirial_bounds,      10.0 13.0
 halo_conc_bounds,    1.0 20.0
+fdm_bounds,          0.0 1.0
 
 # Prior type. 'flat' or 'gaussian'
-mvirial_prior,       flat
+mvirial_prior,       gaussian
 halo_conc_prior,     flat
+fdm_prior,           flat
 
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
-mvirial_stddev,      1.0
+mvirial_stddev,      0.5  #1.0
 halo_conc_stddev,    0.5
+fdm_stddev,          1.0
 
 
 # INTRINSIC DISPERSION PROFILE
 # ------------------
 
 # Initial Values
-sigma0,              50.0      # Constant intrinsic dispersion value
+sigma0,              39.0      # Constant intrinsic dispersion value
 
 # Fixed? True if its a fixed parameter, False otherwise
 sigma0_fixed,        False
@@ -156,7 +179,7 @@ sigma0_stddev,       25.0
 # ---------------
 
 # Initial Values
-sigmaz,              0.6      # Gaussian width of the galaxy in z
+sigmaz,              0.9      # Gaussian width of the galaxy in z
 
 # Fixed? True if its a fixed parameter, False otherwise
 sigmaz_fixed,        False
@@ -180,26 +203,43 @@ zheight_tied,        True
 # --------
 
 # Initial Values
-inc,                 33.2    # Inclination of galaxy, 0=face-on, 90=edge-on
+inc,                 62.   # Inclination of galaxy, 0=face-on, 90=edge-on
+pa,                  142.
+xshift,              0.        # pixels
+yshift,              0.        # pixels
+vel_shift,           0.      # km/s
 
 # Fixed? True if its a fixed parameter, False otherwise
-inc_fixed,           True
+inc_fixed,           False
+pa_fixed,            False
+xshift_fixed,        False
+yshift_fixed,        False
+vel_shift_fixed,     False
 
-# Prior bounds. Lower and upper bounds on the prior
-inc_bounds,          0.0 90.0
+# Prior Bounds Lower and upper bounds on the prior
+inc_bounds,          42.   82.
+pa_bounds,           132.  152.
+xshift_bounds,       -1.5  1.5        # pixels
+yshift_bounds,       -1.5  1.5        # pixels
+vel_shift_bounds,    -100.  100.        # km/s
 
-# Prior type. 'flat', 'gaussian', or 'sine_gaussian'
+# Prior Type.  'flat', 'gaussian', or 'sine_gaussian'
 inc_prior,           sine_gaussian
+pa_prior,            flat
+xshift_prior,        flat
+yshift_prior,        flat
+vel_shift_prior,     flat
 
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
 
 # Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and 
-# 		center of prior are defined in angle space (inc)
+#       center of prior are defined in angle space (inc)
 inc_stddev,          0.1
-
-## Example if normal gaussian used (eg, angle space)
-#inc_stddev,          5.0
+pa_stddev,           10.
+xshift_stddev,       1.
+yshift_stddev,       1.
+vel_shift_stddev,    10.
 
 
 # **************************** Fitting Settings ********************************
@@ -208,20 +248,34 @@ fit_method,      mpfit     # mcmc or mpfit
 do_plotting,     True      # Produce all output plots?
 fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 
-
 # MCMC Settings
 #---------------
-nWalkers,         50      # Number of walkers. Must be even and >= 2x
-                           # the number of free parameters
-nCPUs,            190      # Number of CPUs to use for parallelization
+# SHORT test values:
+nWalkers,           20      # Number of walkers. Must be even and >= 2x
+                            #   the number of free parameters
+nCPUs,               2      # Number of CPUs to use for parallelization
+nBurn,               2      # Number of steps during burn-in
+nSteps,              5      # Number of steps for sampling
+
+# # full values for, eg, running on disky:
+# nWalkers,         1000      # Number of walkers. Must be even and >= 2x
+#                             #   the number of free parameters
+# nCPUs,             190      # Number of CPUs to use for parallelization
+# nBurn,              50      # Number of steps during burn-in
+# nSteps,            200      # Number of steps for sampling
+
+
+# Other parameters:
 scale_param_a,      3.
-nBurn,            10      # Number of steps during burn-in
-nSteps,           10      # Number of steps for sampling
 minAF,           None      # Minimum acceptance fraction
 maxAF,           None      # Maximum acceptance fraction
 nEff,              10      # Number of auto-correlation times before convergence
 
 
+
 # MPFIT Settings
 #----------------
 maxiter,         200       # Maximum number of iterations before mpfit quits
+
+
+
