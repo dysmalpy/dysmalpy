@@ -20,6 +20,9 @@ import astropy.units as u
 import matplotlib as mpl
 mpl.use('agg')
 
+
+import astropy.modeling as apy_mod
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
@@ -817,7 +820,7 @@ def plot_data_model_comparison_3D(gal,
                 oversample=oversample, oversize=oversize, fileout=fileout, 
                 symmetric_residuals=symmetric_residuals, max_residual=max_residual,
                 show_1d_apers=show_1d_apers,
-                inst_corr=inst_corr,
+                inst_corr=False,
                 vcrop=vcrop, 
                 vcrop_value=vcrop_value)
                 
@@ -1078,6 +1081,12 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
     elif gal.data.ndim == 3:
         
         gal = extract_1D_2D_data_moments_from_cube(gal)
+        
+        ## FLAG42
+        #gal = extract_1D_2D_data_gausfit_from_cube(gal)
+        
+        
+        
         # saves in gal.data1d, gal.data2d
         
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d, 
@@ -1584,7 +1593,7 @@ def plot_model_multid_base(gal,
             if data1d.profile1d_type is not None:
                 profile1d_type = data1d.profile1d_type
         
-        if galorig.data.ndim == 2:
+        if galorig.data.ndim >= 2:
             if remove_shift:
                 # Should not be shifted here:
                 gal.model.geometry.vel_shift = 0
@@ -2673,6 +2682,169 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     
 #############################################################
 
+def extract_1D_2D_data_gausfit_from_cube(gal, 
+            slit_width=None, slit_pa=None, 
+            aper_dist=None):
+    try:
+        if gal.data2d is not None:
+            extract = False
+        else:
+            extract = True
+    except:
+        extract = True
+    
+        
+    if extract:
+        gal = extract_2D_gausfit_from_cube(gal)
+        
+        
+    #
+    try:
+        if gal.data1d is not None:
+            extract = False
+        else:
+            extract = True
+    except:
+        extract = True
+    
+    if extract:
+        gal = extract_1D_moments_from_cube(gal, 
+                slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist)
+    
+    
+    return gal
+
+#
+    
+    
+def extract_2D_gausfit_from_cube(gal):
+    
+    #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+    
+    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+    
+    data_unscaled = gal.data.data.unmasked_data[:].value
+    data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+    data_cube = SpectralCube(data=data_scaled, 
+                mask=mask, wcs=gal.data.data.wcs)
+    
+    #
+    if gal.data.smoothing_type is not None:
+        data_cube = apply_smoothing_3D(data_cube,
+                    smoothing_type=gal.data.smoothing_type,
+                    smoothing_npix=gal.data.smoothing_npix)
+        smoothing_type=gal.data.smoothing_type
+        smoothing_npix=gal.data.smoothing_npix
+    else:
+        smoothing_type = None
+        smoothing_npix = None
+    
+    ## MOMENTS:
+    # vel = data_cube.moment1().to(u.km/u.s).value
+    # disp = data_cube.linewidth_sigma().to(u.km/u.s).value
+    
+    
+    ## GAUSFIT:
+    mom0 = data_cube.moment0().to(u.km/u.s).value
+    mom1 = data_cube.moment1().to(u.km/u.s).value
+    mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
+    
+    vel = np.zeros(mom0.shape)
+    disp = np.zeros(mom0.shape)
+    
+    
+    wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
+    try:
+        err_cube = gal.data.error.unmasked_data[:].value 
+        err_cube[err_cube==99.] = err_cube.min()
+        err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+        
+        #wgt_cube = wgt_cube * 1./err_cube
+        
+        wgt_cube = 1./(err_cube)
+        
+        # # Do a crude flux cut too:
+        # wgt_cube[data_scaled<0.05*np.percentile(data_scaled, 95)] = 0
+        
+        
+    except:
+       pass
+    
+    for i in range(mom0.shape[0]):
+        for j in range(mom0.shape[1]):
+            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
+                                    mean=mom1[i,j],
+                                    stddev=np.abs(mom2[i,j]))
+            mod.amplitude.bounds = (0, None)
+            mod.stddev.bounds = (0, None)
+            mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+            
+            ###mod.mean.bounds = (-500., 500.)
+            ##mod.stddev.bounds = (0, 500.)
+            
+            fitter = apy_mod.fitting.LevMarLSQFitter()
+            
+            # wgts = None
+            wgts = wgt_cube[:,i,j]
+            if (np.max(np.abs(wgts)) == 0):
+                wgts = None
+                
+            # FLAG42
+            
+            # ########################
+            # # Unmasked fit:
+            # best_fit = fitter(mod, data_cube.spectral_axis.to(u.km/u.s).value, 
+            #             data_cube.unmasked_data[:,i,j].value, weights=wgts)
+            # ########################
+            
+            ########################
+            # Masked fit:
+            spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
+            flux_arr = data_cube.filled_data[:,i,j].value
+            
+            if np.isfinite(flux_arr).sum() >= len(mod._parameters):
+                spec_arr = spec_arr[np.isfinite(flux_arr)]
+                if wgts is not None:
+                    wgts = wgts[np.isfinite(flux_arr)]
+                flux_arr = flux_arr[np.isfinite(flux_arr)]
+            
+            
+            best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+            ########################
+                        
+            vel[i,j] = best_fit.mean.value
+            disp[i,j] = best_fit.stddev.value
+            
+            
+    
+    #raise ValueError
+    
+    ###########################
+    # Flatten mask: only mask fully masked spaxels:
+    msk3d_coll = np.sum(gal.data.mask, axis=0)
+    whmsk = np.where(msk3d_coll == 0)
+    mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+    mask[whmsk] = 0
+    
+    
+    # Artificially mask the bad stuff:
+    vel[~np.isfinite(vel)] = 0
+    disp[~np.isfinite(disp)] = 0
+    mask[~np.isfinite(vel)] = 0
+    mask[~np.isfinite(disp)] = 0
+    
+    
+    # setup data2d:
+    gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask, 
+                        vel_err=None, vel_disp_err=None, 
+                        smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+                        inst_corr = True, moment=False)
+    
+    return gal
+
+    
+
+##################################################
 
 def extract_1D_2D_data_moments_from_cube(gal, 
             slit_width=None, slit_pa=None, 
@@ -2725,7 +2897,10 @@ def extract_1D_moments_from_cube(gal,
     rpix = slit_width/rstep/2.
     
     if aper_dist is None:
-        aper_dist_pix = rpix #2*rpix
+        #aper_dist_pix = rpix #2*rpix
+        
+        aper_dist_pix = rstep #rstep * 2.
+        
     else:
         aper_dist_pix = aper_dist/rstep
         
@@ -2755,7 +2930,11 @@ def extract_1D_moments_from_cube(gal,
     gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind], 
                              vel_disp=disp1d[ind], flux=flux1d[ind], 
                              slit_width=slit_width, slit_pa=slit_pa)
-    gal.data1d.apertures = apertures
+    apertures_redo = CircApertures(rarr=aper_centers_pix[ind], slit_PA=slit_pa, rpix=rpix, 
+                        nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep)
+    gal.data1d.apertures = apertures_redo
+    gal.data1d.profile1d_type = 'circ_ap_cube'
+    
     
     return gal
     
@@ -2790,17 +2969,6 @@ def extract_2D_moments_from_cube(gal):
     mask[whmsk] = 0
     
     
-    # if gal.data.smoothing_type is not None:
-    #     vel, disp = apply_smoothing_2D(vel, disp,
-    #                 smoothing_type=gal.data.smoothing_type,
-    #                 smoothing_npix=gal.data.smoothing_npix)
-    #     smoothing_type=gal.data.smoothing_type
-    #     smoothing_npix=gal.data.smoothing_npix
-    # else:
-    #     smoothing_type = None
-    #     smoothing_npix = None
-    
-    
     # Artificially mask the bad stuff:
     vel[~np.isfinite(vel)] = 0
     disp[~np.isfinite(disp)] = 0
@@ -2809,21 +2977,12 @@ def extract_2D_moments_from_cube(gal):
     
     
     
-    # # Also really crazy values:
-    # vabsmax = 600
-    # dispabsmax = 500
-    # mask[np.abs(vel) > vabsmax] = 0
-    # vel[np.abs(vel) > vabsmax] = 0
-    # mask[np.abs(disp) > dispabsmax] = 0
-    # disp[np.abs(disp) > dispabsmax] = 0
-    
-    
     
     # setup data2d:
     gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask, 
                         vel_err=None, vel_disp_err=None, 
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = True)
+                        inst_corr = True, moment=True)
     
     return gal
 

@@ -37,7 +37,10 @@ def new_sequential_cmap(name_original, gamma, bad=None, over=None, under=None,
   """
 
   # Get original colormap
-  cmap_original_data = cm.datad[name_original]
+  try:
+      cmap_original_data = cm.datad[name_original]
+  except:
+      cmap_original_data = cm.datad[name_original.split('_r')[0]][::-1]
   cmap_original = cm.get_cmap(name_original)
 
   # Define new colormap data
@@ -98,7 +101,11 @@ def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
   """
 
   # Get original colormap
-  cmap_original_data = cm.datad[name_original]
+  #cmap_original_data = cm.datad[name_original]
+  try:
+      cmap_original_data = cm.datad[name_original]
+  except:
+      cmap_original_data = cm.datad[name_original.split('_r')[0]][::-1]
   cmap_original = cm.get_cmap(name_original)
 
   # Define new colormap data

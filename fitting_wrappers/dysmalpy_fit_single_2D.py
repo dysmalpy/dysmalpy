@@ -22,7 +22,6 @@ from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 
 import copy
 import numpy as np
-import pandas as pd
 import astropy.units as u
 
 try:

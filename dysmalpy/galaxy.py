@@ -356,15 +356,26 @@ class Galaxy:
             # Do normalization on a per-spaxel basis -- eg, don't care about preserving
             #   M/L ratio information from model.
             # collapse in spectral dimension only: axis 0
-
+            
             if from_data:
-                sim_cube_final_scale = sim_cube_final.copy()
+                
+                # # Throw a non-implemented error if smoothing + 3D model:
+                # if from_data:
+                #     if self.data.smoothing_type is not None:
+                #         raise NotImplementedError('Smoothing for 3D output not implemented yet!')
+                        
+                if self.data.smoothing_type is not None:
+                    self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
+                            smoothing_type=self.data.smoothing_type,
+                            smoothing_npix=self.data.smoothing_npix)
+                
+                sim_cube_final_scale = self.model_cube.data._data.copy()
                 if self.data.flux_map is None:
                     mask_flat = np.sum(self.data.mask, axis=0)
                     num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
-                                     sim_cube_final/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                                     self.model_cube.data/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     den = np.sum(self.data.mask*
-                                    (sim_cube_final**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
+                                    (self.model_cube.data**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     
                     #scale = np.abs(num/den)
                     scale = num / den
@@ -373,15 +384,9 @@ class Galaxy:
                     scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
                     scale3D[0, :, :] = scale
                     sim_cube_final_scale *= scale3D
-
-                    # Throw a non-implemented error if smoothing + 3D model:
-                    if from_data:
-                        if self.data.smoothing_type is not None:
-                            raise NotImplementedError('Smoothing for 3D output not implemented yet!')
-
+                    
                 else:
-
-                    model_peak = np.nanmax(sim_cube_final, axis=0)
+                    model_peak = np.nanmax(self.model_cube.data, axis=0)
                     scale = self.data.flux_map/model_peak
                     scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
                     scale3D[0, :, :] = scale
@@ -405,16 +410,16 @@ class Galaxy:
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                 else:
-                    mom0 = self.model_cube.data.moment0().value
+                    mom0 = self.model_cube.data.moment0().to(u.km/u.s).value
                     mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
                     mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
                     for i in range(mom0.shape[0]):
                         for j in range(mom0.shape[1]):
-                            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * np.abs(mom2[i,j])),
+                            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * (mom2[i,j]**2)),
                                                     mean=mom1[i,j],
-                                                    stddev=np.sqrt(np.abs(mom2[i,j])))
+                                                    stddev=np.abs(mom2[i,j]))
                             mod.amplitude.bounds = (0, None)
                             mod.stddev.bounds = (0, None)
                             fitter = apy_mod.fitting.LevMarLSQFitter()
@@ -424,6 +429,7 @@ class Galaxy:
                                         
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
+                            
                     
             elif spec_type == "wavelength":
                 

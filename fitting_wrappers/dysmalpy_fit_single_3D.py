@@ -20,7 +20,6 @@ from dysmalpy import plotting
 
 import copy
 import numpy as np
-import pandas as pd
 import astropy.units as u
 
 try:
@@ -141,7 +140,23 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None):
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
             os.remove(fit_dict['f_log'])
-
+            
+        #
+        
+        
+        # #######
+        # # DEBUGGING:
+        # gal.create_model_data(oversample=fit_dict['oversample'], oversize=fit_dict['oversize'],
+        #                       line_center=gal.model.line_center)
+        # gal.model_cube.data.write(fit_dict['f_cube'], overwrite=True)
+        # 
+        # gal.model_data.data.write(fit_dict['f_cube']+'.scaled.fits', overwrite=True)
+        # gal.data.data = gal.data.data * gal.data.mask
+        # gal.data.data.write(fit_dict['f_cube']+'.data.fits', overwrite=True)
+        # 
+        # raise ValueError
+        # #######
+        
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
             results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
