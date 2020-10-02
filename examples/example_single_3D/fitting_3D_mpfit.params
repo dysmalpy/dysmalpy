@@ -37,8 +37,11 @@ spatial_crop_trim,     37  68   34  65
 
 data_inst_corr,   False 
 
-auto_gen_3D_mask,          True
-auto_gen_mask_snr_thresh,  4.
+auto_gen_3D_mask,               True
+auto_gen_mask_snr_thresh,       3. #4.
+auto_gen_mask_snr_thresh_1,     2. #4. #3. #2.5
+auto_gen_mask_sig_thresh,       2. #1.5 #2. #1.5
+auto_gen_mask_npix_min,         5
 
 
 linked_posteriors,         total_mass   r_eff_disk   bt   fdm   sigma0

@@ -28,6 +28,13 @@ from astropy.table import Table
 
 import astropy.io.fits as fits
 
+try:
+    import photutils
+    from astropy.convolution import Gaussian2DKernel
+    loaded_photutils = True
+except:
+    loaded_photutils = False
+
 def read_fitting_params_input(fname=None):
     params = {}
     
@@ -1110,29 +1117,12 @@ def load_single_object_3D_data(params=None, datadir=None):
         gal_weight = None
         
     
-    
-    if (mask is None) & ('auto_gen_3D_mask' in params.keys()):
-        if params['auto_gen_3D_mask']:
-            mask = _auto_gen_3D_mask(cube=cube, err=err_cube, snr_thresh=params['auto_gen_mask_snr_thresh'])
-        else:
-            mask = np.ones(cube.shape)
-            
-    ####################################
-    # Mask NaNs:
-    mask[~np.isfinite(cube)] = 0
-    cube[~np.isfinite(cube)] = -99.
-    
-    mask[~np.isfinite(cube)] = 0
-    err_cube[~np.isfinite(err_cube)] = -99.
-    
-    # Clean up 0s in error, if it's masked
-    err_cube[mask == 0] = 99.
-    
+        
             
     ####################################
     # Convert spectrum:
     if 'spec_orig_type' in params.keys():
-        spec_arr_orig = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
+        spec_arr_orig = (np.arange(cube.shape[0])+1 - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
         spec_line = params['spec_line_rest'] * (1.+params['z'])
         if params['spec_orig_type'].strip().upper() == 'WAVE':
             if params['spec_line_rest_unit'].strip().upper() == 'ANGSTROM':
@@ -1168,7 +1158,7 @@ def load_single_object_3D_data(params=None, datadir=None):
         
     else:
         # ASSUME IN KM/S
-        spec_arr = (np.arange(cube.shape[0]) - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
+        spec_arr = (np.arange(cube.shape[0])+1 - header['CRPIX3'])*header['CDELT3'] + header['CRVAL3']
         spec_unit = u.km/u.s
         
         if header['CUNIT3'].strip().upper() == 'M/S':
@@ -1193,6 +1183,34 @@ def load_single_object_3D_data(params=None, datadir=None):
                                             spec_unit=spec_unit,weight=gal_weight)
     
     
+    ####################################    
+    if (mask is None) & ('auto_gen_3D_mask' in params.keys()):
+        if params['auto_gen_3D_mask']:
+            if 'auto_gen_mask_snr_thresh_1' not in params.keys():
+                params['auto_gen_mask_snr_thresh_1'] = params['auto_gen_mask_snr_thresh']
+            #mask = _auto_gen_3D_mask_simple(cube=cube, err=err_cube, snr_thresh=params['auto_gen_mask_snr_thresh'],
+            #        npix_min=params['auto_gen_mask_npix_min'])
+            mask = auto_gen_3D_mask(cube=cube, err=err_cube, 
+                    sig_thresh=params['auto_gen_mask_sig_thresh'], 
+                    #snr_thresh=params['auto_gen_mask_snr_thresh'],
+                    #snr_thresh_1 = params['auto_gen_mask_snr_thresh_1'],
+                    npix_min=params['auto_gen_mask_npix_min'])
+                    
+        else:
+            mask = np.ones(cube.shape)
+            
+    ####################################
+    # Mask NaNs:
+    mask[~np.isfinite(cube)] = 0
+    cube[~np.isfinite(cube)] = -99.
+    
+    mask[~np.isfinite(cube)] = 0
+    err_cube[~np.isfinite(err_cube)] = -99.
+    
+    # Clean up 0s in error, if it's masked
+    err_cube[mask == 0] = 99.
+    
+    ####################################
     data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', spec_arr=spec_arr,
                                       err_cube=err_cube, mask_cube=mask, 
                                       mask_sky=mask_sky, mask_spec=mask_spec, 
@@ -1243,7 +1261,7 @@ def setup_data_weighting_method(method='UNSET', r=None):
     return weight
     
     
-def _auto_gen_3D_mask(cube=None, err=None, snr_thresh=3.):
+def _auto_gen_3D_mask_simple(cube=None, err=None, snr_thresh=3.):
     # Crude first-pass on auto-generated 3D cube mask, based on S/N:
     
     snr_cube = np.abs(cube)/np.abs(err)
@@ -1253,6 +1271,77 @@ def _auto_gen_3D_mask(cube=None, err=None, snr_thresh=3.):
     mask = np.ones(cube.shape)
     mask[snr_cube < snr_thresh] = 0
     
+    
+    return mask
+
+def auto_gen_3D_mask(cube=None, err=None, sig_thresh=1.5, npix_min=5, snr_thresh=3., snr_thresh_1=3.):
+    
+    ## Crude first-pass masking by pixel S/N:
+    mask_sn_pix = _auto_gen_3D_mask_simple(cube=cube, err=err, snr_thresh=snr_thresh_1)
+    
+    #mask = mask_sn_pix.copy()
+    
+    #cube_m = cube.copy() * mask_sn_pix.copy()
+    #ecube_m = err.copy() * mask_sn_pix.copy()
+    
+    
+    # TEST:
+    mask = np.ones(cube.shape)
+    
+    cube_m = cube.copy() 
+    ecube_m = err.copy() 
+    
+    ####################################
+    # Mask NaNs:
+    mask[~np.isfinite(cube_m)] = 0
+    cube_m[~np.isfinite(cube_m)] = -99.
+    
+    mask[~np.isfinite(cube_m)] = 0
+    ecube_m[~np.isfinite(ecube_m)] = -99.
+    
+    # Clean up 0s in error, if it's masked
+    ecube_m[mask == 0] = 99.
+    
+    ####################################
+    fmap_cube_sn = np.sum(cube_m, axis=0)
+    emap_cube_sn = np.sqrt(np.sum(ecube_m**2, axis=0))
+    
+    
+    
+    # Do segmap on mask2D?????
+    if loaded_photutils:
+        
+        bkg = photutils.Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3))
+        
+        thresh = sig_thresh * bkg.background_rms
+        
+        #kernel = Gaussian2DKernel(2. /(2. *np.sqrt(2.*np.log(2.))), x_size=3, y_size=3)   # Gaussian of FWHM 2 pix
+        kernel = Gaussian2DKernel(3. /(2. *np.sqrt(2.*np.log(2.))), x_size=5, y_size=5)   # Gaussian of FWHM 3 pix
+        segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_min, filter_kernel=kernel)
+        
+        
+        mask2D = segm._data.copy()
+        mask2D[mask2D>0] = 1
+    else:
+        # TRY JUST S/N cut on 2D?
+        sn_map_cube_sn = fmap_cube_sn / emap_cube_sn
+        
+        mask2D = np.ones(sn_map_cube_sn.shape)
+        mask2D[sn_map_cube_sn < snr_thresh] = 0
+    
+    
+    
+    # Apply mask2D to mask:
+    mask_cube = np.tile(mask2D, (cube_m.shape[0], 1, 1))
+    
+    #mask = mask * mask_cube
+    
+    mask = mask * mask_sn_pix
+    
+    
+    mask = mask * mask_cube
+    
+    #raise ValueError
     
     return mask
     
@@ -1316,9 +1405,6 @@ def _auto_truncate_crop_cube(cube, params=None,
             v_wh_r = len(c_spec_down)
         else:
             v_wh_r = -wh_r
-        #
-        #c_sum_trim = c_sum_spec[wh_l:]
-        
         
         spec_arr = spec_arr[wh_l:v_wh_r]
         cube = cube[wh_l:v_wh_r, :, :]
