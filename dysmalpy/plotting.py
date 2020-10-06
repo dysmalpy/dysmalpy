@@ -15,7 +15,7 @@ import os
 
 # Third party imports
 import numpy as np
-from astropy.extern import six
+import six
 import astropy.units as u
 import matplotlib as mpl
 mpl.use('agg')

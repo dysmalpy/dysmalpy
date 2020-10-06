@@ -28,7 +28,7 @@ from dysmalpy.utils import fit_uncertainty_ellipse
 import os
 import numpy as np
 from collections import OrderedDict
-from astropy.extern import six
+import six
 import astropy.units as u
 import dill as _pickle
 import copy
