@@ -17,7 +17,7 @@ import numpy as np
 from scipy.stats import norm
 from astropy.modeling import Parameter
 from astropy.units import Quantity
-from astropy.extern import six
+import six
 
 __all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior',
            'BoundedGaussianPrior']
