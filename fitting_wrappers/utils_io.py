@@ -1447,19 +1447,20 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
                 stddev = None
             
             if params['{}_prior'.format(param_name)].lower() == 'flat':
-                comp.prior[param_name] = parameters.UniformPrior()
+                comp.__getattribute__(param_name).prior = parameters.UniformPrior()
             elif params['{}_prior'.format(param_name)].lower() == 'flat_linear':
-                comp.prior[param_name] = parameters.UniformLinearPrior()
+                comp.__getattribute__(param_name).prior = parameters.UniformLinearPrior()
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
-                comp.prior[param_name] = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
+                comp.__getattribute__(param_name).prior = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
-                comp.prior[param_name] = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
+                comp.__getattribute__(param_name).prior = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
-                comp.prior[param_name] = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_flat':
-                comp.prior[param_name] = TiedUniformPrior()
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian':
-                comp.prior[param_name] = TiedBoundedGaussianPrior(center=center, stddev=stddev)
+                comp.__getattribute__(param_name).prior = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
+            elif params['{}_prior'.format(param_name)].lower() == 'tied_flat_lowtrunc':
+                comp.__getattribute__(param_name).prior = TiedUniformPriorLowerTrunc(compn='disk+bulge', paramn='total_mass')
+            elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian_lowtrunc':
+                comp.__getattribute__(param_name).prior = TiedBoundedGaussianPriorLowerTrunc(center=center, stddev=stddev, 
+                                                            compn='disk+bulge', paramn='total_mass')
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name, 
                                     params['{}_prior'.format(param_name)]))
@@ -1657,11 +1658,15 @@ def tie_fdm(model_set):
 
 
 
-class TiedUniformPrior(parameters.UniformPrior):
-
-    def log_prior(self, param, modelset):
-
-        pmin = modelset.components['disk+bulge'].total_mass.value
+class TiedUniformPriorLowerTrunc(parameters.UniformPrior):
+    def __init__(self, compn='disk+bulge', paramn='total_mass'):
+        self.compn = compn
+        self.paramn = paramn
+        
+        super(TiedUniformPriorLowerTrunc, self).__init__()
+    def log_prior(self, param, modelset=None, **kwargs):
+        
+        pmin = modelset.components[self.compn].__getattribute__(self.paramn).value  
 
         if param.bounds[1] is None:
             pmax = np.inf
@@ -1674,11 +1679,16 @@ class TiedUniformPrior(parameters.UniformPrior):
             return -np.inf
 
 
-class TiedBoundedGaussianPrior(parameters.BoundedGaussianPrior):
+class TiedBoundedGaussianPriorLowerTrunc(parameters.BoundedGaussianPrior):
+    def __init__(self, compn='disk+bulge', paramn='total_mass', center=0, stddev=1.0):
+        self.compn = compn
+        self.paramn = paramn
+        
+        super(TiedBoundedGaussianPriorLowerTrunc, self).__init__(center=center, stddev=stddev)
 
-    def log_prior(self, param, modelset):
+    def log_prior(self, param, modelset=None, **kwargs):
 
-        pmin = modelset.components['disk+bulge'].total_mass.value
+        pmin = modelset.components[self.compn].__getattribute__(self.paramn).value  
 
         if param.bounds[1] is None:
             pmax = np.inf

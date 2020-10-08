@@ -1079,7 +1079,7 @@ class MCMCResults(FitResults):
                     pass
                 else:
                     j += 1
-                    if isinstance( gal.model.components[cmp]._constraints['prior'][pm], UniformLinearPrior):
+                    if isinstance(gal.model.components[cmp].__getattribute__(pm).prior, UniformLinearPrior):
                         self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
                         linear_posterior.append(True)
                     else:
@@ -2217,7 +2217,7 @@ def initialize_walkers(model, nWalkers=None):
         for paramn in params_names:
             if (pfree_dict[compn][paramn] >= 0) :
                 # Free parameter: randomly sample from prior nWalker times:
-                param_rand = comp.prior[paramn].sample_prior(comp.__getattribute__(paramn), N=nWalkers)
+                param_rand = comp.__getattribute__(paramn).prior.sample_prior(comp.__getattribute__(paramn), N=nWalkers)
                 stack_rand.append(param_rand)
     pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos

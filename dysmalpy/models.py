@@ -514,8 +514,8 @@ class ModelSet:
             param_i = comp.param_names.index(param_name)
         except ValueError:
             raise ValueError('Parameter is not part of model.')
-
-        self.components[model_name].parameters[param_i] = value
+            
+        self.components[model_name].__getattribute__(param_name).value = value
         self.parameters[self._param_keys[model_name][param_name]] = value
 
     def set_parameter_fixed(self, model_name, param_name, fix):
@@ -598,8 +598,7 @@ class ModelSet:
             for paramn in params_names:
                 if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: add to total prior
-                    #if self.prior_func is not None:
-                    log_prior_model += comp.prior[paramn].log_prior(comp.__getattribute__(paramn), self)
+                    log_prior_model += comp.__getattribute__(paramn).prior.log_prior(comp.__getattribute__(paramn), modelset=self)
         return log_prior_model
         
     def get_dm_aper(self, r):
@@ -1132,9 +1131,6 @@ class _DysmalModel(Model):
 
     parameter_constraints = DysmalParameter.constraints
 
-    @property
-    def prior(self):
-        return self._constraints['prior']
 
 
 class _DysmalFittable1DModel(_DysmalModel):
@@ -2202,9 +2198,6 @@ class _DysmalFittable3DModel(_DysmalModel):
 
     inputs = ('x', 'y', 'z')
 
-    @property
-    def prior(self):
-        return self._constraints['prior']
 
 
 class Geometry(_DysmalFittable3DModel):
