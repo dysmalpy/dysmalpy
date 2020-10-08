@@ -151,9 +151,9 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                 if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: 
                     # check if uniform or prior
-                    try:
-                        priors.append(comp.prior[paramn].center)
-                    except:
+                    if 'center' in comp.__getattribute__(paramn).prior.__dict__.keys():
+                        priors.append(comp.__getattribute__(paramn).prior.center)
+                    else:
                         priors.append(None)
     else:
         priors = None
