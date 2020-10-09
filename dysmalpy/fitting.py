@@ -1762,19 +1762,6 @@ def log_like(gal, red_chisq=False,
         
         return llike, blobvals
         
-        ## OLD: only one blob at a time:
-        # if blob_name.lower() == 'fdm':
-        #     dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        #     return llike, dm_frac
-        # elif blob_name.lower() == 'mvirial':
-        #     mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
-        #     return llike, mvirial
-        # elif blob_name.lower() == 'alpha':
-        #     alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-        #     return llike, alpha
-        # elif blob_name.lower() == 'rb':
-        #     rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-        #     return llike, rB
     else:
         return llike
         
