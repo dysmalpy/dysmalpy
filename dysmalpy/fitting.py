@@ -2175,7 +2175,8 @@ def setup_oversampled_chisq(gal):
             PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
         except:
             PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
-
+            
+            
     if gal.data.ndim == 1:
         rarrtmp = gal.data.rarr.copy()
         rarrtmp.sort()

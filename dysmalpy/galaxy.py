@@ -405,11 +405,27 @@ class Galaxy:
                                 smoothing_type=self.data.smoothing_type,
                                 smoothing_npix=self.data.smoothing_npix)
                                 
-            if spec_type == "velocity":
+                # How data was extracted:
                 if self.data.moment:
+                    extrac_type = 'moment'
+                else:
+                    extrac_type = 'gauss'
+            elif from_instrument:
+                if 'moment' in self.instrument.__dict__.keys():
+                    if self.instrument.moment:
+                        extrac_type = 'moment'
+                    else:
+                        extrac_type = 'gauss'
+                else:
+                    extrac_type = 'moment'
+            else:
+                extrac_type = 'moment'
+                    
+            if spec_type == "velocity":
+                if extrac_type == 'moment':
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
-                else:
+                elif extrac_type == 'gauss':
                     mom0 = self.model_cube.data.moment0().to(u.km/u.s).value
                     mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
                     mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
@@ -437,10 +453,10 @@ class Galaxy:
                     velocity_convention='optical',
                     rest_value=line_center)
                     
-                if self.data.moment:
+                if extrac_type == 'moment':
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
-                else:
+                elif extrac_type == 'gauss':
                     raise ValueError("Not yet supported!")
                     
                 disp[np.isnan(disp)] = 0.
