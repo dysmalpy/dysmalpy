@@ -17,7 +17,7 @@ import numpy as np
 from scipy.stats import norm
 from astropy.modeling import Parameter
 from astropy.units import Quantity
-from astropy.extern import six
+import six
 
 __all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior',
            'BoundedGaussianPrior']
@@ -62,9 +62,8 @@ class Prior:
 
 
 class UniformPrior(Prior):
-    # TODO: Do we need to scale the uniform priors?
     @staticmethod
-    def log_prior(param, modelset):
+    def log_prior(param, **kwargs):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -99,7 +98,7 @@ class UniformPrior(Prior):
 class UniformLinearPrior(Prior):
     # Note: must bounds input as LINEAR BOUNDS
     @staticmethod
-    def log_prior(param, modelset):
+    def log_prior(param, **kwargs):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -145,8 +144,8 @@ class GaussianPrior(Prior):
 
         self.center = center
         self.stddev = stddev
-
-    def log_prior(self, param, modelset):
+        
+    def log_prior(self, param, **kwargs):
         return np.log(norm.pdf(param.value, loc=self.center,
                         scale=self.stddev))
 
@@ -162,7 +161,7 @@ class BoundedGaussianPrior(Prior):
         self.center = center
         self.stddev = stddev
 
-    def log_prior(self, param, modelset):
+    def log_prior(self, param, **kwargs):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -211,7 +210,7 @@ class BoundedGaussianLinearPrior(Prior):
         self.center = center
         self.stddev = stddev
 
-    def log_prior(self, param, modelset):
+    def log_prior(self, param, **kwargs):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -262,7 +261,7 @@ class BoundedSineGaussianPrior(Prior):
         
         self.center_sine = np.sin(self.center*np.pi/180.)
 
-    def log_prior(self, param, modelset):
+    def log_prior(self, param, **kwargs):
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -313,7 +312,7 @@ class DysmalParameter(Parameter):
 
     def __init__(self, name='', description='', default=None, unit=None,
                  getter=None, setter=None, fixed=False, tied=False, min=None,
-                 max=None, bounds=None, model=None, prior=None):
+                 max=None, bounds=None, prior=None):
 
         if prior is None:
             prior = UniformPrior
@@ -328,30 +327,12 @@ class DysmalParameter(Parameter):
                                               tied=tied,
                                               min=min,
                                               max=max,
-                                              bounds=bounds,
-                                              model=model,
-                                              prior=prior)
+                                              bounds=bounds)
+                                              
+        # Set prior:
+        self.prior = prior
 
-    @property
-    def prior(self):
-        if self._model is not None:
-            prior = self._model._constraints['prior']
-            return prior.get(self._name, self._prior)
-        else:
-            return self._prior
 
-    @prior.setter
-    def prior(self, value):
-        """Set the prior function"""
-
-        if self._model is not None:
-            if not isinstance(value, Prior):
-                raise TypeError('Prior must be an instance of '
-                                'dysmalpy.parameters.Prior')
-            self._model._constraints['prior'][self._name] = value
-        else:
-            raise AttributeError("can't set attribute 'prior' on"
-                                 "DysmalParameter definition")
 
     __eq__ = _binary_comparison_operation(operator.eq)
     __ne__ = _binary_comparison_operation(operator.ne)

@@ -17,7 +17,7 @@ import copy
 import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
-from astropy.extern import six
+import six
 import astropy.modeling as apy_mod
 import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
