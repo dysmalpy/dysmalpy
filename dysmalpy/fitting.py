@@ -28,7 +28,7 @@ from dysmalpy.utils import fit_uncertainty_ellipse
 import os
 import numpy as np
 from collections import OrderedDict
-from astropy.extern import six
+import six
 import astropy.units as u
 import dill as _pickle
 import copy
@@ -1079,7 +1079,7 @@ class MCMCResults(FitResults):
                     pass
                 else:
                     j += 1
-                    if isinstance( gal.model.components[cmp]._constraints['prior'][pm], UniformLinearPrior):
+                    if isinstance(gal.model.components[cmp].__getattribute__(pm).prior, UniformLinearPrior):
                         self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
                         linear_posterior.append(True)
                     else:
@@ -1762,19 +1762,6 @@ def log_like(gal, red_chisq=False,
         
         return llike, blobvals
         
-        ## OLD: only one blob at a time:
-        # if blob_name.lower() == 'fdm':
-        #     dm_frac = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-        #     return llike, dm_frac
-        # elif blob_name.lower() == 'mvirial':
-        #     mvirial = gal.model.get_mvirial(model_key_halo=model_key_halo)
-        #     return llike, mvirial
-        # elif blob_name.lower() == 'alpha':
-        #     alpha = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-        #     return llike, alpha
-        # elif blob_name.lower() == 'rb':
-        #     rB = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-        #     return llike, rB
     else:
         return llike
         
@@ -2217,7 +2204,7 @@ def initialize_walkers(model, nWalkers=None):
         for paramn in params_names:
             if (pfree_dict[compn][paramn] >= 0) :
                 # Free parameter: randomly sample from prior nWalker times:
-                param_rand = comp.prior[paramn].sample_prior(comp.__getattribute__(paramn), N=nWalkers)
+                param_rand = comp.__getattribute__(paramn).prior.sample_prior(comp.__getattribute__(paramn), N=nWalkers)
                 stack_rand.append(param_rand)
     pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos
