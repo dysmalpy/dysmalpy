@@ -98,6 +98,7 @@ def fit(gal, nWalkers=10,
            f_chain_ascii = None,
            f_vel_ascii = None, 
            f_log = None,
+           plot_type = 'pdf', 
            **kwargs ):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
@@ -173,14 +174,14 @@ def fit(gal, nWalkers=10,
     if (f_sampler_tmp is None): f_sampler_tmp = outdir+'mcmc_sampler_INPROGRESS.pickle'
     
     # If the output filenames aren't defined: use default output filenames
-    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.pdf'
-    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.pdf'
+    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
+    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
     if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
     if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mcmc_bestfit_cube.fits'
     if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.pickle'
     if save_burn and (f_burn_sampler is None):  f_burn_sampler = outdir+'mcmc_burn_sampler.pickle'
-    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.pdf'
-    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.pdf'
+    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.{}'.format(plot_type)
+    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.{}'.format(plot_type)
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
@@ -648,7 +649,8 @@ def fit_mpfit(gal,
               f_results = None,
               f_vel_ascii = None,
               f_log = None, 
-              blob_name=None):
+              blob_name=None,
+              plot_type='pdf'):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
@@ -661,7 +663,7 @@ def fit_mpfit(gal,
     # If the output filenames aren't defined: use default output filenames
     if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
     if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mpfit_bestfit_cube.fits'
-    if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.pdf'
+    if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.{}'.format(plot_type)
     if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
 
