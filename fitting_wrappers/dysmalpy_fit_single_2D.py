@@ -34,10 +34,17 @@ except:
 
 
 
-def dysmalpy_fit_single_2D(param_filename=None, data=None):
+def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=None):
     
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
+    
+    # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
+    if datadir is not None:
+        params['datadir'] = datadir
+    if outdir is not None:
+        params['outdir'] = outdir
+    
     
     # Setup some paths:
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
