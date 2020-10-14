@@ -29,6 +29,8 @@ import astropy.cosmology as apy_cosmo
 import pyximport; pyximport.install(setup_args={'include_dirs':['/Users/ttshimiz/Github/dysmalpy/dysmalpy/']})
 from . import cutils
 
+from astropy.table import Table
+
 # Local imports
 from .parameters import DysmalParameter
 
@@ -41,6 +43,19 @@ __all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'LinearNFW',
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 _dir_noordermeer = dir_path+"/data/noordermeer/"
+
+
+# ALT NOORDERMEER DIRECTORY:
+# TEMP:
+_dir_sersic_profile_mass_VC_TMP = "/Users/sedona/data/sersic_profile_mass_VC/"
+_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
+
+try:
+    import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
+    _sersic_profile_mass_VC_loaded = True
+except:
+    _sersic_profile_mass_VC_loaded = False
+
 
 # CONSTANTS
 G = apy_con.G
@@ -160,7 +175,7 @@ def menc_from_vcirc(vcirc, r):
     return menc
 
 def apply_noord_flat(r, r_eff, mass, n, invq):
-
+    
     noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
     noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
                                  100])  # 1:1, 1:2, 1:3, ...flattening
@@ -173,11 +188,51 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     # Need to do this internally instead of relying on IDL save files!!
     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
         nearest_n, nearest_q)
-    restNVC = scp_io.readsav(file_noord)
-    N2008_vcirc = restNVC.N2008_vcirc
-    N2008_rad = restNVC.N2008_rad
-    N2008_Re = restNVC.N2008_Re
-    N2008_mass = restNVC.N2008_mass
+        
+    try:
+        restNVC = scp_io.readsav(file_noord)
+        N2008_vcirc = restNVC.N2008_vcirc
+        N2008_rad = restNVC.N2008_rad
+        N2008_Re = restNVC.N2008_Re
+        N2008_mass = restNVC.N2008_mass
+
+        v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+                                       fill_value="extrapolate")
+        vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
+                 mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
+    
+    except:
+        vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
+    return vcirc
+    
+    
+def get_sersic_VC_table_new(n, invq):
+    # Use the "typical" collection of table values:
+    table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
+    table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100., 
+                    1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
+    
+    nearest_n = table_n[ np.argmin( np.abs(table_n - n) ) ]
+    nearest_invq = table_invq[ np.argmin( np.abs( table_invq - invq) ) ]
+    
+    file_sersic = _dir_sersic_profile_mass_VC + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
+    
+    try:
+        t = Table.read(file_sersic)
+    except:
+        raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic, 
+                    _dir_sersic_profile_mass_VC, 'SERSIC_PROFILE_MASS_VC_DATADIR'))
+    
+    return t[0]
+    
+def apply_noord_flat_new(r, r_eff, mass, n, invq):
+    # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
+    table = get_sersic_VC_table_new(n, invq)
+    
+    N2008_vcirc =   table['vcirc']
+    N2008_rad =     table['r']
+    N2008_Re =      table['Reff']
+    N2008_mass =    table['total_mass']
 
     v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
                                    fill_value="extrapolate")
@@ -185,6 +240,109 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
              mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
 
     return vcirc
+    
+def sersic_curve_rho(r, Reff, total_mass, n, invq):
+    table = get_sersic_VC_table_new(n, invq)
+    
+    table_rho =     table['rho']
+    table_rad =     table['r'] 
+    table_Reff =    table['Reff'] 
+    table_mass =    table['total_mass']
+    
+    # Clean up values inside rmin:  Add the value at r=0: menc=0
+    if table['r'][0] > 0.:
+        #print("_sersic_profile_mass_VC_loaded={}".format(_sersic_profile_mass_VC_loaded))
+        if _sersic_profile_mass_VC_loaded:
+            try:
+                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+                table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff, 
+                        n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
+            except:
+                pass
+            
+    r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
+    r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
+    
+    # Ensure it's an array:
+    if isinstance(r*1., float):
+        rarr = np.array([r])
+    else:
+        rarr = np.array(r)
+    # Ensure all radii are 0. or positive:
+    rarr = np.abs(rarr)
+        
+    rho_interp = np.zeros(len(rarr))
+    wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
+    wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
+    rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+    rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+    
+    if (len(rarr) > 1):
+        return rho_interp
+    else:
+        if isinstance(r*1., float):
+            # Float input
+            return rho_interp[0]
+        else:
+            # Length 1 array input
+            return rho_interp
+    
+    return rho_interp
+    
+def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
+    table = get_sersic_VC_table_new(n, invq)
+    
+    table_dlnrho_dlnr =     table['dlnrho_dlnr']
+    table_rad =     table['r'] 
+    table_Reff =    table['Reff'] 
+    table_mass =    table['total_mass']
+    
+    # Drop nonfinite parts:
+    whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
+    table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
+    table_rad = table_rad[whfin]
+    
+    # Clean up values inside rmin:  Add the value at r=0: menc=0
+    if table['r'][0] > 0.:
+        if _sersic_profile_mass_VC_loaded:
+            try:
+                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+                table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff, 
+                            n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
+            except:
+                pass
+            
+    r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
+    r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+    
+    # Ensure it's an array:
+    if isinstance(r*1., float):
+        rarr = np.array([r])
+    else:
+        rarr = np.array(r)
+    # Ensure all radii are 0. or positive:
+    rarr = np.abs(rarr)
+        
+    dlnrho_dlnr_interp = np.zeros(len(rarr))
+    wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
+    wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
+    dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
+    dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) )
+    
+    
+    if (len(rarr) > 1):
+        return dlnrho_dlnr_interp
+    else:
+        if isinstance(r*1., float):
+            # Float input
+            return dlnrho_dlnr_interp[0]
+        else:
+            # Length 1 array input
+            return dlnrho_dlnr_interp
+    
+    return dlnrho_dlnr_interp
+    
+    
 
 def area_segm(rr, dd):
 
@@ -690,7 +848,45 @@ class ModelSet:
                 enc_dm = enc_dm_adi
 
         return enc_mass, enc_bary, enc_dm
-
+        
+    def get_dlnrhotot_dlnr(self, r):
+        """
+        Method to calculate the composite derivative dln(rho,tot) / dlnr
+        as a function of radius
+        """
+        
+        # First check to make sure there is at least one mass component in the
+        # model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so a velocity "
+                                 "can't be calculated.")
+        else:
+            rhotot = r*0.
+            drho_dr = r*0.
+            
+            for cmp in self.mass_components:
+                
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    
+                    cmpnt_rho = mcomp.rho(r)
+                    cmpnt_drhodr = mcomp.drho_dr(r)
+                    
+                    whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
+                    if len(whfin) < len(r):
+                        # FLAG42
+                        raise ValueError
+                    
+                    rhotot = rhotot + cmpnt_rho
+                    drho_dr = drho_dr + cmpnt_drhodr
+        
+        dlnrhotot_dlnr = r / rhotot * (drho_dr)
+        
+        ## FLAG42
+        #raise ValueError
+        
+        return dlnrhotot_dlnr
+        
         
     def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
@@ -1152,6 +1348,18 @@ class MassModel(_DysmalFittable1DModel):
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
         
+    @abc.abstractmethod
+    def rho(self, *args, **kwargs):
+        """Evaluate the density rho as a function of radius"""
+        
+    @abc.abstractmethod
+    def dlnrho_dlnr(self, *args, **kwargs):
+        """Evaluate the derivative dlnRho / dlnr as a function of radius"""
+    
+    @abc.abstractmethod
+    def drho_dr(self, *args, **kwargs):
+        """Evaluate the derivative dRho / dr as a function of radius"""
+        
     def circular_velocity(self, r):
         """
         Default method to evaluate the circular velocity
@@ -1213,8 +1421,17 @@ class ExpDisk(MassModel):
     def mass_to_light(self, r):
         return surf_dens_exp_disk(r, 1.0, self.rd)
         
+    #######
+    def rho(self, r):
+        return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd) 
     
+    def dlnrho_dlnr(self, r):
+        # Shortcut for the exponential disk asymmetric drift term, from Burkert+10 eq 11:
         
+        return - 2.* (r / self.rd)
+        
+    def drho_dr(self, r):
+        return self.dlnrho_dlnr(r) * self.rho(r)/ r
 
 class Sersic(MassModel):
     """
@@ -1273,6 +1490,28 @@ class Sersic(MassModel):
 
     def mass_to_light(self, r):
         return sersic_mr(r, 1.0, self.n, self.r_eff)
+        
+    #
+    def rho(self, r):
+        if self.noord_flat:
+            rho = sersic_curve_rho(r, self.r_eff, 10**self.mass, self.n, self.invq)
+            
+        else:
+            rho = sersic_mr(r, 10**self.total_mass, self.n, self.r_eff)
+            
+        return rho
+        
+    def dlnrho_dlnr(self, r):
+        if self.noord_flat:
+            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
+            
+            return dlnrho_dlnr_arr
+        else:
+            bn = scp_spec.gammaincinv(2. * self.n, 0.5)
+            return -2. * (bn / self.n) * np.power(r/self.r_eff, 1./self.n)
+        
+    def drho_dr(self, r):
+        return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 
 class DiskBulge(MassModel):
@@ -1442,6 +1681,91 @@ class DiskBulge(MassModel):
                              "or 'total.'")
 
         return flux
+        
+        
+    def rho_disk(self, r):
+        if self.noord_flat:
+            mdisk_total = 10**self.total_mass*(1 - self.bt)
+            rho = sersic_curve_rho(r, self.r_eff_disk, mdisk_total, self.n_disk, self.invq_disk)
+            
+            return rho
+        else:
+            mdisk_total = 10**self.total_mass*(1 - self.bt)
+            mr_disk = sersic_mr(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            return mr_disk
+            
+    def rho_bulge(self, r):
+        if self.noord_flat:
+            mbulge_total = 10**self.total_mass*self.bt
+            
+            rho = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total, self.n_bulge, self.invq_bulge)
+            return rho
+        
+            
+        else:
+            mbulge_total = 10**self.total_mass*self.bt
+            mr_bulge = sersic_mr(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
+            return mr_bulge
+        
+    def rho(self, r):
+        return self.rho_disk(r) + self.rho_bulge(r)
+        
+    def dlnrho_dlnr_disk(self, r):
+        if self.noord_flat:
+            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
+            
+            return dlnrho_dlnr_arr
+        else:
+            bn = scp_spec.gammaincinv(2. * self.n_disk, 0.5)
+            return -2. * (bn / self.n_disk) * np.power(r/self.r_eff_disk, 1./self.n_disk)
+        
+    def dlnrho_dlnr_bulge(self, r):
+        if self.noord_flat:
+            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
+            
+            return dlnrho_dlnr_arr
+        else:
+            bn = scp_spec.gammaincinv(2. * self.n_bulge, 0.5)
+            return -2. * (bn / self.n_bulge) * np.power(r/self.r_eff_bulge, 1./self.n_bulge)
+        
+        
+        
+    def dlnrho_dlnr(self, r):
+        
+        return r / self.rho(r) * self.drho_dr(r)
+        
+    def drho_dr_disk(self, r):
+        drhodr = self.rho_disk(r) / r * self.dlnrho_dlnr_disk(r)
+        try:
+            if len(r) > 1:
+                drhodr[r==0] = 0.
+            else:
+                if r[0] == 0.:
+                    drhodr[0] = 0.
+        except:
+            if r == 0:
+                drhodr = 0.
+        return drhodr
+        
+    def drho_dr_bulge(self, r):
+        drhodr = self.rho_bulge(r) / r * self.dlnrho_dlnr_bulge(r)
+        try:
+            if len(r) > 1:
+                drhodr[r==0] = 0.
+            else:
+                if r[0] == 0.:
+                    drhodr[0] = 0.
+        except:
+            if r == 0:
+                drhodr = 0.
+                
+        return drhodr
+        
+    def drho_dr(self, r):
+        
+        return self.drho_dr_disk(r) + self.drho_dr_bulge(r)
+        
+        
 
 #
 
@@ -1632,6 +1956,25 @@ class DarkMatterHalo(MassModel):
             raise NotImplementedError("Adiabatic contraction not currently supported!")
         else:
             return self.circular_velocity(r)
+            
+    #
+    def drho_dr(self, r):
+        #return self.rho(r) / r * self.dlnrho_dlnr(r)
+        
+        drhodr = self.rho(r) / r * self.dlnrho_dlnr(r)
+        try:
+            if len(r) > 1:
+                drhodr[r==0] = 0.
+            else:
+                if r[0] == 0.:
+                    drhodr[0] = 0.
+        except:
+            if r == 0:
+                drhodr = 0.
+        return drhodr
+        
+        
+        
         
 
 class TwoPowerHalo(DarkMatterHalo):
@@ -1728,6 +2071,21 @@ class TwoPowerHalo(DarkMatterHalo):
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
         
+    ##########
+    def rho(self, r):
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+
+        return rho0 / ((r/rs)**self.alpha * (1. + r/rs)**(self.beta - self.alpha))
+        
+    def dlnrho_dlnr(self, r):
+        rvirial = self.calc_rvir()
+        rs = rvirial / self.conc
+        return -self.alpha - (self.beta-self.alpha)*(r/rs)/(1. + r/rs)
+        
+
+    
 
 class Burkert(DarkMatterHalo):
     """
@@ -1750,7 +2108,6 @@ class Burkert(DarkMatterHalo):
 
     def evaluate(self, r, mvirial, rB, fdm):
 
-        rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
 
         return rho0 / ( (1 + r/rB) * ( 1 + (r/rB)**2 ) ) 
@@ -1837,7 +2194,15 @@ class Burkert(DarkMatterHalo):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
         
-#
+    ##########
+    def rho(self, r):
+        rho0 = self.calc_rho0()
+        return rho0 / ( (1 + r/self.rB) * ( 1 + (r/self.rB)**2 ) )
+        
+        
+    def dlnrho_dlnr(self, r):
+        return -(r/self.rB) /(1.+r/self.rB) - 2.*(r/self.rB)**2/(1.+(r/self.rB)**2)
+        
 class Einasto(DarkMatterHalo):
     """
     Class for an Einasto dark matter halo
@@ -1992,7 +2357,23 @@ class Einasto(DarkMatterHalo):
         
     def tie_alphaEinasto(self, model_set):
         return 1./self.nEinasto
-
+        
+    #
+    ##########
+    def rho(self, r):
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+        h = rs / np.power(2.*self.nEinasto, self.nEinasto)
+        
+        # Return the density at a given radius:
+        return rho0 * np.exp(- np.power(r/h, 1./self.nEinasto))
+        
+    def dlnrho_dlnr(self, r):
+        rvirial = self.calc_rvir()
+        rs = rvirial / self.conc
+        # self.alphaEinasto = 1./self.nEinasto
+        return -2. * np.power(r/rs, self.alphaEinasto)
 
 class NFW(DarkMatterHalo):
     """
@@ -2125,6 +2506,19 @@ class NFW(DarkMatterHalo):
         #            vc_dm, halo.circular_velocity(r_eff), np.sqrt(vtarget)))
         return vc_dm **2 - vtarget
         
+    ##########
+    def rho(self, r):
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+
+        return rho0 / ((r/rs) * (1. + r/rs)**2)
+        
+    def dlnrho_dlnr(self, r):
+        rvirial = self.calc_rvir()
+        rs = rvirial / self.conc
+        return -1. - 2.*(r/rs)/(1. + r/rs)
+        
 #
 class LinearNFW(DarkMatterHalo):
     """
@@ -2184,6 +2578,19 @@ class LinearNFW(DarkMatterHalo):
 
         return rvir
         
+        
+    ##########
+    def rho(self, r):
+        rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0()
+        rs = rvirial / self.conc
+
+        return rho0 / ((r/rs) * (1. + r/rs)**2)
+        
+    def dlnrho_dlnr(self, r):
+        rvirial = self.calc_rvir()
+        rs = rvirial / self.conc
+        return -1. - 2.*(r/rs)/(1. + r/rs)
         
 
 
@@ -2457,6 +2864,19 @@ class KinematicOptions:
             bn = scp_spec.gammaincinv(2. * pn, 0.5)
             #vel_squared = (vel ** 2 - 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
             vel_asymm_drift = np.sqrt( 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
+            
+        elif self.pressure_support_type == 3:
+            # Direct calculation from sig0^2 dlnrho/dlnr:
+            
+            if not _sersic_profile_mass_VC_loaded:
+                raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
+            
+            dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
+            
+            vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
+            
+            #raise ValueError
+            #FLAG42
         
         return vel_asymm_drift
         
