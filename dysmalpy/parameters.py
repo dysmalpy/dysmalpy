@@ -50,20 +50,40 @@ def _binary_comparison_operation(op):
 # Base class for priors
 @six.add_metaclass(abc.ABCMeta)
 class Prior:
+    """
+    Base class for priors
+    """
 
     @abc.abstractmethod
     def log_prior(self, *args, **kwargs):
-        """Every prior should have a method that returns log(prior)"""
-        
+        """Returns the log value of the prior given the parameter value"""
+
     @abc.abstractmethod
     def sample_prior(self, *args, **kwargs):
-        """Every prior should have a method that returns random sample weighted
-           by prior"""
+        """Returns a random sample of parameter values distributed according to the prior"""
 
 
 class UniformPrior(Prior):
+    """
+    Object for flat priors
+    """
+
     @staticmethod
     def log_prior(param, **kwargs):
+        """
+        Returns the log value of the prior given the parameter value
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        modelset :
+
+        Returns
+        -------
+        lprior : `0` or `-np.inf`
+            Log prior value. 0 if the parameter value is within the bounds otherwise `-np.inf`
+        """
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -79,9 +99,25 @@ class UniformPrior(Prior):
             return 0.
         else:
             return -np.inf
-            
+
     @staticmethod
     def sample_prior(param, N=1):
+        """
+        Returns a random sample of parameter values distributed according to the prior
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        N : int, optional
+            Size of random sample. Default is 1.
+
+        Returns
+        -------
+        rsamp : float or array
+            Random sample of parameter values
+
+        """
         if param.bounds[0] is None:
             pmin = -1.e5  # Need to default to a finite value for the rand dist.
         else:
@@ -91,8 +127,9 @@ class UniformPrior(Prior):
             pmax = 1.e5  # Need to default to a finite value for the rand dist.
         else:
             pmax = param.bounds[1]
-            
+
         return np.random.rand(N)*(pmax-pmin) + pmin
+
 
 # CAN THIS? BC NEED TO USE LinearDiskBulge / etc, bc of walker jumps ?????
 class UniformLinearPrior(Prior):
@@ -114,7 +151,7 @@ class UniformLinearPrior(Prior):
             return 0.
         else:
             return -np.inf
-            
+
     @staticmethod
     def sample_prior(param, N=1):
         if param.bounds[0] is None:
@@ -126,42 +163,109 @@ class UniformLinearPrior(Prior):
             pmax = 1.e13  # Need to default to a finite value for the rand dist.
         else:
             pmax = param.bounds[1]
-            
+
         rvs = []
         while len(rvs) < N:
             test_v = np.random.rand(1)[0] * (pmax-pmin) + pmin
-            
+
             if (test_v >= pmin) & (test_v <= pmax):
                 rvs.append(np.log10(test_v))
-            
+
         return rvs
-        
 
 
 class GaussianPrior(Prior):
+    """
+    Object for gaussian priors
 
+    Parameters
+    ----------
+    center : float
+        Mean of the Gaussian prior
+
+    stddev : float
+        Standard deviation of the Gaussian prior
+    """
     def __init__(self, center=0, stddev=1.0):
 
         self.center = center
         self.stddev = stddev
-        
+
     def log_prior(self, param, **kwargs):
+        """
+        Returns the log value of the prior given the parameter value
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        modelset :
+
+        Returns
+        -------
+        lprior : float
+            Log prior value calculated using `~scipy.stats.norm.pdf`
+        """
         return np.log(norm.pdf(param.value, loc=self.center,
                         scale=self.stddev))
 
     def sample_prior(self, param, N=1):
-        return np.random.normal(loc=self.center, 
+        """
+        Returns a random sample of parameter values distributed according to the prior
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        N : int, optional
+            Size of random sample. Default is 1.
+
+        Returns
+        -------
+        rsamp : float or array
+            Random sample of parameter values
+
+        """
+        return np.random.normal(loc=self.center,
                                 scale=self.stddev, size=N)
-        
+
 
 class BoundedGaussianPrior(Prior):
+    """
+    Object for Gaussian priors that only extend to a minimum and maximum value
 
+    Parameters
+    ----------
+    center : float
+        Mean of the Gaussian prior
+
+    stddev : float
+        Standard deviation of the Gaussian prior
+    """
     def __init__(self, center=0, stddev=1.0):
 
         self.center = center
         self.stddev = stddev
 
     def log_prior(self, param, **kwargs):
+        """
+        Returns the log value of the prior given the parameter value
+
+        The parameter value is first checked to see if its within `param.bounds`.
+        If so then the standard Gaussian distribution is used to calculate the prior.
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        modelset :
+
+        Returns
+        -------
+        lprior : float
+            Log prior value calculated using `~scipy.stats.norm.pdf` if `param.value` is within
+            `param.bounds`
+        """
 
         if param.bounds[0] is None:
             pmin = -np.inf
@@ -179,7 +283,22 @@ class BoundedGaussianPrior(Prior):
             return -np.inf
 
     def sample_prior(self, param, N=1):
+        """
+        Returns a random sample of parameter values distributed according to the prior
 
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        N : int, optional
+            Size of random sample. Default is 1.
+
+        Returns
+        -------
+        rsamp : float or array
+            Random sample of parameter values
+
+        """
         if param.bounds[0] is None:
             pmin = -np.inf
         else:
@@ -200,8 +319,7 @@ class BoundedGaussianPrior(Prior):
                 rvs.append(test_v)
 
         return rvs
-        
-        
+
 
 class BoundedGaussianLinearPrior(Prior):
 
@@ -251,18 +369,46 @@ class BoundedGaussianLinearPrior(Prior):
         return rvs
 
 class BoundedSineGaussianPrior(Prior):
+    """
+    Object for priors described by a bounded sine Gaussian distribution
+
+    Parameters
+    ----------
+    center : float
+        Central value of the Gaussian prior BEFORE applying sine function
+
+    stddev : float
+        Standard deviation of the Gaussian prior AFTER applying sine function
+    """
 
     def __init__(self, center=0, stddev=1.0):
         # Center, bounds in INC
         # Stddev in SINE INC
-        
+
         self.center = center
         self.stddev = stddev
-        
+
         self.center_sine = np.sin(self.center*np.pi/180.)
 
     def log_prior(self, param, **kwargs):
+        """
+        Returns the log value of the prior given the parameter value
 
+        The parameter value is first checked to see if its within `param.bounds`.
+        If so then a Gaussian distribution on the sine of the parameter is used to
+        calculate the prior.
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        modelset :
+
+        Returns
+        -------
+        lprior : float
+            Log prior value
+        """
         if param.bounds[0] is None:
             pmin = -np.inf
         else:
@@ -279,7 +425,22 @@ class BoundedSineGaussianPrior(Prior):
             return -np.inf
 
     def sample_prior(self, param, N=1):
+        """
+        Returns a random sample of parameter values distributed according to the prior
 
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+        N : int, optional
+            Size of random sample. Default is 1.
+
+        Returns
+        -------
+        rsamp : float or array
+            Random sample of parameter values
+
+        """
         if param.bounds[0] is None:
             pmin = -np.inf
         else:
@@ -303,11 +464,12 @@ class BoundedSineGaussianPrior(Prior):
         return rvs
 
 
-
-
-
 class DysmalParameter(Parameter):
+    """
+    New parameter class for dysmalpy based on `~astropy.modeling.Parameter`
 
+    The main change is adding a prior as part of the constraints
+    """
     constraints = ('fixed', 'tied', 'bounds', 'prior')
 
     def __init__(self, name='', description='', default=None, unit=None,
@@ -328,7 +490,7 @@ class DysmalParameter(Parameter):
                                               min=min,
                                               max=max,
                                               bounds=bounds)
-                                              
+
         # Set prior:
         self.prior = prior
 
