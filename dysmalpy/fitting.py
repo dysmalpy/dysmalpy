@@ -2542,15 +2542,18 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
     ###
     elif emcee.__version__[0] == '3':
         backend = emcee.backends.Backend()
-        #backend.nwalkers = sampler_dict['nWalkers']
-        #backend.iteration = sampler_dict['nParam']
-        #backend.iteration = sampler_dict['nIter']
-        #backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
-        #backend.chain = sampler_dict['chain']
-        #backend.log_prob = sampler_dict['lnprobability']
-        #backend.blobs = sampler_dict['blobs']
-        #backend.initialized = True
         
+        backend.initialized = True
+        
+        backend.nwalkers = sampler_dict['nWalkers']
+        backend.ndim = sampler_dict['nParam']
+        backend.iteration = sampler_dict['nIter']
+        
+        backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
+        
+        backend.chain = sampler_dict['chain']
+        backend.log_prob = sampler_dict['lnprobability']
+        backend.blobs = sampler_dict['blobs']
         
         sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
                     sampler_dict['nParam'],
@@ -2565,7 +2568,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         try:
             backend = emcee.Backend()
             backend.nwalkers = sampler_dict['nWalkers']
-            backend.iteration = sampler_dict['nParam']
+            backend.ndim = sampler_dict['nParam']
             backend.iteration = sampler_dict['nIter']
             backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
                                 dtype=np.int64)
