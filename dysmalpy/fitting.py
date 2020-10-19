@@ -2521,9 +2521,9 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
     Re-setup emcee sampler, using existing chain / etc, so more steps can be run.
     """
     
-    sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
-                log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
-                threads=sampler_dict['nCPU'])
+    # sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
+    #             log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
+    #             threads=sampler_dict['nCPU'])
     
     # This will break for updated version of emcee
     # works for emcee v2.2.1
@@ -2539,6 +2539,29 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         sampler.iterations = sampler_dict['nIter']
         sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
                             dtype=np.int64)
+    ###
+    elif emcee.__version__[0] == '3':
+        backend = emcee.backends.Backend()
+        backend.nwalkers = sampler_dict['nWalkers']
+        backend.iteration = sampler_dict['nParam']
+        backend.iteration = sampler_dict['nIter']
+        backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
+                            dtype=np.int64)
+        backend.chain = sampler_dict['chain']
+        backend.log_prob = sampler_dict['lnprobability']
+        backend.blobs = sampler_dict['blobs']
+        backend.initialized = True
+        
+        
+        sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
+                    sampler_dict['nParam'],
+                    log_prob, 
+                    args=[gal], kwargs=kwargs_dict, 
+                    backend=backend, 
+                    a=scale_param_a, 
+                    threads=sampler_dict['nCPU'])
+            
+    ###
     else:
         try:
             backend = emcee.Backend()
@@ -2564,6 +2587,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
             
         except:
             raise ValueError
+    
     
     # sampler._last_run_mcmc_result
     
