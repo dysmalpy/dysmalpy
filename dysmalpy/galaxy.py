@@ -13,6 +13,8 @@ import time
 import logging
 import copy
 
+import os
+
 # Third party imports
 import numpy as np
 import astropy.cosmology as apy_cosmo
@@ -611,8 +613,13 @@ class Galaxy:
 
 
     #
-    def preserve_self(self, filename=None, save_data=True):
-        # def save_galaxy_model(self, galaxy=None, filename=None):
+    def preserve_self(self, filename=None, save_data=True, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+                
         if filename is not None:
             galtmp = copy.deepcopy(self)
             
