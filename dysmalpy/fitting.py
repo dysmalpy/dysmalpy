@@ -2551,6 +2551,8 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         backend.log_prob = sampler_dict['lnprobability']
         backend.blobs = sampler_dict['blobs']
         
+        backend.random_state = None
+        
         sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
                     sampler_dict['nParam'],
                     log_prob, 
