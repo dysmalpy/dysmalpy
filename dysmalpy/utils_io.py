@@ -278,7 +278,10 @@ class Report(object):
 
         self.add_line( '' )
         self.add_line( '-----------' )
-        datstr = 'Red. chisq: {:0.4f}'.format(results.bestfit_redchisq)
+        if results.bestfit_redchisq is not None:
+            datstr = 'Red. chisq: {:0.4f}'.format(results.bestfit_redchisq)
+        else:
+            datstr = 'Red. chisq: {}'.format(results.bestfit_redchisq)
         self.add_line( datstr )
 
         try:
@@ -343,8 +346,12 @@ class Report(object):
         datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
                     '-----', gal.model.kinematic_options.adiabatic_contract, -99, -99)
         self.add_line( datstr ) 
-
-        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+        
+        if results.bestfit_redchisq is not None:
+            datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+                    '-----', results.bestfit_redchisq, -99, -99)
+        else:
+            datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
                     '-----', results.bestfit_redchisq, -99, -99)
         self.add_line( datstr ) 
         
