@@ -263,12 +263,8 @@ def fit(gal, nWalkers=10,
         # Close things
         input_sampler = None
     elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
-        #nBurn = 0
-        #
         input_sampler = load_pickle(f_sampler_tmp)
         
-        
-            
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
                             kwargs_dict=kwargs_dict, 
                             scale_param_a=scale_param_a)
