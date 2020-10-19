@@ -2541,7 +2541,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                             dtype=np.int64)
     ###
     elif emcee.__version__[0] == '3':
-        #backend = emcee.backends.Backend()
+        backend = emcee.backends.Backend()
         #backend.nwalkers = sampler_dict['nWalkers']
         #backend.iteration = sampler_dict['nParam']
         #backend.iteration = sampler_dict['nIter']
@@ -2551,13 +2551,13 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         #backend.blobs = sampler_dict['blobs']
         #backend.initialized = True
         
-        #backend=backend,
         
         sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
                     sampler_dict['nParam'],
                     log_prob, 
                     args=[gal], kwargs=kwargs_dict, 
                     a=scale_param_a, 
+                    backend=backend,
                     threads=sampler_dict['nCPU'])
             
     ###
