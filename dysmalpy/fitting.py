@@ -2545,8 +2545,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         #backend.nwalkers = sampler_dict['nWalkers']
         #backend.iteration = sampler_dict['nParam']
         #backend.iteration = sampler_dict['nIter']
-        #backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
-                            dtype=np.int64)
+        #backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
         #backend.chain = sampler_dict['chain']
         #backend.log_prob = sampler_dict['lnprobability']
         #backend.blobs = sampler_dict['blobs']
