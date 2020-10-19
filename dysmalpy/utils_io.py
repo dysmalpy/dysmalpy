@@ -14,6 +14,9 @@ from scipy import interpolate
 
 import copy
 
+
+import datetime
+
 try:
     import aperture_classes
     import data_classes
@@ -92,6 +95,400 @@ def write_bestfit_1d_obs_file(gal=None, fname=None):
     return None
     
 #
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+class Report(object):
+    def __init__(self, report_type='short', fit_method=None):
+    
+        self.report_type = report_type
+        self.fit_method = fit_method
+    
+        self._report = ''
+    
+    @property
+    def report(self):
+        return self._report
+    
+    def add_line(self, line):
+        self._report += line + '\n'
+    
+    def add_string(self, string):
+        self._report += string
+    
+    
+    def create_results_report_short(self, gal, results, params=None):
+
+        # --------------------------------------------
+        if results.blob_name is not None:
+            if isinstance(results.blob_name, str):
+                blob_names = [results.blob_name]
+            else:
+                blob_names = results.blob_name[:]
+        else:
+            blob_names = None
+
+        # --------------------------------------------
+
+        self.add_line( '###############################' )
+        self.add_line( ' Fitting for {}'.format(gal.name) )
+        self.add_line( '' )
+
+        self.add_line( "Date: {}".format(datetime.datetime.now()) )
+        self.add_line( '' )
+        
+        
+        if hasattr(gal.data, 'filename_velocity') & hasattr(gal.data, 'filename_dispersion'):
+            if (gal.data.filename_velocity is not None) & (gal.data.filename_dispersion is not None):
+                self.add_line( 'Datafiles:' )
+                self.add_line( ' vel:  {}'.format(gal.data.filename_velocity) )
+                self.add_line( ' disp: {}'.format(gal.data.filename_dispersion) )
+            elif (gal.data.filename_velocity is not None):
+                self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
+        elif hasattr(gal.data, 'filename_velocity'):
+            if (gal.data.filename_velocity is not None):
+                self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
+        else:
+            if params is not None:
+                try:
+                    self.add_line( 'Datafiles:' )
+                    self.add_line( ' vel:  {}'.format(params['fdata_vel']) )
+                    self.add_line( ' verr: {}'.format(params['fdata_verr']) )
+                    self.add_line( ' disp: {}'.format(params['fdata_disp']) )
+                    self.add_line( ' derr: {}'.format(params['fdata_derr']) )
+                    try:
+                        self.add_line( ' mask: {}'.format(params['fdata_mask']) )
+                    except:
+                        pass
+                except:
+                    pass
+            
+        if params is not None:
+            self.add_line( 'Paramfile: {}'.format(params['param_filename']) )
+
+        self.add_line( '' )
+        self.add_line( 'Fitting method: {}'.format(results.fit_method.upper()))
+        self.add_line( '' )
+        if params is not None:
+            if 'fit_module' in params.keys():
+                self.add_line( '   fit_module: {}'.format(params['fit_module']))
+                #self.add_line( '' )
+        #self.add_line( '' )
+        # --------------------------------------
+        if 'profile1d_type' in gal.data.__dict__.keys():
+            self.add_line( 'profile1d_type: {}'.format(gal.data.profile1d_type) )
+            #self.add_line( '' )
+        if params is not None:
+            if 'weighting_method' in params.keys():
+                if params['weighting_method'] is not None:
+                    self.add_line( 'weighting_method: {}'.format(params['weighting_method']))
+                    #self.add_line( '' )
+            if 'moment_calc' in params.keys():
+                self.add_line( 'moment_calc: {}'.format(params['moment_calc']))
+                #self.add_line( '' )
+            if 'partial_weight' in params.keys():
+                self.add_line( 'partial_weight: {}'.format(params['partial_weight']))
+                #self.add_line( '' )
+        else:
+            if 'apertures' in gal.data.__dict__.keys():
+                if gal.data.apertures is not None:
+                    self.add_line( 'moment_calc: {}'.format(gal.data.apertures.apertures[0].moment))
+                    #self.add_line( '' )
+                    ####
+                    self.add_line( 'partial_weight: {}'.format(gal.data.apertures.apertures[0].partial_weight))
+                    #self.add_line( '' )
+        
+        # INFO on pressure support type:
+        self.add_line( 'pressure_support_type: {}'.format(gal.model.kinematic_options.pressure_support_type))
+        #self.add_line( '' )
+        # --------------------------------------
+        self.add_line( '' )
+        self.add_line( '###############################' )
+        self.add_line( ' Fitting results' )
+
+        for cmp_n in gal.model.param_names.keys():
+            self.add_line( '-----------' )
+            self.add_line( ' {}'.format(cmp_n) )
+            
+            nfixedtied = 0
+            nfree = 0
+
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
+                    nfree += 1
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    best = results.bestfit_parameters[whparam]
+            
+                    # MCMC
+                    if self.fit_method.upper() == 'MCMC':
+                        l68 = results.bestfit_parameters_l68_err[whparam]
+                        u68 = results.bestfit_parameters_u68_err[whparam]
+                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+                
+                    # MPFIT
+                    elif self.fit_method.upper() == 'MPFIT':
+                        err = results.bestfit_parameters_err[whparam]
+                        datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
+                    
+                    self.add_line( datstr )
+                else:
+                    nfixedtied += 1
+            #
+            if (nfree > 0) & (nfixedtied > 0):
+                self.add_line( '' )
+            
+            for param_n in gal.model.param_names[cmp_n]:
+
+                if '{}:{}'.format(cmp_n,param_n) not in results.chain_param_names:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+                    
+                    if not getattr(gal.model.components[cmp_n], param_n).tied:
+                        if getattr(gal.model.components[cmp_n], param_n).fixed:
+                            fix_tie = '[FIXED]'
+                        else:
+                            fix_tie = '[UNKNOWN]'
+                    else:
+                        fix_tie = '[TIED]'
+                        
+                    datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
+                    
+                    self.add_line( datstr )
+
+
+        ####
+        if blob_names is not None:
+            # MCMC
+            if self.fit_method.upper() == 'MCMC':
+                self.add_line( '' )
+                self.add_line( '-----------' )
+                for blobn in blob_names:
+                    blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                    l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                    u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                    self.add_line( datstr )
+
+
+        ####
+        self.add_line( '' )
+        self.add_line( '-----------' )
+        datstr = 'Adiabatic contraction: {}'.format(gal.model.kinematic_options.adiabatic_contract)
+        self.add_line( datstr )
+
+        self.add_line( '' )
+        self.add_line( '-----------' )
+        datstr = 'Red. chisq: {:0.4f}'.format(results.bestfit_redchisq)
+        self.add_line( datstr )
+
+        try:
+            Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
+            self.add_line( '' )
+            self.add_line( '-----------' )
+            datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
+            self.add_line( datstr )
+        except:
+            pass
+    
+        self.add_line( '' )
+
+
+
+    def create_results_report_long(self, gal, results, params=None):
+        
+        # --------------------------------------------
+        if results.blob_name is not None:
+            if isinstance(results.blob_name, str):
+                blob_names = [results.blob_name]
+            else:
+                blob_names = results.blob_name[:]
+        else:
+            blob_names = None
+
+        # --------------------------------------------
+
+        namestr = '# component    param_name    fixed    best_value   l68_err   u68_err'
+        self.add_line( namestr ) 
+
+        for cmp_n in gal.model.param_names.keys():
+            for param_n in gal.model.param_names[cmp_n]:
+    
+                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    best = results.bestfit_parameters[whparam]
+                    l68 = results.bestfit_parameters_l68_err[whparam]
+                    u68 = results.bestfit_parameters_u68_err[whparam]
+                else:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+                    l68 = -99.
+                    u68 = -99.
+        
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                            "{}".format(gal.model.fixed[cmp_n][param_n]), best, l68, u68)
+                self.add_line( datstr ) 
+    
+        ###
+
+        if 'blob_name' in params.keys():
+            for blobn in blob_names:
+                blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                            '-----', blob_best, l68_blob, u68_blob)
+                self.add_line( datstr ) 
+
+
+        ###
+        datstr = '{: <12}   {: <11}   {: <5}   {}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
+                    '-----', gal.model.kinematic_options.adiabatic_contract, -99, -99)
+        self.add_line( datstr ) 
+
+        datstr = '{: <12}   {: <11}   {: <5}   {:9.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+                    '-----', results.bestfit_redchisq, -99, -99)
+        self.add_line( datstr ) 
+        
+
+        if 'profile1d_type' in gal.data.__dict__.keys():
+            datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
+                        '-----', gal.data.profile1d_type, -99, -99)
+            self.add_line( datstr ) 
+
+        #
+        if params is not None:
+            if 'weighting_method' in params.keys():
+                if params['weighting_method'] is not None:
+                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+                                '-----', params['weighting_method'], -99, -99)
+                    self.add_line( datstr )
+            if 'moment_calc' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
+                            '-----', params['moment_calc'], -99, -99)
+                self.add_line( datstr )
+            if 'partial_weight' in params.keys():
+                datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
+                            '-----', params['partial_weight'], -99, -99)
+                self.add_line( datstr )
+        #
+        else:
+            if 'apertures' in gal.data.__dict__.keys():
+                if gal.data.apertures is not None:
+                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
+                                '-----', gal.data.apertures.apertures[0].moment, -99, -99)
+                    self.add_line( datstr )
+                    ####
+                    datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
+                                '-----', gal.data.apertures.apertures[0].partial_weight, -99, -99)
+                    self.add_line( datstr )
+            
+            
+        #
+        # INFO on pressure support type:
+        datstr = '{: <12}   {: <11}   {: <5}   {: <20}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
+                    '-----', gal.model.kinematic_options.pressure_support_type, -99, -99)
+        self.add_line( datstr ) 
+
+
+
+
+
+
+def create_results_report(gal, results, params=None, report_type='short'):
+    
+    if results.fit_method is None:
+        return None
+    
+    report = Report(report_type=report_type, fit_method=results.fit_method)
+    
+    if report_type == 'short':
+        report.create_results_report_short(gal, results, params=params)
+    elif report_type == 'long':
+        report.create_results_report_long(gal, results, params=params)
+
+    
+    return report.report
+    
+    
+        
+
+#########################
+
+def _calc_Rout_max_2D(gal=None, results=None):
+    gal.model.update_parameters(results.bestfit_parameters)
+    inc_gal = gal.model.geometry.inc.value
+    
+    
+    
+    ###############
+    # Get grid of data coords:
+    nx_sky = gal.data.data['velocity'].shape[1]
+    ny_sky = gal.data.data['velocity'].shape[0]
+    nz_sky = 1 #np.int(np.max([nx_sky, ny_sky]))
+    rstep = gal.data.pixscale
+    
+    
+    xcenter = gal.data.xcenter 
+    ycenter = gal.data.ycenter 
+    
+        
+    if xcenter is None:
+        xcenter = (nx_sky - 1) / 2.
+    if ycenter is None:
+        ycenter = (ny_sky - 1) / 2.
+        
+        
+    #
+    sh = (nz_sky, ny_sky, nx_sky)
+    zsky, ysky, xsky = np.indices(sh)
+    zsky = zsky - (nz_sky - 1) / 2.
+    ysky = ysky - ycenter 
+    xsky = xsky - xcenter 
+    
+    # Apply the geometric transformation to get galactic coordinates
+    xgal, ygal, zgal = gal.model.geometry(xsky, ysky, zsky)
+    
+    # Get the 4 corners sets:
+    gal.model.geometry.inc = 0
+    xskyp_ur, yskyp_ur, zskyp_ur = gal.model.geometry(xsky+0.5, ysky+0.5, zsky)
+    xskyp_ll, yskyp_ll, zskyp_ll = gal.model.geometry(xsky-0.5, ysky-0.5, zsky)
+    xskyp_lr, yskyp_lr, zskyp_lr = gal.model.geometry(xsky+0.5, ysky-0.5, zsky)
+    xskyp_ul, yskyp_ul, zskyp_ul = gal.model.geometry(xsky-0.5, ysky+0.5, zsky)
+    
+    #Reset:
+    gal.model.geometry.inc = inc_gal
+    
+    
+    yskyp_ur_flat = yskyp_ur[0,:,:]
+    yskyp_ll_flat = yskyp_ll[0,:,:]
+    yskyp_lr_flat = yskyp_lr[0,:,:]
+    yskyp_ul_flat = yskyp_ul[0,:,:]
+    
+    val_sgns = np.zeros(yskyp_ur_flat.shape)
+    val_sgns += np.sign(yskyp_ur_flat)
+    val_sgns += np.sign(yskyp_ll_flat)
+    val_sgns += np.sign(yskyp_lr_flat)
+    val_sgns += np.sign(yskyp_ul_flat)
+    
+    whgood = np.where( ( np.abs(val_sgns) < 4. ) & (gal.data.mask) )
+    
+    xgal_flat = xgal[0,:,:]
+    ygal_flat = ygal[0,:,:]
+    xgal_list = xgal_flat[whgood]
+    ygal_list = ygal_flat[whgood]
+    
+    
+    # The circular velocity at each position only depends on the radius
+    # Convert to kpc
+    rgal = np.sqrt(xgal_list ** 2 + ygal_list ** 2) * rstep / gal.dscale
+    
+    Routmax2D = np.max(rgal.flatten())
+    
+    
+    return Routmax2D
+
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1, 
             profile1d_type=None, aperture_radius=None, 
             moment=False,
