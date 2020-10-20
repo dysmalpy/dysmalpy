@@ -209,7 +209,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
             else:
                 indv = blob_names.index(blobn)
                 if step_slice is None:
-                    print("mcmcResults.sampler['flatblobs'].shape={}".format(mcmcResults.sampler['flatblobs'].shape))
                     blobs = mcmcResults.sampler['flatblobs'][:,indv]
                 else:
                     blobs = mcmcResults.sampler['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, mcmcResults.sampler['blobs'].shape[2]))[:,indv]

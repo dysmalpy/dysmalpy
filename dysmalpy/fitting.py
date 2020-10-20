@@ -725,7 +725,6 @@ def _fit_emcee_3(gal, nWalkers=10,
        model_key_re = ['disk+bulge','r_eff_disk'],
        model_key_halo=['halo'], 
        do_plotting = True,
-       save_burn = False,
        save_model = True,
        save_bestfit_cube=True,
        save_data = True, 
@@ -768,7 +767,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not overwrite):
-        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner, 
+        fnames = [f_plot_trace_burnin, f_plot_trace, f_plot_param_corner, 
                     f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
         fnames_opt = [f_model, f_cube]
         for fname in fnames_opt:
@@ -788,7 +787,7 @@ def _fit_emcee_3(gal, nWalkers=10,
             
         # Check length of sampler:
         if os.path.isfile(f_sampler):
-            backend = emcee.backends.HDFBackend(f_sampler)
+            backend = emcee.backends.HDFBackend(f_sampler, name='mcmc')
             
             try:
                 if backend.get_chain().shape[0] >= nSteps:
@@ -814,8 +813,7 @@ def _fit_emcee_3(gal, nWalkers=10,
         logger.addHandler(loggerfile)
     
     # ++++++++++++++++++++++++++++++
-        
-    # WORKING LINE # FLAG42
+    
 
     # --------------------------------
     # Initialize emcee sampler
@@ -833,48 +831,33 @@ def _fit_emcee_3(gal, nWalkers=10,
     
     nDim = gal.model.nparams_free
     
+    
+    # --------------------------------
+    # Start pool, moves, backend:
+    pool = Pool(nCPUs)
+    moves = emcee.moves.StretchMove(a=scale_param_a)
+    
     backend_burn = emcee.backends.HDFBackend(f_sampler, name="burnin_mcmc")
+    
     if overwrite:
         backend_burn.reset(nWalkers, nDim)
     
     sampler_burn = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                args=[gal], kwargs=kwargs_dict, backend=backend_burn, 
-                a = scale_param_a, threads = nCPUs)
+                backend=backend_burn, pool=pool, moves=moves, 
+                args=[gal], kwargs=kwargs_dict)
                 
-    try:
-        nBurnCur = sampler.chain.shape[0]
-    except:
-        nBurnCur = 0
+    nBurnCur = sampler_burn.iteration  
         
-    nBurn = nBurn_orig - (nBurnCur + 1)
+    nBurn = nBurn_orig - nBurnCur
     
     # --------------------------------
     # Initialize walker starting positions
     if sampler_burn.iteration == 0:
-        initial_pos = initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
     else:
         initial_pos = sampler_burn.get_last_sample()
     
-    #
     
-    # if (nBurn == 0):
-    #     # check if there's anything in the main backend:
-    #     backend = emcee.backends.HDFBackend(f_sampler)
-    #     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-    #                 args=[gal], kwargs=kwargs_dict, backend=backend_burn, 
-    #                 a = scale_param_a, threads = nCPUs)
-    #                 
-    # 
-    # # If it saved after burn finished, but hasn't saved any of the normal steps: reset sampler
-    # if ((nBurn == 0) & (input_sampler['step_cur'] < 0)):
-    #     blob = None
-    #     sampler.reset()
-    #     if blob_name is not None:
-    #          sampler.clear_blobs()
-    
-    
-        
-            
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
@@ -910,8 +893,6 @@ def _fit_emcee_3(gal, nWalkers=10,
 
         ####
         
-        # FLAG42: check current syntax for passing prob/state/blob/etc
-        
         pos = initial_pos
         for k in six.moves.xrange(nBurn_orig):
             # --------------------------------
@@ -927,18 +908,6 @@ def _fit_emcee_3(gal, nWalkers=10,
             # Run one sample step:
             pos = sampler_burn.run_mcmc(pos, 1)
             
-            # # --------------------------------
-            # # Save intermediate steps if set:
-            # if save_intermediate_sampler_chain:
-            #     if ((k+1) % nStep_intermediate_save == 0):
-            #         sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
-            #         sampler_dict_tmp['burn_step_cur'] = k # nBurn_orig
-            #         sampler_dict_tmp['step_cur'] = -99
-            #         if f_sampler_tmp is not None:
-            #             # Save stuff to file, for future use:
-            #             dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
-            # # --------------------------------
-            
         #####
         end = time.time()
         elapsed = end-start
@@ -948,7 +917,6 @@ def _fit_emcee_3(gal, nWalkers=10,
         except:
             acor_time = "Undefined, chain did not converge"
             
-        
         
         
         #######################################################################################
@@ -985,44 +953,41 @@ def _fit_emcee_3(gal, nWalkers=10,
                         "acorr time undefined -> can't check convergence\n"
                         '#################\n')
                         
-        # # --------------------------------
-        # # Save burn-in sampler, if desired
-        # if (save_burn):
-        #     sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
-        #     # Save stuff to file, for future use:
-        #     dump_pickle(sampler_burn, filename=f_burn_sampler, overwrite=overwrite)
-        
         # --------------------------------
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn_dict = make_emcee_sampler_dict(sampler_burn, nBurn=0)
             mcmcResults_burn = MCMCResults(model=gal.model, sampler=sampler_burn_dict)
             plotting.plot_trace(mcmcResults_burn, fileout=f_plot_trace_burnin, overwrite=overwrite)
-
-        # # Reset sampler after burn-in:
-        if not save_burn:
-            backend_burn.reset(nWalkers, nDim)
             
-        # sampler.reset()
-        # if blob_name is not None:
-        #      sampler.clear_blobs()
-             
-             
 
     else:
         # --------------------------------
         # No burn-in: set initial position:
-        pos = np.array(initial_pos)
+        if nBurn_orig > 0:
+            logger.info('\nUsing previously completed burn-in'+'\n')
         
+        pos = initial_pos
         
+    
+    
+    #raise ValueError
+    
+    #######################################################################################
     # Setup sampler:
+    # --------------------------------
+    # Start backend:
+    backend = emcee.backends.HDFBackend(f_sampler, name="mcmc")
     
+    if overwrite:
+        backend.reset(nWalkers, nDim)
     
-    
-    raise ValueError  # FLAG42
-
-
-
+    sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+                backend=backend, pool=pool, moves=moves, 
+                args=[gal], kwargs=kwargs_dict)
+                
+                
+                
     #######################################################################################
     # ****
     # --------------------------------
@@ -1030,7 +995,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     logger.info('\nEnsemble sampling:\n'
                 'Start: {}\n'.format(datetime.datetime.now()))
     start = time.time()
-
+    
 
     # --------------------------------
     # Run sampler: output info at each step
@@ -1038,11 +1003,11 @@ def _fit_emcee_3(gal, nWalkers=10,
         
         # --------------------------------
         # If continuing chain, only start past existing chain length:
-        if continue_steps | save_intermediate_sampler_chain:
-            if ii < sampler.chain.shape[0]:
-                continue
-        
-        raise ValueError   # FLAG42
+        if ii < sampler.iteration:
+            continue
+            
+        # if ii > 2:
+        #     raise ValueError
         
         # --------------------------------
         # Only do one step at a time:
@@ -1078,17 +1043,6 @@ def _fit_emcee_3(gal, nWalkers=10,
                         logger.info(" Finishing calculations early at step {}.".format(ii+1))
                         break
                         
-        # --------------------------------
-        # Save intermediate steps if set:
-        if save_intermediate_sampler_chain:
-            if ((ii+1) % nStep_intermediate_save == 0):
-                sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
-                sampler_dict_tmp['burn_step_cur'] = nBurn_orig - 1
-                sampler_dict_tmp['step_cur'] = ii
-                if f_sampler_tmp is not None:
-                    # Save stuff to file, for future use:
-                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
-        # --------------------------------
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
@@ -1128,32 +1082,19 @@ def _fit_emcee_3(gal, nWalkers=10,
                 ''+acortimemsg+'\n'
                 '******************')
 
-    # --------------------------------
-    # Save sampler, if output file set:
-    #   Burn-in is already cut by resetting the sampler at the beginning.
-    # Get pickleable format:  # _fit_io.make_emcee_sampler_dict
-    sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0)
-
-    if f_sampler is not None:
-        # Save stuff to file, for future use:
-        dump_pickle(sampler_dict, filename=f_sampler, overwrite=overwrite)
-        
-    
-    # --------------------------------
-    # Cleanup intermediate saves:
-    if save_intermediate_sampler_chain:
-        if f_sampler_tmp is not None:
-            if os.path.isfile(f_sampler_tmp):
-                os.remove(f_sampler_tmp)
-    # --------------------------------
     
     if nCPUs > 1:
+        pool.close()
         sampler.pool.close()
-    
+        sampler_burn.pool.close()
+        
     ##########################################
     ##########################################
     ##########################################
     
+    # --------------------------------
+    # Setup sampler dict:
+    sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0)
     
     # --------------------------------
     # Bundle the results up into a results class:
@@ -1999,35 +1940,11 @@ class MCMCResults(FitResults):
         hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']
         if (filename.split('.')[-1].lower() in hdf5_aliases):
-            self._reload_sampler_hdf5(filename=filename)
+            self.sampler = _reload_sampler_hdf5(filename=filename)
             
         elif (filename.split('.')[-1].lower() in pickle_aliases):
-            self._reload_sampler_pickle(filename=filename)
+            self.sampler = _reload_sampler_pickle(filename=filename)
             
-        
-        
-    
-    def _reload_sampler_hdf5(self, filename=None, backend_name='mcmc'):
-        if filename is None:
-            filename = self.f_sampler
-        #self.sampler = emcee.backends.HDFBackend(filename)
-        # h5py
-        
-        with h5py.File(filename, "r") as f:
-            backend = f[backend_name] 
-        
-        self.sampler = self._make_sampler_dict_from_hdf5(backend)
-        
-    def _make_sampler_dict_from_hdf5(self, backend):
-        
-        raise ValueError
-        
-        return sampler_dict
-    
-    def _reload_sampler_pickle(self, filename=None):
-        if filename is None:
-            filename = self.f_sampler
-        self.sampler = load_pickle(filename)
         
         
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
@@ -3144,7 +3061,6 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
 def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
     """ Syntax for v3 sampler chain shape: nWalkers, nSteps, nParams """
     
-    
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.ndim))
     # Walkers, iterations
@@ -3152,39 +3068,99 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
     
     try:
         #acor_time = sampler.acor
-        acor_time = [acor.acor(sampler.chain[nBurn:, :,jj])[0] for jj in range(sampler.dim)]
+        acor_time = [acor.acor(sampler.chain[nBurn:, :,jj])[0] for jj in range(sampler.ndim)]
     except:
         acor_time = None
         
-    raise ValueError
-        
     # Make a dictionary:
-    df = { 'chain': sampler.chain[:, nBurn:, :],
-           'lnprobability': sampler.lnprobability[:, nBurn:],
-           'flatchain': samples,
-           'flatlnprobability': probs,
-           'nIter': sampler.iterations,
-           'nParam': sampler.dim,
-           'nCPU': lkjsdlkjslkddjlsddf,   # sampler.threads, 
-           'nWalkers': sampler.nwalkers, 
-           'acceptance_fraction': sampler.acceptance_fraction,
-           'acor_time': acor_time }
+    sampler_dict = { 'chain':               sampler.chain[:, nBurn:, :],
+                     'lnprobability':       sampler.lnprobability[:, nBurn:],
+                    'flatchain':            samples,
+                    'flatlnprobability':    probs,
+                    'nIter':                sampler.iteration,
+                    'nParam':               sampler.ndim,
+                    'nCPU':                 sampler.pool._processes,   # sampler.threads, 
+                    'nWalkers':             sampler.nwalkers, 
+                    'acceptance_fraction':  sampler.acceptance_fraction,
+                    'acor_time':            acor_time }
            
     if len(sampler.blobs) > 0:
         if len(np.shape(sampler.blobs)) == 2:
             # Only 1 blob: nSteps, nWalkers:
-            df['blobs'] = sampler.blobs[nBurn:, :]
+            sampler_dict['blobs'] = sampler.blobs[nBurn:, :]
             flatblobs = np.array(sampler.blobs).reshape(-1)
         elif len(np.shape(sampler.blobs)) == 3:
             # Multiblobs; nSteps, nWalkers, nBlobs
-            df['blobs'] = sampler.blobs[nBurn:, :, :]
+            sampler_dict['blobs'] = sampler.blobs[nBurn:, :, :]
             flatblobs = np.array(sampler.blobs).reshape(-1,np.shape(sampler.blobs)[2])
         else:
-            raise ValueError("Sampler blob length not recognized")
+            raise ValueError("Sampler blob shape not recognized")
             
-        df['flatblobs'] = flatblobs
+        sampler_dict['flatblobs'] = flatblobs
         
-    return df
+    return sampler_dict
+    
+
+def _reload_sampler_hdf5(filename=None, backend_name='mcmc'):
+    
+    backend = emcee.backends.HDFBackend(filename, name=backend_name)
+    # # h5py
+    # 
+    # with h5py.File(filename, "r") as f:
+    #     backend = f[backend_name] 
+    # 
+    return _make_sampler_dict_from_hdf5(backend)
+
+def _make_sampler_dict_from_hdf5(b):
+    
+    nwalkers =  b.shape[0]
+    ndim =      b.shape[1]
+    
+    
+    chain =     np.swapaxes(b.get_chain(), 0, 1)
+    flatchain = chain.reshape((-1, ndim))
+    
+    
+    # Walkers, iterations
+    probs =     np.swapaxes(b.get_log_prob(), 0, 1)
+    flatprobs = np.swapaxes(b.get_log_prob().reshape(-1), 0, 1)
+    
+    try:
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(chain[:, :,jj])[0] for jj in range(ndim)]
+    except:
+        acor_time = None
+        
+    # Make a dictionary:
+    sampler_dict = { 'chain':               chain, 
+                     'lnprobability':       flatchain, 
+                    'flatchain':            samples,
+                    'flatlnprobability':    flatprobs,
+                    'nIter':                b.iteration, 
+                    'nParam':               ndim, 
+                    'nCPU':                 None,  
+                    'nWalkers':             nwalkers, 
+                    'acceptance_fraction':  b.accepted / float(b.iteration), 
+                    'acor_time':            acor_time }
+           
+    if b.has_blobs() :
+        sampler_dict['blobs'] = b.get_blobs()
+        if len(b.get_blobs().shape) == 2:
+            # Only 1 blob: nSteps, nWalkers:
+            flatblobs = np.array(sampler_dict['blobs']).reshape(-1)
+        elif len(b.get_blobs().shape) == 3:
+            # Multiblobs; nSteps, nWalkers, nBlobs
+            flatblobs = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler_dict['blobs'])[2])
+        else:
+            raise ValueError("Sampler blob shape not recognized")
+            
+        sampler_dict['flatblobs'] = flatblobs
+        
+
+    return sampler_dict
+
+def _reload_sampler_pickle(filename=None):
+    return load_pickle(filename)
     
     
 def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None, 
@@ -3192,10 +3168,6 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
     """
     Re-setup emcee sampler, using existing chain / etc, so more steps can be run.
     """
-    
-    # sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
-    #             log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
-    #             threads=sampler_dict['nCPU'])
     
     # This will break for updated version of emcee
     # works for emcee v2.2.1
@@ -3213,36 +3185,9 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                             dtype=np.int64)
     ###
     elif np.int(emcee.__version__[0]) >= 3:
+        # This is based off of HDF5 files, which automatically makes it easy to reload + resetup the sampler
         raise ValueError
         
-        # backend = copy.deepcopy(sampler_dict)
-        # 
-        # # #FLAG42
-        # # 
-        # # backend = emcee.backends.Backend()
-        # # 
-        # # backend.initialized = True
-        # # 
-        # # backend.nwalkers = sampler_dict['nWalkers']
-        # # backend.ndim = sampler_dict['nParam']
-        # # backend.iteration = sampler_dict['nIter']
-        # # 
-        # # backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
-        # # 
-        # # backend.chain = sampler_dict['chain']
-        # # backend.log_prob = sampler_dict['lnprobability']
-        # # backend.blobs = sampler_dict['blobs']
-        # # 
-        # # backend.random_state = None
-        # 
-        # sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
-        #             sampler_dict['nParam'],
-        #             log_prob, 
-        #             args=[gal], kwargs=kwargs_dict, 
-        #             a=scale_param_a, 
-        #             backend=backend,
-        #             threads=sampler_dict['nCPU'])
-            
     ###
     else:
         try:
