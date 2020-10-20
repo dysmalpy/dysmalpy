@@ -1935,7 +1935,6 @@ class MCMCResults(FitResults):
         """Reload the MCMC sampler saved earlier"""
         if filename is None:
             filename = self.f_sampler
-        self.sampler = load_pickle(filename)
         
         hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']
@@ -3123,7 +3122,7 @@ def _make_sampler_dict_from_hdf5(b):
     
     # Walkers, iterations
     probs =     np.swapaxes(b.get_log_prob(), 0, 1)
-    flatprobs = np.swapaxes(b.get_log_prob().reshape(-1), 0, 1)
+    flatprobs = probs.reshape(-1)
     
     try:
         #acor_time = sampler.acor
@@ -3132,16 +3131,16 @@ def _make_sampler_dict_from_hdf5(b):
         acor_time = None
         
     # Make a dictionary:
-    sampler_dict = { 'chain':               chain, 
-                     'lnprobability':       flatchain, 
-                    'flatchain':            samples,
-                    'flatlnprobability':    flatprobs,
-                    'nIter':                b.iteration, 
-                    'nParam':               ndim, 
-                    'nCPU':                 None,  
-                    'nWalkers':             nwalkers, 
-                    'acceptance_fraction':  b.accepted / float(b.iteration), 
-                    'acor_time':            acor_time }
+    sampler_dict = { 'chain':                chain, 
+                     'flatchain':            flatchain,
+                     'lnprobability':        probs, 
+                     'flatlnprobability':    flatprobs,
+                     'nIter':                b.iteration, 
+                     'nParam':               ndim, 
+                     'nCPU':                 None,  
+                     'nWalkers':             nwalkers, 
+                     'acceptance_fraction':  b.accepted / float(b.iteration), 
+                     'acor_time':            acor_time }
            
     if b.has_blobs() :
         sampler_dict['blobs'] = b.get_blobs()
