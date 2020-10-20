@@ -337,12 +337,20 @@ def fit(gal, nWalkers=10,
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
             if blob_name is not None:
-                pos, prob, state, blob = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                    rstate0=state, blobs0=blob)
+                if np.int(emcee.__version__[0]) >= 3:
+                    pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, blobs0=blob, iterations=1)
+                else:
+                    pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state, blobs0 = blob)
             else:
-                pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                    rstate0=state)
-                                                    
+                if np.int(emcee.__version__[0]) >= 3:
+                    pos, prob, state = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, iterations=1)
+                else:
+                    pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state )
+
             
             # --------------------------------
             # Save intermediate steps if set:
@@ -357,8 +365,6 @@ def fit(gal, nWalkers=10,
             # --------------------------------
             
         #####
-        ## This would run in one go:
-        #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
         end = time.time()
         elapsed = end-start
 
@@ -459,10 +465,18 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Only do one step at a time:
         if blob_name is not None:
-            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+            if np.int(emcee.__version__[0]) >= 3:
+                pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, blobs0=blob, iterations=1)
+            else:
+                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
                         rstate0=state, blobs0 = blob)
         else:
-            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+            if np.int(emcee.__version__[0]) >= 3:
+                pos, prob, state = sampler.sample(pos, cur, log_prob0=prob, 
+                        rstate0=state, interations=1)
+            else:
+                pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
         # --------------------------------
 
         # --------------------------------
@@ -2536,7 +2550,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
                             dtype=np.int64)
     ###
-    elif emcee.__version__[0] == '3':
+    elif np.int(emcee.__version__[0]) >= 3:
         backend = emcee.backends.Backend()
         
         backend.initialized = True
