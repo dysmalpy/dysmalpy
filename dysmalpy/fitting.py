@@ -13,7 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 
 ## Standard library
 import logging
-from multiprocessing import cpu_count
+from multiprocessing import cpu_count, Pool
 import abc
 
 # DYSMALPY code
@@ -37,6 +37,9 @@ import emcee
 import acor
 
 from dysmalpy import utils_io as dpy_utils_io
+
+if np.int(emcee.__version__[0]) >= 3:
+    import h5py
 
 import time, datetime
 
@@ -155,8 +158,8 @@ def fit(gal, nWalkers=10,
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(cpu_count()*cpuFrac))
 
-    nDim = gal.model.nparams_free
-    #len(model.get_free_parameters_values())
+    # nDim = gal.model.nparams_free
+    #     #len(model.get_free_parameters_values())
     
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
@@ -168,7 +171,94 @@ def fit(gal, nWalkers=10,
     if (len(outdir) > 0):
         if (outdir[-1] != '/'): outdir += '/'
     ensure_dir(outdir)
+    
+    
+    # --------------------------------
+    # Setup fit_kwargs dict:
+    local_vars = locals()
+    fit_inkeys = ['nWalkers', 'cpuFrac', 'nCPUs', 'scale_param_a', 'nBurn', 'nSteps', 
+                  'minAF', 'maxAF', 'nEff', 'oversample', 'oversize', 'oversampled_chisq', 'red_chisq', 
+                  'profile1d_type', 'fitdispersion', 'fitflux', 
+                  'blob_name', 'model_key_re', 'model_key_halo', 
+                  'do_plotting', 'save_burn', 'save_model', 'save_bestfit_cube', 'save_data',
+                  'outdir', 'linked_posterior_names', 'nPostBins', 
+                  'continue_steps', 'save_intermediate_sampler_chain', 
+                  'nStep_intermediate_save', 'input_sampler', 
+                  'f_plot_trace_burnin', 'f_plot_trace', 
+                  'f_model', 'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler', 
+                  'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii', 
+                  'f_vel_ascii', 'f_log', 'plot_type', 'overwrite']
+    fit_kwargs = {}
+    for key in fit_inkeys:
+        fit_kwargs[key] = local_vars[key]
+    
+    
+    # --------------------------------
+    # Split by emcee version:
+    
+    if np.int(emcee.__version__[0]) >= 3:
+        mcmcResults = _fit_emcee_3(gal, **fit_kwargs)
+    else:
+        mcmcResults = _fit_emcee_221(gal, **fit_kwargs)
+    
+    return mcmcResults
+    
+    
 
+
+
+
+def _fit_emcee_221(gal, nWalkers=10,
+           cpuFrac=None,
+           nCPUs = 1,
+           scale_param_a = 3.,
+           nBurn = 2,
+           nSteps = 10,
+           minAF = 0.2,
+           maxAF = 0.5,
+           nEff = 10,
+           oversample = 1,
+           oversize = 1,
+           oversampled_chisq = True, 
+           red_chisq = False,
+           profile1d_type='circ_ap_cube',
+           fitdispersion = True,
+           fitflux = False, 
+           blob_name=None, 
+           model_key_re = ['disk+bulge','r_eff_disk'],
+           model_key_halo=['halo'], 
+           do_plotting = True,
+           save_burn = True, 
+           save_model = True,
+           save_bestfit_cube=True,
+           save_data = True, 
+           outdir = 'mcmc_fit_results/',
+           linked_posterior_names= None,
+           nPostBins = 50,
+           continue_steps = False,
+           save_intermediate_sampler_chain = False, 
+           nStep_intermediate_save = 5, 
+           input_sampler = None,
+           f_plot_trace_burnin = None,
+           f_plot_trace = None,
+           f_model = None,
+           f_cube = None,
+           f_sampler = None,
+           f_sampler_tmp = None, 
+           f_burn_sampler = None,
+           f_plot_param_corner = None,
+           f_plot_bestfit = None,
+           f_mcmc_results = None,
+           f_chain_ascii = None,
+           f_vel_ascii = None, 
+           f_log = None,
+           plot_type = 'pdf', 
+           overwrite = False, 
+           **kwargs ):
+    
+    # OLD version
+    
+    
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
     if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
     #if save_intermediate_sampler_chain and (f_sampler_tmp is None): outdir+'mcmc_sampler_INPROGRESS.pickle'
@@ -216,8 +306,7 @@ def fit(gal, nWalkers=10,
         logger.addHandler(loggerfile)
     
     # ++++++++++++++++++++++++++++++
-        
-
+    
     # --------------------------------
     # Initialize emcee sampler
     kwargs_dict = {'oversample':oversample, 'oversize':oversize, 
@@ -231,6 +320,9 @@ def fit(gal, nWalkers=10,
                     'profile1d_type':profile1d_type}
 
     nBurn_orig = nBurn
+    
+    nDim = gal.model.nparams_free
+    #len(model.get_free_parameters_values())
     
     if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
@@ -251,7 +343,7 @@ def fit(gal, nWalkers=10,
                 message += '\n'
                 message += "Must set input_sampler if you will restart the sampler."
                 raise ValueError(message)
-            
+        
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
                             kwargs_dict=kwargs_dict, 
                             scale_param_a=scale_param_a)
@@ -336,27 +428,21 @@ def fit(gal, nWalkers=10,
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
+            pos_cur = pos.copy()    # copy just in case things are set strangely
+            
+            # Run one sample step:
             if blob_name is not None:
-                if np.int(emcee.__version__[0]) >= 3:
-                    pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
-                        rstate0=state, blobs0=blob, iterations=1)
-                else:
-                    pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
                         rstate0=state, blobs0 = blob)
             else:
-                if np.int(emcee.__version__[0]) >= 3:
-                    pos, prob, state = sampler.sample(pos_cur, log_prob0=prob,
-                        rstate0=state, iterations=1)
-                else:
-                    pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
-                        rstate0=state )
+                pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
 
             
             # --------------------------------
             # Save intermediate steps if set:
             if save_intermediate_sampler_chain:
                 if ((k+1) % nStep_intermediate_save == 0):
-                    sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
+                    sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
                     sampler_dict_tmp['burn_step_cur'] = k # nBurn_orig
                     sampler_dict_tmp['step_cur'] = -99
                     if f_sampler_tmp is not None:
@@ -412,7 +498,7 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Save burn-in sampler, if desired
         if (save_burn) & (f_burn_sampler is not None):
-            sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
+            sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
             # Save stuff to file, for future use:
             dump_pickle(sampler_burn, filename=f_burn_sampler, overwrite=overwrite)
 
@@ -420,7 +506,7 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
-            sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
+            sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
             mcmcResultsburn = MCMCResults(model=gal.model, sampler=sampler_burn)
             plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin, overwrite=overwrite)
 
@@ -465,18 +551,502 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Only do one step at a time:
         if blob_name is not None:
-            if np.int(emcee.__version__[0]) >= 3:
-                pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
-                        rstate0=state, blobs0=blob, iterations=1)
-            else:
-                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
-                        rstate0=state, blobs0 = blob)
+            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                    rstate0=state, blobs0 = blob)
         else:
-            if np.int(emcee.__version__[0]) >= 3:
-                pos, prob, state = sampler.sample(pos, cur, log_prob0=prob, 
-                        rstate0=state, interations=1)
-            else:
-                pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+        # --------------------------------
+
+        # --------------------------------
+        # Give output info about this step:
+        nowtime = str(datetime.datetime.now())
+        stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
+        timemsg = " time.time()={}".format(nowtime)
+        logger.info( stepinfomsg+timemsg )
+        try:
+            acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+            logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
+        except:
+            logger.info(" {}: Chain too short for acor to run".format(ii) )
+            acor_time = None
+            
+                     
+        # --------------------------------
+        # Case: test for convergence and truncate early:
+        # Criteria checked: whether acceptance fraction within (minAF, maxAF), 
+        #                   and whether total number of steps > nEff * average autocorrelation time:
+        #                   to make sure the paramter space is well explored.
+        if ((minAF is not None) & (maxAF is not None) & \
+                (nEff is not None) & (acor_time is not None)):
+            if ((minAF < np.mean(sampler.acceptance_fraction) < maxAF) & \
+                ( ii > np.max(acor_time) * nEff )):
+                    if ii == acor_force_min:
+                        logger.info(" Enforced min step limit: {}.".format(ii+1))
+                    if ii >= acor_force_min:
+                        logger.info(" Finishing calculations early at step {}.".format(ii+1))
+                        break
+                        
+        # --------------------------------
+        # Save intermediate steps if set:
+        if save_intermediate_sampler_chain:
+            if ((ii+1) % nStep_intermediate_save == 0):
+                sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
+                sampler_dict_tmp['burn_step_cur'] = nBurn_orig - 1
+                sampler_dict_tmp['step_cur'] = ii
+                if f_sampler_tmp is not None:
+                    # Save stuff to file, for future use:
+                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
+        # --------------------------------
+
+    # --------------------------------
+    # Check if it failed to converge before the max number of steps, if doing convergence testing
+    finishedSteps= ii+1
+    if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
+        logger.info(" Caution: no convergence within nSteps={}.".format(nSteps))
+
+    # --------------------------------
+    # Finishing info for fitting:
+    end = time.time()
+    elapsed = end-start
+    logger.info("Finished {} steps".format(finishedSteps)+"\n")
+    try:
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(sampler.chain[:,:,jj])[0] for jj in range(sampler.dim)]
+    except:
+        acor_time = "Undefined, chain not converged"
+
+    #######################################################################################
+    # ***********
+    # Consider overall acceptance fraction
+    endtime = str(datetime.datetime.now())
+    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(nCPUs,
+        nDim, nWalkers, nSteps)
+    scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+    timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
+            (elapsed/60.-np.floor(elapsed/60.))*60. )
+    macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
+    acortimemsg = "Autocorr est: "+str(acor_time)
+    logger.info('\nEnd: '+endtime+'\n'
+                '\n******************\n'
+                ''+nthingsmsg+'\n'
+                ''+scaleparammsg+'\n'
+                ''+timemsg+'\n'
+                ''+macfracmsg+'\n'
+                "Ideal acceptance frac: 0.2 - 0.5\n"
+                ''+acortimemsg+'\n'
+                '******************')
+
+    # --------------------------------
+    # Save sampler, if output file set:
+    #   Burn-in is already cut by resetting the sampler at the beginning.
+    # Get pickleable format:  # _fit_io.make_emcee_sampler_dict
+    sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
+    # 
+    
+    if f_sampler is not None:
+        # Save stuff to file, for future use:
+        dump_pickle(sampler_dict, filename=f_sampler, overwrite=overwrite)
+        
+    
+    # --------------------------------
+    # Cleanup intermediate saves:
+    if save_intermediate_sampler_chain:
+        if f_sampler_tmp is not None:
+            if os.path.isfile(f_sampler_tmp):
+                os.remove(f_sampler_tmp)
+    # --------------------------------
+    
+    if nCPUs > 1:
+        sampler.pool.close()
+    
+    ##########################################
+    ##########################################
+    ##########################################
+    
+    # --------------------------------
+    # Bundle the results up into a results class:
+    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict_v3,
+                              f_plot_trace_burnin = f_plot_trace_burnin,
+                              f_plot_trace = f_plot_trace,
+                              f_sampler = f_sampler, 
+                              f_plot_param_corner = f_plot_param_corner,
+                              f_plot_bestfit = f_plot_bestfit,
+                              f_results= f_mcmc_results,
+                              f_chain_ascii = f_chain_ascii,
+                              blob_name=blob_name)
+    if oversampled_chisq:
+        mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
+                              
+    # Do all analysis, plotting, saving:
+    mcmcResults.analyze_plot_save_results(gal,    
+                  linked_posterior_names=linked_posterior_names, 
+                  nPostBins=nPostBins, 
+                  model_key_re=model_key_re, 
+                  model_key_halo=model_key_halo, 
+                  oversample=oversample, 
+                  oversize=oversize, 
+                  profile1d_type=profile1d_type, 
+                  fitdispersion=fitdispersion, 
+                  fitflux=fitflux, 
+                  save_data=save_data, 
+                  save_bestfit_cube=save_bestfit_cube,
+                  f_cube=f_cube, 
+                  f_model=f_model, 
+                  f_vel_ascii = f_vel_ascii, 
+                  do_plotting = do_plotting,
+                  overwrite=overwrite)
+
+
+    # Clean up logger:
+    if f_log is not None:
+        logger.removeHandler(loggerfile)
+        
+        
+
+    return mcmcResults
+    
+def _fit_emcee_3(gal, nWalkers=10,
+       cpuFrac=None,
+       nCPUs = 1,
+       scale_param_a = 3.,
+       nBurn = 2,
+       nSteps = 10,
+       minAF = 0.2,
+       maxAF = 0.5,
+       nEff = 10,
+       oversample = 1,
+       oversize = 1,
+       oversampled_chisq = True, 
+       red_chisq = False,
+       profile1d_type='circ_ap_cube',
+       fitdispersion = True,
+       fitflux = False, 
+       blob_name=None, 
+       model_key_re = ['disk+bulge','r_eff_disk'],
+       model_key_halo=['halo'], 
+       do_plotting = True,
+       save_burn = False,
+       save_model = True,
+       save_bestfit_cube=True,
+       save_data = True, 
+       outdir = 'mcmc_fit_results/',
+       linked_posterior_names= None,
+       nPostBins = 50,
+       continue_steps = False,
+       input_sampler = None,
+       f_plot_trace_burnin = None,
+       f_plot_trace = None,
+       f_model = None,
+       f_cube = None,
+       f_sampler = None,
+       f_plot_param_corner = None,
+       f_plot_bestfit = None,
+       f_mcmc_results = None,
+       f_chain_ascii = None,
+       f_vel_ascii = None, 
+       f_log = None,
+       plot_type = 'pdf', 
+       overwrite = False, 
+       **kwargs ):
+    # new version
+    
+    # filetype for saving sampler: HDF5
+    ftype_sampler = 'h5'
+    
+    # If the output filenames aren't defined: use default output filenames
+    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
+    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
+    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
+    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mcmc_bestfit_cube.fits'
+    if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.{}'.format(ftype_sampler)
+    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.{}'.format(plot_type)
+    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.{}'.format(plot_type)
+    if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
+    if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
+    if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+    
+    # ---------------------------------------------------
+    # Check for existing files if overwrite=False:
+    if (not overwrite):
+        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner, 
+                    f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
+        fnames_opt = [f_model, f_cube]
+        for fname in fnames_opt:
+            if fname is not None:
+                fnames.append(fname)
+                
+        for fname in fnames:
+            if os.path.isfile(fname):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                
+        # Return early if it won't save the results, sampler:
+        if os.path.isfile(f_mcmc_results):
+            msg = "overwrite={}, and 'f_mcmc_results' won't be saved,".format(overwrite)
+            msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+            logger.warning(msg)
+            return None
+            
+        # Check length of sampler:
+        if os.path.isfile(f_sampler):
+            backend = emcee.backends.HDFBackend(f_sampler)
+            
+            try:
+                if backend.get_chain().shape[0] >= nSteps:
+                    msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(overwrite, backend.get_chain().shape[0])
+                    msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+                    logger.warning(msg)
+                    return None
+                else:
+                    pass
+            except:
+                pass
+    else:
+        # Overwrite: remove old file versions
+        if os.path.isfile(f_sampler): os.remove(f_sampler)
+        if os.path.isfile(f_mcmc_results): os.remove(f_mcmc_results)
+        
+    # ---------------------------------------------------
+    
+    # Setup file redirect logging:
+    if f_log is not None:
+        loggerfile = logging.FileHandler(f_log)
+        loggerfile.setLevel(logging.INFO)
+        logger.addHandler(loggerfile)
+    
+    # ++++++++++++++++++++++++++++++
+        
+    # WORKING LINE # FLAG42
+
+    # --------------------------------
+    # Initialize emcee sampler
+    kwargs_dict = {'oversample':oversample, 'oversize':oversize, 
+                    'fitdispersion':fitdispersion,
+                    'fitflux':fitflux, 
+                    'blob_name': blob_name, 
+                    'model_key_re':model_key_re, 
+                    'model_key_halo': model_key_halo, 
+                    'red_chisq': red_chisq, 
+                    'oversampled_chisq': oversampled_chisq, 
+                    'profile1d_type':profile1d_type}
+
+    nBurn_orig = nBurn
+    
+    nDim = gal.model.nparams_free
+    
+    backend_burn = emcee.backends.HDFBackend(f_sampler, name="burnin_mcmc")
+    if overwrite:
+        backend_burn.reset(nWalkers, nDim)
+    
+    sampler_burn = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+                args=[gal], kwargs=kwargs_dict, backend=backend_burn, 
+                a = scale_param_a, threads = nCPUs)
+                
+    try:
+        nBurnCur = sampler.chain.shape[0]
+    except:
+        nBurnCur = 0
+        
+    nBurn = nBurn_orig - (nBurnCur + 1)
+    
+    # --------------------------------
+    # Initialize walker starting positions
+    if sampler_burn.iteration == 0:
+        initial_pos = initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+    else:
+        initial_pos = sampler_burn.get_last_sample()
+    
+    #
+    
+    # if (nBurn == 0):
+    #     # check if there's anything in the main backend:
+    #     backend = emcee.backends.HDFBackend(f_sampler)
+    #     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+    #                 args=[gal], kwargs=kwargs_dict, backend=backend_burn, 
+    #                 a = scale_param_a, threads = nCPUs)
+    #                 
+    # 
+    # # If it saved after burn finished, but hasn't saved any of the normal steps: reset sampler
+    # if ((nBurn == 0) & (input_sampler['step_cur'] < 0)):
+    #     blob = None
+    #     sampler.reset()
+    #     if blob_name is not None:
+    #          sampler.clear_blobs()
+    
+    
+        
+            
+    # --------------------------------
+    # Output some fitting info to logger:
+    logger.info("*************************************")
+    logger.info(" Fitting: {} with MCMC".format(gal.name))
+    if gal.data.filename_velocity is not None:
+        logger.info("    velocity file: {}".format(gal.data.filename_velocity))
+    if gal.data.filename_dispersion is not None:
+        logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
+    
+    logger.info('\n'+'nCPUs: {}'.format(nCPUs))
+    logger.info('nWalkers: {}'.format(nWalkers))
+    logger.info('lnlike: red_chisq={}'.format(red_chisq))
+    logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
+    
+    logger.info('\n'+'blobs: {}'.format(blob_name))
+    
+    
+    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    logger.info('nSubpixels: {}'.format(oversample))
+    
+
+    ################################################################
+    # --------------------------------
+    # Run burn-in
+    if nBurn > 0:
+        logger.info('\nBurn-in:'+'\n'
+                    'Start: {}\n'.format(datetime.datetime.now()))
+        start = time.time()
+
+        ####
+        
+        # FLAG42: check current syntax for passing prob/state/blob/etc
+        
+        pos = initial_pos
+        for k in six.moves.xrange(nBurn_orig):
+            # --------------------------------
+            # If recovering intermediate save, only start past existing chain length:
+            
+            if k < sampler_burn.iteration:
+                continue
+            
+            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+                        np.mean(sampler_burn.acceptance_fraction)  ) )
+            ###
+            
+            # Run one sample step:
+            pos = sampler_burn.run_mcmc(pos, 1)
+            
+            # # --------------------------------
+            # # Save intermediate steps if set:
+            # if save_intermediate_sampler_chain:
+            #     if ((k+1) % nStep_intermediate_save == 0):
+            #         sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0)
+            #         sampler_dict_tmp['burn_step_cur'] = k # nBurn_orig
+            #         sampler_dict_tmp['step_cur'] = -99
+            #         if f_sampler_tmp is not None:
+            #             # Save stuff to file, for future use:
+            #             dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
+            # # --------------------------------
+            
+        #####
+        end = time.time()
+        elapsed = end-start
+
+        try:
+            acor_time = [acor.acor(sampler_burn.chain[:,:,jj])[0] for jj in range(sampler_burn.ndim)]
+        except:
+            acor_time = "Undefined, chain did not converge"
+            
+        
+        
+        
+        #######################################################################################
+        # Return Burn-in info
+        # ****
+        endtime = str(datetime.datetime.now())
+        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(nCPUs,
+            nDim, nWalkers, nBurn)
+        scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+        timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
+                (elapsed/60.-np.floor(elapsed/60.))*60. )
+        macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler_burn.acceptance_fraction))
+        acortimemsg = "Autocorr est: "+str(acor_time)
+        logger.info('\nEnd: '+endtime+'\n'
+                    '\n******************\n'
+                    ''+nthingsmsg+'\n'
+                    ''+scaleparammsg+'\n'
+                    ''+timemsg+'\n'
+                    ''+macfracmsg+'\n'
+                    "Ideal acceptance frac: 0.2 - 0.5\n"
+                    ''+acortimemsg+'\n'
+                    '******************')
+
+        nBurn_nEff = 2
+        try:
+            if nBurn < np.max(acor_time) * nBurn_nEff:
+                nburntimemsg = 'nBurn is less than {}*acorr time'.format(nBurn_nEff)
+                logger.info('\n#################\n'
+                            ''+nburntimemsg+'\n'
+                            '#################\n')
+                # Give warning if the burn-in is less than say 2-3 times the autocorr time
+        except:
+            logger.info('\n#################\n'
+                        "acorr time undefined -> can't check convergence\n"
+                        '#################\n')
+                        
+        # # --------------------------------
+        # # Save burn-in sampler, if desired
+        # if (save_burn):
+        #     sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
+        #     # Save stuff to file, for future use:
+        #     dump_pickle(sampler_burn, filename=f_burn_sampler, overwrite=overwrite)
+        
+        # --------------------------------
+        # Plot burn-in trace, if output file set
+        if (do_plotting) & (f_plot_trace_burnin is not None):
+            sampler_burn_dict = make_emcee_sampler_dict(sampler_burn, nBurn=0)
+            mcmcResults_burn = MCMCResults(model=gal.model, sampler=sampler_burn_dict)
+            plotting.plot_trace(mcmcResults_burn, fileout=f_plot_trace_burnin, overwrite=overwrite)
+
+        # # Reset sampler after burn-in:
+        if not save_burn:
+            backend_burn.reset(nWalkers, nDim)
+            
+        # sampler.reset()
+        # if blob_name is not None:
+        #      sampler.clear_blobs()
+             
+             
+
+    else:
+        # --------------------------------
+        # No burn-in: set initial position:
+        pos = np.array(initial_pos)
+        
+        
+    # Setup sampler:
+    
+    
+    
+    raise ValueError  # FLAG42
+
+
+
+    #######################################################################################
+    # ****
+    # --------------------------------
+    # Run sampler: Get start time
+    logger.info('\nEnsemble sampling:\n'
+                'Start: {}\n'.format(datetime.datetime.now()))
+    start = time.time()
+
+
+    # --------------------------------
+    # Run sampler: output info at each step
+    for ii in six.moves.xrange(nSteps):
+        
+        # --------------------------------
+        # If continuing chain, only start past existing chain length:
+        if continue_steps | save_intermediate_sampler_chain:
+            if ii < sampler.chain.shape[0]:
+                continue
+        
+        raise ValueError   # FLAG42
+        
+        # --------------------------------
+        # Only do one step at a time:
+        pos = sampler.run_mcmc(pos, 1)
         # --------------------------------
 
         # --------------------------------
@@ -626,7 +1196,7 @@ def fit(gal, nWalkers=10,
         
 
     return mcmcResults
-
+    
 
 def fit_mpfit(gal,
               oversample=1,
@@ -1425,8 +1995,41 @@ class MCMCResults(FitResults):
         if filename is None:
             filename = self.f_sampler
         self.sampler = load_pickle(filename)
-
-
+        
+        hdf5_aliases = ['h5', 'hdf5']
+        pickle_aliases = ['pickle', 'pkl', 'pcl']
+        if (filename.split('.')[-1].lower() in hdf5_aliases):
+            self._reload_sampler_hdf5(filename=filename)
+            
+        elif (filename.split('.')[-1].lower() in pickle_aliases):
+            self._reload_sampler_pickle(filename=filename)
+            
+        
+        
+    
+    def _reload_sampler_hdf5(self, filename=None, backend_name='mcmc'):
+        if filename is None:
+            filename = self.f_sampler
+        #self.sampler = emcee.backends.HDFBackend(filename)
+        # h5py
+        
+        with h5py.File(filename, "r") as f:
+            backend = f[backend_name] 
+        
+        self.sampler = self._make_sampler_dict_from_hdf5(backend)
+        
+    def _make_sampler_dict_from_hdf5(self, backend):
+        
+        raise ValueError
+        
+        return sampler_dict
+    
+    def _reload_sampler_pickle(self, filename=None):
+        if filename is None:
+            filename = self.f_sampler
+        self.sampler = load_pickle(filename)
+        
+        
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None,
                      overwrite=False):
@@ -2479,11 +3082,22 @@ def make_arr_cmp_params(mcmcResults):
     return arr
 
 
-def make_emcee_sampler_dict(sampler, nBurn=0):
+def make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=3):
     """
     Save chain + key results from emcee sampler instance to a dict,
     as the emcee samplers aren't pickleable.
     """
+    
+    if emcee_vers == 3:
+        return _make_emcee_sampler_dict_v3(sampler, nBurn=nBurn)
+    elif emcee_vers == 2:
+        return _make_emcee_sampler_dict_v2(sampler, nBurn=nBurn)
+    else:
+        raise ValueError("Emcee version {} not supported!".format(emcee_vers))
+    
+    
+def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
+    """ Syntax for old sampler chain shape: nWalkers, nSteps, nParams """
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.dim))
     # Walkers, iterations
@@ -2496,6 +3110,7 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
     except:
         acor_time = None
         
+    raise ValueError
         
     # Make a dictionary:
     df = { 'chain': sampler.chain[:, nBurn:, :],
@@ -2510,20 +3125,67 @@ def make_emcee_sampler_dict(sampler, nBurn=0):
            'acor_time': acor_time }
 
     if len(sampler.blobs) > 0:
-        df['blobs'] = sampler.blobs
         if len(np.shape(sampler.blobs)) == 2:
             # Only 1 blob: nSteps, nWalkers:
+            df['blobs'] = sampler.blobs[nBurn:, :]
             flatblobs = np.array(sampler.blobs).reshape(-1)
         elif len(np.shape(sampler.blobs)) == 3:
             # Multiblobs; nSteps, nWalkers, nBlobs
+            df['blobs'] = sampler.blobs[nBurn:, :, :]
             flatblobs = np.array(sampler.blobs).reshape(-1,np.shape(sampler.blobs)[2])
         else:
             raise ValueError("Sampler blob length not recognized")
             
         df['flatblobs'] = flatblobs
-
-
+        
     return df
+    
+#
+def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
+    """ Syntax for v3 sampler chain shape: nWalkers, nSteps, nParams """
+    
+    
+    # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
+    samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.ndim))
+    # Walkers, iterations
+    probs = sampler.lnprobability[:, nBurn:].reshape((-1))
+    
+    try:
+        #acor_time = sampler.acor
+        acor_time = [acor.acor(sampler.chain[nBurn:, :,jj])[0] for jj in range(sampler.dim)]
+    except:
+        acor_time = None
+        
+    raise ValueError
+        
+    # Make a dictionary:
+    df = { 'chain': sampler.chain[:, nBurn:, :],
+           'lnprobability': sampler.lnprobability[:, nBurn:],
+           'flatchain': samples,
+           'flatlnprobability': probs,
+           'nIter': sampler.iterations,
+           'nParam': sampler.dim,
+           'nCPU': lkjsdlkjslkddjlsddf,   # sampler.threads, 
+           'nWalkers': sampler.nwalkers, 
+           'acceptance_fraction': sampler.acceptance_fraction,
+           'acor_time': acor_time }
+           
+    if len(sampler.blobs) > 0:
+        if len(np.shape(sampler.blobs)) == 2:
+            # Only 1 blob: nSteps, nWalkers:
+            df['blobs'] = sampler.blobs[nBurn:, :]
+            flatblobs = np.array(sampler.blobs).reshape(-1)
+        elif len(np.shape(sampler.blobs)) == 3:
+            # Multiblobs; nSteps, nWalkers, nBlobs
+            df['blobs'] = sampler.blobs[nBurn:, :, :]
+            flatblobs = np.array(sampler.blobs).reshape(-1,np.shape(sampler.blobs)[2])
+        else:
+            raise ValueError("Sampler blob length not recognized")
+            
+        df['flatblobs'] = flatblobs
+        
+    return df
+    
     
 def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None, 
                     scale_param_a=None):
@@ -2551,29 +3213,35 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                             dtype=np.int64)
     ###
     elif np.int(emcee.__version__[0]) >= 3:
-        backend = emcee.backends.Backend()
+        raise ValueError
         
-        backend.initialized = True
-        
-        backend.nwalkers = sampler_dict['nWalkers']
-        backend.ndim = sampler_dict['nParam']
-        backend.iteration = sampler_dict['nIter']
-        
-        backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
-        
-        backend.chain = sampler_dict['chain']
-        backend.log_prob = sampler_dict['lnprobability']
-        backend.blobs = sampler_dict['blobs']
-        
-        backend.random_state = None
-        
-        sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
-                    sampler_dict['nParam'],
-                    log_prob, 
-                    args=[gal], kwargs=kwargs_dict, 
-                    a=scale_param_a, 
-                    backend=backend,
-                    threads=sampler_dict['nCPU'])
+        # backend = copy.deepcopy(sampler_dict)
+        # 
+        # # #FLAG42
+        # # 
+        # # backend = emcee.backends.Backend()
+        # # 
+        # # backend.initialized = True
+        # # 
+        # # backend.nwalkers = sampler_dict['nWalkers']
+        # # backend.ndim = sampler_dict['nParam']
+        # # backend.iteration = sampler_dict['nIter']
+        # # 
+        # # backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
+        # # 
+        # # backend.chain = sampler_dict['chain']
+        # # backend.log_prob = sampler_dict['lnprobability']
+        # # backend.blobs = sampler_dict['blobs']
+        # # 
+        # # backend.random_state = None
+        # 
+        # sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
+        #             sampler_dict['nParam'],
+        #             log_prob, 
+        #             args=[gal], kwargs=kwargs_dict, 
+        #             a=scale_param_a, 
+        #             backend=backend,
+        #             threads=sampler_dict['nCPU'])
             
     ###
     else:
@@ -2603,7 +3271,6 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
             raise ValueError
     
     
-    # sampler._last_run_mcmc_result
     
     
     return sampler
@@ -2656,6 +3323,13 @@ def load_pickle(filename):
     with open(filename, 'rb') as f:
         data = copy.deepcopy(_pickle.load(f))
     return data
+    
+    
+# def load_sampler_hdf5(filename):
+#     """ Small wrapper function to load a pickled structure """
+#     backend = emcee.backends.HDFBackend(filename)
+#     
+#     return backend
 
 
 def dump_pickle(data, filename=None, overwrite=False):
@@ -2714,36 +3388,10 @@ def find_shortest_conf_interval(xarr, percentile_frac):
 
 def shortest_span_bounds(arr, percentile=0.6827):
     if len(arr.shape) == 1:
-        # arr_sort = np.sort(arr)
-        # N = len(arr_sort)
-        # span = np.round(percentile*N)
-        # span_arr = np.ones(N-span) * 99.
-        #     
-        # for i in six.moves.xrange(N-span):
-        #     span_arr[i] = arr_sort[i+span] - arr_sort[i]
-        # 
-        # argmin = np.argmin(span_arr)
-        # limits = np.array([ arr_sort[argmin], arr_sort[argmin+span] ])
-        
         limits = find_shortest_conf_interval(arr, percentile)
-         
     else:
         limits = np.ones((2, arr.shape[1]))
-        
         for j in six.moves.xrange(arr.shape[1]):
-            # arr_sort = np.sort(arr[:,j])
-            # N = len(arr_sort)
-            # span = np.round(percentile*N)
-            # span_arr = np.ones(N-span) * 99.
-            # 
-            # for i in six.moves.xrange(N-span):
-            #     span_arr[i] = arr_sort[i+span] - arr_sort[i]
-            #     
-            # argmin = np.argmin(span_arr)
-            # 
-            # limits[0, j] = arr_sort[argmin]
-            # limits[1, j] = arr_sort[argmin+span]
-            
             limits[:, j] = find_shortest_conf_interval(arr[:,j], percentile)
     
     return limits
