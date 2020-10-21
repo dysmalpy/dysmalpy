@@ -1,17 +1,32 @@
-Documentation
-=============
+.. dysmalpy documentation master file, created by
+   sphinx-quickstart on Fri Oct  9 09:33:11 2020.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
 
-This is the documentation for dysmalpy.
+.. the "raw" directive below is used to hide the title in favor of
+   just the logo being visible
 
+=========
+dysmalpy
+=========
 
 .. toctree::
-  :maxdepth: 2
+   :maxdepth: 1
+   :caption: Contents:
 
-  dysmalpy/index.rst
+   api.rst
 
-.. note:: The layout of this directory is simply a suggestion.  To follow
-          traditional practice, do *not* edit this page, but instead place
-          all documentation for the affiliated package inside ``dysmalpy/``.
-          The traditional practice was intended to allow the affiliated
-          package to eventually be merged into the main astropy package.
-          You can follow this practice or choose your own layout.
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorials:
+
+   dysmalpy_example_model.ipynb
+   dysmalpy_example_fit_1D.ipynb
+   dysmalpy_example_fit_2D.ipynb
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
