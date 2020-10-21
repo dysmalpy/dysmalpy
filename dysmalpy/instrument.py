@@ -29,7 +29,43 @@ logger = logging.getLogger('DysmalPy')
 
 
 class Instrument:
-    """Base Class to define an instrument to observe a model galaxy with."""
+    """
+    Base class to define an instrument to observe a model galaxy.
+
+    Parameters
+    ----------
+    beam : 2D array, `~dysmalpy.instrument.GaussianBeam`, `~dysmalpy.instrument.DoubleBeam`, or `~dysmalpy.instrument.Moffat`
+           Object describing the PSF of the instrument
+
+    beam_type : {`'analytic'`, `'empirical'`}
+        `'analytic'` implies the beam is one of the provided beams in `dysmalpy`
+        `'empirical'` implies the provided beam is a 2D array that describes
+            the convolution kernel
+
+    lsf : LSF object
+          Object describing the line spread function of the instrument
+
+    pixscale : float or `~astropy.units.Quantity`
+               Size of one pixel on the sky. If no units are used, arcseconds are assumed.
+
+    spec_type : {`'velocity'`, `'wavelength'`}
+                Whether the spectral axis is in velocity or wavelength space
+
+    spec_start : `~astropy.units.Quantity`
+                 The value and unit of the first spectral channel
+
+    spec_step : `~astropy.units.Quantity`
+                The spacing of the spectral channels
+
+    nspec : int
+            Number of spectral channels
+
+    fov : tuple
+          x and y size of the FOV of the instrument in pixels
+
+    name : str
+           Name of the instrument
+    """
 
     def __init__(self, beam=None, beam_type=None, lsf=None, pixscale=None,
                  spec_type='velocity', spec_start=-1000*u.km/u.s,
@@ -38,11 +74,11 @@ class Instrument:
 
         self.name = name
         self.pixscale = pixscale
-        
+
         # Case of two beams: analytic and empirical: if beam_type==None, assume analytic
         self.beam = beam
         self.beam_type = beam_type
-            
+
         self._beam_kernel = None
         self.lsf = lsf
         self._lsf_kernel = None
@@ -54,11 +90,27 @@ class Instrument:
 
     def convolve(self, cube, spec_center=None):
         """
-        Method to perform the convolutions in both the spatial and
-        spectral space. Cube is assumed to be 3D with the first dimension
-        corresponding to the spectral dimension.
-        First convolve with the instrument PSF, then with the LSF.
+        Perform convolutions that are associated with this Instrument
+
+        This method convolves the input cube such that the output cube has the correct
+        PSF and/or LSF as given by the Instrument's beam and lsf. The cube is first convolved to
+        the PSF, then to the LSF.
+
+        Parameters
+        ----------
+        cube : 3D array
+               Input model cube to convolve with the instrument PSF and/or LSF
+               The first dimension is assumed to correspond to the spectral dimension.
+        spec_center : `~astropy.units.Quantity`
+                      Central wavelength to define the conversion from velocity to wavelength
+                      Only necessary if the spectral type is 'wavelength' and using an LSF
+
+        Returns
+        -------
+        cube : 3D array
+               New model cube after applying the PSF and LSF convolution
         """
+
 
         if self.beam is None and self.lsf is None:
             # Nothing to do if a PSF and LSF aren't set for the instrument
@@ -83,24 +135,46 @@ class Instrument:
         return cube
 
     def convolve_with_lsf(self, cube, spec_center=None):
-        """Convolve cube with the LSF"""
+        """
+        Performs line broadening due to the line spread function
+
+        Parameters
+        ----------
+        cube : 3D array
+               Input model cube to convolve with the instrument LSF
+               The first dimension is assumed to correspond to the spectral dimension.
+        spec_center : `~astropy.units.Quantity`
+                      Central wavelength to define the conversion from velocity to wavelength
+                      Only necessary if the instrument spectral type is 'wavelength'
+
+        Returns
+        -------
+        cube : 3D array
+               New model cube after applying the LSF convolution
+        """
 
         if self._lsf_kernel is None:
             self.set_lsf_kernel(spec_center=spec_center)
-            
+
         cube = fftconvolve(cube, self._lsf_kernel, mode='same')
-        
-        # shp = self._lsf_kernel.shape
-        # if shp[0] % 2 == 1:
-        #     padf = (shp[0]-1)/2
-        # else:
-        #     padf = shp[0]/2
-        # cube = fftconvolve(cube, self._lsf_kernel, mode='full')
-        # cube = cube[padf:-padf, :, :]
-        
+
         return cube
 
     def convolve_with_beam(self, cube):
+        """
+        Performs spatial broadening due to the point spread function
+
+        Parameters
+        ----------
+        cube : 3D array
+               Input model cube to convolve with the instrument PSF
+               The first dimension is assumed to correspond to the spectral dimension.
+
+        Returns
+        -------
+        cube : 3D array
+               New model cube after applying the PSF convolution
+        """
 
         if self.pixscale is None:
             raise ValueError("Pixelscale for this instrument has not "
@@ -108,30 +182,31 @@ class Instrument:
 
         if self._beam_kernel is None:
             self.set_beam_kernel()
-            
+
         cube = fftconvolve(cube, self._beam_kernel, mode='same')
-        
-        # shp = self._beam_kernel.shape
-        # if shp[1] % 2 == 1:
-        #     padf = (shp[1]-1)/2
-        # else:
-        #     padf = shp[1]/2
-        # cube = fftconvolve(cube, self._beam_kernel, mode='full')
-        # cube = cube[:, padf:-padf, padf:-padf]
-        
+
         return cube
 
     def set_beam_kernel(self, support_scaling=12.):
-        # Old default: same as Beam: support_scaling=8.
+        """
+        Calculate and store the PSF convolution kernel
+
+        Parameters
+        ----------
+        support_scaling : int
+                          The amount to scale the stddev to determine the
+                          size of the kernel
+
+        """
         if (self.beam_type == 'analytic') | (self.beam_type == None):
-            
+
 
             if isinstance(self.beam, Beam):
                 kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
                 kern2D = kernel.array
             else:
                 kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
-                
+
             if isinstance(self.beam, DoubleBeam):
                 kern2D = kernel
             elif isinstance(self.beam, Moffat):
@@ -156,6 +231,17 @@ class Instrument:
         self._beam_kernel = kern3D
 
     def set_lsf_kernel(self, spec_center=None):
+        """
+        Calculate and store the LSF convolution kernel
+
+        Parameters
+        ----------
+        spec_center : `~astropy.units.Quantity`, optional
+                      Central wavelength that corresponds to 0 velocity
+                      Only necessary if Instrument.spec_type = 'wavelength'
+                      and Instrument.spec_center hasn't been set.
+
+        """
 
         if (self.spec_step is None):
             raise ValueError("Spectral step not defined.")
@@ -277,6 +363,7 @@ class LSF(u.Quantity):
     def __new__(cls, dispersion=None, default_unit=u.km/u.s, meta=None):
         """
         Create a new Gaussian Line Spread Function
+
         Parameters
         ----------
         dispersion : :class:`~astropy.units.Quantity` with speed equivalency
@@ -325,6 +412,16 @@ class LSF(u.Quantity):
         """
         Convert from velocity dispersion to wavelength dispersion for
         a given central wavelength.
+
+        Parameters
+        ----------
+        wave : `~astropy.units.Quantity`
+               Central wavelength to use in conversion from velocity to wavelength
+
+        Returns
+        -------
+        wdisp : `~astropy.units.Quantity`
+                Dispersion of LSF in wavelength units
         """
 
         if not isinstance(wave, u.Quantity):
@@ -335,6 +432,16 @@ class LSF(u.Quantity):
     def as_velocity_kernel(self, velstep, **kwargs):
         """
         Return a Gaussian convolution kernel in velocity space
+
+        Parameters
+        ----------
+        velstep : `~astropy.units.Quantity`
+                  Step size in velocity of one spectral channel
+
+        Returns
+        -------
+        vel_kern : 1D array
+                   Convolution kernel for the LSF in velocity space
         """
 
         sigma_pixel = (self.dispersion.value /
@@ -345,6 +452,18 @@ class LSF(u.Quantity):
     def as_wave_kernel(self, wavestep, wavecenter, **kwargs):
         """
         Return a Gaussian convolution kernel in wavelength space
+
+        Parameters
+        ----------
+        wavestep : `~astropy.units.Quantity`
+                   Step size in wavelength of one spectral channel
+        wavecenter : `~astropy.units.Quantity`
+                     Central wavelength used to convert from velocity to wavelength
+
+        Returns
+        -------
+        wave_kern : 1D array
+                    Convolution kernal for the LSF in wavelength space
         """
 
         sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
@@ -365,6 +484,28 @@ class LSF(u.Quantity):
 
 
 class DoubleBeam:
+    """
+    Beam object that is the superposition of two Gaussian Beams
+
+    Parameters
+    ----------
+    major1 : `~astropy.units.Quantity`
+             FWHM along the major axis of the first Gaussian beam
+    minor1 : `~astropy.units.Quantity`
+             FWHM along the minor axis of the first Gaussian beam
+    pa1 : `~astropy.units.Quantity`
+          Position angle of the first Gaussian beam.
+    scale1 : float
+             Flux scaling for the first Gaussian beam
+    major2 : `~astropy.units.Quantity`
+             FWHM along the major axis of the second Gaussian beam
+    minor2 : `~astropy.units.Quantity`
+             FWHM along the minor axis of the second Gaussian beam
+    pa2 : `~astropy.units.Quantity`
+          Position angle of the second Gaussian beam
+    scale2 : float
+             Flux scaling for the second Gaussian beam
+    """
 
     def __init__(self, major1=None, minor1=None, pa1=None, scale1=None,
                  major2=None, minor2=None, pa2=None, scale2=None):
@@ -398,6 +539,22 @@ class DoubleBeam:
 
 
     def as_kernel(self, pixscale, support_scaling=None):
+        """
+        Calculate the convolution kernel for the DoubleBeam
+
+        Parameters
+        ----------
+        pixscale : `~astropy.units.Quantity`
+                   Pixel scale of image that will be convolved
+        support_scaling : int
+                          The amount to scale the stddev to determine the
+                          size of the kernel
+
+        Returns
+        -------
+        kernel_total : 2D array
+                       Convolution kernel for the DoubleBeam
+        """
 
         kernel1 = self.beam1.as_kernel(pixscale, support_scaling=support_scaling)
         kernel2 = self.beam2.as_kernel(pixscale, support_scaling=support_scaling)
@@ -435,96 +592,126 @@ class DoubleBeam:
         self2.__dict__.update(self.__dict__)
         return self2
 
-        
-class Moffat(object):
 
+class Moffat(object):
+    """
+    Object describing a Moffat PSF
+
+    Parameters
+    ----------
+    major_fwhm : `~astropy.units.Quantity`
+                 FWHM of the Moffat PSF along the major axis
+    minor_fwhm : `~astropy.units.Quantity`
+                 FWHM of the Moffat PSF along the minor axis
+    pa : `~astropy.units.Quantity`
+         Position angle of major axis of the Moffat PSF
+    beta : float
+           beta parameter of the Moffat PSF
+    padfac : int
+             The amount to scale the stddev to determine the
+             size of the kernel
+    """
     def __init__(self, major_fwhm=None, minor_fwhm=None, pa=None, beta=None, padfac=12.):
-        
+
         if (major_fwhm is None) | (beta is None):
             raise ValueError('Need to specify at least the major axis FWHM + beta of beam.')
-        
+
         if minor_fwhm is None:
             minor_fwhm = major_fwhm
         if (major_fwhm != minor_fwhm) & (pa is None):
             raise ValueError("Need to specifiy 'pa' to have elliptical PSF!")
-            
-        
+
+
         if pa is None:
             pa = 0.*u.deg
-        
+
         #
         self.major_fwhm = major_fwhm
         self.minor_fwhm = minor_fwhm
         self.pa = pa
         self.beta = beta
-        
+
         self.alpha = self.major_fwhm/(2.*np.sqrt(np.power(2., 1./np.float(self.beta)) - 1 ))
-        
+
         self.padfac = padfac
 
     def as_kernel(self, pixscale, support_scaling=None):
-        
+        """
+        Calculate the convolution kernel for the Moffat PSF
+
+        Parameters
+        ----------
+        pixscale : `~astropy.units.Quantity`
+                   Pixel scale of image that will be convolved
+        support_scaling : int
+                          The amount to scale the stddev to determine the
+                          size of the kernel
+
+        Returns
+        -------
+        kernel : 2D array
+                 Convolution kernel for the Moffat PSF
+        """
         try:
             pixscale = pixscale.to(self.major_fwhm.unit)
             pixscale = pixscale.value
-            
+
             major_fwhm = self.major_fwhm.value
             minor_fwhm = self.minor_fwhm.value
             pa = self.pa.value
-            
+
             alpha = self.alpha.value/pixscale
         except:
             pixscale = pixscale.to(self.major_fwhm.unit)
             pixscale = pixscale.value
-            
+
             major_fwhm = self.major_fwhm
             minor_fwhm = self.minor_fwhm
             pa = self.pa
             alpha = self.alpha/pixscale
-        
-        
+
+
         #padfac = 16. #8. # from Beam
         if support_scaling is not None:
             padfac = support_scaling
         else:
             padfac = self.padfac
-        
+
         # Npix: rounded std dev[ in pix] * padfac * 2 -- working in DIAMETER
-        # Factor of 1./0.7: For beta~2.5, Moffat FWHM ~ 0.7*Gaus FWHM 
+        # Factor of 1./0.7: For beta~2.5, Moffat FWHM ~ 0.7*Gaus FWHM
         #    -> add extra padding so the Moffat window
         #       isn't much smaller than similar Gaussian PSF.
-        
+
         npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * 2 * 1./0.7 * padfac))
         if npix % 2 == 0:
             npix += 1
-        
-        
-        #print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta, 
+
+
+        #print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta,
         #            major_fwhm, pixscale, npix))
-        
-        
+
+
         # Arrays
         y, x = np.indices((npix, npix), dtype=float)
         x -= (npix-1)/2.
         y -= (npix-1)/2.
-        
-        
-        
+
+
+
         cost = np.cos(pa*np.pi/180.)
         sint = np.sin(pa*np.pi/180.)
-        
+
         xp = cost*x + sint*y
         yp = -sint*x + cost*y
-        
+
         # print("x={}, y={}".format(x,y))
         # print("xp={}, yp={}".format(xp,yp))
-        
+
         qtmp = minor_fwhm / major_fwhm
-        
-        
+
+
         r = np.sqrt(xp**2 + (yp/qtmp)**2)
-        
+
         kernel = (self.beta-1.)/(np.pi * alpha**2) * np.power( (1. + (r/alpha)**2 ), -1.*self.beta )
-        
+
         return kernel
-    
