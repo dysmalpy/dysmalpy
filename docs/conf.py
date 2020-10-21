@@ -23,6 +23,12 @@ from os import path
 import sphinx
 from distutils.version import LooseVersion
 
+from pkg_resources import DistributionNotFound, get_distribution
+
+try:
+    __version__ = get_distribution("dysmalpy").version
+except DistributionNotFound:
+    __version__ = "unknown version"
 
 # -- Project information -----------------------------------------------------
 
@@ -31,7 +37,8 @@ copyright = '2020, MPE/IR Group'
 author = 'Sedona Price and Taro Shimizu'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
+version = __version__
+release = __version__
 
 # -- General configuration ----------------------------------------------------
 
@@ -130,8 +137,11 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.napoleon',
     'sphinx_automodapi.automodapi',
-    'numpydoc',
+    'sphinx_automodapi.smart_resolver',
+#    'numpydoc',
     'nbsphinx'
 #    'astropy_helpers.extern.numpydoc',
 #    'astropy_helpers.extern.automodapi.automodapi',
@@ -142,12 +152,12 @@ extensions = [
 ]
 
 
-if on_rtd:
-    extensions.append('sphinx.ext.mathjax')
-elif LooseVersion(sphinx.__version__) < LooseVersion('1.4'):
-    extensions.append('sphinx.ext.pngmath')
-else:
-    extensions.append('sphinx.ext.imgmath')
+# if on_rtd:
+#     extensions.append('sphinx.ext.mathjax')
+# elif LooseVersion(sphinx.__version__) < LooseVersion('1.4'):
+#     extensions.append('sphinx.ext.pngmath')
+# else:
+#     extensions.append('sphinx.ext.imgmath')
 
 
 # Above, we use a patched version of viewcode rather than 'sphinx.ext.viewcode'
