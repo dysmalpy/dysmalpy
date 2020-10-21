@@ -34,7 +34,7 @@ except:
 
 
 
-def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=None):
+def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
     
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -51,6 +51,11 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
     params['outdir'] = outdir
     
     fitting.ensure_dir(params['outdir'])
+    
+    if 'plot_type' not in params.keys():
+        params['plot_type'] = plot_type
+    else:
+        plot_type = params['plot_type']
 
     # Check if fitting already done:
     if params['fit_method'] == 'mcmc':
@@ -118,7 +123,8 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
                                        f_mcmc_results=fit_dict['f_mcmc_results'],
                                        f_chain_ascii=fit_dict['f_chain_ascii'],
                                        f_vel_ascii=fit_dict['f_vel_ascii'],
-                                       f_log=fit_dict['f_log'])
+                                       f_log=fit_dict['f_log'],
+                                       plot_type=plot_type)
 
         elif fit_dict['fit_method'] == 'mpfit':
 
@@ -134,7 +140,8 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
                                         f_results=fit_dict['f_results'],
                                         f_vel_ascii=fit_dict['f_vel_ascii'],
                                         f_log=fit_dict['f_log'],
-                                        blob_name=fit_dict['blob_name'])
+                                        blob_name=fit_dict['blob_name'],
+                                        plot_type=plot_type)
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
@@ -142,21 +149,33 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
         
         # Plot multid, if enabled:
         if 'fdata_1d' in params.keys():
-            fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True)
+            fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True,
+                                    plot_type=plot_type)
     
     return None
     
     
-def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
+def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
     
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
+    
+    # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
+    if datadir is not None:
+        params['datadir'] = datadir
+    if outdir is not None:
+        params['outdir'] = outdir
     
     # Setup some paths:
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     
     fitting.ensure_dir(params['outdir'])
+    
+    if 'plot_type' not in params.keys():
+        params['plot_type'] = plot_type
+    else:
+        plot_type = params['plot_type']
 
     # Check if fitting already done:
     if params['fit_method'] == 'mcmc':
@@ -231,7 +250,8 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None):
     
     # Plot multid, if enabled:
     if 'fdata_1d' in params.keys():
-        fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True)
+        fw_plotting.plot_results_multid(param_filename=param_filename, fit_ndim=2, show_1d_apers=True, remove_shift=True, 
+                        plot_type=plot_type)
 
     return None
 

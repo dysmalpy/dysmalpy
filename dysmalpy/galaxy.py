@@ -12,6 +12,8 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import copy
 
+import os
+
 # Third party imports
 import numpy as np
 import astropy.cosmology as apy_cosmo
@@ -739,20 +741,13 @@ class Galaxy:
             self.instrument.fov = [nx_sky, ny_sky]
             self.instrument.set_beam_kernel()
 
-    def preserve_self(self, filename=None, save_data=True):
-        """
-        Save current state of Galaxy to a Python pickle file
-
-        Parameters
-        ----------
-        filename : str
-                   Name of the file to save Galaxy to.
-        save_data : bool, optional
-                    If True (default), will save all data, including the current
-                    model cube and data.
-                    If False, Galaxy.data, Galaxy.model_data, and Galaxy.model_cube will
-                    be removed before saving.
-        """
+    def preserve_self(self, filename=None, save_data=True, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+              
         if filename is not None:
             galtmp = copy.deepcopy(self)
 

@@ -36,13 +36,15 @@ from dysmalpy.extern.mpfit import mpfit
 import emcee
 import acor
 
+from dysmalpy import utils_io as dpy_utils_io
+
 import time, datetime
 
 from scipy.stats import gaussian_kde
 from scipy.optimize import fmin
 
 
-__all__ = ['fit', 'MCMCResults']
+__all__ = ['fit', 'MCMCResults', 'MPFITResults']
 
 
 # ACOR SETTINGS
@@ -99,6 +101,7 @@ def fit(gal, nWalkers=10,
            f_vel_ascii = None, 
            f_log = None,
            plot_type = 'pdf', 
+           overwrite = False, 
            **kwargs ):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
@@ -132,8 +135,6 @@ def fit(gal, nWalkers=10,
             if blobn.lower().strip() not in valid_blobnames:
                 raise ValueError("blob_name={} not recognized as option!".format(blobn))
             
-        # if blob_name.lower().strip() not in valid_blobnames:
-        #     raise ValueError("blob_name={} not recognized as option!".format(blob_name))
             
     # if oversampled_chisq is None:
     #     raise ValueError("Must set 'oversampled_chisq'!")
@@ -185,6 +186,28 @@ def fit(gal, nWalkers=10,
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+    
+    # ---------------------------------------------------
+    # Check for existing files if overwrite=False:
+    if (not overwrite):
+        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner, 
+                    f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
+        fnames_opt = [f_model, f_cube, f_burn_sampler]
+        for fname in fnames_opt:
+            if fname is not None:
+                fnames.append(fname)
+                
+        for fname in fnames:
+            if os.path.isfile(fname):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                
+        # Return early if it won't save the results, sampler:
+        if os.path.isfile(f_sampler) or os.path.isfile(f_mcmc_results):
+            msg = "overwrite={}, and one of 'f_sampler' or 'f_mcmc_results' won't be saved,".format(overwrite)
+            msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+            logger.warning(msg)
+            return None
+    # ---------------------------------------------------
     
     # Setup file redirect logging:
     if f_log is not None:
@@ -240,21 +263,8 @@ def fit(gal, nWalkers=10,
         # Close things
         input_sampler = None
     elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
-        #nBurn = 0
-        #
         input_sampler = load_pickle(f_sampler_tmp)
         
-        
-        # if input_sampler is None:
-        #     try:
-        #         input_sampler = load_pickle(f_sampler_tmp)
-        #     except:
-        #         message = "Couldn't find existing sampler in {}.".format(f_sampler_tmp)
-        #         message += '\n'
-        #         message += "Must set input_sampler if you will restart the sampler."
-        #         raise ValueError(message)
-            
-            
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
                             kwargs_dict=kwargs_dict, 
                             scale_param_a=scale_param_a)
@@ -274,28 +284,6 @@ def fit(gal, nWalkers=10,
         # Close things
         input_sampler = None
 
-    # #####
-    # else:
-    #     nBurn = 0
-    #     if input_sampler is None:
-    #         try:
-    #             input_sampler = load_pickle(f_sampler)
-    #         except:
-    #             message = "Couldn't find existing sampler in {}.".format(f_sampler)
-    #             message += '\n'
-    #             message += "Must set input_sampler if you will restart the sampler."
-    #             raise ValueError(message)
-    #         
-    #     sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
-    #                         kwargs_dict=kwargs_dict, 
-    #                         scale_param_a=scale_param_a)
-    #         
-    #     initial_pos = input_sampler['chain'][:,-1,:]
-    #     if blob_name is not None:
-    #         blob = input_sampler['blobs']
-    #         
-    #     # Close things
-    #     input_sampler = None
             
     # --------------------------------
     # Output some fitting info to logger:
@@ -345,18 +333,24 @@ def fit(gal, nWalkers=10,
                 if k < sampler.chain.shape[1]:
                     continue
         
-            #logger.info(" k={}, time.time={}".format( k, datetime.datetime.now() ) )
-            # Temp for debugging:
             logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
             if blob_name is not None:
-                pos, prob, state, blob = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                    rstate0=state, blobs0=blob)
+                if np.int(emcee.__version__[0]) >= 3:
+                    pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, blobs0=blob, iterations=1)
+                else:
+                    pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state, blobs0 = blob)
             else:
-                pos, prob, state = sampler.run_mcmc(pos, 1, lnprob0=prob,
-                                                    rstate0=state)
-                                                    
+                if np.int(emcee.__version__[0]) >= 3:
+                    pos, prob, state = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, iterations=1)
+                else:
+                    pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                        rstate0=state )
+
             
             # --------------------------------
             # Save intermediate steps if set:
@@ -367,12 +361,10 @@ def fit(gal, nWalkers=10,
                     sampler_dict_tmp['step_cur'] = -99
                     if f_sampler_tmp is not None:
                         # Save stuff to file, for future use:
-                        dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp)
+                        dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
             # --------------------------------
             
         #####
-        ## This would run in one go:
-        #pos, prob, state = sampler.run_mcmc(initial_pos,fitEmis2D.mcmcOptions.nBurn)
         end = time.time()
         elapsed = end-start
 
@@ -422,7 +414,7 @@ def fit(gal, nWalkers=10,
         if (save_burn) & (f_burn_sampler is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
             # Save stuff to file, for future use:
-            dump_pickle(sampler_burn, filename=f_burn_sampler)
+            dump_pickle(sampler_burn, filename=f_burn_sampler, overwrite=overwrite)
 
 
         # --------------------------------
@@ -430,7 +422,7 @@ def fit(gal, nWalkers=10,
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0)
             mcmcResultsburn = MCMCResults(model=gal.model, sampler=sampler_burn)
-            plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin)
+            plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin, overwrite=overwrite)
 
         # Reset sampler after burn-in:
         sampler.reset()
@@ -473,10 +465,18 @@ def fit(gal, nWalkers=10,
         # --------------------------------
         # Only do one step at a time:
         if blob_name is not None:
-            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+            if np.int(emcee.__version__[0]) >= 3:
+                pos, prob, state, blob = sampler.sample(pos_cur, log_prob0=prob,
+                        rstate0=state, blobs0=blob, iterations=1)
+            else:
+                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
                         rstate0=state, blobs0 = blob)
         else:
-            pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
+            if np.int(emcee.__version__[0]) >= 3:
+                pos, prob, state = sampler.sample(pos, cur, log_prob0=prob, 
+                        rstate0=state, interations=1)
+            else:
+                pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
         # --------------------------------
 
         # --------------------------------
@@ -517,7 +517,7 @@ def fit(gal, nWalkers=10,
                 sampler_dict_tmp['step_cur'] = ii
                 if f_sampler_tmp is not None:
                     # Save stuff to file, for future use:
-                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp)
+                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
         # --------------------------------
 
     # --------------------------------
@@ -566,7 +566,7 @@ def fit(gal, nWalkers=10,
 
     if f_sampler is not None:
         # Save stuff to file, for future use:
-        dump_pickle(sampler_dict, filename=f_sampler)
+        dump_pickle(sampler_dict, filename=f_sampler, overwrite=overwrite)
         
     
     # --------------------------------
@@ -600,8 +600,7 @@ def fit(gal, nWalkers=10,
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
                               
     # Do all analysis, plotting, saving:
-    mcmcResults.analyze_plot_save_results(gal,                           
-                  blob_name=blob_name, 
+    mcmcResults.analyze_plot_save_results(gal,    
                   linked_posterior_names=linked_posterior_names, 
                   nPostBins=nPostBins, 
                   model_key_re=model_key_re, 
@@ -616,7 +615,8 @@ def fit(gal, nWalkers=10,
                   f_cube=f_cube, 
                   f_model=f_model, 
                   f_vel_ascii = f_vel_ascii, 
-                  do_plotting = do_plotting)
+                  do_plotting = do_plotting,
+                  overwrite=overwrite)
 
 
     # Clean up logger:
@@ -650,7 +650,8 @@ def fit_mpfit(gal,
               f_vel_ascii = None,
               f_log = None, 
               blob_name=None,
-              plot_type='pdf'):
+              plot_type='pdf',
+              overwrite=False):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
@@ -666,7 +667,28 @@ def fit_mpfit(gal,
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.{}'.format(plot_type)
     if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
-
+    
+    # ---------------------------------------------------
+    # Check for existing files if overwrite=False:
+    if (not overwrite):
+        fnames = [ f_plot_bestfit, f_results, f_vel_ascii ]
+        fnames_opt = [f_model, f_cube]
+        for fname in fnames_opt:
+            if fname is not None:
+                fnames.append(fname)
+                
+        for fname in fnames:
+            if os.path.isfile(fname):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                
+        # Return early if it won't save the results, sampler:
+        if os.path.isfile(f_results):
+            msg = "overwrite={}, and 'f_results' won't be saved,".format(overwrite)
+            msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+            logger.warning(msg)
+            return None
+    # ---------------------------------------------------
+    
     # Setup file redirect logging:
     if f_log is not None:
         loggerfile = logging.FileHandler(f_log)
@@ -744,9 +766,10 @@ def fit_mpfit(gal,
     # Save all of the fitting results in an MPFITResults object
     mpfitResults = MPFITResults(model=gal.model,
                                 f_plot_bestfit=f_plot_bestfit,
-                                f_results=f_results)
+                                f_results=f_results, 
+                                blob_name=blob_name)
 
-    mpfitResults.input_results(m, gal=gal, blob_name=blob_name, 
+    mpfitResults.input_results(m, gal=gal, 
                 model_key_re=model_key_re, model_key_halo=model_key_halo)
 
     # Update theta to best-fit:
@@ -755,7 +778,12 @@ def fit_mpfit(gal,
     gal.create_model_data(oversample=oversample, oversize=oversize,
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
 
-
+    #
+    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+                    model_key_re=model_key_re)
+    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+                            model_key_re=model_key_re)
+                            
     # Get vmax and vrot
     if model_key_re is not None:
         comp = gal.model.components.__getitem__(model_key_re[0])
@@ -766,32 +794,32 @@ def fit_mpfit(gal,
     mpfitResults.vmax_bestfit = gal.model.get_vmax()
 
     if f_results is not None:
-        mpfitResults.save_results(filename=f_results)
+        mpfitResults.save_results(filename=f_results, overwrite=overwrite)
 
     if f_model is not None:
         # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model, save_data=save_data)
+        gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
         
 
     if save_bestfit_cube:
-        gal.model_cube.data.write(f_cube, overwrite=True)
+        gal.model_cube.data.write(f_cube, overwrite=overwrite)
         
         #######
         # DEBUGGING:
         if gal.data.ndim == 3:
-            gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=True)
+            gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=overwrite)
         
-            gal.data.data.write(f_cube+'.data.fits', overwrite=True)
+            gal.data.data.write(f_cube+'.data.fits', overwrite=overwrite)
         #######
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
                               oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
-                              profile1d_type=profile1d_type)
+                              profile1d_type=profile1d_type, overwrite=overwrite)
 
     # Save velocity / other profiles to ascii file:
     if f_vel_ascii is not None:
-        mpfitResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+        mpfitResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
 
         # Clean up logger:
     if f_log is not None:
@@ -809,7 +837,8 @@ class FitResults(object):
     def __init__(self,
                  model=None,
                  f_plot_bestfit=None,
-                 f_results=None):
+                 f_results=None,
+                 fit_method=None):
 
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
@@ -829,6 +858,7 @@ class FitResults(object):
 
         self.f_plot_bestfit = f_plot_bestfit
         self.f_results = f_results
+        self.fit_method = fit_method
 
     def set_model(self, model):
 
@@ -870,11 +900,17 @@ class FitResults(object):
 
         self.chain_param_names = make_arr_cmp_params(self)
 
-    def save_results(self, filename=None):
+    def save_results(self, filename=None, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+                
         if filename is not None:
-            dump_pickle(self, filename=filename)  # Save FitResults class to a pickle file
+            dump_pickle(self, filename=filename, overwrite=overwrite)  # Save FitResults class to a pickle file
 
-    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk'], overwrite=False):
         if filename is not None:
             try:
                 # RE needs to be in kpc
@@ -887,7 +923,7 @@ class FitResults(object):
             stepsize = 0.1  # stepsize 0.1 kpc
             r = np.arange(0., rmax + stepsize, stepsize)
 
-            gal.model.write_vrot_vcirc_file(r=r, filename=filename)
+            gal.model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite)
 
     @abc.abstractmethod
     def plot_results(self, *args, **kwargs):
@@ -898,12 +934,17 @@ class FitResults(object):
         :return:
         """
 
-    def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1, fileout=None):
+    def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1, fileout=None, overwrite=False):
         """Plot/replot the bestfit for the MCMC fitting"""
-        if fileout is None:
-            fileout = self.f_plot_bestfit
+        #if fileout is None:
+        #    fileout = self.f_plot_bestfit
+        # Check for existing file:
+        if (not overwrite) and (fileout is not None):
+            if os.path.isfile(fileout):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+                return None
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
-                              oversample=oversample, oversize=oversize, fileout=fileout)
+                              oversample=oversample, oversize=oversize, fileout=fileout, overwrite=overwrite)
 
     def reload_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -915,6 +956,21 @@ class FitResults(object):
                 self.__dict__[key] = resultsSaved.__dict__[key]
             except:
                 pass
+                
+    def results_report(self, gal=None, filename=None, params=None, report_type='short', overwrite=False):
+        """Return a result report string, or save to file.
+           report_type = 'short':   like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'pretty'
+                       = 'long':    like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'machine'
+        """
+        
+        report = dpy_utils_io.create_results_report(gal, self, report_type=report_type, params=params)
+        
+        if filename is not None:
+            with open(filename, 'w') as f:
+                f.write(report)
+        else:
+            return report
+        
 
 
 class MCMCResults(FitResults):
@@ -962,11 +1018,10 @@ class MCMCResults(FitResults):
         self.blob_name = blob_name
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                                          f_results=f_results)
+                                          f_results=f_results, fit_method='MCMC')
                                           
                                           
     def analyze_plot_save_results(self, gal, 
-                blob_name=None, 
                 linked_posterior_names=None, 
                 nPostBins=50, 
                 model_key_re=None, 
@@ -981,14 +1036,15 @@ class MCMCResults(FitResults):
                 f_cube=None, 
                 f_model=None, 
                 f_vel_ascii = None, 
-                do_plotting = True):
+                do_plotting = True,
+                overwrite=False):
         """
         Wrapper for post-sample analysis + plotting -- in case code broke and only have sampler saved.
         
         """
                 
         if self.f_chain_ascii is not None:
-            self.save_chain_ascii(filename=self.f_chain_ascii, blob_name=blob_name)
+            self.save_chain_ascii(filename=self.f_chain_ascii, overwrite=overwrite)
 
         # Get the best-fit values, uncertainty bounds from marginalized posteriors
         self.analyze_posterior_dist(gal=gal, linked_posterior_names=linked_posterior_names,
@@ -997,30 +1053,22 @@ class MCMCResults(FitResults):
         # Update theta to best-fit:
         gal.model.update_parameters(self.bestfit_parameters)
                 
-        if blob_name is not None:
-            if isinstance(blob_name, str):
-                blob_names = [blob_name]
+        if self.blob_name is not None:
+            if isinstance(self.blob_name, str):
+                blob_names = [self.blob_name]
             else:
-                blob_names = blob_name[:]
+                blob_names = self.blob_name[:]
             
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
-                    self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=blob_name)  # here blob_name should be the *full* list
+                    self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=self.blob_name)  # here blob_name should be the *full* list
                 elif blobn.lower() == 'mvirial':
-                    self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+                    self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
                 elif blobn.lower() == 'alpha':
-                    self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+                    self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
                 elif blobn.lower() == 'rb':
-                    self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
+                    self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
             
-            # if blob_name.lower() == 'fdm':
-            #     self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=blob_name)  # here blob_name should be the *full* list
-            # elif blob_name.lower() == 'mvirial':
-            #     self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
-            # elif blob_name.lower() == 'alpha':
-            #     self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
-            # elif blob_name.lower() == 'rb':
-            #     self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=blob_name)
         
         gal.create_model_data(oversample=oversample, oversize=oversize, 
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
@@ -1040,35 +1088,35 @@ class MCMCResults(FitResults):
         self.vmax_bestfit = gal.model.get_vmax()
     
         if self.f_results is not None:
-            self.save_results(filename=self.f_results)
+            self.save_results(filename=self.f_results, overwrite=overwrite)
         
         if f_model is not None:
             #mcmcResults.save_galaxy_model(galaxy=gal, filename=f_model)
             # Save model w/ updated theta equal to best-fit:
-            gal.preserve_self(filename=f_model, save_data=save_data)
+            gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
 
         if save_bestfit_cube:
-            gal.model_cube.data.write(f_cube, overwrite=True)
+            gal.model_cube.data.write(f_cube, overwrite=overwrite)
         
         # --------------------------------
         # Plot trace, if output file set
         if (do_plotting) & (self.f_plot_trace is not None) :
-            plotting.plot_trace(self, fileout=self.f_plot_trace)
+            plotting.plot_trace(self, fileout=self.f_plot_trace, overwrite=overwrite)
 
         # --------------------------------
         # Plot results: corner plot, best-fit
         if (do_plotting) & (self.f_plot_param_corner is not None):
-            plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=blob_name)
+            plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=self.blob_name, overwrite=overwrite)
 
         if (do_plotting) & (self.f_plot_bestfit is not None):
             plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
                                   oversample=oversample, oversize=oversize, fileout=self.f_plot_bestfit,
-                                  profile1d_type=profile1d_type)
+                                  profile1d_type=profile1d_type, overwrite=overwrite)
                               
         # --------------------------------
         # Save velocity / other profiles to ascii file:
         if f_vel_ascii is not None:
-            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re)
+            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
             
             
     def mod_linear_param_posterior(self, gal=None):
@@ -1321,7 +1369,12 @@ class MCMCResults(FitResults):
         return PA, stddev_x, stddev_y 
         
         
-    def save_chain_ascii(self, filename=None, blob_name=None):
+    def save_chain_ascii(self, filename=None, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
         if filename is not None:
             try:
                 blobs = self.sampler['blobs']
@@ -1346,10 +1399,10 @@ class MCMCResults(FitResults):
                 namestr += '  '.join(map(str, self.chain_param_names))
                 if blobset:
                     # Currently assuming blob only returns DM fraction
-                    if isinstance(blob_name, str):
-                        namestr += '  {}'.format(blob_name)
+                    if isinstance(self.blob_name, str):
+                        namestr += '  {}'.format(self.blob_name)
                     else:
-                        for blobn in blob_name:
+                        for blobn in self.blob_name:
                             namestr += '  {}'.format(blobn)
                 f.write(namestr+'\n')
                 
@@ -1357,10 +1410,10 @@ class MCMCResults(FitResults):
                 for i in six.moves.xrange(self.sampler['flatchain'].shape[0]):
                     datstr = '  '.join(map(str, self.sampler['flatchain'][i,:]))
                     if blobset:
-                        if isinstance(blob_name, str):
+                        if isinstance(self.blob_name, str):
                             datstr += '  {}'.format(self.sampler['flatblobs'][i])
                         else:
-                            for k in range(len(blob_name)):
+                            for k in range(len(self.blob_name)):
                                 datstr += '  {}'.format(self.sampler['flatblobs'][i,k])
                                 
                     f.write(datstr+'\n')
@@ -1375,41 +1428,45 @@ class MCMCResults(FitResults):
 
 
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
-                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None, blob_name=None):
+                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None,
+                     overwrite=False):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
-        self.plot_corner(gal=gal, fileout=f_plot_param_corner, blob_name=blob_name)
+        self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
-                oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
-        self.plot_trace(fileout=f_plot_trace)
+                oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
+        self.plot_trace(fileout=f_plot_trace, overwrite=overwrite)
 
 
-    def plot_corner(self, gal=None, fileout=None, blob_name=None):
+    def plot_corner(self, gal=None, fileout=None, overwrite=False):
         """Plot/replot the corner plot for the MCMC fitting"""
-        if fileout is None:
-            fileout = self.f_plot_param_corner
-        plotting.plot_corner(self, gal=gal, fileout=fileout, blob_name=blob_name)
+        #if fileout is None:
+        #    fileout = self.f_plot_param_corner
+        plotting.plot_corner(self, gal=gal, fileout=fileout, blob_name=self.blob_name, overwrite=overwrite)
 
 
-    def plot_trace(self, fileout=None):
+    def plot_trace(self, fileout=None, overwrite=False):
         """Plot/replot the trace for the MCMC fitting"""
-        if fileout is None:
-            fileout = self.f_plot_trace
-        plotting.plot_trace(self, fileout=fileout)
+        #if fileout is None:
+        #    fileout = self.f_plot_trace
+        plotting.plot_trace(self, fileout=fileout, overwrite=overwrite)
 
 
 class MPFITResults(FitResults):
     """
     Class to hold results of using MPFIT to fit to DYSMALPY models.
     """
-    def __init__(self, model=None, f_plot_bestfit=None, f_results=None):
+    def __init__(self, model=None, f_plot_bestfit=None, f_results=None, blob_name=None):
 
         self._mpfit_object = None
+        
+        
+        self.blob_name = blob_name
 
         super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                                         f_results=f_results)
+                                         f_results=f_results, fit_method='MPFIT')
 
     def input_results(self, mpfit_obj, gal=None, 
-                    blob_name=None, model_key_re=None, model_key_halo=None):
+                    model_key_re=None, model_key_halo=None):
         """
         Save the best fit results from MPFIT in the MPFITResults object
         """
@@ -1432,11 +1489,11 @@ class MPFITResults(FitResults):
             
             
         # Add "blob" bestfit:
-        if blob_name is not None:
-            if isinstance(blob_name, str):
-                blob_names = [blob_name]
+        if self.blob_name is not None:
+            if isinstance(self.blob_name, str):
+                blob_names = [self.blob_name]
             else:
-                blob_names = blob_name[:]
+                blob_names = self.blob_name[:]
                 
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
@@ -1451,16 +1508,6 @@ class MPFITResults(FitResults):
                 self.analyze_blob_value(bestfit=param_bestfit, parname=blobn.lower())
                 
             
-            # if blob_name.lower() == 'fdm':
-            #     param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
-            # elif blob_name.lower() == 'mvirial':
-            #     param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
-            # elif blob_name.lower() == 'alpha':
-            #     param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
-            # elif blob_name.lower() == 'rb':
-            #     param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-            # 
-            # self.analyze_blob_value(bestfit=param_bestfit, parname=blob_name.lower())
                 
                 
     def analyze_blob_value(self, bestfit=None, parname=None):
@@ -1475,10 +1522,10 @@ class MPFITResults(FitResults):
         
 
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
-                     f_plot_bestfit=None):
+                     f_plot_bestfit=None, overwrite=False):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
-                          oversample=oversample, oversize=oversize, fileout=f_plot_bestfit)
+                          oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
 
 
 def log_prob(theta, gal,
@@ -2484,9 +2531,9 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
     Re-setup emcee sampler, using existing chain / etc, so more steps can be run.
     """
     
-    sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
-                log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
-                threads=sampler_dict['nCPU'])
+    # sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
+    #             log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
+    #             threads=sampler_dict['nCPU'])
     
     # This will break for updated version of emcee
     # works for emcee v2.2.1
@@ -2502,11 +2549,38 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         sampler.iterations = sampler_dict['nIter']
         sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
                             dtype=np.int64)
+    ###
+    elif np.int(emcee.__version__[0]) >= 3:
+        backend = emcee.backends.Backend()
+        
+        backend.initialized = True
+        
+        backend.nwalkers = sampler_dict['nWalkers']
+        backend.ndim = sampler_dict['nParam']
+        backend.iteration = sampler_dict['nIter']
+        
+        backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], dtype=np.int64)
+        
+        backend.chain = sampler_dict['chain']
+        backend.log_prob = sampler_dict['lnprobability']
+        backend.blobs = sampler_dict['blobs']
+        
+        backend.random_state = None
+        
+        sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
+                    sampler_dict['nParam'],
+                    log_prob, 
+                    args=[gal], kwargs=kwargs_dict, 
+                    a=scale_param_a, 
+                    backend=backend,
+                    threads=sampler_dict['nCPU'])
+            
+    ###
     else:
         try:
             backend = emcee.Backend()
             backend.nwalkers = sampler_dict['nWalkers']
-            backend.iteration = sampler_dict['nParam']
+            backend.ndim = sampler_dict['nParam']
             backend.iteration = sampler_dict['nIter']
             backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
                                 dtype=np.int64)
@@ -2527,6 +2601,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
             
         except:
             raise ValueError
+    
     
     # sampler._last_run_mcmc_result
     
@@ -2583,8 +2658,14 @@ def load_pickle(filename):
     return data
 
 
-def dump_pickle(data, filename=None):
+def dump_pickle(data, filename=None, overwrite=False):
     """ Small wrapper function to pickle a structure """
+    # Check for existing file:
+    if (not overwrite) and (filename is not None):
+        if os.path.isfile(filename):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+            return None
+            
     with open(filename, 'wb') as f:
         _pickle.dump(data, f )
     return None
