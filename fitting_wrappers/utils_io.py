@@ -28,6 +28,8 @@ from astropy.table import Table
 
 import astropy.io.fits as fits
 
+import emcee
+
 try:
     import photutils
     from astropy.convolution import Gaussian2DKernel
@@ -722,8 +724,14 @@ def setup_mcmc_dict(params=None):
     f_plot_trace = outdir+'{}_mcmc_trace.{}'.format(galID, plot_type)
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
     f_cube = outdir+'{}_mcmc_bestfit_model_cube.fits'.format(galID)
-    f_sampler = outdir+'{}_mcmc_sampler.pickle'.format(galID)
-    f_burn_sampler = outdir+'{}_mcmc_burn_sampler.pickle'.format(galID)
+    
+    if np.int(emcee.__version__[0]) >= 3:
+        ftype_sampler = 'h5'
+    else:
+        ftype_sampler = 'pickle'
+    f_sampler = outdir+'{}_mcmc_sampler.{}'.format(galID, ftype_sampler)
+    f_burn_sampler = outdir+'{}_mcmc_burn_sampler.{}'.format(galID, ftype_sampler)
+    
     f_plot_param_corner = outdir+'{}_mcmc_param_corner.{}'.format(galID, plot_type)
     f_plot_bestfit = outdir+'{}_mcmc_best_fit.{}'.format(galID, plot_type)
     f_plot_bestfit_multid = outdir+'{}_mcmc_best_fit_multid.{}'.format(galID, plot_type)

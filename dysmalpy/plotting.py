@@ -205,14 +205,13 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                 if step_slice is None:
                     blobs = mcmcResults.sampler['flatblobs']
                 else:
-                    blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
+                    blobs = mcmcResults.sampler['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, 1))
             else:
                 indv = blob_names.index(blobn)
                 if step_slice is None:
-                    print("mcmcResults.sampler['flatblobs'].shape={}".format(mcmcResults.sampler['flatblobs'].shape))
                     blobs = mcmcResults.sampler['flatblobs'][:,indv]
                 else:
-                    blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['blobs'].shape[2]))[:,indv]
+                    blobs = mcmcResults.sampler['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, mcmcResults.sampler['blobs'].shape[2]))[:,indv]
                 
             sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
 
@@ -228,48 +227,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                 truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blobn)])
             
             
-            
-        #### ORIGINAL 
-        # blob_true = mcmcResults.__dict__['bestfit_{}'.format(blob_name)]
-        # blob_l68_err = mcmcResults.__dict__['bestfit_{}_l68_err'.format(blob_name)]
-        # blob_u68_err = mcmcResults.__dict__['bestfit_{}_u68_err'.format(blob_name)]
-        # 
-        # if blob_name.lower() == 'fdm':
-        #     names.append('Blob: fDM(RE)')
-        #     names_nice.append(r'$f_{\mathrm{DM}}(R_E)$')
-        # elif blob_name.lower() == 'alpha':
-        #     names.append('Blob: alpha')
-        #     names_nice.append(r'$\alpha$')
-        # elif blob_name.lower() == 'mvirial':
-        #     names.append('Blob: Mvirial')
-        #     names_nice.append(r'$\log_{10}(M_{\rm vir})$')
-        # elif blob_name.lower() == 'rb':
-        #     names.append('Blob: rB')
-        #     names_nice.append(r'$R_B$')
-        # else:
-        #     names.append(blob_name)
-        #     names_nice.append(blob_name)
-        # 
-        # if step_slice is None:
-        #     blobs = mcmcResults.sampler['flatblobs']
-        # else:
-        #     blobs = mcmcResults.sampler['blobs'][:,step_slice[0]:step_slice[1],:].reshape((-1, 1))
-        #     
-        # sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
-        # 
-        # truths = np.append(truths, blob_true)
-        # truths_l68 = np.append(truths_l68, blob_l68_err)
-        # truths_u68 = np.append(truths_u68, blob_u68_err )
-        # 
-        # if priors is not None:
-        #     priors.append(None)
-        # 
-        # if truths_l68_percentile is not None:
-        #     truths_l68_percentile = np.append(truths_l68_percentile, mcmcResults.__dict__['bestfit_{}_l68_err_percentile'.format(blob_name)])
-        #     truths_u68_percentile = np.append(truths_u68_percentile, mcmcResults.__dict__['bestfit_{}_u68_err_percentile'.format(blob_name)])
-            
-    ###############
-        
         
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(sampler_chain,
@@ -309,8 +266,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                 ax.axvline(best-q_m, ls='--', color='#9467bd')   # purple
                 ax.axvline(best+q_p, ls='--', color='#9467bd')   # purple
                 
-                #ax.axvline(best_lin-q_m_lin, ls='--', color='#9467bd')   # purple
-                #ax.axvline(best_lin+q_p_lin, ls='--', color='#9467bd')   # purple
         if priors is not None:
             if priors[i] is not None:
                 ax.axvline(priors[i], ls=':', color='#ff7f0e')   # orange
@@ -467,8 +422,6 @@ def plot_data_model_comparison_1D(gal,
     keyxtitle = r'$r$ [arcsec]'
     keyyarr = ['velocity', 'dispersion', 'flux']
     keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', r'Flux [arb]']
-    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
-    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
     keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
                     r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
                     r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
@@ -530,16 +483,6 @@ def plot_data_model_comparison_1D(gal,
                         
         axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk],
             c='black', marker='o', s=25, lw=1, label=None)
-            
-        #
-        
-        
-        # axes[k].errorbar( data.rarr, data.data[keyyarr[j]],
-        #         xerr=None, yerr = data.error[keyyarr[j]],
-        #         marker=None, ls='None', ecolor='k', zorder=-1.,
-        #         lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        # axes[k].scatter( data.rarr, data.data[keyyarr[j]],
-        #     c='black', marker='o', s=25, lw=1, label=None)
             
         
         # Masked points
