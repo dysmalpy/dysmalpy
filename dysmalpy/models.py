@@ -1543,8 +1543,8 @@ class ModelSet:
 
         vmax = vel.max()
         return vmax
-
-    def write_vrot_vcirc_file(self, r=None, filename='vout.txt'):
+        
+    def write_vrot_vcirc_file(self, r=None, filename=None, overwrite=False):
         """
         Output the rotational and circular velocities to a file
 
@@ -1557,7 +1557,12 @@ class ModelSet:
         filename : str, optional
             Name of file to output velocities to. Default is 'vout.txt'
         """
-
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+              
         # Quick test for if vcirc defined:
         coltry = ['velocity_profile', 'circular_velocity']
         coltrynames = ['vrot', 'vcirc']
@@ -1576,12 +1581,13 @@ class ModelSet:
                 pass
 
         if len(cols) >= 1:
-            self.write_profile_file(r=r, filename=filename,
-                cols=cols, prettycolnames=colnames, colunits=colunits)
 
-
-    def write_profile_file(self, r=None, filename='rprofiles.txt',
-            cols=None, prettycolnames=None, colunits=None):
+            self.write_profile_file(r=r, filename=filename, 
+                cols=cols, prettycolnames=colnames, colunits=colunits, overwrite=overwrite)
+                
+        
+    def write_profile_file(self, r=None, filename=None, 
+            cols=None, prettycolnames=None, colunits=None, overwrite=False):
         """
         Output various radial profiles of the `ModelSet`
 
@@ -1607,6 +1613,12 @@ class ModelSet:
         colunits: list, optional
             Units of each column. r is added by hand, and will always be in kpc.
         """
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+                
         if cols is None:              cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
         if prettycolnames is None:    prettycolnames = cols
         if r is None:                 r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc

@@ -85,7 +85,8 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
 #
 def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     remove_shift=True,
-    show_1d_apers=False):
+    show_1d_apers=False,
+    plot_type='pdf'):
     
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -93,6 +94,9 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     # Setup some paths:
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
+    
+    if 'plot_type' not in params.keys():
+        params['plot_type'] = plot_type
     
     if fit_ndim == 2:
         gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)
@@ -186,6 +190,7 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
     if datadir2d is None:
         datadir2d = datadir
     ####
+    
     
     if fit_ndim == 2:
         gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)

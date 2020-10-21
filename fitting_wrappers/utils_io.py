@@ -359,10 +359,14 @@ def save_results_ascii_files_mcmc(fit_results=None, gal=None, params=None, outdi
         for cmp_n in gal.model.param_names.keys():
             f.write('-----------'+'\n')
             f.write(' {}'.format(cmp_n)+'\n')
-
+            
+            nfree = 0
+            nfixedtied = 0
+            
             for param_n in gal.model.param_names[cmp_n]:
 
                 if '{}:{}'.format(cmp_n,param_n) in fit_results.chain_param_names:
+                    nfree += 1
                     whparam = np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
                     best = fit_results.bestfit_parameters[whparam]
                     l68 = fit_results.bestfit_parameters_l68_err[whparam]
@@ -371,15 +375,26 @@ def save_results_ascii_files_mcmc(fit_results=None, gal=None, params=None, outdi
 
                     datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
                     f.write(datstr+'\n')
+                else:
+                    nfixedtied += 1
             #
-            f.write('\n')
+            if (nfree > 0) & (nfixedtied > 0):
+                f.write('\n')
             #
             for param_n in gal.model.param_names[cmp_n]:
 
                 if '{}:{}'.format(cmp_n,param_n) not in fit_results.chain_param_names:
                     best = getattr(gal.model.components[cmp_n], param_n).value
-
-                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                    
+                    if not getattr(gal.model.components[cmp_n], param_n).tied:
+                        if getattr(gal.model.components[cmp_n], param_n).fixed:
+                            fix_tie = '[FIXED]'
+                        else:
+                            fix_tie = '[UNKNOWN]'
+                    else:
+                        fix_tie = '[TIED]'
+                        
+                    datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
                     f.write(datstr+'\n')
 
         
@@ -526,10 +541,14 @@ def save_results_ascii_files_mpfit(fit_results=None, gal=None, params=None, outd
         for cmp_n in gal.model.param_names.keys():
             f.write('-----------' + '\n')
             f.write(' {}'.format(cmp_n) + '\n')
-
+            
+            nfree = 0
+            nfixedtied = 0
+            
             for param_n in gal.model.param_names[cmp_n]:
 
                 if '{}:{}'.format(cmp_n, param_n) in fit_results.chain_param_names:
+                    nfree += 1
                     whparam = \
                     np.where(fit_results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[
                         0][0]
@@ -539,15 +558,27 @@ def save_results_ascii_files_mpfit(fit_results=None, gal=None, params=None, outd
                     datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best,
                                                                                 err)
                     f.write(datstr + '\n')
+                else:
+                    nfixedtied += 1
+            
             #
-            f.write('\n')
+            if (nfree > 0) & (nfixedtied > 0):
+                f.write('\n')
             #
             for param_n in gal.model.param_names[cmp_n]:
 
                 if '{}:{}'.format(cmp_n, param_n) not in fit_results.chain_param_names:
                     best = getattr(gal.model.components[cmp_n], param_n).value
-
-                    datstr = '    {: <11}    {:9.4f}  [FIXED]'.format(param_n, best)
+                    
+                    if not getattr(gal.model.components[cmp_n], param_n).tied:
+                        if getattr(gal.model.components[cmp_n], param_n).fixed:
+                            fix_tie = '[FIXED]'
+                        else:
+                            fix_tie = '[UNKNOWN]'
+                    else:
+                        fix_tie = '[TIED]'
+                        
+                    datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
                     f.write(datstr + '\n')
 
         #
@@ -681,16 +712,21 @@ def setup_mcmc_dict(params=None):
     outdir = params['outdir']
     galID = params['galID']
     
+    if 'plot_type' in params.keys():
+        plot_type = params['plot_type']
+    else:
+        plot_type = 'pdf'
+    
     # All in one directory:
-    f_plot_trace_burnin = outdir+'{}_mcmc_burnin_trace.pdf'.format(galID)
-    f_plot_trace = outdir+'{}_mcmc_trace.pdf'.format(galID)
+    f_plot_trace_burnin = outdir+'{}_mcmc_burnin_trace.{}'.format(galID, plot_type)
+    f_plot_trace = outdir+'{}_mcmc_trace.{}'.format(galID, plot_type)
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
     f_cube = outdir+'{}_mcmc_bestfit_model_cube.fits'.format(galID)
     f_sampler = outdir+'{}_mcmc_sampler.pickle'.format(galID)
     f_burn_sampler = outdir+'{}_mcmc_burn_sampler.pickle'.format(galID)
-    f_plot_param_corner = outdir+'{}_mcmc_param_corner.pdf'.format(galID)
-    f_plot_bestfit = outdir+'{}_mcmc_best_fit.pdf'.format(galID)
-    f_plot_bestfit_multid = outdir+'{}_mcmc_best_fit_multid.pdf'.format(galID)
+    f_plot_param_corner = outdir+'{}_mcmc_param_corner.{}'.format(galID, plot_type)
+    f_plot_bestfit = outdir+'{}_mcmc_best_fit.{}'.format(galID, plot_type)
+    f_plot_bestfit_multid = outdir+'{}_mcmc_best_fit_multid.{}'.format(galID, plot_type)
     f_mcmc_results = outdir+'{}_mcmc_results.pickle'.format(galID)
     f_chain_ascii = outdir+'{}_mcmc_chain_blobs.dat'.format(galID)
     f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
@@ -771,15 +807,19 @@ def setup_mcmc_dict(params=None):
 
 
 def setup_mpfit_dict(params=None):
-
+    if 'plot_type' in params.keys():
+        plot_type = params['plot_type']
+    else:
+        plot_type = 'pdf'
+        
     fitting.ensure_dir(params['outdir'])
     outdir = params['outdir']
     galID = params['galID']
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
     f_cube = outdir+'{}_mpfit_bestfit_model_cube.fits'.format(galID)
-    f_plot_bestfit = outdir+'{}_mpfit_best_fit.pdf'.format(galID)
+    f_plot_bestfit = outdir+'{}_mpfit_best_fit.{}'.format(galID, plot_type)
     f_results = outdir+'{}_mpfit_results.pickle'.format(galID)
-    f_plot_bestfit_multid = outdir+'{}_mpfit_best_fit_multid.pdf'.format(galID)
+    f_plot_bestfit_multid = outdir+'{}_mpfit_best_fit_multid.{}'.format(galID, plot_type)
     f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
     f_log = outdir+'{}_info.log'.format(galID)
 

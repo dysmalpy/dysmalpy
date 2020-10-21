@@ -52,10 +52,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-def plot_trace(mcmcResults, fileout=None):
+def plot_trace(mcmcResults, fileout=None, overwrite=False):
     """
     Plot trace of MCMC walkers
     """
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     names = make_clean_mcmc_plot_names(mcmcResults)
 
     ######################################
@@ -113,12 +119,18 @@ def plot_trace(mcmcResults, fileout=None):
     return None
 
 
-def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=None):
+def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=None, overwrite=False):
     """
     Plot corner plot of MCMC result posterior distributions.
     Optional:
             step slice: 2 element tuple/array with beginning and end step number to use
     """
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     names = make_clean_mcmc_plot_names(mcmcResults)
     
     if step_slice is None:
@@ -339,8 +351,15 @@ def plot_data_model_comparison_0D(gal,
             data = None,
             oversample=1,
             oversize=1,
-            fileout=None):
-
+            fileout=None,
+            overwrite=False):
+            
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
@@ -394,7 +413,14 @@ def plot_data_model_comparison_1D(gal,
             fitdispersion=True, 
             fitflux=False, 
             profile1d_type=None, 
-            fileout=None):
+            fileout=None, overwrite=False):
+    
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension 
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
@@ -580,8 +606,15 @@ def plot_data_model_comparison_2D(gal,
             fitdispersion=True, 
             fileout=None,
             symmetric_residuals=True,
-            max_residual=100.):
-    #
+            max_residual=100.,
+            overwrite=False):
+    
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     try:
         if 'inst_corr' in gal.data.data.keys():
             inst_corr = gal.data.data['inst_corr']
@@ -814,7 +847,14 @@ def plot_data_model_comparison_3D(gal,
             max_residual=100.,
             inst_corr = True,
             vcrop=False, 
-            vcrop_value=800.):
+            vcrop_value=800.,
+            overwrite=False):
+    
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
             
     plot_model_multid(gal, theta=theta, fitdispersion=fitdispersion, 
                 oversample=oversample, oversize=oversize, fileout=fileout, 
@@ -822,7 +862,8 @@ def plot_data_model_comparison_3D(gal,
                 show_1d_apers=show_1d_apers,
                 inst_corr=False,
                 vcrop=vcrop, 
-                vcrop_value=vcrop_value)
+                vcrop_value=vcrop_value,
+                overwrite=overwrite)
                 
     return None
 
@@ -1058,8 +1099,14 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
             yshift = None,
             vcrop=False, 
             vcrop_value=800.,
-            remove_shift=True):
-            
+            remove_shift=True,
+            overwrite=False):
+    
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
             
     if gal.data.ndim == 1:
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d, 
@@ -1069,14 +1116,16 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
                     xshift = xshift,
                     yshift = yshift,
                     show_1d_apers=show_1d_apers,
-                    remove_shift=True)
+                    remove_shift=True,
+                    overwrite=overwrite)
     elif gal.data.ndim == 2:
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data, 
                     theta=theta,fitdispersion=fitdispersion, 
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual, 
                     oversample=oversample, oversize=oversize, fileout=fileout,
                     show_1d_apers=show_1d_apers, 
-                    remove_shift=remove_shift)
+                    remove_shift=remove_shift,
+                    overwrite=overwrite)
         
     elif gal.data.ndim == 3:
         
@@ -1095,7 +1144,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
                     oversample=oversample, oversize=oversize, fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr, 
                     vcrop=vcrop, vcrop_value=vcrop_value, 
-                    remove_shift=remove_shift)
+                    remove_shift=remove_shift,
+                    overwrite=overwrite)
         
         # raise ValueError("Not implemented yet!")
         
@@ -1117,9 +1167,16 @@ def plot_model_multid_base(gal,
             show_1d_apers=False, 
             remove_shift = True,
             profile1d_type=None, 
-            inst_corr=None):
+            inst_corr=None,
+            overwrite=False):
         
     #
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+            
     ######################################
     # Setup plot:
     
@@ -2173,7 +2230,8 @@ def plot_data_model_comparison(gal,
                                show_1d_apers=False,
                                vcrop_value=800.,
                                profile1d_type='circ_ap_cube',
-                               remove_shift=False):
+                               remove_shift=False,
+                               overwrite=False):
     """
     Plot data, model, and residuals between the data and this model.
     """
@@ -2200,14 +2258,16 @@ def plot_data_model_comparison(gal,
                     fitdispersion=fitdispersion, 
                     fitflux=fitflux, 
                     profile1d_type=profile1d_type, 
-                    fileout=fileout)
+                    fileout=fileout,
+                    overwrite=overwrite)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(dummy_gal,
                     theta = theta, 
                     oversample=oversample,
                     oversize=oversize,
                     fitdispersion=fitdispersion, 
-                    fileout=fileout)
+                    fileout=fileout,
+                    overwrite=overwrite)
     elif gal.data.ndim == 3:
         plot_data_model_comparison_3D(dummy_gal,
                     theta = theta, 
@@ -2217,7 +2277,8 @@ def plot_data_model_comparison(gal,
                     show_1d_apers=show_1d_apers, 
                     fileout=fileout, 
                     vcrop=vcrop, 
-                    vcrop_value=vcrop_value)
+                    vcrop_value=vcrop_value,
+                    overwrite=overwrite)
                     
         
         # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
@@ -2227,7 +2288,7 @@ def plot_data_model_comparison(gal,
                                       oversample=oversample,
                                       oversize=oversize,
                                       fileout=fileout,
-                                      )
+                                      overwrite=overwrite)
     else:
         logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
         raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
@@ -2244,14 +2305,15 @@ def plot_bestfit(mcmcResults, gal,
                  vcrop=False,
                  profile1d_type='circ_ap_cube',
                  vcrop_value=800.,
-                 remove_shift=False):
+                 remove_shift=False, 
+                 overwrite=False):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters, 
             oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift,
-                               profile1d_type=profile1d_type)
+                               profile1d_type=profile1d_type, overwrite=overwrite)
                 
     return None
 
@@ -2264,11 +2326,12 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             fname_model = None, fname_intrinsic = None,
             oversample=3, oversize=1, aperture_radius=None,
             moment=False,
-            partial_weight=False):
+            partial_weight=False, 
+            plot_type='pdf'):
     if (plotfile is None) & (outpath is None):
         raise ValueError
     if plotfile is None:
-        plotfile = '{}{}_rot_components.pdf'.format(outpath, gal.name)
+        plotfile = '{}{}_rot_components.{}'.format(outpath, gal.name, plot_type)
     if fname_model is None:
         fname_model = '{}{}_out-1dplots_finer_sampling.txt'.format(outpath, gal.name)
     if fname_intrinsic is None:
