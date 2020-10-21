@@ -11,7 +11,6 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import abc
 import logging
-import time
 import six
 from collections import OrderedDict
 
@@ -34,10 +33,14 @@ from astropy.table import Table
 # Local imports
 from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'MassModel', 'Sersic', 'NFW', 'LinearNFW', 
-           'TwoPowerHalo', 'Burkert', 'Einasto', 
-           'DispersionConst', 'Geometry', 'BiconicalOutflow',
-           'KinematicOptions', 'ZHeightGauss', 'DiskBulge', 'LinearDiskBulge']
+__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge',
+           'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto',
+           'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
+           'UniformRadialInflow', 'DustExtinction',
+           'KinematicOptions', 'ZHeightGauss',
+           'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
+           'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
+           'apply_noord_flat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -83,45 +86,117 @@ np.warnings.filterwarnings('ignore')
 
 
 def surf_dens_exp_disk(r, mass, rd):
-    """Radial surface density function for infinitely thin exponential disk"""
-    
-    #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
-    #rd = r_eff / b1
+    """
+    Radial surface density function for an infinitely thin exponential disk
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface density
+
+    mass : float
+        Total mass of the disk
+
+    rd : float
+        Disk scale length.
+
+    Returns
+    -------
+    Sigr : float or array
+        Surface density of a thin exponential disk at `r`
+    """
+
     Sig0 = mass / (2. * np.pi * rd**2)
     Sigr = Sig0 * np.exp(-r/rd)
-    
+
     return Sigr
-    
+
 
 def menc_exp_disk(r, mass, rd):
-    """Enclosed mass function for exponential disk"""
-    #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
-    #rd = r_eff / b1
+    """
+    Enclosed mass function for exponential disk
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface density
+
+    mass : float
+        Total mass of the disk
+
+    rd : float
+        Disk scale length.
+
+    Returns
+    -------
+    menc : float or array
+        Enclosed mass of an exponential disk for the given `r`
+    """
+
     Sig0 = mass / (2. * np.pi * rd**2)
-    
+
     menc = 2. * np.pi * Sig0 * rd**2 * ( 1 - np.exp(-r/rd)*(1.+r/rd) )
-    
+
     return menc
-    
-    
+
+
 def vcirc_exp_disk(r, mass, rd):
-    """Rotation curve function for exponential disk"""
-    
+    """
+    Rotation curve function for exponential disk
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface density
+
+    mass : float
+        Total mass of the disk
+
+    rd : float
+        Disk scale length.
+
+    Returns
+    -------
+    vc : float or array
+        Circular velocity of an exponential disk as a function of `r`
+    """
+
     #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
     #rd = r_eff / b1
     Sig0 = mass / (2. * np.pi * rd**2)
-    
+
     y = r / (2.*rd)
     expdisk = y**2 * ( scp_spec.i0(y) * scp_spec.k0(y) - scp_spec.i1(y)*scp_spec.k1(y) )
     VCsq = 4 * np.pi * G.cgs.value*Msun.cgs.value / (1000.*pc.cgs.value) * Sig0 * rd * expdisk
-    
+
     VCsq[r==0] = 0.
-    
+
     return np.sqrt(VCsq) / 1.e5
-    
+
 
 def sersic_mr(r, mass, n, r_eff):
-    """Radial mass function for a generic sersic model"""
+    """
+    Radial surface mass density function for a generic sersic model
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface mass density
+
+    mass : float
+        Total mass of the Sersic component
+
+    n : float
+        Sersic index
+
+    r_eff : float
+        Effective radius
+
+    Returns
+    -------
+    mr : float or array
+        Surface mass density as a function of `r`
+    """
 
     bn = scp_spec.gammaincinv(2. * n, 0.5)
     alpha = r_eff / (bn ** n)
@@ -133,35 +208,98 @@ def sersic_mr(r, mass, n, r_eff):
 
 
 def sersic_menc_2D_proj(r, mass, n, r_eff):
-    """Enclosed mass as a function of r for a sersic model
-    -- THIS ONLY VALID for 2D projection (eg, infinite cylinder)"""
+    """
+    Enclosed mass as a function of r for a generic sersic model
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface mass density
+
+    mass : float
+        Total mass of the Sersic component
+
+    n : float
+        Sersic index
+
+    r_eff : float
+        Effective radius
+
+    Returns
+    -------
+    menc : float or array
+        Enclosed mass as a function of `r`
+
+    Notes
+    -----
+    This function is only valid in the case of an infinite cylinder
+    """
 
     bn = scp_spec.gammaincinv(2. * n, 0.5)
     integ = scp_spec.gammainc(2 * n, bn * (r / r_eff) ** (1. / n))
     norm = mass
+    menc = norm*integ
 
-    return norm*integ
-    
+    return menc
+
+
 def sersic_menc(r, mass, n, r_eff):
-    """** PROJECTED** Enclosed mass as a function of r for a sersic model
-    Retained for backwards compatibility"""
+    """
+    Enclosed mass as a function of r for a generic sersic model
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface mass density
+
+    mass : float
+        Total mass of the Sersic component
+
+    n : float
+        Sersic index
+
+    r_eff : float
+        Effective radius
+
+    Returns
+    -------
+    menc : float or array
+        Enclosed mass as a function of `r`
+
+    Notes
+    -----
+    This function is only valid in the case of an infinite cylinder
+    """
     return sersic_menc_2D_proj(r, mass, n, r_eff)
-    
+
 # def sersic_menc(r, mass, n, r_eff):
 #     """Enclosed mass as a function of r for a sersic model: 3D Abel deprojection"""
-#     
-#     
+#
+#
 #     raise ValueError("Implement: lookup table, or 3D integral")
-#     
+#
 #     menc = None
-#     
+#
 #     return menc
-    
+
+
 def v_circular(mass_enc, r):
     """
-    Default method to evaluate the circular velocity
-    as a function of radius using the standard equation:
+    Circular velocity given an enclosed mass and radius
     v(r) = SQRT(GM(r)/r)
+
+    Parameters
+    ----------
+    mass_enc : float
+        Enclosed mass in solar units
+
+    r : float or array
+        Radius at which to calculate the circular velocity in kpc
+
+    Returns
+    -------
+    vcirc : float or array
+        Circular velocity in km/s as a function of radius
     """
     vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
                     (r * 1000. * pc.cgs.value))
@@ -169,13 +307,74 @@ def v_circular(mass_enc, r):
 
     return vcirc
 
+
 def menc_from_vcirc(vcirc, r):
+    """
+    Enclosed mass given a circular velocity and radius
+
+    Parameters
+    ----------
+    vcirc : float or array
+        Circular velocity in km/s
+
+    r : float or array
+        Radius at which to calculate the enclosed mass in kpc
+
+    Returns
+    -------
+    menc : float or array
+        Enclosed mass in solar units
+    """
     menc = ((vcirc*1e5)**2.*(r*1000.*pc.cgs.value) /
                   (G.cgs.value * Msun.cgs.value))
     return menc
 
+
 def apply_noord_flat(r, r_eff, mass, n, invq):
-    
+    """
+    Calculate circular velocity for a thick Sersic component
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the circular velocity in kpc
+
+    r_eff : float
+        Effective radius of the Sersic component in kpc
+
+    mass : float
+        Total mass of the Sersic component
+
+    n : float
+        Sersic index
+
+    invq : float
+        Ratio of the effective radius of the Sersic component in the midplane to the
+        effective radius in the z-direction
+
+    Returns
+    -------
+    vcirc : float or array
+        Circular velocity at each given `r`
+
+    Notes
+    -----
+    This function determines the circular velocity as a function of radius for
+    a Sersic component with a total mass, `mass`, Sersic index, `n`, and
+    an effective radius to scale height ratio, `invq`. This uses lookup tables
+    numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
+    properly accounted for the thickness of the mass component.
+
+    The lookup table provides rotation curves for Sersic components with
+    `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
+    If the given `n` and/or `invq` are not one of these values then the nearest
+    ones are used.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+    """
+
     noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
     noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
                                  100])  # 1:1, 1:2, 1:3, ...flattening
@@ -188,7 +387,7 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     # Need to do this internally instead of relying on IDL save files!!
     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
         nearest_n, nearest_q)
-        
+
     try:
         restNVC = scp_io.readsav(file_noord)
         N2008_vcirc = restNVC.N2008_vcirc
@@ -200,35 +399,35 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
                                        fill_value="extrapolate")
         vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
                  mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
-    
+
     except:
         vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
     return vcirc
-    
-    
+
+
 def get_sersic_VC_table_new(n, invq):
     # Use the "typical" collection of table values:
     table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
-    table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100., 
+    table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
                     1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
-    
+
     nearest_n = table_n[ np.argmin( np.abs(table_n - n) ) ]
     nearest_invq = table_invq[ np.argmin( np.abs( table_invq - invq) ) ]
-    
+
     file_sersic = _dir_sersic_profile_mass_VC + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
-    
+
     try:
         t = Table.read(file_sersic)
     except:
-        raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic, 
+        raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic,
                     _dir_sersic_profile_mass_VC, 'SERSIC_PROFILE_MASS_VC_DATADIR'))
-    
+
     return t[0]
-    
+
 def apply_noord_flat_new(r, r_eff, mass, n, invq):
     # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
     table = get_sersic_VC_table_new(n, invq)
-    
+
     N2008_vcirc =   table['vcirc']
     N2008_rad =     table['r']
     N2008_Re =      table['Reff']
@@ -240,29 +439,29 @@ def apply_noord_flat_new(r, r_eff, mass, n, invq):
              mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
 
     return vcirc
-    
+
 def sersic_curve_rho(r, Reff, total_mass, n, invq):
     table = get_sersic_VC_table_new(n, invq)
-    
+
     table_rho =     table['rho']
-    table_rad =     table['r'] 
-    table_Reff =    table['Reff'] 
+    table_rad =     table['r']
+    table_Reff =    table['Reff']
     table_mass =    table['total_mass']
-    
+
     # Clean up values inside rmin:  Add the value at r=0: menc=0
     if table['r'][0] > 0.:
         #print("_sersic_profile_mass_VC_loaded={}".format(_sersic_profile_mass_VC_loaded))
         if _sersic_profile_mass_VC_loaded:
             try:
                 table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff, 
+                table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
                         n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
             except:
                 pass
-            
+
     r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
     r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
-    
+
     # Ensure it's an array:
     if isinstance(r*1., float):
         rarr = np.array([r])
@@ -270,13 +469,13 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
         rarr = np.array(r)
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
-        
+
     rho_interp = np.zeros(len(rarr))
     wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
     wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
     rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
     rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
-    
+
     if (len(rarr) > 1):
         return rho_interp
     else:
@@ -286,35 +485,35 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
         else:
             # Length 1 array input
             return rho_interp
-    
+
     return rho_interp
-    
+
 def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     table = get_sersic_VC_table_new(n, invq)
-    
+
     table_dlnrho_dlnr =     table['dlnrho_dlnr']
-    table_rad =     table['r'] 
-    table_Reff =    table['Reff'] 
+    table_rad =     table['r']
+    table_Reff =    table['Reff']
     table_mass =    table['total_mass']
-    
+
     # Drop nonfinite parts:
     whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
     table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
     table_rad = table_rad[whfin]
-    
+
     # Clean up values inside rmin:  Add the value at r=0: menc=0
     if table['r'][0] > 0.:
         if _sersic_profile_mass_VC_loaded:
             try:
                 table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff, 
+                table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
                             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
             except:
                 pass
-            
+
     r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
     r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
-    
+
     # Ensure it's an array:
     if isinstance(r*1., float):
         rarr = np.array([r])
@@ -322,14 +521,14 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
         rarr = np.array(r)
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
-        
+
     dlnrho_dlnr_interp = np.zeros(len(rarr))
     wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
     wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
     dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
     dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) )
-    
-    
+
+
     if (len(rarr) > 1):
         return dlnrho_dlnr_interp
     else:
@@ -339,10 +538,10 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
         else:
             # Length 1 array input
             return dlnrho_dlnr_interp
-    
+
     return dlnrho_dlnr_interp
-    
-    
+
+
 
 def area_segm(rr, dd):
 
@@ -352,8 +551,53 @@ def area_segm(rr, dd):
 
 #
 def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
-    # This is just *PV* diagram
-    # Get the data for the observed velocity profile
+    """
+    Measure the 1D rotation curve from a cube using a pseudoslit.
+
+    This function measures the 1D rotation curve by first creating a PV diagram based on the
+    input slit properties. Fluxes, velocities, and dispersions are then measured from the spectra
+    at each single position in the PV diagram by calculating the 0th, 1st, and 2nd moments
+    of each spectrum.
+
+    Parameters
+    ----------
+    cube : 3D array
+        Data cube from which to measure the rotation curve. First dimension is assumed to
+        be spectral direction.
+
+    slit_width : float
+        Slit width of the pseudoslit in arcseconds
+
+    slit_angle : float
+        Position angle of the pseudoslit
+
+    pxs : float
+        Pixelscale of the data cube in arcseconds/pixel
+
+    vx : 1D array
+        Values of the spectral axis. This array must have the same length as the
+        first dimension of `cube`.
+
+    soff : float, optional
+        Offset of the slit from center in arcseconds. Default is 0.
+
+    Returns
+    -------
+    xvec : 1D array
+        Position along slit in arcseconds
+
+    flux : 1D array
+        Relative flux of the line at each position. Calculated as the sum of the spectrum.
+
+    vel : 1D array
+        Velocity at each position in same units as given by `vx`. Calculated as the first moment
+        of the spectrum.
+
+    disp : 1D array
+        Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
+        second moment of the spectrum.
+
+    """
     cube_shape = cube.shape
     psize = cube_shape[1]
     vsize = cube_shape[0]
@@ -363,41 +607,82 @@ def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
     tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
             ((lin*pxs) >= (soff-slit_width/2.)))
     data = np.zeros((psize, vsize))
-    
-    
+
     flux = np.zeros(psize)
-    
+
     yvec = vx
     xvec = lin*pxs
-    
+
     for i in range(psize):
         for j in range(vsize):
             data[i, j] = np.mean(veldata[j, i, tmpn])
         flux[i] = np.sum(data[i,:])
-        
+
     flux = flux / np.max(flux) * 10.
     pvec = (flux < 0.)
-    
-    
+
     vel = np.zeros(psize)
     disp = np.zeros(psize)
     for i in range(psize):
         vel[i] = np.sum(data[i,:]*yvec)/np.sum(data[i,:])
         disp[i] = np.sqrt( np.sum( ((yvec-vel[i])**2) * data[i,:]) / np.sum(data[i,:]) )
-    
+
     if np.sum(pvec) > 0.:
         vel[pvec] = -1.e3
         disp[pvec] = 0.
-    
+
     return xvec, flux, vel, disp
 
 
-
-
 def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
-    # Matching how DYSMAL does circular aperture extraction (out of the model PV diagram)
-    
-    # Get the data for the observed velocity profile
+    """
+    Measure the 1D rotation curve from a cube using a pseudoslit
+
+    This function measures the 1D rotation curve by first creating a PV diagram based on the
+    input slit properties. Fluxes, velocities, and dispersions are then measured from spectra
+    produced by integrating over circular apertures placed on the PV diagram with radii equal
+    to 0.5*`slit_width`. The 0th, 1st, and 2nd moments of the integrated spectra are then calculated
+    to determine the flux, velocity, and dispersion.
+
+    Parameters
+    ----------
+    cube : 3D array
+        Data cube from which to measure the rotation curve. First dimension is assumed to
+        be spectral direction.
+
+    slit_width : float
+        Slit width of the pseudoslit in arcseconds
+
+    slit_angle : float
+        Position angle of the pseudoslit
+
+    pxs : float
+        Pixelscale of the data cube in arcseconds/pixel
+
+    vx : 1D array
+        Values of the spectral axis. This array must have the same length as the
+        first dimension of `cube`.
+
+    soff : float, optional
+        Offset of the slit from center in arcseconds. Default is 0.
+
+    Returns
+    -------
+    xvec : 1D array
+        Position along slit in arcseconds
+
+    flux : 1D array
+        Relative flux of the line at each position. Calculated as the sum of the spectrum.
+
+    vel : 1D array
+        Velocity at each position in same units as given by `vx`. Calculated as the first moment
+        of the spectrum.
+
+    disp : 1D array
+        Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
+        second moment of the spectrum.
+
+    """
     cube_shape = cube.shape
     psize = cube_shape[1]
     vsize = cube_shape[0]
@@ -408,10 +693,10 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
             ((lin*pxs) >= (soff-slit_width/2.)))
     data = np.zeros((psize, vsize))
     flux = np.zeros(psize)
-    
+
     yvec = vx
     xvec = lin*pxs
-    
+
     for i in range(psize):
         for j in range(vsize):
             data[i, j] = np.mean(veldata[j, i, tmpn])
@@ -490,7 +775,16 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
 # Generic model container which tracks all components, parameters,
 # parameter settings, model settings, etc.
 class ModelSet:
+    """
+    Object that contains all model components, parameters, and settings
 
+    `ModelSet` does not take any arguments. Instead, it first should be initialized
+    and then :meth:`ModelSet.add_component` can be used to include specific model components.
+    All included components can then be accessed through `ModelSet.components` which
+    is a dictionary that has keys equal to the names of each component. The primary method
+    of `ModelSet` is :meth:`ModelSet.simulate_cube` which produces a model data cube of
+    line emission that follows the full kinematics of given model.
+    """
     def __init__(self):
 
         self.mass_components = OrderedDict()
@@ -518,14 +812,37 @@ class ModelSet:
         self.nparams_tied = 0
         self.kinematic_options = KinematicOptions()
         self.line_center = None
-        
+
         # Option for dealing with 3D data:
         self.per_spaxel_norm_3D = False
 
-    def add_component(self, model, name=None, light=False, geom_type='galaxy',
+    def add_component(self, model, name, light=False, geom_type='galaxy',
                       disp_type='galaxy'):
-        """Add a model component to the set"""
+        """
+        Add a model component to the set
 
+        Parameters
+        ----------
+        model : `~dysmalpy.models._DysmalModel`
+            Model component to be added to the model set
+
+        name : str
+            Name of the model component
+
+        light : bool
+            If True, use the mass profile of the model component in the calculation of the
+            flux of the line, i.e. setting the mass-to-light ratio equal to 1.
+
+        geom_type : {'galaxy', 'outflow', 'inflow'}
+            Specify which model components the geometry applies to.
+            Only used if `model` is a `~Geometry`. If 'galaxy', then all included
+            components except outflows and inflows will follow this geometry.
+            Default is 'galaxy'.
+
+        disp_type : {'galaxy', 'outflow', 'inflow'}
+            Specify which model components the dispersion applies to.
+            Only used if `model` is a `~DispersionProfile`. Default is 'galaxy'.
+        """
         # Check to make sure its the correct class
         if isinstance(model, _DysmalModel):
 
@@ -556,9 +873,9 @@ class ModelSet:
                 elif geom_type == 'outflow':
 
                     self.outflow_geometry = model
-                    
+
                 elif geom_type == 'inflow':
-                    
+
                     self.inflow_geometry = model
 
                 else:
@@ -578,9 +895,9 @@ class ModelSet:
                 elif disp_type == 'outflow':
 
                     self.outflow_dispersion = model
-                    
+
                 elif disp_type == 'inflow':
-                    
+
                     self.inflow_dispersion = model
 
                 self.mass_components[model.name] = False
@@ -598,14 +915,14 @@ class ModelSet:
                                    'overwritten!')
                 self.outflow = model
                 self.mass_components[model.name] = False
-                
+
             elif model._type == 'inflow':
                 if self.inflow is not None:
                     logger.warning('Current inflow model is being '
                                    'overwritten!')
                 self.inflow = model
                 self.mass_components[model.name] = False
-                
+
             elif model._type == 'extinction':
                 if self.extinction is not None:
                     logger.warning('Current extinction model is being overwritten!')
@@ -630,6 +947,15 @@ class ModelSet:
                             'dysmalpy.models.DysmalModel instance!')
 
     def _add_comp(self, model):
+        """
+        Update the `ModelSet` parameters with new model component
+
+        Parameters
+        ----------
+        model : `~dysmalpy.models._DysmalModel`
+            Model component to be added to the model set
+
+        """
 
         # Update the components list
         self.components[model.name] = model
@@ -661,7 +987,20 @@ class ModelSet:
         self.nparams_tied += ntied
 
     def set_parameter_value(self, model_name, param_name, value):
-        """Method to set a specific parameter value"""
+        """
+        Change the value of a specific parameter
+
+        Parameters
+        ----------
+        model_name : str
+            Name of the model component the parameter belongs to.
+
+        param_name : str
+            Name of the parameter
+
+        value : float
+            Value to change the parameter to
+        """
 
         try:
             comp = self.components[model_name]
@@ -672,12 +1011,26 @@ class ModelSet:
             param_i = comp.param_names.index(param_name)
         except ValueError:
             raise ValueError('Parameter is not part of model.')
-            
+
         self.components[model_name].__getattribute__(param_name).value = value
         self.parameters[self._param_keys[model_name][param_name]] = value
 
     def set_parameter_fixed(self, model_name, param_name, fix):
-        """Method to set a specific parameter fixed or not"""
+        """
+        Change whether a specific parameter is fixed or not
+
+        Parameters
+        ----------
+        model_name : str
+            Name of the model component the parameter belongs to.
+
+        param_name : str
+            Name of the parameter
+
+        fix : bool
+            If True, the parameter will be fixed to its current value. If False, it will
+            be a free parameter allowed to vary during fitting.
+        """
 
         try:
             comp = self.components[model_name]
@@ -697,8 +1050,18 @@ class ModelSet:
             self.nparams_free += 1
 
     def update_parameters(self, theta):
-        """Update all of the free parameters of the model
-           Then update all of the tied parameters.
+        """
+        Update all of the free and tied parameters of the model
+
+        Parameters
+        ----------
+        theta : array with length = `ModelSet.nparams_free`
+            New values for the free parameters
+
+        Notes
+        -----
+        The order of the values in `theta` is important.
+        Use :meth:`ModelSet.get_free_parameter_keys` to determine the correct order.
         """
 
         # Sanity check to make sure the array given is the right length
@@ -724,6 +1087,18 @@ class ModelSet:
 
     # Methods to grab the free parameters and keys
     def _get_free_parameters(self):
+        """
+        Return the current values and indices of the free parameters
+
+        Returns
+        -------
+        p : array
+            Values of the free parameters
+
+        pkeys : dictionary
+            Dictionary of all model components with their parameters. If a model
+            parameter is free, then it lists its index within `p`. Otherwise, -99.
+        """
         p = np.zeros(self.nparams_free)
         pkeys = OrderedDict()
         j = 0
@@ -739,14 +1114,39 @@ class ModelSet:
         return p, pkeys
 
     def get_free_parameters_values(self):
+        """
+        Return the current values of the free parameters
+
+        Returns
+        -------
+        pfree : array
+            Values of the free parameters
+        """
         pfree, pfree_keys = self._get_free_parameters()
         return pfree
 
     def get_free_parameter_keys(self):
+        """
+        Return the index within an array of each free parameter
+
+        Returns
+        -------
+        pfree_keys : dictionary
+            Dictionary of all model components with their parameters. If a model
+            parameter is free, then it lists its index within `p`. Otherwise, -99.
+        """
         pfree, pfree_keys = self._get_free_parameters()
         return pfree_keys
 
     def get_log_prior(self):
+        """
+        Return the total log prior based on current values
+
+        Returns
+        -------
+        log_prior_model : float
+            Summed log prior
+        """
         log_prior_model = 0.
         pfree_dict = self.get_free_parameter_keys()
         comps_names = pfree_dict.keys()
@@ -758,59 +1158,167 @@ class ModelSet:
                     # Free parameter: add to total prior
                     log_prior_model += comp.__getattribute__(paramn).prior.log_prior(comp.__getattribute__(paramn), modelset=self)
         return log_prior_model
-        
+
     def get_dm_aper(self, r):
-        
+        """
+        Calculate the enclosed dark matter fraction
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc within which to calculate the dark matter fraction.
+            Assumes a `DarkMatterHalo` component is included in the `ModelSet`.
+
+        Returns
+        -------
+        dm_frac: array
+            Enclosed dark matter fraction at `r`
+        """
         vc, vdm = self.circular_velocity(r, compute_dm=True)
         dm_frac = vdm**2/vc**2
         return dm_frac
-            
+
     def get_dm_frac_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
+        """
+        Calculate the dark matter fraction within the effective radius
+
+        Parameters
+        ----------
+        model_key_re : list
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        Returns
+        -------
+        dm_frac : float
+            Dark matter fraction within the specified effective radius
+        """
         # RE needs to be in kpc
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
-        
-        return self.get_dm_aper(r_eff)
-        
+        dm_frac = self.get_dm_aper(r_eff)
+
+        return dm_frac
+
     def get_mvirial(self, model_key_halo=['halo']):
+        """
+        Return the virial mass of the dark matter halo component
+
+        Parameters
+        ----------
+        model_key_halo : list
+            One element list with the name of the halo model component
+
+        Returns
+        -------
+        mvir : float
+            Virial mass of the dark matter halo in log(Msun)
+        """
         comp = self.components.__getitem__(model_key_halo[0])
         try:
-            return comp.mvirial.value
+            mvir = comp.mvirial.value
         except:
-            return comp.mvirial
-        
+            mvir = comp.mvirial
+
+        return mvir
+
     def get_halo_alpha(self, model_key_halo=['halo']):
+        """
+        Return the alpha parameter value for a `TwoPowerHalo`
+
+        Parameters
+        ----------
+        model_key_halo : list
+            One element list with the name of the `TwoPowerHalo` model component
+
+        Returns
+        -------
+        alpha : float or None
+            Value of the alpha parameter. Returns None if the correct component
+            does not exist.
+        """
         comp = self.components.__getitem__(model_key_halo[0])
         try:
             return comp.alpha.value
         except:
             return None
-        
+
     def get_halo_rb(self, model_key_halo=['halo']):
+        """
+        Return the Burkert radius parameter value for a `Burkert` dark matter halo
+
+        Parameters
+        ----------
+        model_key_halo : list
+            One element list with the name of the `Burkert` model component
+
+        Returns
+        -------
+        rb : float or None
+            Value of the Burkert radius. Returns None if the correct component
+            does not exist.
+        """
         comp = self.components.__getitem__(model_key_halo[0])
         try:
             return comp.rB.value
         except:
             return None
-        
+
     def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
-        # RE needs to be in kpc
+        """
+        Calculate the total enclosed mass within the effective radius
+
+        Parameters
+        ----------
+        model_key_re : list
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        Returns
+        -------
+        menc : float
+            Total enclosed mass within the specified effective radius
+
+        Notes
+        -----
+        This method uses the total circular velocity to determine the enclosed mass
+        based on v^2 = GM/r.
+        """
+
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
         r = r_eff
-        
+
         vc, vdm = self.circular_velocity(r, compute_dm=True)
-        
-        return menc_from_vcirc(vc, r_eff)
-        
+        menc = menc_from_vcirc(vc, r_eff)
+
+        return menc
+
     def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
-        Method to calculate the total enclosed mass for the whole model
-        as a function of radius
-        :param r: Radius in kpc
-        :return: Mass enclosed within each radius in Msun
+        Calculate the total enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the enclosed mass in kpc
+
+        model_key_re : list, optional
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius. Only necessary
+            if adiabatic contraction is used. Default is ['disk+bulge', 'r_eff_disk'].
+
+        step1d : float, optional
+            Step size in kpc to use during adiabatic contraction calculation
+
+        Returns
+        -------
+        enc_mass, enc_bary, enc_dm : float or array
+            The total, baryonic, and dark matter enclosed masses
         """
 
         # First check to make sure there is at least one mass component in the
@@ -848,50 +1356,82 @@ class ModelSet:
                 enc_dm = enc_dm_adi
 
         return enc_mass, enc_bary, enc_dm
-        
+
     def get_dlnrhotot_dlnr(self, r):
         """
-        Method to calculate the composite derivative dln(rho,tot) / dlnr
-        as a function of radius
+        Calculate the composite derivative dln(rho,tot) / dlnr
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrhotot_dlnr : float or array
+
         """
-        
+
         # First check to make sure there is at least one mass component in the
         # model set.
         if len(self.mass_components) == 0:
-            raise AttributeError("There are no mass components so a velocity "
+            raise AttributeError("There are no mass components so a dlnrho/dlnr "
                                  "can't be calculated.")
         else:
             rhotot = r*0.
             drho_dr = r*0.
-            
+
             for cmp in self.mass_components:
-                
+
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
-                    
+
                     cmpnt_rho = mcomp.rho(r)
                     cmpnt_drhodr = mcomp.drho_dr(r)
-                    
+
                     whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
                     if len(whfin) < len(r):
                         # FLAG42
                         raise ValueError
-                    
+
                     rhotot = rhotot + cmpnt_rho
                     drho_dr = drho_dr + cmpnt_drhodr
-        
+
         dlnrhotot_dlnr = r / rhotot * (drho_dr)
-        
+
         ## FLAG42
         #raise ValueError
-        
+
         return dlnrhotot_dlnr
-        
-        
-    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+
+    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
+                          step1d=0.2):
         """
-        Method to calculate the 1D circular velocity profile
-        as a function of radius, from the enclosed mass
+        Calculate the total circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        compute_dm : bool
+            If True, also return the circular velocity due to the halo
+
+        model_key_re : list, optional
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        step1d : float, optional
+            Step size in kpc to use during adiabatic contraction calculation
+
+        Returns
+        -------
+        vel : float or array
+            Total circular velocity in km/s
+
+        vdm : float or array, only if `compute_dm` = True
+            Circular velocity due to the halo
         """
 
         # First check to make sure there is at least one mass component in the
@@ -902,32 +1442,34 @@ class ModelSet:
         else:
             vdm = r*0.
             vbaryon = r*0.
-            
+
             for cmp in self.mass_components:
-                
+
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
-                    
+
                     if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
                         cmpnt_v = mcomp.circular_velocity(r)
                     else:
                         cmpnt_v = mcomp.circular_velocity(r)
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
-                        
+
                         vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
-                        
+
                     elif mcomp._subtype == 'baryonic':
-                        
+
                         vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
-                        
+
                     else:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm, compute_dm=compute_dm,
-                            model_key_re=model_key_re, step1d=step1d)
-                            
+            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
+                                                                   compute_dm=compute_dm,
+                                                                   model_key_re=model_key_re,
+                                                                   step1d=step1d)
+
             if compute_dm:
                 vel = vels[0]
                 vdm = vels[1]
@@ -937,36 +1479,85 @@ class ModelSet:
                 return vel, vdm
             else:
                 return vel
-                
+
     def velocity_profile(self, r, compute_dm=False):
         """
-        Method to calculate the 1D velocity profile
-        as a function of radius
-        """
+        Calculate the rotational velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the velocity in kpc
+
+        compute_dm : bool
+            If True also return the circular velocity due to the dark matter halo
+
+        Returns
+        -------
+        vel : float or array
+            Rotational velocity as a function of radius in km/s
+
+        vdm : float or array
+            Circular velocity due to the dark matter halo in km/s
+            Only returned if `compute_dm` = True
+       """
         vels = self.circular_velocity(r, compute_dm=compute_dm)
         if compute_dm:
             vcirc = vels[0]
             vdm = vels[1]
         else:
             vcirc = vels
-            
+
         vel = self.kinematic_options.apply_pressure_support(r, self, vcirc)
-        
+
         if compute_dm:
             return vel, vdm
         else:
             return vel
-    
+
     def get_vmax(self, r=None):
+        """
+        Calculate the peak velocity of the rotation curve
+
+        Parameters
+        ----------
+        r : array, optional
+            Radii to sample to find the peak. If None, then a linearly
+            spaced array from 0 to 25 kpc with 251 points will be used
+
+        Returns
+        -------
+        vmax : float
+            Peak velocity of the rotation curve in km/s
+
+        Notes
+        -----
+        This simply finds the maximum of the rotation curve which is calculated at discrete
+        radii, `r`.
+
+        """
         if r is None:
             r = np.linspace(0., 25., num=251, endpoint=True)
-    
+
         vel = self.velocity_profile(r, compute_dm=False)
-    
+
         vmax = vel.max()
         return vmax
-        
-    def write_vrot_vcirc_file(self, r=None, filename=None):
+
+    def write_vrot_vcirc_file(self, r=None, filename='vout.txt'):
+        """
+        Output the rotational and circular velocities to a file
+
+        Parameters
+        ----------
+        r : array, optional
+            Radii to sample to find the peak. If None, then a linearly
+            spaced array from 0 to 25 kpc with 251 points will be used
+
+        filename : str, optional
+            Name of file to output velocities to. Default is 'vout.txt'
+        """
+
         # Quick test for if vcirc defined:
         coltry = ['velocity_profile', 'circular_velocity']
         coltrynames = ['vrot', 'vcirc']
@@ -983,29 +1574,43 @@ class ModelSet:
                 colunits.append(cu)
             except:
                 pass
-        
+
         if len(cols) >= 1:
-            self.write_profile_file(r=r, filename=filename, 
+            self.write_profile_file(r=r, filename=filename,
                 cols=cols, prettycolnames=colnames, colunits=colunits)
-                
-        
-    def write_profile_file(self, r=None, filename=None, 
+
+
+    def write_profile_file(self, r=None, filename='rprofiles.txt',
             cols=None, prettycolnames=None, colunits=None):
         """
-            Input:
-                filename:        output filename to write to. Will be written as ascii, w/ space delimiter.
-                
-                cols:            the names of ModelSet methods that will be called as function of r, 
-                                 and to be  saved as a column in the output file
-                prettycolnames:  alternate column names for output in file header (eg, 'vrot' not 'velocity_profile')
-                
-            Optional:
-                colunits:        units of each column. r is added by hand, and will always be in kpc.
+        Output various radial profiles of the `ModelSet`
+
+        Parameters
+        ----------
+        r: array, optional
+            Radii to sample to find the peak. If None, then a linearly
+            spaced array from 0 to 10 kpc with a stepsize of 0.1 will be used
+
+        filename: str, optional
+            Output filename to write to. Will be written as ascii, w/ space delimiter.
+            Default is 'rprofiles.txt'
+
+        cols: list, optional
+            Names of ModelSet methods that will be called as function of r,
+            and to be saved as a column in the output file.
+            Default is ['velocity_profile', 'circular_velocity', 'get_dm_aper'].
+
+        prettycolnames:  list, optional
+            Alternate column names for output in file header (eg, 'vrot' not 'velocity_profile')
+            Default is `cols`.
+
+        colunits: list, optional
+            Units of each column. r is added by hand, and will always be in kpc.
         """
         if cols is None:              cols = ['velocity_profile', 'circular_velocity', 'get_dm_aper']
         if prettycolnames is None:    prettycolnames = cols
         if r is None:                 r = np.arange(0., 10.+0.1, 0.1)  # stepsize 0.1 kpc
-            
+
         profiles = np.zeros((len(r), len(cols)+1))
         profiles[:,0] = r
         for j in six.moves.xrange(len(cols)):
@@ -1015,13 +1620,13 @@ class ModelSet:
             except:
                 arr = np.ones(len(r))*-99.
             profiles[:, j+1] = arr
-        
+
         colsout = ['r']
         colsout.extend(prettycolnames)
         if colunits is not None:
             unitsout = ['kpc']
             unitsout.extend(colunits)
-        
+
         with open(filename, 'w') as f:
             namestr = '#   ' + '   '.join(colsout)
             f.write(namestr+'\n')
@@ -1031,27 +1636,83 @@ class ModelSet:
             for i in six.moves.xrange(len(r)):
                 datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
                 f.write(datstr+'\n')
-            
-    
+
+
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
-                      xcenter=None, ycenter=None, 
-                      debug=False):
+                      xcenter=None, ycenter=None):
+                      #debug=False):
+        """
+        Simulate a line emission cube of this model set
 
-        """Simulate an IFU cube of this model set"""
+        Parameters
+        ----------
+        nx_sky : int
+            Number of pixels in the output cube in the x-direction
 
+        ny_sky : int
+            Number of pixels in the output cube in the y-direction
+
+        dscale : float
+            Conversion from sky to physical coordinates in arcsec/kpc
+
+        rstep : float
+            Pixel scale in arsec/pixel
+
+        spec_type : {'velocity', 'wavelength'}
+            Spectral axis type.
+
+        spec_step : float
+            Step size of the spectral axis
+
+        spec_start : float
+            Value of the first element of the spectral axis
+
+        nspec : int
+            Number of spectral channels
+
+        spec_unit : `~astropy.units.Unit`
+            Unit of the spectral axis
+
+        oversample : int, optional
+            Oversampling factor for creating the model cube. If `oversample` > 1, then
+            the model cube will be generated at `rstep`/`oversample` pixel scale.
+
+        oversize : int, optional
+            Oversize factor for creating the model cube. If `oversize` > 1, then the model
+            cube will be generated with `oversize`*`nx_sky` and `oversize`*`ny_sky`
+            number of pixels in the x and y direction respectively.
+
+        xcenter : float, optional
+            The x-coordinate of the center of the galaxy. If None then the x-coordinate of the
+            center of the cube will be used.
+
+        ycenter : float, optional
+            The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
+            center of the cube will be used.
+
+        Returns
+        -------
+        cube_final : 3D array
+            Line emission cube that incorporates all of the kinematics due to the components
+            of the current `ModelSet`
+
+        spec : 1D array
+            Values of the spectral channels as determined by `spec_type`, `spec_start`,
+            `spec_step`, `nspec`, and `spec_unit`
+        """
         # Start with a 3D array in the sky coordinate system
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
-        
+
         ### Don't need, just do later for {x/y}center_samp
         # if xcenter is None:
         #     xcenter = (nx_sky - 1) / 2.
         # if ycenter is None:
         #     ycenter = (nx_sky - 1) / 2.
-        
+
         # Backwards compatibility:
         if 'outflow' not in self.__dict__.keys():
             self.outflow = None
@@ -1063,7 +1724,7 @@ class ModelSet:
             self.inflow_geometry = None
             self.inflow_dispersion = None
             self.inflow_flux = None
-        
+
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
@@ -1073,7 +1734,7 @@ class ModelSet:
 
         if (np.mod(ny_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             ny_sky_samp = ny_sky_samp + 1
-            
+
         if xcenter is None:
             xcenter_samp = (nx_sky_samp - 1) / 2.
         else:
@@ -1082,7 +1743,7 @@ class ModelSet:
             ycenter_samp = (ny_sky_samp - 1) / 2.
         else:
             ycenter_samp = (ycenter + 0.5)*oversample - 0.5
-            
+
         #nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
@@ -1135,50 +1796,50 @@ class ModelSet:
             v_sys = self.geometry.vel_shift.value  # systemic velocity
             vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
                     xgal / (rgal / rstep_samp * dscale))
-            
+
             vobs_mass[rgal == 0] = 0.
-            
+
             #######
             if ((self.inflow is not None) & (self.inflow_geometry is None)):
-                rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2) 
+                rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
                 # 3D radius, converted to kpc
                 rgal3D_kpc = rgal3D * rstep_samp / dscale
                 xgal_kpc = xgal * rstep_samp / dscale
                 ygal_kpc = ygal * rstep_samp / dscale
                 zgal_kpc = ygal * rstep_samp / dscale
                 vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
-                
+
                 # Negative of inflow is already included in the definition of the inflow
                 #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
                 vin_obs = - vin * zsky/rgal3D
                 vin_obs[rgal3D == 0] = vin[rgal3D == 0]
                 vobs_mass += vin_obs
             #######
-            
+
             # Calculate "flux" for each position
-            
+
             flux_mass = np.zeros(vobs_mass.shape)
-            
+
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
                     flux_mass += self.components[cmp].mass_to_light(rgal) * zscale
-                    
+
             # Apply extinction if a component exists
             if self.extinction is not None:
-                
+
                 flux_mass *= self.extinction(xsky, ysky, zsky)
-                
+
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
             cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
-            
+
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
-            
+
         if self.outflow is not None:
-            
+
             if self.outflow._spatial_type == 'resolved':
                 # Create 3D arrays of the sky pixel coordinates
                 sin_inc = np.sin(self.outflow_geometry.inc * np.pi / 180.)
@@ -1188,7 +1849,7 @@ class ModelSet:
                 nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
                 if np.mod(nz_sky_samp, 2) < 0.5:
                     nz_sky_samp += 1
-                    
+
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
@@ -1196,7 +1857,7 @@ class ModelSet:
                 #xsky = xsky - (nx_sky_samp - 1) / 2.
                 ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
                 xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
-                
+
                 # Apply the geometric transformation to get outflow coordinates
                 # Account for oversampling
                 self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
@@ -1233,7 +1894,7 @@ class ModelSet:
                 #    cube_sum[cube_sum == 0] = 1
                 #    cube_final += tmp_cube / cube_sum * f_cube
                 cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
-                
+
                 self.outflow_geometry.xshift = self.outflow_geometry.xshift.value / oversample
                 self.outflow_geometry.yshift = self.outflow_geometry.yshift.value / oversample
 
@@ -1247,43 +1908,43 @@ class ModelSet:
                 # an integer pixel so for now we round to nearest integer.
                 # xpix = np.int(np.round(xshift)) + nx_sky_samp/2
                 # ypix = np.int(np.round(yshift)) + ny_sky_samp/2
-                
+
                 xpix = np.int(np.round(xshift)) + np.int(np.round(xcenter_samp))
                 ypix = np.int(np.round(yshift)) + np.int(np.round(ycenter_samp))
 
                 voutflow = v_sys + self.outflow(vx)
                 cube_final[:, ypix, xpix] += voutflow
-                
+
                 xshift = self.outflow_geometry.xshift.value / oversample
                 yshift = self.outflow_geometry.yshift.value / oversample
-                
-                
+
+
         ####
         if (self.inflow is not None) & (self.inflow_geometry is not None):
             # If self.inflow_geometry is None:
-            #   Just us the galaxy geometry and light profile: is just a superimposed kinematic signature 
+            #   Just us the galaxy geometry and light profile: is just a superimposed kinematic signature
             #       on the normal disk rotation:
             # CALCULATED EARLIER
-            
+
             if self.inflow._spatial_type == 'resolved':
-                
+
                 # Create 3D arrays of the sky pixel coordinates
                 sin_inc = np.sin(self.inflow_geometry.inc * np.pi / 180.)
-            
+
                 maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
                 maxr_y = np.max(np.array([maxr * 1.5, np.min(
                     np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
                 nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
-            
+
                 if np.mod(nz_sky_samp, 2) < 0.5:
                     nz_sky_samp += 1
 
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp 
-                xsky = xsky - xcenter_samp 
-            
+                ysky = ysky - ycenter_samp
+                xsky = xsky - xcenter_samp
+
                 # Apply the geometric transformation to get inflow coordinates
                 # Account for oversampling
                 self.inflow_geometry.xshift = self.inflow_geometry.xshift.value * oversample
@@ -1310,13 +1971,13 @@ class ModelSet:
 
                 sigma_in = self.inflow_dispersion(rin)
                 cube_final += cutils.populate_cube(fin, vobs, sigma_in, vx)
-            
+
                 self.inflow_geometry.xshift = self.inflow_geometry.xshift.value / oversample
                 self.inflow_geometry.yshift = self.inflow_geometry.yshift.value / oversample
-                    
-        
-        if debug:
-            return cube_final, spec, flux_mass, vobs_mass
+
+
+        #if debug:
+        #    return cube_final, spec, flux_mass, vobs_mass
 
         return cube_final, spec
 
@@ -1324,12 +1985,17 @@ class ModelSet:
 # ***** Mass Component Model Classes ******
 # Base abstract mass model component class
 class _DysmalModel(Model):
+    """
+    Base abstract `dysmalpy` model component class
+    """
 
     parameter_constraints = DysmalParameter.constraints
 
 
-
 class _DysmalFittable1DModel(_DysmalModel):
+    """
+    Base class for 1D model components
+    """
 
     linear = False
     fit_deriv = None
@@ -1341,102 +2007,261 @@ class _DysmalFittable1DModel(_DysmalModel):
 
 
 class MassModel(_DysmalFittable1DModel):
-    
+    """
+    Base model for components that exert a gravitational influence
+    """
+
     _type = 'mass'
-    
+
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
-        
+
     @abc.abstractmethod
     def rho(self, *args, **kwargs):
         """Evaluate the density rho as a function of radius"""
-        
+
     @abc.abstractmethod
     def dlnrho_dlnr(self, *args, **kwargs):
         """Evaluate the derivative dlnRho / dlnr as a function of radius"""
-    
+
     @abc.abstractmethod
     def drho_dr(self, *args, **kwargs):
         """Evaluate the derivative dRho / dr as a function of radius"""
-        
+
     def circular_velocity(self, r):
-        """
+        r"""
         Default method to evaluate the circular velocity
-        as a function of radius using the standard equation:
-        v(r) = SQRT(GM(r)/r).
-        Valid for SPHERICAL mass distribution
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate circular velocity in kpc
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity at `r`
+
+        Notes
+        -----
+        Calculates the circular velocity as a function of radius
+        using the standard equation :math:`v(r) = \sqrt(GM(r)/r)`.
+        This is only valid for a spherical mass distribution.
         """
-        
+
         mass_enc = self.enclosed_mass(r)
-        # vcirc = np.sqrt(G.cgs.value * mass_enc * Msun.cgs.value /
-        #                 (r * 1000. * pc.cgs.value))
-        # vcirc = vcirc/1e5
-        
+
         vcirc = v_circular(mass_enc, r)
 
         return vcirc
-        
+
 
 class ExpDisk(MassModel):
     """
-    1D infinitely thin exponential disk (Freeman) mass model,  
-    with parameters defined by the total mass and effective radius.
-    
-    Fitting parameters: total mass, r_eff.
+    Infinitely thin exponential disk (i.e. Freeman disk)
+
+    Parameters
+    ----------
+    total_mass : float
+        Log of total mass of the disk in solar units
+
+    r_eff : float
+        Effective radius in kpc
     """
-    
+
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     _subtype = 'baryonic'
-    
+
     def __init__(self, total_mass, r_eff, **kwargs):
-        
+
         super(ExpDisk, self).__init__(total_mass, r_eff)
-        
+
     @staticmethod
     def evaluate(r, total_mass, r_eff):
         """
-        1D Exp inf thin disk profile parameterized by the total mass and
-        effective radius
+        Mass surface density of a thin exponential disk
         """
         return surf_dens_exp_disk(r, 10.**total_mass, r_eff / 1.6783469900166612)
-    
+
     @property
     def rd(self):
         #b1 = 1.6783469900166612   # scp_spec.gammaincinv(2.*n, 0.5), n=1
         return self.r_eff / 1.6783469900166612
-        
+
     def enclosed_mass(self, r):
         """
-        Calculate the enclosed mass as a function of radius
-        :param r: Radii at which to calculate the enclosed mass
-        :return: 1D enclosed mass profile
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            1D enclosed mass profile
         """
         return menc_exp_disk(r, 10**self.total_mass, self.rd)
-        
+
     def circular_velocity(self, r):
-        return vcirc_exp_disk(r, 10**self.total_mass, self.rd)
-        
+        """
+        Circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
+        vcirc = vcirc_exp_disk(r, 10**self.total_mass, self.rd)
+        return vcirc
+
     def mass_to_light(self, r):
-        return surf_dens_exp_disk(r, 1.0, self.rd)
-        
-    #######
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        light = surf_dens_exp_disk(r, 1.0, self.rd)
+        return light
+
     def rho(self, r):
-        return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd) 
-    
+        """
+        Mass surface density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        surf_dens : float or array
+            Mass surface density at `r` in units of Msun/kpc^2
+        -------
+
+        """
+        return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd)
+
     def dlnrho_dlnr(self, r):
+        """
+        Exponential disk asymmetric drift term
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        log_drhodr : float or array
+            Log surface density derivative as a function or radius
+
+        Notes
+        -----
+        See [1]_ for derivation and specificall Equations 3-11
+
+        References
+        ----------
+        .. [1] https://ui.adsabs.harvard.edu/abs/2010ApJ...725.2324B/abstract
+
+        """
         # Shortcut for the exponential disk asymmetric drift term, from Burkert+10 eq 11:
-        
-        return - 2.* (r / self.rd)
-        
+
+        return -2. * (r / self.rd)
+
     def drho_dr(self, r):
-        return self.dlnrho_dlnr(r) * self.rho(r)/ r
+        """
+        Surface density radial derivative
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        drhodr : float or array
+            Surface density radial derivative at `r`
+        """
+        return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 class Sersic(MassModel):
-    """
-    1D Sersic mass model with parameters defined by the total mass,
-    Sersic index, and effective radius.
+    r"""
+    Mass distribution following a Sersic profile
+
+    Parameters
+    ----------
+    total_mass : float
+        Log10 of the total mass in solar units
+
+    r_eff : float
+        Effective (half-light) radius in kpc
+
+    n : float
+        Sersic index
+
+    invq : float
+        Ratio of the effective radius to the effective radius in the z-direction
+
+    noord_flat : bool
+        If True, use circular velocity profiles derived in Noordermeer 2008.
+        If False, circular velocity is derived through `v_circular`
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        M(r)=M_e\exp\left\{-b_n\left[\left(\frac{r}{r_{eff}}\right)^{(1/n)}-1\right]\right\}
+
+    The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
+    mass, and can be solved for numerically.
+
+    .. math::
+
+        \Gamma(2n) = 2\gamma (b_n,2n)
+
+    Examples
+    --------
+    .. plot::
+        :include-source:
+
+        import numpy as np
+        from dysmalpy.models import Sersic
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.subplot(111, xscale='log', yscale='log')
+        s1 = Sersic(total_mass=10, r_eff=5, n=1)
+        r=np.arange(0, 100, .01)
+
+        for n in range(1, 10):
+             s1.n = n
+             plt.plot(r, s1(r), color=str(float(n) / 15))
+
+        plt.axis([1e-1, 30, 1e5, 1e11])
+        plt.xlabel('log Radius')
+        plt.ylabel('log Mass Surface Density')
+        plt.text(.25, 10**7.5, 'n=1')
+        plt.text(.25, 1e11, 'n=10')
+        plt.show()
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -1447,6 +2272,7 @@ class Sersic(MassModel):
 
     def __init__(self, total_mass, r_eff, n, invq=1.0, noord_flat=False,
                  **kwargs):
+
         self.invq = invq
         self.noord_flat = noord_flat
         super(Sersic, self).__init__(total_mass, r_eff, n, **kwargs)
@@ -1454,32 +2280,52 @@ class Sersic(MassModel):
     @staticmethod
     def evaluate(r, total_mass, r_eff, n):
         """
-        1D Sersic profile parameterized by the total mass and
-        effective radius
+        Sersic mass surface density
         """
 
         return sersic_mr(r, 10**total_mass, n, r_eff)
 
     def enclosed_mass(self, r):
         """
-        Calculate the enclosed mass as a function of radius
-        :param r: Radii at which to calculate the enclosed mass
-        :return: 1D enclosed mass profile
+        Sersic enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
         """
-        
+
         if self.noord_flat:
             # Take Noordermeer+08 vcirc, and then get Menc from vcirc
             return menc_from_vcirc(apply_noord_flat(r, self.r_eff, 10**self.total_mass,
                                      self.n, self.invq), r)
-            
+
         else:
             #return sersic_menc(r, 10**self.total_mass, self.n, self.r_eff)
             return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
-            
+
     def projected_enclosed_mass(self, r):
         return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
 
     def circular_velocity(self, r):
+        """
+        Circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
         if self.noord_flat:
             vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
                                      self.n, self.invq)
@@ -1489,34 +2335,128 @@ class Sersic(MassModel):
         return vcirc
 
     def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
         return sersic_mr(r, 1.0, self.n, self.r_eff)
-        
-    #
+
     def rho(self, r):
+        """
+        Mass surface density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        surf_dens : float or array
+            Mass surface density at `r` in units of Msun/kpc^2
+        -------
+
+        """
         if self.noord_flat:
-            rho = sersic_curve_rho(r, self.r_eff, 10**self.mass, self.n, self.invq)
-            
+            rho = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
+
         else:
             rho = sersic_mr(r, 10**self.total_mass, self.n, self.r_eff)
-            
+
         return rho
-        
+
     def dlnrho_dlnr(self, r):
+        """
+        Sersic asymmetric drift term
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        log_drhodr : float or array
+            Log surface density derivative as a function or radius
+        """
+
         if self.noord_flat:
             dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
-            
+
             return dlnrho_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n, 0.5)
             return -2. * (bn / self.n) * np.power(r/self.r_eff, 1./self.n)
-        
+
     def drho_dr(self, r):
+        """
+        Surface density radial derivative
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        drhodr : float or array
+            Surface density radial derivative at `r`
+        """
         return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 
 class DiskBulge(MassModel):
-    """Class with a combined disk and bulge to allow varying of B/T and the
-    total baryonic mass"""
+    """
+    Mass distribution with a disk and bulge
+
+    Parameters
+    ----------
+    total_mass : float
+        Log10 of the combined disk and bulge in solar units
+
+    r_eff_disk : float
+        Effective radius of the disk in kpc
+
+    n_disk : float
+        Sersic index of the disk
+
+    r_eff_bulge : float
+        Effective radius of the bulge
+
+    n_bulge : float
+        Sersic index of the bulge
+
+    bt : float
+        Bulge-to-total mass ratio
+
+    invq_disk : float
+        Effective radius to effective height ratio for the disk
+
+    invq_bulge : float
+        Effective radius to effective height ratio for the bulge
+
+    noord_flat : bool
+        If True, use circular velocity profiles derived in Noordermeer 2008.
+        If False, circular velocity is derived through `v_circular`
+
+    light_component : {'disk', 'bulge', 'total'}
+        Which component to use as the flux profile
+
+    Notes
+    -----
+    This model is the combination of 2 components, a disk and bulge, each described by
+    a `Sersic`. The model is parametrized such that the B/T is a free parameter rather
+    than the individual masses of the disk and bulge.
+    """
 
     total_mass = DysmalParameter(default=10, bounds=(5, 14))
     r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
@@ -1541,25 +2481,39 @@ class DiskBulge(MassModel):
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
-        
+        """Disk+Bulge mass surface density"""
+
         print("consider if Noord flat: this will be modified")
         mbulge_total = 10**total_mass*bt
         mdisk_total = 10**total_mass*(1 - bt)
-        
+
         mr_bulge = sersic_mr(r, mbulge_total, n_bulge, r_eff_bulge)
         mr_disk = sersic_mr(r, mdisk_total, n_disk, r_eff_disk)
-        
+
         return mr_bulge+mr_disk
-        
+
     def enclosed_mass(self, r):
+        """
+        Disk+Bulge total enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mbulge_total = 10 ** self.total_mass * self.bt
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
                         self.n_bulge, self.invq_bulge), r)
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
                         self.n_disk,  self.invq_disk),  r)
         else:
             #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1567,42 +2521,68 @@ class DiskBulge(MassModel):
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
-            
+
         return menc_disk+menc_bulge
-        
+
     def enclosed_mass_disk(self, r):
+        """
+        Enclosed mass of the disk component
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
                         self.n_disk,  self.invq_disk),  r)
         else:
             #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
         return menc_disk
-        
+
     def enclosed_mass_bulge(self, r):
+        """
+        Enclosed mass of the bulge component
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mbulge_total = 10 ** self.total_mass * self.bt
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
                         self.n_bulge, self.invq_bulge), r)
         else:
             #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-        
+
         return menc_bulge
-        
+
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     def projected_enclosed_mass(self, r):
         menc_disk = self.projected_enclosed_mass_disk(r)
         menc_bulge = self.projected_enclosed_mass_bulge(r)
         return menc_disk + menc_bulge
-        
+
     def projected_enclosed_mass_disk(self, r):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
         return sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
@@ -1610,8 +2590,21 @@ class DiskBulge(MassModel):
         mbulge_total = 10 ** self.total_mass * self.bt
         return sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
+
     def circular_velocity_disk(self, r):
+        """
+        Circular velocity of the disk as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
             vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
@@ -1621,8 +2614,22 @@ class DiskBulge(MassModel):
             vcirc = v_circular(mass_enc, r)
 
         return vcirc
-        
+
     def circular_velocity_bulge(self, r):
+        """
+        Circular velocity of the bulge as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
+
         if self.noord_flat:
             mbulge_total = 10**self.total_mass*self.bt
             vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
@@ -1632,32 +2639,133 @@ class DiskBulge(MassModel):
             vcirc = v_circular(mass_enc, r)
 
         return vcirc
-        
+
     def circular_velocity(self, r):
+        """
+        Total circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
+
         vbulge = self.circular_velocity_bulge(r)
         vdisk = self.circular_velocity_disk(r)
-        
+
         vcirc = np.sqrt(vbulge**2 + vdisk**2)
-        
+
         return vcirc
-        
+
     def velocity_profile(self, r, modelset):
+        """
+        Total rotational velocity due to the disk+bulge
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+
+        """
+
         vcirc = self.circular_velocity(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
     def velocity_profile_disk(self, r, modelset):
+        """
+        Rotational velocity due to the disk
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+
+        """
+
         vcirc = self.circular_velocity_disk(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
     def velocity_profile_bulge(self, r, modelset):
+        """
+        Rotational velocity due to the bulge
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+        """
+
         vcirc = self.circular_velocity_bulge(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
 
     def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+
+        Notes
+        -----
+        The resulting light profile depends on what `DiskBulge.light_component` is set to.
+        If 'disk' or 'bulge' then only the mass associated with the disk or bulge will
+        be converted into light. If 'total', then both components will be used.
+        """
 
         if self.light_component == 'disk':
 
@@ -1681,60 +2789,122 @@ class DiskBulge(MassModel):
                              "or 'total.'")
 
         return flux
-        
-        
+
     def rho_disk(self, r):
+        """
+        Mass surface density of the disk as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        surf_dens : float or array
+            Mass surface density at `r` in units of Msun/kpc^2
+        """
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1 - self.bt)
             rho = sersic_curve_rho(r, self.r_eff_disk, mdisk_total, self.n_disk, self.invq_disk)
-            
+
             return rho
         else:
             mdisk_total = 10**self.total_mass*(1 - self.bt)
             mr_disk = sersic_mr(r, mdisk_total, self.n_disk, self.r_eff_disk)
             return mr_disk
-            
+
     def rho_bulge(self, r):
+        """
+        Mass surface density of the bulge as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        surf_dens : float or array
+            Mass surface density at `r` in units of Msun/kpc^2
+        """
         if self.noord_flat:
             mbulge_total = 10**self.total_mass*self.bt
-            
+
             rho = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total, self.n_bulge, self.invq_bulge)
             return rho
-        
-            
+
+
         else:
             mbulge_total = 10**self.total_mass*self.bt
             mr_bulge = sersic_mr(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
             return mr_bulge
-        
+
     def rho(self, r):
+        """
+        Mass surface density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        surf_dens : float or array
+            Mass surface density at `r` in units of Msun/kpc^2
+        """
         return self.rho_disk(r) + self.rho_bulge(r)
-        
+
     def dlnrho_dlnr_disk(self, r):
         if self.noord_flat:
             dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
-            
+
             return dlnrho_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n_disk, 0.5)
             return -2. * (bn / self.n_disk) * np.power(r/self.r_eff_disk, 1./self.n_disk)
-        
+
     def dlnrho_dlnr_bulge(self, r):
         if self.noord_flat:
             dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
-            
+
             return dlnrho_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n_bulge, 0.5)
             return -2. * (bn / self.n_bulge) * np.power(r/self.r_eff_bulge, 1./self.n_bulge)
-        
-        
-        
+
     def dlnrho_dlnr(self, r):
-        
+        """
+        Asymmetric drift term for the combined disk and bulge
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        log_drhodr : float or array
+            Log surface density derivative as a function or radius
+        """
+
         return r / self.rho(r) * self.drho_dr(r)
-        
+
     def drho_dr_disk(self, r):
+        """
+         Asymmetric drift term for the disk component
+
+         Parameters
+         ----------
+         r : float or array
+             Radius in kpc
+
+         Returns
+         -------
+         log_drhodr : float or array
+             Log surface density derivative as a function or radius
+         """
         drhodr = self.rho_disk(r) / r * self.dlnrho_dlnr_disk(r)
         try:
             if len(r) > 1:
@@ -1746,8 +2916,21 @@ class DiskBulge(MassModel):
             if r == 0:
                 drhodr = 0.
         return drhodr
-        
+
     def drho_dr_bulge(self, r):
+        """
+         Asymmetric drift term for the bulge component
+
+         Parameters
+         ----------
+         r : float or array
+             Radius in kpc
+
+         Returns
+         -------
+         log_drhodr : float or array
+             Log surface density derivative as a function or radius
+         """
         drhodr = self.rho_bulge(r) / r * self.dlnrho_dlnr_bulge(r)
         try:
             if len(r) > 1:
@@ -1758,20 +2941,69 @@ class DiskBulge(MassModel):
         except:
             if r == 0:
                 drhodr = 0.
-                
-        return drhodr
-        
-    def drho_dr(self, r):
-        
-        return self.drho_dr_disk(r) + self.drho_dr_bulge(r)
-        
-        
 
-#
+        return drhodr
+
+    def drho_dr(self, r):
+        """
+        Surface density radial derivative
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        drhodr : float or array
+            Surface density radial derivative at `r`
+        """
+
+        return self.drho_dr_disk(r) + self.drho_dr_bulge(r)
+
 
 class LinearDiskBulge(MassModel):
-    """Class with a combined disk and bulge to allow varying of B/T and the
-    total baryonic mass"""
+    """
+    Mass distribution with a disk and bulge
+
+    Parameters
+    ----------
+    total_mass : float
+        Combined disk and bulge mass in solar units
+
+    r_eff_disk : float
+        Effective radius of the disk in kpc
+
+    n_disk : float
+        Sersic index of the disk
+
+    r_eff_bulge : float
+        Effective radius of the bulge
+
+    n_bulge : float
+        Sersic index of the bulge
+
+    bt : float
+        Bulge-to-total mass ratio
+
+    invq_disk : float
+        Effective radius to effective height ratio for the disk
+
+    invq_bulge : float
+        Effective radius to effective height ratio for the bulge
+
+    noord_flat : bool
+        If True, use circular velocity profiles derived in Noordermeer 2008.
+        If False, circular velocity is derived through `v_circular`
+
+    light_component : {'disk', 'bulge', 'total'}
+        Which component to use as the flux profile
+
+    Notes
+    -----
+    This model is the exactly the same as `DiskBulge` except that `total_mass`
+    is in linear units instead of log.
+    """
 
     total_mass = DysmalParameter(default=10, bounds=(5, 14))
     r_eff_disk = DysmalParameter(default=1, bounds=(0, 50))
@@ -1796,25 +3028,38 @@ class LinearDiskBulge(MassModel):
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
-        
+        """Disk+Bulge mass surface density"""
         print("consider if Noord flat: this will be modified")
         mbulge_total = total_mass*bt
         mdisk_total = total_mass*(1 - bt)
-        
+
         mr_bulge = sersic_mr(r, mbulge_total, n_bulge, r_eff_bulge)
         mr_disk = sersic_mr(r, mdisk_total, n_disk, r_eff_disk)
-        
+
         return mr_bulge+mr_disk
-        
+
     def enclosed_mass(self, r):
+        """
+        Disk+Bulge total enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mbulge_total = self.total_mass * self.bt
         mdisk_total = self.total_mass * (1 - self.bt)
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
                         self.n_bulge, self.invq_bulge), r)
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
                         self.n_disk,  self.invq_disk),  r)
         else:
             #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1822,38 +3067,77 @@ class LinearDiskBulge(MassModel):
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
-        
+
         return menc_disk+menc_bulge
-        
+
     def enclosed_mass_disk(self, r):
+        """
+        Enclosed mass of the disk component
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mdisk_total = self.total_mass * (1 - self.bt)
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,  
+            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
                         self.n_disk,  self.invq_disk),  r)
         else:
             #menc_disk = sersic_menc(r, mdisk_total, self.n_disk, self.r_eff_disk)
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
-            
+
         return menc_disk
-        
+
     def enclosed_mass_bulge(self, r):
+        """
+        Enclosed mass of the bulge component
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
         mbulge_total = self.total_mass * self.bt
-        
+
         if self.noord_flat:
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total, 
+            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
                         self.n_bulge, self.invq_bulge), r)
         else:
             #menc_bulge = sersic_menc(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-            
+
         return menc_bulge
-        
+
     def circular_velocity_disk(self, r):
+        """
+        Circular velocity of the disk as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
         if self.noord_flat:
             mdisk_total = self.total_mass*(1-self.bt)
             vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
@@ -1863,8 +3147,21 @@ class LinearDiskBulge(MassModel):
             vcirc = v_circular(mass_enc, r)
 
         return vcirc
-        
+
     def circular_velocity_bulge(self, r):
+        """
+        Circular velocity of the bulge as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
         if self.noord_flat:
             mbulge_total = self.total_mass*self.bt
             vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
@@ -1874,32 +3171,130 @@ class LinearDiskBulge(MassModel):
             vcirc = v_circular(mass_enc, r)
 
         return vcirc
-        
+
     def circular_velocity(self, r):
+        """
+        Total Circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
         vbulge = self.circular_velocity_bulge(r)
         vdisk = self.circular_velocity_disk(r)
-        
+
         vcirc = np.sqrt(vbulge**2 + vdisk**2)
-        
+
         return vcirc
-        
+
     def velocity_profile(self, r, modelset):
+        """
+        Total rotational velocity due to the disk+bulge
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+
+        """
         vcirc = self.circular_velocity(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
     def velocity_profile_disk(self, r, modelset):
+        """
+        Rotational velocity due to the disk
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+
+        """
         vcirc = self.circular_velocity_disk(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
     def velocity_profile_bulge(self, r, modelset):
+        """
+        Rotational velocity due to the bulge
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the circular velocity in kpc
+
+        modelset : `ModelSet`
+            Full ModelSet this component belongs to
+
+        Returns
+        -------
+        vrot : float or array
+            Rotational velocity in km/s
+
+        Notes
+        -----
+        This method requires a `ModelSet` input to be able to apply the pressure support
+        correction due to the gas turbulence.
+
+        """
         vcirc = self.circular_velocity_bulge(r)
         vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
-        
+
 
     def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+
+        Notes
+        -----
+        The resulting light profile depends on what `DiskBulge.light_component` is set to.
+        If 'disk' or 'bulge' then only the mass associated with the disk or bulge will
+        be converted into light. If 'total', then both components will be used.
+        """
 
         if self.light_component == 'disk':
 
@@ -1927,14 +3322,26 @@ class LinearDiskBulge(MassModel):
 
 class DarkMatterHalo(MassModel):
     """
-    Generic class for dark matter halo profiles
+    Base model for dark matter halos
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass
+
+    conc : float
+        Concentration parameter
+
+    fdm : float
+        Dark matter fraction
+
     """
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
     _subtype = 'dark_matter'
-    
+
     @abc.abstractmethod
     def calc_rvir(self, *args, **kwargs):
         """
@@ -1956,15 +3363,26 @@ class DarkMatterHalo(MassModel):
             raise NotImplementedError("Adiabatic contraction not currently supported!")
         else:
             return self.circular_velocity(r)
-            
-    #
+
     def drho_dr(self, r):
-        #return self.rho(r) / r * self.dlnrho_dlnr(r)
-        
+        """
+        Surface density radial derivative
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        drhodr : float or array
+            Surface density radial derivative at `r`
+        """
+
         drhodr = self.rho(r) / r * self.dlnrho_dlnr(r)
         try:
             if len(r) > 1:
-                drhodr[r==0] = 0.
+                drhodr[r == 0] = 0.
             else:
                 if r[0] == 0.:
                     drhodr[0] = 0.
@@ -1972,15 +3390,55 @@ class DarkMatterHalo(MassModel):
             if r == 0:
                 drhodr = 0.
         return drhodr
-        
-        
-        
-        
+
 
 class TwoPowerHalo(DarkMatterHalo):
-    """
-    Class for a generic two power law density model for a dark matter halo
-    See Equation 2.64 of Binney & Tremaine 'Galactic Dynamics'
+    r"""
+    Two power law density model for a dark matter halo
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in logarithmic solar units
+
+    conc : float
+        Concentration parameter
+
+    alpha : float
+        Power law index at small radii
+
+    beta : float
+        Power law index at large radii
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Notes
+    -----
+    Model formula:
+
+    The mass density follows Equation 2.64 of Binney & Tremaine (2008) [1]_:
+
+    .. math::
+
+        \rho=\frac{\rho_0}{(r/r_s)^\alpha(1 + r/r_s)^{\beta - \alpha}}
+
+    :math:`r_s` is the scale radius and defined as :math:`r_{vir}/c` where
+    :math:`r_{vir}` is the virial radius and :math:`c` is the concentration
+    parameter. :math:`rho_0` then is the density at :math:`r_s`.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2008gady.book.....B/abstract
     """
 
     # Powerlaw slopes for the density model
@@ -1992,13 +3450,15 @@ class TwoPowerHalo(DarkMatterHalo):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alpha, beta, fdm = None, 
+    def __init__(self, mvirial, conc, alpha, beta, fdm = None,
             z=0, cosmo=_default_cosmo, **kwargs):
+
         self.z = z
         self.cosmo = cosmo
         super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
+        """ Mass density for the TwoPowerHalo"""
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -2007,6 +3467,19 @@ class TwoPowerHalo(DarkMatterHalo):
         return rho0 / ((r/rs)**alpha * (1 + r/rs)**(beta - alpha))
 
     def enclosed_mass(self, r):
+        """
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
+        """
 
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
@@ -2017,6 +3490,14 @@ class TwoPowerHalo(DarkMatterHalo):
         return aa*bb
 
     def calc_rho0(self):
+        r"""
+        Normalization of the density distribution
+
+        Returns
+        -------
+        rho0 : float
+            Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
+        """
 
         rvir = self.calc_rvir()
         rs = rvir/self.conc
@@ -2026,9 +3507,25 @@ class TwoPowerHalo(DarkMatterHalo):
         return aa*bb
 
     def calc_rvir(self):
-        """
+        r"""
         Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
 
         g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
@@ -2039,17 +3536,38 @@ class TwoPowerHalo(DarkMatterHalo):
         return rvir
 
     def calc_alpha_from_fdm(self, baryons, r_fdm):
+        """
+        Calculate alpha given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        alpha : float
+            alpha value
+
+        Notes
+        -----
+        This uses the current values of `fdm`, `mvirial`, and `beta` together with
+        the input baryon distribution to calculate the necessary value of `alpha`.
+        """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             alpha = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-            
+
             alphtest = np.arange(-50, 50, 1.)
-            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, self.mvirial, self.conc, 
+            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, self.mvirial, self.conc,
                                     self.beta, self.z, r_fdm) for alph in alphtest])
-            
+
             try:
                 a = alphtest[vtest < 0][-1]
                 try:
@@ -2060,92 +3578,190 @@ class TwoPowerHalo(DarkMatterHalo):
             except:
                 a = alphtest[0]    # Even if not perfect, force in case of no convergence...
                 b = alphtest[1]
-            
-            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc, 
+
+            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc,
                                         self.beta, self.z, r_fdm))
-        
+
         return alpha
-    
+
     def _minfunc_vdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
         halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
-        
-        
-    ##########
+
     def rho(self, r):
+        r"""
+        Mass density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        rho : float or array
+            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
 
         return rho0 / ((r/rs)**self.alpha * (1. + r/rs)**(self.beta - self.alpha))
-        
+
     def dlnrho_dlnr(self, r):
+        """
+        Log gradient of rho as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrho_dlnr : float or array
+            Log gradient of rho at `r`
+        """
         rvirial = self.calc_rvir()
         rs = rvirial / self.conc
         return -self.alpha - (self.beta-self.alpha)*(r/rs)/(1. + r/rs)
-        
 
-    
 
 class Burkert(DarkMatterHalo):
-    """
-    Class for Burkert density model for a dark matter halo.
-    Eg see Burkert, 1995, ApJL, 447, L25
+    r"""
+    Dark matter halo following a Burkert profile
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in logarithmic solar units
+
+    rB : float
+        Size of the dark matter core in kpc
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Notes
+    -----
+    Model formula:
+
+    The mass density follows Burkert (1995) [1]_:
+
+    .. math::
+
+        \rho=\frac{\rho_0}{(1 + r/r_B)(1 + (r/r_B)^2)}
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/1995ApJ...447L..25B/abstract
     """
 
-    # Powerlaw slopes for the density model
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     rB = DysmalParameter(default=1.0)
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, rB, fdm = None, 
+    def __init__(self, mvirial, rB, fdm=None,
             z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
         super(Burkert, self).__init__(mvirial, rB, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, rB, fdm):
+        """Mass density as a function of radius"""
 
         rho0 = self.calc_rho0()
 
-        return rho0 / ( (1 + r/rB) * ( 1 + (r/rB)**2 ) ) 
-        
-    def I(self, r):
-        Ival = 0.25 * (np.log(r**2 + self.rB**2) + 2.*np.log(r + self.rB) \
-                    - 2.*np.arctan(r/self.rB) - 4.*np.log(self.rB))
-        return Ival
-    
-    def enclosed_mass(self, r):
+        return rho0 / ((1 + r/rB) * (1 + (r/rB)**2))
 
+    def I(self, r):
+        Ival = 0.25 * (np.log(r**2 + self.rB**2) + 2.*np.log(r + self.rB)
+                       - 2.*np.arctan(r/self.rB) - 4.*np.log(self.rB))
+        return Ival
+
+    def enclosed_mass(self, r):
+        """
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
+        """
         rvir = self.calc_rvir()
         Irvir = self.I(rvir)
-        
+
         aa = 10**self.mvirial / Irvir
         bb = self.I(r)
         return aa*bb
-        
-    def calc_rho0(self):
 
+    def calc_rho0(self):
+        r"""
+        Normalization of the density distribution
+
+        Returns
+        -------
+        rho0 : float
+            Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvir = self.calc_rvir()
         Irvir = self.I(rvir)
-        
+
         aa = 10**self.mvirial / (4*np.pi* self.rB**3)
         bb = 1./Irvir
-        
+
         return aa*bb
-        
+
     def calc_conc(self):
+        """
+        Calculate the concentration parameter
+
+        Returns
+        -------
+        conc : float
+            Concentration based on the core radius, `rB`.
+        """
         rvir = self.calc_rvir()
         conc = rvir/self.rB
         self.conc = conc
         return conc
 
     def calc_rvir(self):
-        """
+        r"""
         Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
 
         g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
@@ -2154,21 +3770,42 @@ class Burkert(DarkMatterHalo):
                  (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
-        
+
     def calc_rB_from_fdm(self, baryons, r_fdm):
+        """
+        Calculate core radius given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        rB : float
+            Core radius in kpc
+
+        Notes
+        -----
+        This uses the current values of `fdm`, and `mvirial` together with
+        the input baryon distribution to calculate the necessary value of `rB`.
+        """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-            
+
             rBtest = np.arange(0., 250., 5.0)
             vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
-            
+
             # a = rBtest[vtest < 0][-1]
             # b = rBtest[vtest > 0][0]
-            
+
             try:
                 a = rBtest[vtest < 0][-1]
                 try:
@@ -2179,61 +3816,130 @@ class Burkert(DarkMatterHalo):
             except:
                 a = rBtest[-2] # Even if not perfect, force in case of no convergence...
                 b = rBtest[-1]
-            
+
             try:
                 rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
             except:
                 # SOMETHING, if it's failing...
                 rB = np.average([a,b])
-                
-                
-                
+
         return rB
-        
+
     def _minfunc_vdm(self, rB, vtarget, mass, z, r_eff):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
-        
+
     ##########
     def rho(self, r):
+        r"""
+        Mass density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        rho : float or array
+            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rho0 = self.calc_rho0()
         return rho0 / ( (1 + r/self.rB) * ( 1 + (r/self.rB)**2 ) )
-        
-        
+
+
     def dlnrho_dlnr(self, r):
+        """
+        Log gradient of rho as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrho_dlnr : float or array
+            Log gradient of rho at `r`
+        """
         return -(r/self.rB) /(1.+r/self.rB) - 2.*(r/self.rB)**2/(1.+(r/self.rB)**2)
-        
+
+
 class Einasto(DarkMatterHalo):
-    """
-    Class for an Einasto dark matter halo
-    See Retana-Montenegro et al 2012, A&A, 540, A70
-    or Dutton and Maccio 2014, MNRAS, 441, 3359
-    
-    Using Mhalo = Mvirial = M200 (as following Mo, Mao, White 1998).
+    r"""
+    Dark matter halo following an Einasto profile
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in logarithmic solar units
+
+    conc : float
+        Concentration parameter
+
+    nEinasto : float
+        Inverse of the power law logarithmic slope
+
+    alphaEinasto : float
+        Power law logarithmic slope
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Einasto_param : {'None', 'nEinasto', 'alphaEinasto'}
+        Which parameter to leave as the free parameter. If 'None', the model
+        determines which parameter to use based on if `nEinasto` or `alphaEinasto`
+        is None. Default is 'None'
+
+    Notes
+    -----
+    Model formula following Retana-Montenegro et al (2012) [1]_:
+
+    .. math::
+
+        \rho = \rho_0 \exp\left\{-\left(\frac{r}{h}\right)^{1/n}\right\}
+
+    where :math:`h=r_s/(2n)^n` is the scale length and
+    :math:`r_s` is the scale radius defined as :math:`r_{vir}/c`.
+
+    In this model only `nEinasto` or `alphaEinasto` can be free since :math:`n=1/\alpha`.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2012A%26A...540A..70R/abstract
+
     """
 
-    # Powerlaw slopes for the density model
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
     conc = DysmalParameter(default=5.0, bounds=(2, 20))
     nEinasto = DysmalParameter(default=1.0)
     alphaEinasto = DysmalParameter(default=-99., fixed=True)
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
-    
+
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alphaEinasto=None, nEinasto=None, fdm = None, 
+    def __init__(self, mvirial, conc, alphaEinasto=None, nEinasto=None, fdm=None,
             z=0, cosmo=_default_cosmo, Einasto_param='None', **kwargs):
         self.z = z
         self.cosmo = cosmo
-        
+
         # Check whether at least *one* of alphaEinasto and nEinasto is set:
         if (alphaEinasto is None) & (nEinasto is None):
             raise ValueError("Must set at least one of alphaEinasto and nEinasto!")
         if (alphaEinasto is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
             raise ValueError("If both 'alphaEinasto' and 'nEinasto' are set, must specify which is the fit variable with 'Einasto_param'")
-        
+
         super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
-        
+
         # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
         if (Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
             self.Einasto_param = 'nEinasto'
@@ -2247,58 +3953,93 @@ class Einasto(DarkMatterHalo):
             raise ValueError("Einasto_param = {} not recognized! [options: 'nEinasto', 'alphaEinasto']".format(Einasto_param))
 
     def evaluate(self, r, mvirial, conc, alphaEinasto, nEinasto, fdm):
-        
+        """Mass density as a function of radius"""
+
         if self.Einasto_param.lower() == 'alphaeinasto':
             nEinasto = 1./alphaEinasto
-            
+
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / conc
         h = rs / np.power(2.*nEinasto, nEinasto)
-        
+
         # Return the density at a given radius:
         return rho0 * np.exp(- np.power(r/h, 1./nEinasto))
-        
+
         # Equivalent to:
         #  rho0 * np.exp( - 2 * nEinasto * ( np.power(r/rs, 1./nEinasto) -1.) )
         # or
         #  rho0 * np.exp( - 2 / alphaEinasto * ( np.power(r/rs, alphaEinasto) -1.) )
-        
-        
+
     def enclosed_mass(self, r):
-        
+        """
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
+        """
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
         h = rs / np.power(2.*self.nEinasto, self.nEinasto)
-        
+
         rho0 = self.calc_rho0()
-        
+
         # Explicitly substituted for s = r/h before doing s^(1/nEinasto)
         incomp_gam =  scp_spec.gammainc(3*self.nEinasto, 2.*self.nEinasto * np.power(r/rs, 1./self.nEinasto) ) \
                         * scp_spec.gamma(3*self.nEinasto)
-        
+
         Menc = 4.*np.pi * rho0 * np.power(h, 3.) * self.nEinasto * incomp_gam
-        
+
         return Menc
 
     def calc_rho0(self):
+        r"""
+        Density at the scale length
 
+        Returns
+        -------
+        rho0 : float
+            Mass density at the scale radius in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvir = self.calc_rvir()
         rs = rvir/self.conc
         h = rs / np.power(2.*self.nEinasto, self.nEinasto)
-        
+
         incomp_gam =  scp_spec.gammainc(3*self.nEinasto, (2.*self.nEinasto) * np.power(self.conc, 1./self.nEinasto) ) \
                         * scp_spec.gamma(3*self.nEinasto)
-        
+
         rho0 = 10**self.mvirial / (4.*np.pi*self.nEinasto * np.power(h, 3.) * incomp_gam)
-        
+
         return rho0
-        
+
 
     def calc_rvir(self):
-        """
+        r"""
         Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
 
         g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
@@ -2307,8 +4048,30 @@ class Einasto(DarkMatterHalo):
                  (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
-        
+
     def calc_alphaEinasto_from_fdm(self, baryons, r_fdm):
+        """
+        Calculate alpha given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        alphaEinasto : float
+            Power law logarithmic slope
+
+        Notes
+        -----
+        This uses the current values of `fdm`, and `mvirial` together with
+        the input baryon distribution to calculate the necessary value of `alphaEinasto`.
+        """
+
         nEinasto = self.calc_nEinasto_from_fdm(baryons, r_fdm)
         if np.isfinite(nEinasto):
             return 1./nEinasto
@@ -2316,20 +4079,42 @@ class Einasto(DarkMatterHalo):
             return np.NaN
 
     def calc_nEinasto_from_fdm(self, baryons, r_fdm):
+        """
+        Calculate n given the dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        alphaEinasto : float
+            Power law logarithmic slope
+
+        Notes
+        -----
+        This uses the current values of `fdm`, and `mvirial` together with
+        the input baryon distribution to calculate the necessary value of `nEinasto`.
+        """
+
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             nEinasto = np.NaN
         else:
-            
+
             # NOTE: have not tested this yet
-            
+
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
-            
+
             nEinastotest = np.arange(-50, 50, 1.)
-            vtest = np.array([self._minfunc_vdm(nEinast, vsqr_dm_re_target, self.mvirial, self.conc, 
+            vtest = np.array([self._minfunc_vdm(nEinast, vsqr_dm_re_target, self.mvirial, self.conc,
                                     self.alphaEinasto, self.z, r_fdm) for nEinast in nEinastotest])
-            
+
             try:
                 a = nEinastotest[vtest < 0][-1]
                 try:
@@ -2340,55 +4125,145 @@ class Einasto(DarkMatterHalo):
             except:
                 a = nEinastotest[0]    # Even if not perfect, force in case of no convergence...
                 b = nEinastotest[1]
-            
-            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc, 
+
+            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc,
                                         self.alphaEinasto, self.z, r_fdm))
-        
+
         return nEinasto
-    
+
     def _minfunc_vdm(self, nEinasto, vtarget, mass, conc, alphaEinasto, z, r_eff):
         halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
-        
+
     def tie_nEinasto(self, model_set):
+        """
+        Function to tie n to alpha
+
+        Parameters
+        ----------
+        model_set : `ModelSet`
+            `ModelSet` the component is a part of and will be used in the fitting
+
+        Returns
+        -------
+        nEinasto : float
+            `nEinastro` given the current value of `alphaEinasto`
+
+        """
         if model_set.components['halo'].alphaEinasto.value != self.alphaEinasto:
             raise ValueError
         return 1./self.alphaEinasto
-        
+
     def tie_alphaEinasto(self, model_set):
+        """
+        Function to tie alpha to n
+
+        Parameters
+        ----------
+        model_set : `ModelSet`
+            `ModelSet` the component is a part of and will be used in the fitting
+
+        Returns
+        -------
+        alphaEinasto : float
+            `alphaEinastro` given the current value of `nEinasto`
+
+        """
         return 1./self.nEinasto
-        
-    #
-    ##########
+
     def rho(self, r):
+        r"""
+        Mass density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        rho : float or array
+            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
         h = rs / np.power(2.*self.nEinasto, self.nEinasto)
-        
+
         # Return the density at a given radius:
         return rho0 * np.exp(- np.power(r/h, 1./self.nEinasto))
-        
+
     def dlnrho_dlnr(self, r):
+        """
+        Log gradient of rho as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrho_dlnr : float or array
+            Log gradient of rho at `r`
+        """
         rvirial = self.calc_rvir()
         rs = rvirial / self.conc
         # self.alphaEinasto = 1./self.nEinasto
         return -2. * np.power(r/rs, self.alphaEinasto)
 
+
 class NFW(DarkMatterHalo):
+    r"""
+    Dark matter halo following an NFW profile
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in logarithmic solar units
+
+    conc : float
+        Concentration parameter
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Notes
+    -----
+    Model formula:
+
+    The mass density follows Navarro, Frenk, & White (1995) [1]_:
+
+    .. math::
+
+        \rho = \frac{\rho_0}{(r/r_s)(1 + r/r_s)^2}
+
+    :math:`r_s` is the scale radius defined as :math:`r_{\rm vir}/c`.
+    :math:`\rho_0` then is the mass density at :math:`r_s`.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
-    1D NFW mass model parameterized by the virial radius, virial mass, and
-    concentration.
-    """
-    
-    def __init__(self, mvirial, conc, fdm = None, 
+
+    def __init__(self, mvirial, conc, fdm = None,
             z=0, cosmo=_default_cosmo, **kwargs):
+
         self.z = z
         self.cosmo = cosmo
         super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
-        """3D mass density profile"""
+        """Mass density as a function of radius"""
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -2398,23 +4273,38 @@ class NFW(DarkMatterHalo):
 
     def enclosed_mass(self, r):
         """
-        Calculate the enclosed mass as a function of radius
-        :param r: Radii at which to calculate the enclosed mass
-        :return: 1D enclosed mass profile
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
         """
-        
+
         rho0 = self.calc_rho0()
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
-        
+
         # For very small r, bb can be negative.
         bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
-        
+
         return aa*bb
 
     def calc_rho0(self):
+        r"""
+        Normalization of the density distribution
 
+        Returns
+        -------
+        rho0 : float
+            Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvirial = self.calc_rvir()
         aa = 10**self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
         bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
@@ -2422,9 +4312,25 @@ class NFW(DarkMatterHalo):
         return aa * bb
 
     def calc_rvir(self):
-        """
+        r"""
         Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
         g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
         hz = self.cosmo.H(self.z).value
@@ -2432,9 +4338,29 @@ class NFW(DarkMatterHalo):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
-        
+
     def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
-        
+        """
+        Calculate virial mass given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        mvirial : float
+            Virial mass in logarithmic solar units
+
+        Notes
+        -----
+        This uses the current value of `fdm` together with
+        the input baryon distribution to calculate the inferred `mvirial`.
+        """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
             mvirial = np.NaN
@@ -2449,7 +4375,7 @@ class NFW(DarkMatterHalo):
         else:
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-            
+
             if not np.isfinite(vsqr_dm_re_target):
                 mvirial = np.NaN
             else:
@@ -2460,7 +4386,7 @@ class NFW(DarkMatterHalo):
                     vtest_noAC = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
                 else:
                     vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
-        
+
                 try:
                     a = mtest[vtest < 0][-1]
                     b = mtest[vtest > 0][0]
@@ -2474,25 +4400,25 @@ class NFW(DarkMatterHalo):
                     print("r_fdm={}".format(r_fdm))
                     print(mtest, vtest)
                     raise ValueError
-                
-                if adiabatic_contract:    
+
+                if adiabatic_contract:
                     # # TEST
                     # print("mtest={}".format(mtest))
                     # print("vtest={}".format(vtest))
                     mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
-                
+
                     # TEST
                     mvirial_noAC = scp_opt.brentq(self._minfunc_vdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
                     print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
                 else:
                     mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
-    
+
         return mvirial
-    
+
     def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
         halo = NFW(mvirial=mass, conc=conc, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
-    
+
     def _minfunc_vdm_AC(self, mass, vtarget, conc, z, r_eff, bary):
         halo = NFW(mvirial=mass, conc=conc, z=z, name='halotmp')
         modtmp = ModelSet()
@@ -2500,40 +4426,102 @@ class NFW(DarkMatterHalo):
         modtmp.add_component(halo)
         modtmp.kinematic_options.adiabatic_contract = True
         modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
-        
+
         vc, vc_dm = modtmp.circular_velocity(r_eff, compute_dm=True)
-        #print("mass={}, barymass={}, vc={}, vcdm={}, vcdm_noAC={}, vtarget={}".format(mass, bary.total_mass.value, vc, 
+        #print("mass={}, barymass={}, vc={}, vcdm={}, vcdm_noAC={}, vtarget={}".format(mass, bary.total_mass.value, vc,
         #            vc_dm, halo.circular_velocity(r_eff), np.sqrt(vtarget)))
         return vc_dm **2 - vtarget
-        
-    ##########
+
     def rho(self, r):
+        r"""
+        Mass density as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        rho : float or array
+            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
 
         return rho0 / ((r/rs) * (1. + r/rs)**2)
-        
+
     def dlnrho_dlnr(self, r):
+        """
+        Log gradient of rho as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrho_dlnr : float or array
+            Log gradient of rho at `r`
+        """
+
         rvirial = self.calc_rvir()
         rs = rvirial / self.conc
         return -1. - 2.*(r/rs)/(1. + r/rs)
-        
-#
+
+
 class LinearNFW(DarkMatterHalo):
+    r"""
+    Same as `NFW` except with the virial mass in linear units
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in  solar units
+
+    conc : float
+        Concentration parameter
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Notes
+    -----
+    Model formula:
+
+    The mass density follows Navarro, Frenk, & White (1995) [1]_:
+
+    .. math::
+
+        \rho = \frac{\rho_0}{(r/r_s)(1 + r/r_s)^2}
+
+    :math:`r_s` is the scale radius defined as :math:`r_{\rm vir}/c`.
+    :math:`\rho_0` then is the mass density at :math:`r_s`.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
-    1D NFW mass model parameterized by the virial radius, virial mass, and
-    concentration.
-    """
-    
-    def __init__(self, mvirial, conc, fdm = None, 
+
+    def __init__(self, mvirial, conc, fdm = None,
             z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
         super(LinearNFW, self).__init__(mvirial, conc, fdm, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
-        """3D mass density profile"""
+        """Mass density as a function of radius"""
 
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
@@ -2543,23 +4531,38 @@ class LinearNFW(DarkMatterHalo):
 
     def enclosed_mass(self, r):
         """
-        Calculate the enclosed mass as a function of radius
-        :param r: Radii at which to calculate the enclosed mass
-        :return: 1D enclosed mass profile
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
         """
-        
+
         rho0 = self.calc_rho0()
         rvirial = self.calc_rvir()
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
-        
+
         # For very small r, bb can be negative.
         bb = np.abs(np.log((rs + r)/rs) - r/(rs + r))
-        
+
         return aa*bb
 
     def calc_rho0(self):
+        r"""
+        Density at the scale radius
 
+        Returns
+        -------
+        rho0 : float
+            Mass density at the scale radius in :math:`M_{\odot}/\rm{kpc}^3`
+        """
         rvirial = self.calc_rvir()
         aa = self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
         bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
@@ -2567,9 +4570,25 @@ class LinearNFW(DarkMatterHalo):
         return aa * bb
 
     def calc_rvir(self):
-        """
+        r"""
         Calculate the virial radius based on virial mass and redshift
-        M_vir = 100*H(z)^2/G * R_vir^3
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
         g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
         hz = self.cosmo.H(self.z).value
@@ -2577,26 +4596,51 @@ class LinearNFW(DarkMatterHalo):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
-        
-        
-    ##########
+
     def rho(self, r):
+        r"""
+         Mass density as a function of radius
+
+         Parameters
+         ----------
+         r : float or array
+             Radius or radii in kpc
+
+         Returns
+         -------
+         rho : float or array
+             Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+         """
         rvirial = self.calc_rvir()
         rho0 = self.calc_rho0()
         rs = rvirial / self.conc
 
         return rho0 / ((r/rs) * (1. + r/rs)**2)
-        
+
     def dlnrho_dlnr(self, r):
+        """
+        Log gradient of rho as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrho_dlnr : float or array
+            Log gradient of rho at `r`
+        """
         rvirial = self.calc_rvir()
         rs = rvirial / self.conc
         return -1. - 2.*(r/rs)/(1. + r/rs)
-        
-
 
 
 # ****** Geometric Model ********
 class _DysmalFittable3DModel(_DysmalModel):
+    """
+        Base class for 3D model components
+    """
 
     linear = False
     fit_deriv = None
@@ -2606,22 +4650,39 @@ class _DysmalFittable3DModel(_DysmalModel):
     inputs = ('x', 'y', 'z')
 
 
-
 class Geometry(_DysmalFittable3DModel):
     """
-    Class to hold the geometric parameters that can be fit.
-    Also takes as input the sky coordinates and returns the
-    corresponding galaxy plane coordinates.
-    
-    Convention:
-        PA is angle of blue side, CCW from North
+    Model component defining the transformation from galaxy to sky coordinates
+
+    Parameters
+    ----------
+    inc : float
+        Inclination of the modelin degrees
+
+    pa : float
+        Position angle East of North of the blueshifted side of the model in degrees
+
+    xshift : float
+        x-coordinate of the center of the model relative to center of data cube in pixels
+
+    yshift : float
+        y-coordinate of the center of the model relative to center of data cube in pixels
+
+    vel_shift : float
+        Systemic velocity shift that will be applied to the whole cube in km/s
+
+    Notes
+    -----
+    This model component takes as input sky coordinates and converts them
+    to galaxy frame coordinates. `vel_shift` instead is used within `ModelSet.simulate_cube` to
+    apply the necessary velocity shift.
     """
 
     inc = DysmalParameter(default=45.0, bounds=(0, 90))
     pa = DysmalParameter(default=0.0, bounds=(-180, 180))
     xshift = DysmalParameter(default=0.0)
     yshift = DysmalParameter(default=0.0)
-    
+
     vel_shift = DysmalParameter(default=0.0, fixed=True)  # default: none
 
     _type = 'geometry'
@@ -2629,7 +4690,7 @@ class Geometry(_DysmalFittable3DModel):
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift, vel_shift):
-
+        """Transform sky coordinates to galaxy/model reference frame"""
         inc = np.pi / 180. * inc
         pa = np.pi / 180. * (pa - 90.)
 
@@ -2651,28 +4712,50 @@ class Geometry(_DysmalFittable3DModel):
 
 # ******* Dispersion Profiles **************
 class DispersionProfile(_DysmalFittable1DModel):
-    """Base dispersion profile model class"""
+    """Base object for dispersion profile models"""
     _type = 'dispersion'
 
 
 class DispersionConst(DispersionProfile):
+    """
+    Model for a constant dispersion
 
+    Parameters
+    ----------
+    sigma0 : float
+        Value of the dispersion at all radii
+    """
     sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
 
     @staticmethod
     def evaluate(r, sigma0):
-
+        """Dispersion as a function of radius"""
         return np.ones(r.shape)*sigma0
 
 
 # ******* Z-Height Profiles ***************
 class ZHeightProfile(_DysmalFittable1DModel):
-    """Base z-height profile model class"""
+    """Base object for flux profiles in the z-direction"""
     _type = 'zheight'
 
 
 class ZHeightGauss(ZHeightProfile):
+    r"""
+    Gaussian flux distribution in the z-direction
 
+    Parameters
+    ----------
+    sigmaz : float
+        Dispersion of the Gaussian in kpc
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        F_z = \exp\left\{\frac{-z^2}{2\sigma_z^2}\right\}
+    """
     sigmaz = DysmalParameter(default=1.0, fixed=True, bounds=(0, 10))
 
     def __init__(self, sigmaz, **kwargs):
@@ -2685,28 +4768,106 @@ class ZHeightGauss(ZHeightProfile):
 
 # ****** Kinematic Options Class **********
 class KinematicOptions:
-    """
-    A simple container for holding the settings for different
-    options for calculating the kinematics of a galaxy. Also
-    has methods for applying these options.
+    r"""
+    Object for storing and applying kinematic corrections
+
+    Parameters
+    ----------
+    adiabatic_contract : bool
+        If True, apply adiabatic contraction when deriving the rotational velocity
+
+    pressure_support : bool
+        If True, apply asymmetric drift correction when deriving the rotational velocity
+
+    pressure_support_type : {1, 2, 3}
+        Type of asymmetric drift correction
+
+    pressure_support_re : float
+        Effective radius in kpc to use for asymmetric drift calculation
+
+    pressure_support_n : float
+        Sersic index to use for asymmetric drift calculation
+
+    Notes
+    -----
+    Adiabatic contraction is applied following Burkert et al (2010) [1]_.
+    The recipe involves numerically solving these two implicit equations:
+
+    .. math::
+
+        v^2_{\rm circ}(r) = v^2_{\rm disk}(r) + v^2_{\rm DM}(r^{\prime})
+
+        r^{\prime} = r\left(1 + \frac{rv^2_{\rm disk}(r)}{r^{\prime} v^2_{\rm DM}(r^{\prime})}\right)
+
+    Adiabatic contraction then can only be applied if there is a halo and baryon component
+    in the `ModelSet`.
+
+    TODO: Sedona needs to document the different pressure support types!
+
+    Warnings
+    --------
+    Adiabatic contraction can significantly increase the computation time for a `ModelSet`
+    to simulate a cube.
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2010ApJ...725.2324B/abstract
     """
 
     def __init__(self, adiabatic_contract=False, pressure_support=False,
-                 pressure_support_re=None, pressure_support_type=1,
+                 pressure_support_type=1, pressure_support_re=None,
                  pressure_support_n=None):
+
         self.adiabatic_contract = adiabatic_contract
         self.pressure_support = pressure_support
         self.pressure_support_re = pressure_support_re
         self.pressure_support_n = pressure_support_n
         self.pressure_support_type = pressure_support_type
 
-    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo, 
-                compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
-                step1d = 0.2):
-        
+    def apply_adiabatic_contract(self, model, r, vbaryon, vhalo,
+                                 compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
+                                 step1d = 0.2):
+        """
+        Function that applies adiabatic contraction to a ModelSet
+
+        Parameters
+        ----------
+        model : `ModelSet`
+            ModelSet that adiabatic contraction will be applied to
+
+        r : array
+            Radii in kpc
+
+        vbaryon : array
+            Baryonic component circular velocities in km/s
+
+        vhalo : array
+            Dark matter halo circular velocities in km/s
+
+        compute_dm : bool
+            If True, will return the adiabatically contracted halo velocities.
+
+        model_key_re : list
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        step1d : float
+            Step size in kpc to use during adiabatic contraction calculation
+
+        Returns
+        -------
+        vel : array
+           Total circular velocity corrected for adiabatic contraction in km/s
+
+        vhalo_adi : array
+            Dark matter halo circular velocities corrected for adiabatic contraction.
+            Only returned if `compute_dm` = True
+        """
+
         if self.adiabatic_contract:
             #logger.info("Applying adiabatic contraction.")
-            
+
             # Define 1d radius array for calculation
             #step1d = 0.2  # kpc
             # r1d = np.arange(step1d, np.ceil(r.max()/step1d)*step1d+ step1d, step1d, dtype=np.float64)
@@ -2718,20 +4879,20 @@ class KinematicOptions:
             comp = model.components.__getitem__(model_key_re[0])
             param_i = comp.param_names.index(model_key_re[1])
             r_eff = comp.parameters[param_i]
-            
+
             rmax_calc = max(5.* r_eff, rmaxin)
-            
+
             # Wide enough radius range for full calculation -- out to 5*Reff, at least
             r1d = np.arange(step1d, np.ceil(rmax_calc/step1d)*step1d+ step1d, step1d, dtype=np.float64)
-            
-            
+
+
             rprime_all_1d = np.zeros(len(r1d))
-            
+
             # Calculate vhalo, vbaryon on this 1D radius array [note r is a 3D array]
             vhalo1d = r1d * 0.
             vbaryon1d = r1d * 0.
             for cmp in model.mass_components:
-                
+
                 if model.mass_components[cmp]:
                     mcomp = model.components[cmp]
                     if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
@@ -2739,24 +4900,24 @@ class KinematicOptions:
                     else:
                         cmpnt_v = mcomp.circular_velocity(r1d)
                     if mcomp._subtype == 'dark_matter':
-                        
+
                         vhalo1d = np.sqrt(vhalo1d ** 2 + cmpnt_v ** 2)
-                        
+
                     elif mcomp._subtype == 'baryonic':
-                        
+
                         vbaryon1d = np.sqrt(vbaryon1d ** 2 + cmpnt_v ** 2)
 
                     elif mcomp._subtype == 'combined':
 
                         raise ValueError('Adiabatic contraction cannot be turned on when'
                                          'using a combined baryonic and halo mass model!')
-                        
+
                     else:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(mcomp._subtype, cmp))
-            
-            
+
+
             converged = np.zeros(len(r1d), dtype=np.bool)
             for i in range(len(r1d)):
                 try:
@@ -2767,7 +4928,7 @@ class KinematicOptions:
                 except:
                     result = r1d[i]
                     converged[i] = False
-                    
+
                 # ------------------------------------------------------------------
                 # HACK TO FIX WEIRD AC: If too weird: toss it...
                 if ('adiabatic_contract_modify_small_values' in self.__dict__.keys()):
@@ -2777,33 +4938,33 @@ class KinematicOptions:
                             result = r1d[i]
                             converged[i] = False
                 # ------------------------------------------------------------------
-                
+
                 rprime_all_1d[i] = result
-                
-            
+
+
             vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
             ####vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, kind='linear')   # linear interpolation
-            
+
             #print("r1d={}".format(r1d))
             #print("rprime_all_1d={}".format(rprime_all_1d))
-            
+
             # Just calculations:
             if converged.sum() < len(r1d):
                 if converged.sum() >= 0.9 *len(r1d):
                     rprime_all_1d = rprime_all_1d[converged]
                     r1d = r1d[converged]
-            
+
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
             ####print("vhalo_adi_1d={}".format(vhalo_adi_1d))
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
-            
+
             vhalo_adi = vhalo_adi_interp_map_3d(r)
-            
+
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
-            
+
         else:
             vel = np.sqrt(vhalo ** 2 + vbaryon ** 2)
-            
+
         if compute_dm:
             if self.adiabatic_contract:
                 return vel, vhalo_adi
@@ -2813,10 +4974,30 @@ class KinematicOptions:
             return vel
 
     def apply_pressure_support(self, r, model, vel):
+        """
+        Function to apply asymmetric drift correction
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to apply the correction
+
+        model : `ModelSet`
+            ModelSet for which the correction is applied to
+
+        vel : float or array
+            Circular velocity in km/s
+
+        Returns
+        -------
+        vel : float or array
+            Rotational velocity with asymmetric drift applied in km/s
+
+        """
         if self.pressure_support:
             vel_asymm_drift = self.get_asymm_drift_profile(r, model)
             vel_squared = (vel **2 - vel_asymm_drift**2)
-            
+
             # if array:
             try:
                 vel_squared[vel_squared < 0] = 0.
@@ -2825,15 +5006,34 @@ class KinematicOptions:
                 if vel_squared < 0:
                     vel_squared = 0.
             vel = np.sqrt(vel_squared)
-            
+
         return vel
-    
+
     def correct_for_pressure_support(self, r, model, vel):
+        """
+        Remove asymmetric drift effect from input velocities
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        model : `ModelSet`
+            ModelSet the correction is applied to
+
+        vel : float or array
+            Rotational velocities in km/s from which to remove asymmetric drift
+
+        Returns
+        -------
+        vel : float or array
+            Circular velocity after asymmetric drift is removed in km/s
+        """
         if self.pressure_support:
             #
             vel_asymm_drift = self.get_asymm_drift_profile(r, model)
             vel_squared = (vel **2 + vel_asymm_drift**2)
-                
+
             # if array:
             try:
                 vel_squared[vel_squared < 0] = 0.
@@ -2842,16 +5042,32 @@ class KinematicOptions:
                 if (vel_squared < 0):
                     vel_squared = 0.
             vel = np.sqrt(vel_squared)
-            
+
         return vel
-        
+
     def get_asymm_drift_profile(self, r, model):
+        """
+        Calculate the asymmetric drift correction
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        model : `ModelSet`
+            ModelSet the correction is applied to
+
+        Returns
+        -------
+        vel_asymm_drift : float or array
+            Velocity correction in km/s associated with asymmetric drift
+        """
         pre = self.get_pressure_support_param(model, param='re')
-        
+
         if model.dispersion_profile is None:
             raise AttributeError("Can't apply pressure support without "
                                  "a dispersion profile!")
-                                 
+
         sigma = model.dispersion_profile(r)
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
@@ -2860,36 +5076,51 @@ class KinematicOptions:
         elif self.pressure_support_type == 2:
             # Modified derivation that takes into account n_disk / n
             pn = self.get_pressure_support_param(model, param='n')
-            
+
             bn = scp_spec.gammaincinv(2. * pn, 0.5)
             #vel_squared = (vel ** 2 - 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
             vel_asymm_drift = np.sqrt( 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
-            
+
         elif self.pressure_support_type == 3:
             # Direct calculation from sig0^2 dlnrho/dlnr:
-            
+
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
-            
+
             dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
-            
+
             vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
-            
+
             #raise ValueError
             #FLAG42
-        
+
         return vel_asymm_drift
-        
-        
+
     def get_pressure_support_param(self, model, param=None):
-        p_altnames = {'n': 'n', 
+        """
+        Return model parameters needed for asymmetric drift calculation
+
+        Parameters
+        ----------
+        model : `ModelSet`
+            ModelSet the correction is applied to
+
+        param : {'n', 're'}
+            Which parameter value to retrieve. Either the effective radius or Sersic index
+
+        Returns
+        -------
+        p_val : float
+            Parameter value
+        """
+        p_altnames = {'n': 'n',
                       're': 'r_eff'}
         if param not in ['n', 're']:
             raise ValueError("get_pressure_support_param() only works for param='n', 're'")
-        
+
         paramkey = 'pressure_support_{}'.format(param)
         p_altname = p_altnames[param]
-        
+
         if self.__dict__[paramkey] is None:
             p_val = None
             for cmp in model.mass_components:
@@ -2919,8 +5150,87 @@ class KinematicOptions:
         return p_val
 
 class BiconicalOutflow(_DysmalFittable3DModel):
-    """Model for a biconical outflow. Assumption is symmetry above and below
-       the vertex and around the outflow axis."""
+    r"""
+    Model for a biconical outflow
+
+    Parameters
+    ----------
+    n : float
+        Power law index of the outflow velocity profile
+
+    vmax : float
+        Maximum velocity of the outflow in km/s
+
+    rturn : float
+        Turn-over radius in kpc of the velocty profile
+
+    thetain : float
+        Half inner opening angle in degrees. Measured from the bicone
+        axis
+
+    dtheta : float
+        Difference between inner and outer opening angle in degrees
+
+    rend : float
+        Maximum radius of the outflow in kpc
+
+    norm_flux : float
+        Log flux amplitude of the outflow at r = 0
+
+    tau_flux : float
+        Exponential decay rate of the flux
+
+    profile_type : {'both', 'increase', 'decrease', 'constant'}
+        Type of velocity profile
+
+    Notes
+    -----
+    This biconical outflow model is based on the model presented in Bae et al. (2016) [1]_.
+    It consists of two symmetric cones joined at their apexes. `thetain` and `dtheta` control
+    how hollow the cones are. `thetain` = 0 therefore would produce a fully filled cone.
+
+    Within the cone, the velocity radial profile of the gas follows a power law with index `n`.
+    Four different profile types can be selected. The simplest is 'constant' in which case
+    the velocity of the gas is `vmax` at all radii.
+
+    For a `profile_type` = 'increase':
+
+        .. math::
+
+            v = v_{\rm max}\left(\frac{r}{r_{\rm end}}\right)^n
+
+    For a `profile_type` = 'decrease':
+
+        .. math::
+
+            v = v_{\rm max}\left(1 - \left(\frac{r}{r_{\rm end}}\right)^n\right)
+
+    For a `profile_type` = 'both' the velocity first increases up to the turnover radius, `rturn`,
+    then decreases back to 0 at 2 `rturn`.
+
+    For :math:`r < r_{\rm turn}`:
+
+        .. math::
+
+            v =  v_{\rm max}\left(\frac{r}{r_{\rm turn}}\right)^n
+
+    For :math:`r > r_{\rm turn}`:
+
+        .. math::
+
+            v = v_{\rm max}\left(2 - \frac{r}{r_{\rm turn}}\right)^n
+
+    The flux radial profile of the outflow is described by a decreasing exponential:
+
+        .. math::
+
+            F = A\exp\left\{\frac{-\tau r}{r_{\rm end}}\right\}
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2016ApJ...828...97B/abstract
+
+    """
 
     n = DysmalParameter(default=0.5, fixed=True)
     vmax = DysmalParameter(min=0)
@@ -2977,9 +5287,9 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             vel[r <= rturn] = vmax*(r[r <= rturn]/rturn)**n
             ind = (r > rturn) & (r <= 2*rturn)
             vel[ind] = vmax*(2 - r[ind]/rturn)**n
-            
+
         elif self.profile_type == 'constant':
-            
+
             vel[r <= rend] = vmax
 
         thetaout = np.min([thetain+dtheta, 90.])
@@ -2989,6 +5299,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         return vel
 
     def light_profile(self, x, y, z):
+        """Evaluate the outflow line flux as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
         theta = np.arccos(np.abs(z) / r) * 180. / np.pi
@@ -3005,7 +5316,23 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
 class UnresolvedOutflow(_DysmalFittable1DModel):
     """
-    Model for an unresolved outflow component with a specific flux and width.
+    Model for an unresolved outflow component described by a Gaussian
+
+    Parameters
+    ----------
+    vcenter : float
+        Central velocity of the Gaussian in km/s
+
+    fwhm : float
+        FWHM of the Gaussian in km/s
+
+    amplitude : float
+        Amplitude of the Gaussian
+
+    Notes
+    -----
+    This model simply produces a broad Gaussian spectrum that will be placed in the
+    central spectrum of the galaxy.
     """
 
     vcenter = DysmalParameter(default=0)
@@ -3023,12 +5350,21 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
 
 
 class UniformRadialInflow(_DysmalFittable3DModel):
-    """Model for a uniform radial inflow. 
-       Assumption is spherical symmetry with a constant velocity."""
-   
-    # vin = DysmalParameter(min=0)
-    vin = DysmalParameter(default=30.) 
-    
+    """
+    Model for a uniform radial inflow.
+
+    Parameters
+    ----------
+    vin : float
+        Inflow velocity in km/s
+
+    Notes
+    -----
+    This model simply adds a constant inflowing radial velocity component
+    to all of the positions in the galaxy.
+    """
+    vin = DysmalParameter(default=30.)
+
     _type = 'inflow'
     _spatial_type = 'resolved'
     outputs = ('vinfl',)
@@ -3039,16 +5375,44 @@ class UniformRadialInflow(_DysmalFittable3DModel):
 
     def evaluate(self, x, y, z, vin):
         """Evaluate the inflow velocity as a function of position x, y, z"""
-        
-        vel = np.ones(x.shape) * (- vin)   # negative because of inflow
-        
-        return vel
 
+        vel = np.ones(x.shape) * (- vin)   # negative because of inflow
+
+        return vel
 
 
 class DustExtinction(_DysmalFittable3DModel):
     """
     Model for extinction due to a thin plane of dust
+
+    Parameters
+    ----------
+    inc : float
+        Inclination of the dust plane in deg
+
+    pa : float
+        Position angle of the dust plane in deg
+
+    xshift, yshift : float
+        Offset in pixels of the center of the dust plane
+
+    amp_extinct : float
+        Strength of the extinction through the dust plane. Expressed as the fraction of
+        flux that is transmitted through the dust plane. `amp_extinct` = 1 means
+
+    Notes
+    -----
+    This model places a dust plane within the model cube. All positions that
+    are behind the dust plane relative to the line of sight will have their
+    flux reduced by `amp_extinct`:
+
+        .. math::
+
+            F = AF_{\rm intrinsic}
+
+    where :math:`A` is between 0 and 1.
+
+
     """
 
     inc = DysmalParameter(default=45.0, bounds=(0, 90))
@@ -3085,11 +5449,11 @@ def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
         rprime = 0.1
     if rprime < adia_x_dm[1]:
         rprime = adia_x_dm[1]
-    rprime_interp = scp_interp.interp1d(adia_x_dm, adia_v_dm, 
+    rprime_interp = scp_interp.interp1d(adia_x_dm, adia_v_dm,
                                         fill_value="extrapolate")
     result = (r_adi + r_adi * ((r_adi*adia_v_disk**2) /
                                (rprime*(rprime_interp(rprime))**2)) - rprime)
     # #
-    # print("adia_x_dm={}, adia_v_dm={}, r_adi={}, rprime={}, rprime_interp(rprime)={}, result={}".format(adia_x_dm, adia_v_dm, r_adi, rprime, 
+    # print("adia_x_dm={}, adia_v_dm={}, r_adi={}, rprime={}, rprime_interp(rprime)={}, result={}".format(adia_x_dm, adia_v_dm, r_adi, rprime,
     #             rprime_interp(rprime), result))
     return result
