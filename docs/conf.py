@@ -223,7 +223,7 @@ html_sidebars = {
 # pixels large.
 
 # Logo and favicons
-html_logo = '_static/dpy_logo_spiral/Dpy_v_under_wh.png'
+html_logo = '_static/dpy_logo_spiral/DPy_v_under_wh.png'
 html_favicon = '_static/dpy_logo_spiral/DPy_favicon_blk-diag-32.png'
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
