@@ -212,9 +212,9 @@ html_sidebars = {
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
 
-# included in the bootstrap-astropy theme
-#html_favicon = path.join(html_theme_path[0], html_theme, 'static',
-#                         'astropy_logo.ico')
+# Logo and favicons
+html_logo = '_static/dpy_logo_spiral/Dpy_v_under_wh.png'
+html_favicon = '_static/dpy_logo_spiral/DPy_favicon_blk-diag-32.png'
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -223,7 +223,7 @@ html_last_updated_fmt = '%d %b %Y'
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {"logo_only": True}
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
