@@ -25,6 +25,14 @@ from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
 
 
+# Function to rebin a cube in the spatial dimension
+def rebin(arr, new_2dshape):
+    shape = (arr.shape[0],
+             new_2dshape[0], arr.shape[1] // new_2dshape[0],
+             new_2dshape[1], arr.shape[2] // new_2dshape[1])
+    return arr.reshape(shape).sum(-1).sum(-2)
+
+
 def calc_pixel_distance(nx, ny, center_coord):
     """
     Function to calculate the distance of each pixel
@@ -59,22 +67,22 @@ def create_aperture_mask(nx, ny, center_coord, dr):
     """
 
     seps, pa = calc_pixel_distance(nx, ny, center_coord)
-    
+
     # Return boolian if center w/in the aperture area
     return seps <= dr
-    
-    # ##  
+
+    # ##
     # seps_ul, pa = calc_pixel_distance(nx, ny, [center_coord[0]+0.5, center_coord[1]-0.5])
     # seps_ll, pa = calc_pixel_distance(nx, ny, [center_coord[0]+0.5, center_coord[1]+0.5])
     # seps_ur, pa = calc_pixel_distance(nx, ny, [center_coord[0]-0.5, center_coord[1]-0.5])
     # seps_lr, pa = calc_pixel_distance(nx, ny, [center_coord[0]-0.5, center_coord[1]+0.5])
-    # 
-    # 
+    #
+    #
     # mask_ap = np.zeros(seps_ul.shape)
     # mask_ap[(seps_ul <= dr) | (seps_ll <= dr) | (seps_ur <= dr) | (seps_lr <= dr)] = 1.
-    # 
+    #
     # return mask_ap
-    
+
 
 def determine_aperture_centers(nx, ny, center_coord, pa, dr):
     """
@@ -162,7 +170,7 @@ def calc_pix_position(r, pa, xcenter, ycenter):
     :param ycenter:
     :return:
     """
-    
+
     pa_rad = np.pi/180. * pa
     #signfac = np.sign(np.cos(pa_rad))
     #xnew = -r*np.sin(pa_rad)*signfac + xcenter
@@ -198,10 +206,10 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
           contain the errors on those parameters.
     """
     # profile_direction = 'negative'
-    
+
     raise ValueError("This function is depreciated, and we should switch any other calls to it.\n Please let codewriters know.")
-    
-    
+
+
     ny = cube.shape[1]
     nx = cube.shape[2]
 
@@ -320,7 +328,7 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
                 disp = sp_ndi.median_filter(disp, size=smoothing_npix, mode='constant', cval=0.)  # zero-padding edges
         else:
             print("Smoothing type={} not supported".format(smoothing_type))
-            
+
         return vel, disp
 
 
@@ -335,12 +343,12 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
                 cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
             else:
                 cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
-                
+
             cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
                                               mask=cube.mask, meta=cube.meta,
                                               fill_value=cube.fill_value)
             #cube = cube.spatial_smooth_median(smoothing_npix)
-            
+
         else:
             print("Smoothing type={} not supported".format(smoothing_type))
 
@@ -403,35 +411,35 @@ def symmetrize_velfield(xbin, ybin, velBin, errBin, sym=2, pa=90.):
 # ----------------------------------------------------------------------
 
 def symmetrize_1D_profile(rin, vin, errin, sym=1):
-    
+
     whz = np.where(np.abs(rin) == np.abs(rin).min())[0]
     maxval = np.max([np.abs(rin[0]), np.abs(rin[-1])])
     rnum = np.max([2.*(len(rin)-whz[0]-1)+1, 2.*whz[0]+1])
     rout = np.linspace(-maxval, maxval, num=rnum, endpoint=True)
-    
-    
+
+
     vinterp = interpolate.interp1d(rin, vin, kind='cubic', bounds_error=False, fill_value=np.NaN)
     errinterp = interpolate.interp1d(rin, errin, kind='cubic', bounds_error=False, fill_value=np.NaN)
-    
+
     if sym == 1:
         symm_fac = -1.
     elif sym == 2:
         symm_fac = 1.
-    
-    
+
+
     vint = vinterp(rout)
     errint = errinterp(rout)
-    
-    
+
+
     velOut = np.vstack([vint, symm_fac*vint[::-1]])
     errOut = np.vstack([errint, errint[::-1]])
-    
+
     vsym = np.nanmean(velOut, axis=0)
-    
+
     err_count = np.sum(np.isfinite(errOut), axis=0)
     err_count[err_count == 0] = 1
     errsym = np.sqrt(np.nansum(errOut**2, axis=0))/err_count
-    
+
     return rout, vsym, errsym
 
 
@@ -466,7 +474,7 @@ def lnlike_truncnorm(params, x):
 def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     """
     Get the uncertainty ellipse of the sample for each photocenter.
-    (Modified from code from Jinyi Shangguan to do photocenter uncertainty ellipses) 
+    (Modified from code from Jinyi Shangguan to do photocenter uncertainty ellipses)
     Parameters
     ----------
     pos_list: 2D array
@@ -477,26 +485,26 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     -------
     PA, stddev_x, stddev_y:
         PA:         angle of ellipse, in degrees
-        stddev_x:   stddev of the "x" axis of the 2D gaussian; 
+        stddev_x:   stddev of the "x" axis of the 2D gaussian;
                             double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
         stddev_y:   stddev of the "y" axis of the 2D gaussian
     """
-    
+
     nSamp = len(chain_x)
-    
+
     chainvals = np.stack([chain_x.T,chain_y.T], axis=1)
     # shape: nSamp, 2
-    
+
     pmean, pmed, pstd = apy_stats.sigma_clipped_stats(chainvals, axis=0)
-    
+
     # -> Shift the position to center at zero.
     valshift = chainvals - pmed
-    
+
     # -> Get the 2D histogram and fit with a 2D Gaussian
     # use +- 2 FWHM in either direction
     range = [[-4.7*pstd[0], 4.7*pstd[0]], [-4.7*pstd[1], 4.7*pstd[1]]]
     p_2dh, px_edge, py_edge = np.histogram2d(valshift[:, 0], valshift[:, 1], bins=bins, range=range)
-    
+
     px_cnt = (px_edge[1:] + px_edge[:-1]) / 2.
     py_cnt = (py_edge[1:] + py_edge[:-1]) / 2.
     pxx_cnt, pyy_cnt = np.meshgrid(px_cnt, py_cnt)
@@ -508,24 +516,24 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
         warnings.simplefilter('ignore')
         m = fit_m(m_init, pxx_cnt, pyy_cnt, p_2dh)
     # pars = m.parameters
-    
+
     PA =        m.theta.value * 180./np.pi
     stddev_x =  m.x_stddev.value
     stddev_y =  m.y_stddev.value
-    
+
     # Map values onto a "common" frame:
     if stddev_x > stddev_y:
         PA += 90.
         stddev_y =  m.x_stddev.value
         stddev_x =  m.y_stddev.value
-    
+
     # Map to 0, 180:
     PA = PA % 360
-    
+
     if PA > 180.:
         PA -= 180.
     # if PA < 0:
     #     PA += 180.
-    
-    return PA, stddev_x, stddev_y 
-    
+
+    return PA, stddev_x, stddev_y
+

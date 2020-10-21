@@ -9,7 +9,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
-import time
 import logging
 import copy
 
@@ -19,23 +18,16 @@ import os
 import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
-import six
 import astropy.modeling as apy_mod
-import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
-
-
 import dill as _pickle
-#import pickle as _pickle
 
 # Local imports
 # Package imports
-from dysmalpy.instrument import Instrument
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
-from dysmalpy.utils import apply_smoothing_2D, apply_smoothing_3D
+from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
-# from dysmalpy.utils import measure_1d_profile_apertures
 
 __all__ = ['Galaxy']
 
@@ -46,22 +38,44 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-# Function to rebin a cube in the spatial dimension
-def rebin(arr, new_2dshape):
-    shape = (arr.shape[0],
-             new_2dshape[0], arr.shape[1] // new_2dshape[0],
-             new_2dshape[1], arr.shape[2] // new_2dshape[1])
-    return arr.reshape(shape).sum(-1).sum(-2)
-
 
 class Galaxy:
     """
-    The main object for simulating the kinematics of a galaxy based on
-    user provided mass components.
+    Container for simulating or modelling a galaxy
+
+    `Galaxy` holds the observed data, model, observing instrument, and
+    general information for a galaxy. This can be a simulated or real
+    galaxy.
+
+    Parameters
+    ----------
+    z : float
+        Redshift of the galaxy
+    cosmo : `~astropy.cosmology` object
+            The cosmology to use for modelling. Default is
+            astropy.cosmology.FlatLambdaCDM with H0=70., and Om0=0.3.
+    model : `~dysmalpy.models.ModelSet` object
+            A dysmalpy model to use for simulating and/or fitting data.
+            This generates the intrinsic observables of the galaxy based
+            on the components included in the ModelSet.
+    instrument : `~dysmalpy.instrument.Instrument` object
+                 A dysmalpy instrument to use for simulating and/or fitting
+                 data. This describes how the observables produced by
+                 `model` are converted to observed space data.
+    data : `~dysmalpy.data_classes.Data` object
+           The observed data for the galaxy that model data can be fit to
+    name : str, optional
+           Name of the galaxy. Default is "galaxy."
+    data1d : `~dysmalpy.data_classes.Data1D` object, optional
+             Observed 1D data (i.e rotation curve) for the galaxy
+    data2d : `~dysmalpy.data_classes.Data2D` object, optional
+             Observed 2D data (i.e. velocity and dispersion maps) for the galaxy
+    data3d : `~dysmalpy.data_classes.Data3D` object, optional
+             Observed 3D data (i.e. cube) for the galaxy
     """
 
     def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
-                 data=None, name='galaxy', 
+                 data=None, name='galaxy',
                  data1d=None, data2d=None, data3d=None):
 
         self._z = z
@@ -71,11 +85,11 @@ class Galaxy:
         else:
             self.model = model
         self.data = data
-        
+
         self.data1d = data1d
         self.data2d = data2d
         self.data3d = data3d
-        
+
         self.instrument = instrument
         self._cosmo = cosmo
         self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
@@ -104,39 +118,160 @@ class Galaxy:
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
-        
-        
-    # def get_vmax(self, r=None):
-    #     if r is None:
-    #         r = np.linspace(0., 25., num=251, endpoint=True)
-    # 
-    #     vel = self.velocity_profile(r, compute_dm=False)
-    # 
-    #     vmax = vel.max()
-    #     return vmax
 
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,
                           spec_start=-1000., nspec=201, line_center=None,
-                          spec_unit=(u.km/u.s), aper_centers=None, aper_dist=None,
-                          slit_width=None, slit_pa=None, profile1d_type=None, 
+                          spec_unit=(u.km/u.s), aper_centers=None,
+                          slit_width=None, slit_pa=None, profile1d_type=None,
                           from_instrument=True, from_data=True,
-                          oversample=1, oversize=1, debug=False,
+                          oversample=1, oversize=1,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
                           pix_length=None,
-                          skip_downsample=False, partial_aperture_weight=False, 
+                          skip_downsample=False, partial_aperture_weight=False,
                           xcenter=None, ycenter=None):
+        """
+        Function to simulate data for the galaxy
 
+        The function will initially generate a data cube that will then be optionally
+        reduced to 2D, 1D, or single spectrum data if specified. The generated cube
+        can be accessed via `Galaxy.model_cube` and the generated final data products
+        via `Galaxy.model_data`. Both of these attributes are `data_classes.Data` instances.
+
+        Parameters
+        ----------
+        ndim_final : {3, 2, 1, 0}
+            The dimensionality of the final data products.
+
+            3 = data cube
+
+            2 = velocity and dispersion maps
+
+            1 = velocity and dispersion radial curves
+
+            0 = single spectrum from integrating over the whole model cube
+
+        nx_sky : int
+            The number of pixels in the modelled data cube in the x direction
+
+        ny_sky : int
+            The number of pixels in the modelled data cube in the y direction
+
+        rstep : float
+                Pixel scale of the final model data cube in arcseconds/pixel
+
+        spec_type : {`'velocity'`, `'wavelength'`}
+                    Whether the spectral axis of the model data cube should be in
+                    velocity units or wavelength units
+
+        spec_step : float
+                    The difference between neighboring spectral channels for the model
+                    cube
+
+        spec_start : float
+                     The value of the first spectral channel for the model cube
+
+        nspec : int
+                The number of spectral channels for the model cube
+
+        line_center : float
+                      The observed frame wavelength that corresponds to zero velocity.
+                      Only necessary if `spec_type` = 'wavelength'
+
+        spec_unit : astropy.units.Unit
+                    The units for the spectral axis of the model data cube
+
+        aper_centers : array_like
+                       Array of radii in arcseconds for where apertures are
+                       centered to create 1D rotation curve.
+                       Only necessary if `ndim_final` = 1.
+
+        slit_width : float
+                     The width in arcseconds of the pseudoslit used to measure
+                     the 1D rotation curve. In practice, circular apertures
+                     with radius = `slit_width`/2 are used to create the 1D rotation curve.
+
+        slit_pa : float
+                  The position angle of the pseudoslit in degrees. Convention is that negative
+                  values of `aper_centers` correspond to East of the center of the cube
+
+        profile1d_type : {`'circ_ap_cube'`, `'rect_ap_cube'`, `'square_ap_cube'`, `'circ_ap_pv'`, `'single_pix_pv'`}
+            The extraction method to create the 1D rotation curve.
+
+            "circ_ap_cube" = Extracts the 1D rotation curve through circular
+                apertures placed directly on the model cube
+            "rect_ap_cube" = Extracts the 1D rotation curve through rectangular
+                apertures placed directly on the model cube
+            "square_ap_cube" = Extracts the 1D rotation curve through square
+                apertures placed directly on the model cube
+            "circ_ap_pv" = The model cube is first collapsed to a PV diagram.
+                Circular apertures are then placed on the PV diagram
+                to construct the 1D rotation curve
+            "single_pix_pv" = The model cube is first collapsed to a PV diagram.
+                A 1D rotation curve is then extracted for each single
+                pixel.
+
+        from_instrument : bool
+                          If True, use the settings of the attached Instrument to populate
+                          the following parameters: `spec_type`, `spec_start`, `spec_step`,
+                          `spec_unit`, `nspec`, `nx_sky`, `ny_sky`, and `rstep`.
+
+        from_data : bool
+                    If True, use the observed data to populate the following parameters:
+                    `nx_sky` and `ny_sky` if data is 3D or 2D
+                    `spec_type`, `spec_start`, `spec_step`, `spec_unit`, `nspec` if data is 3D
+                    `slit_width`, `slit_pa`, `profile1D_type`, and `aper_centers` if data is 1D
+
+        oversample : int
+                     Oversampling factor for creating the model cube. If `oversample` > 1, then
+                     the model cube will first be generated at `rstep`/`oversample` pixel scale.
+                     It will then be downsampled to `rstep` pixel scale.
+
+        oversize : int
+                   Oversize factor for creating the model cube. If `oversize` > 1, then the model
+                   cube will first be generated with `oversize`*`nx_sky` and `oversize`*`ny_sky`
+                   number of pixels in the x and y direction respectively before any convolution
+                   is performed. After any convolution with the Instrument, the model cube is then
+                   cropped to match `nx_sky` and `ny_sky`.
+
+        aperture_radius : float
+                          Radius of circular apertures for `ndim_final` = 1 and
+                          `profile1d_type` = 'circ_ap_cube' Only used if
+                          `from_data` = False, otherwise the apertures attached to the data are
+                          used to construct the 1D rotation curve.
+
+        pix_perp : int or array
+                   Number of pixels wide each rectangular aperture is for `ndim_final` = 1 and
+                   `profile1d_type` = 'rect_ap_cube' in the direction perpendicular to the
+                   pseudoslit
+
+        pix_parallel : int or array
+                       Number of pixels wide each rectangular aperture is for `ndim_final` = 1 and
+                       `profile1d_type` = 'rect_ap_cube' in the direction parallel to the
+                       pseudoslit
+
+        pix_length : int or array
+                     Number of pixels on each side of a square aperture for `ndim_final` = 1 and
+                     `profile1d_type` = 'square_ap_cube'
+
+        skip_downsample : bool
+                          If True and `oversample` > 1 then do not downsample back to initial
+                          `rstep`. Note the settings of the Instrument will then be changed to
+                          match the new pixelscale and FOV size.
+
+        partial_aperture_weight : bool
+                                  If True, then use partial pixel weighting when integrating
+                                  over an aperture. Only used when `ndim_final` = 1.
+
+        xcenter : float
+                  x pixel coordinate of the center of the cube if it should be different than
+                  nx_sky/2
+
+        ycenter : float
+                  y pixel coordinate of the center of the cube if it should be different than
+                  ny_sky/2
         """
-        Simulate an IFU cube then optionally collapse it down to a 2D
-        velocity/dispersion field or 1D velocity/dispersion profile.
-        
-        Convention:
-            slit_pa is angle of slit to left side of major axis (eg, neg r is E)
-        """
-        # Default: 'circ_ap_cube',
-        
-        
+
         # Pull parameters from the observed data if specified
         if from_data:
 
@@ -157,7 +292,7 @@ class Galaxy:
                 spec_step = (self.data.data.spectral_axis[1].value -
                              self.data.data.spectral_axis[0].value)
                 rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
-                
+
                 try:
                     xcenter = self.data.xcenter
                 except:
@@ -166,7 +301,7 @@ class Galaxy:
                     ycenter = self.data.ycenter
                 except:
                     pass
-                
+
             elif ndim_final == 2:
 
                 nx_sky = self.data.data['velocity'].shape[1]
@@ -212,7 +347,7 @@ class Galaxy:
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
                 aper_centers = self.data.rarr
-                
+
                 try:
                     xcenter = self.data.xcenter
                 except:
@@ -221,12 +356,12 @@ class Galaxy:
                     ycenter = self.data.ycenter
                 except:
                     pass
-                    
-                
+
+
                 if 'profile1d_type' in self.data.__dict__.keys():
                     if self.data.profile1d_type is not None:
                         profile1d_type = self.data.profile1d_type
-                
+
 
             elif ndim_final == 0:
 
@@ -263,15 +398,15 @@ class Galaxy:
             spec_unit = self.instrument.spec_start.unit
             nspec = self.instrument.nspec
             rstep = self.instrument.pixscale.value
-            
+
             try:
                 slit_width = self.instrument.slit_width
             except:
                 pass
-                
+
             if (ndim_final == 1) & (profile1d_type is None):
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
-            
+
         else:
 
             if (nx_sky is None) | (ny_sky is None) | (rstep is None):
@@ -282,9 +417,9 @@ class Galaxy:
             #
             if (ndim_final == 1) & (profile1d_type is None):
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
-            
-            
-                                 
+
+
+
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,
                                                   dscale=self.dscale,
@@ -295,16 +430,16 @@ class Galaxy:
                                                   spec_start=spec_start,
                                                   spec_unit=spec_unit,
                                                   oversample=oversample,
-                                                  oversize=oversize, 
-                                                  xcenter=xcenter, 
+                                                  oversize=oversize,
+                                                  xcenter=xcenter,
                                                   ycenter=ycenter)
-        
+
         # Correct for any oversampling
-        if (oversample > 1) & (not skip_downsample): 
+        if (oversample > 1) & (not skip_downsample):
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
         else:
             sim_cube_nooversamp = sim_cube
-        
+
         if skip_downsample:
             rstep /= (1.*oversample)
             nx_sky *= oversample
@@ -314,8 +449,6 @@ class Galaxy:
             self.instrument.fov = [nx_sky, ny_sky]
             self.instrument.set_beam_kernel()
 
-        #if debug:
-        #self.model_cube_no_convolve = sim_cube_nooversamp
 
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
@@ -337,7 +470,7 @@ class Galaxy:
             sim_cube_final = sim_cube_obs
 
         #
-        
+
         self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
                                  spec_type=spec_type, spec_arr=spec,
                                  spec_unit=spec_unit)
@@ -358,19 +491,19 @@ class Galaxy:
             # Do normalization on a per-spaxel basis -- eg, don't care about preserving
             #   M/L ratio information from model.
             # collapse in spectral dimension only: axis 0
-            
+
             if from_data:
-                
+
                 # # Throw a non-implemented error if smoothing + 3D model:
                 # if from_data:
                 #     if self.data.smoothing_type is not None:
                 #         raise NotImplementedError('Smoothing for 3D output not implemented yet!')
-                        
+
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                             smoothing_type=self.data.smoothing_type,
                             smoothing_npix=self.data.smoothing_npix)
-                
+
                 sim_cube_final_scale = self.model_cube.data._data.copy()
                 if self.data.flux_map is None:
                     mask_flat = np.sum(self.data.mask, axis=0)
@@ -378,35 +511,34 @@ class Galaxy:
                                      self.model_cube.data/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     den = np.sum(self.data.mask*
                                     (self.model_cube.data**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
-                    
-                    #scale = np.abs(num/den)
+
                     scale = num / den
                     ## Handle zeros:
                     scale[den == 0.] = 0.
                     scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
                     scale3D[0, :, :] = scale
                     sim_cube_final_scale *= scale3D
-                    
+
                 else:
                     model_peak = np.nanmax(self.model_cube.data, axis=0)
                     scale = self.data.flux_map/model_peak
                     scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
                     scale3D[0, :, :] = scale
                     sim_cube_final_scale *= scale3D
-            
+
             self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=rstep,
                                      mask_cube=self.data.mask.copy(),
                                      spec_type=spec_type, spec_arr=spec,
                                      spec_unit=spec_unit)
-                                
+
         elif ndim_final == 2:
-            
+
             if from_data:
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                                 smoothing_type=self.data.smoothing_type,
                                 smoothing_npix=self.data.smoothing_npix)
-                                
+
                 # How data was extracted:
                 if self.data.moment:
                     extrac_type = 'moment'
@@ -422,7 +554,7 @@ class Galaxy:
                     extrac_type = 'moment'
             else:
                 extrac_type = 'moment'
-                    
+
             if spec_type == "velocity":
                 if extrac_type == 'moment':
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
@@ -441,32 +573,32 @@ class Galaxy:
                             mod.amplitude.bounds = (0, None)
                             mod.stddev.bounds = (0, None)
                             fitter = apy_mod.fitting.LevMarLSQFitter()
-                            
-                            best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
+
+                            best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value,
                                         self.model_cube.data.unmasked_data[:,i,j].value)
-                                        
+
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
-                            
-                    
+
+
             elif spec_type == "wavelength":
-                
-                cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s, 
+
+                cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s,
                     velocity_convention='optical',
                     rest_value=line_center)
-                    
+
                 if extrac_type == 'moment':
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
                 elif extrac_type == 'gauss':
                     raise ValueError("Not yet supported!")
-                    
+
                 disp[np.isnan(disp)] = 0.
 
             else:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
-            
+
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp)
 
@@ -503,7 +635,7 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 flux1d = flux_interp(aper_centers)
                 aper_model = None
-            
+
             elif profile1d_type == 'single_pix_pv':
                 r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
                                                     slit_pa-180., rstep, vel_arr)
@@ -513,21 +645,21 @@ class Galaxy:
                                                   fill_value='extrapolate')
                 vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
-                
+
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
                 flux1d = flux_interp(aper_centers)
-                
+
                 aper_model = None
             else:
-                
+
                 if from_data:
                     if (self.data.aper_center_pix_shift is not None):
                         try:
-                            center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0], 
+                            center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0],
                                             self.data.ycenter + self.data.aper_center_pix_shift[1])
                         except:
-                            center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0], 
+                            center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
                                             np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
                     else:
                         try:
@@ -540,39 +672,39 @@ class Galaxy:
                             center_pixel = None
                 else:
                     center_pixel = None
-                    
-                
-                
+
+
+
                 #----------------------------------------------------------
                 #try:
                 if from_data:
-                    aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr, 
+                    aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr,
                             cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
                     aper_model = None
-                    
+
                 # except:
                 #     raise TypeError('Unknown method for measuring the 1D profiles.')
-                
+
                 #----------------------------------------------------------
                 else:
-                    
-                    aper_model = aperture_classes.setup_aperture_types(gal=self, 
-                                profile1d_type=profile1d_type, 
-                                slit_width = slit_width, aper_centers=aper_centers, slit_pa=slit_pa, 
-                                aperture_radius=aperture_radius, 
+
+                    aper_model = aperture_classes.setup_aperture_types(gal=self,
+                                profile1d_type=profile1d_type,
+                                slit_width = slit_width, aper_centers=aper_centers, slit_pa=slit_pa,
+                                aperture_radius=aperture_radius,
                                 pix_perp=pix_perp, pix_parallel=pix_parallel,
-                                pix_length=pix_length, 
-                                partial_weight=partial_aperture_weight, 
+                                pix_length=pix_length,
+                                partial_weight=partial_aperture_weight,
                                 from_data=False)
-                    
-                    
-                    aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr, 
+
+
+                    aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr,
                             cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
 
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                     vel_disp=disp1d, flux=flux1d, 
+                                     vel_disp=disp1d, flux=flux1d,
                                      slit_width=slit_width,
                                      slit_pa=slit_pa)
             self.model_data.apertures = aper_model
@@ -597,7 +729,7 @@ class Galaxy:
             self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
                                      slit_width=self.data.slit_width, integrate_cube=self.data.integrate_cube,
                                     )
-                                    
+
         #
         # Reset instrument to orig value
         if skip_downsample:
@@ -609,47 +741,59 @@ class Galaxy:
             self.instrument.fov = [nx_sky, ny_sky]
             self.instrument.set_beam_kernel()
 
-
-
-
-    #
     def preserve_self(self, filename=None, save_data=True, overwrite=False):
         # Check for existing file:
         if (not overwrite) and (filename is not None):
             if os.path.isfile(filename):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
                 return None
-                
+              
         if filename is not None:
             galtmp = copy.deepcopy(self)
-            
+
             galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
             galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
-            
+
             if not save_data:
                 galtmp.data = None
                 galtmp.model_data = None
                 galtmp.model_cube = None
-            
-            # galtmp.instrument = copy.deepcopy(galaxy.instrument)
-            # galtmp.model = modtmp
-            
-            #dump_pickle(galtmp, filename=filename) # Save mcmcResults class
+
             _pickle.dump(galtmp, open(filename, "wb") )
-            
-            return None
-            
+
     def load_self(self, filename=None):
+        """
+        Load a saved Galaxy from a pickle file
+
+        Parameters
+        ----------
+        filename : str
+                   Name of the file with saved Galaxy
+
+        Returns
+        -------
+
+        """
         if filename is not None:
             galtmp = _pickle.load(open(filename, "rb"))
-            # Reset
-            #self = copy.deepcopy(galtmp)
-            #return self
             return galtmp
-            
-            
+
+
 def load_galaxy_object(filename=None):
+    """
+    Load a saved Galaxy from a pickle file
+
+    Parameters
+    ----------
+    filename : str
+               Name of the file with saved Galaxy
+
+    Returns
+    -------
+    gal: Galaxy object
+         The saved dysmalpy Galaxy object
+
+    """
     gal = Galaxy()
     gal = gal.load_self(filename=filename)
     return gal
-    
