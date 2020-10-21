@@ -14,6 +14,7 @@ dysmalpy
    :maxdepth: 1
    :caption: Contents:
 
+   installation.rst
    api.rst
 
 .. toctree::
