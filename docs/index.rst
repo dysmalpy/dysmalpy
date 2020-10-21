@@ -3,8 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to dysmalpy's documentation!
-====================================
+.. the "raw" directive below is used to hide the title in favor of
+   just the logo being visible
+
+=========
+dysmalpy
+=========
 
 .. toctree::
    :maxdepth: 1
