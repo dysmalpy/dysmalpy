@@ -46,7 +46,7 @@ from scipy.stats import gaussian_kde
 from scipy.optimize import fmin
 
 
-__all__ = ['fit', 'MCMCResults', 'MPFITResults']
+__all__ = ['fit_mcmc', 'fit_mpfit', 'MCMCResults', 'MPFITResults']
 
 
 # ACOR SETTINGS
@@ -58,7 +58,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-def fit(gal, nWalkers=10,
+
+def fit(*args, **kwargs):
+    wrn_msg = "fitting.fit has been depreciated.\n"
+    wrn_msg += "Instead call 'fitting.fit_mcmc' or 'fitting.fit_mpfit'."
+    raise ValueError(wrn_msg)
+    
+    
+
+def fit_mcmc(gal, nWalkers=10,
            cpuFrac=None,
            nCPUs = 1,
            scale_param_a = 3.,
@@ -3190,24 +3198,43 @@ def dump_pickle(data, filename=None, overwrite=False):
     return None
 
 
-def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
+
+def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_type=None):
+    """
+    Utility to reload the Galaxy and Results object from a previous fit.
+    
+    Parameters
+    ----------
+    filename_galmodel : str
+            Full path to the file storing the Galaxy object
+    filename_results :  str
+            Full path to the file storing the FitResults object
+    fit_type : str
+            Type of fit that was run. Used to determine the subclass of FitResults for reloading.
+            Can be set to `mpfit` or `mcmc`.
+    """
+    
+    if fit_type is None:
+        raise ValueError("Must set 'fit_type'! Options are 'mpfit' or 'mcmc'.")
+        
+    if fit_type.lower().strip() == 'mcmc':
+        return _reload_all_fitting_mcmc(filename_galmodel=None, filename_results=None)
+    elif fit_type.lower().strip() == 'mpfit':
+        return _reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None)
+    else:
+        raise ValueError("Fit type {} not recognized!".format(fit_type))
+    
+
+def _reload_all_fitting_mcmc(filename_galmodel=None, filename_results=None):
     gal = galaxy.load_galaxy_object(filename=filename_galmodel)
-
-    mcmcResults = MCMCResults()
-
-    mcmcResults.reload_results(filename=filename_mcmc_results)
-    #mcmcResults.reload_sampler(filename=filename_sampler)
-
-    return gal, mcmcResults
-
-def reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None):
-
-    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
-
-    results = MPFITResults()
-
+    results = MCMCResults()
     results.reload_results(filename=filename_results)
+    return gal, results
 
+def _reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None):
+    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
+    results = MPFITResults()
+    results.reload_results(filename=filename_results)
     return gal, results
 
 

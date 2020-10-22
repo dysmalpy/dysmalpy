@@ -9,6 +9,7 @@ from dysmalpy import data_classes
 from dysmalpy import parameters
 from dysmalpy import plotting
 from dysmalpy import aperture_classes
+from fitting_wrappers import utils_io
 
 import os
 import copy
@@ -41,28 +42,28 @@ outdir = '/afs/mpe.mpg.de/home/sedona/JUPYTER_EXAMPLES/JUPYTER_OUTPUT_1D/'
 
 # -------------------
 
-# ##### Set function to tie scale height relative to effective radius #####
-
-def tie_sigz_reff(model_set):
- 
-    reff = model_set.components['disk+bulge'].r_eff_disk.value
-    invq = model_set.components['disk+bulge'].invq_disk
-    sigz = 2.0*reff/invq/2.35482
-
-    return sigz
-
-
-# ##### Set function to tie Mvirial to $f_{DM}(R_e)$
-
-def tie_lmvirial_NFW(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
-    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm, 
-                    adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
-    return mvirial
-
-# - Also see **fitting_wrappers.utils_io** for more tied functions
+# # ##### Set function to tie scale height relative to effective radius #####
+# 
+# def tie_sigz_reff(model_set):
+#  
+#     reff = model_set.components['disk+bulge'].r_eff_disk.value
+#     invq = model_set.components['disk+bulge'].invq_disk
+#     sigz = 2.0*reff/invq/2.35482
+# 
+#     return sigz
+# 
+# 
+# # ##### Set function to tie Mvirial to $f_{DM}(R_e)$
+# 
+# def tie_lmvirial_NFW(model_set):
+#     comp_halo = model_set.components.__getitem__('halo')
+#     comp_baryons = model_set.components.__getitem__('disk+bulge')
+#     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+#     mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm, 
+#                     adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
+#     return mvirial
+# 
+# # - Also see **fitting_wrappers.utils_io** for more tied functions
 
 # ----------
 
@@ -134,7 +135,7 @@ def run_mcmc_full_1D():
                       fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
 
-    halo.mvirial.tied = tie_lmvirial_NFW
+    halo.mvirial.tied = utils_io.tie_lmvirial_NFW
 
 
     # ### Dispersion profile ###
@@ -154,7 +155,7 @@ def run_mcmc_full_1D():
 
     zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
                                        fixed=zheight_fixed)
-    zheight_prof.sigmaz.tied = tie_sigz_reff
+    zheight_prof.sigmaz.tied = utils_io.tie_sigz_reff
 
 
     # ### Geometry ###
@@ -318,7 +319,7 @@ def run_mcmc_full_1D():
 
     # ## Run `Dysmalpy` fitting: MCMC ##
 
-    mcmc_results = fitting.fit(gal, nWalkers=nwalkers, nCPUs=ncpus,
+    mcmc_results = fitting.fit_mcmc(gal, nWalkers=nwalkers, nCPUs=ncpus,
                                    scale_param_a=scale_param_a, nBurn=nburn,
                                    nSteps=nsteps, minAF=minaf, maxAF=maxaf,
                                    nEff=neff, do_plotting=do_plotting,
