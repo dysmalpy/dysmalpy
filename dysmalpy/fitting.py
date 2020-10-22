@@ -447,7 +447,7 @@ def _fit_emcee_221(gal, nWalkers=10,
 
 
         try:
-            acor_time = sampler.acor
+            acor_time = sampler.get_autocorr_time(self, low=5, c=10)
         except:
             acor_time = "Undefined, chain did not converge"
 
@@ -558,7 +558,7 @@ def _fit_emcee_221(gal, nWalkers=10,
         logger.info( stepinfomsg+timemsg )
 
         try:
-            acor_time = sampler.acor
+            acor_time = sampler.get_autocorr_time(self, low=5, c=10)
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
             acor_time = "Undefined, chain did not converge"
@@ -604,7 +604,7 @@ def _fit_emcee_221(gal, nWalkers=10,
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
 
     try:
-        acor_time = sampler.acor
+        acor_time = sampler.get_autocorr_time(self, low=5, c=10)
     except:
         acor_time = "Undefined, chain did not converge"
 
@@ -905,10 +905,9 @@ def _fit_emcee_3(gal, nWalkers=10,
         end = time.time()
         elapsed = end-start
 
-
-        acor_time = sampler_burn.acor
-
-
+        acor_time = sampler_burn.get_autocorr_time(tol=10, quiet=True)
+        
+        
         #######################################################################################
         # Return Burn-in info
         # ****
@@ -1005,8 +1004,9 @@ def _fit_emcee_3(gal, nWalkers=10,
         stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
-
-        acor_time = sampler.acor
+        
+        acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
+        #acor_time = sampler.get_autocorr_time(quiet=True)
         logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
 
 
@@ -1037,8 +1037,8 @@ def _fit_emcee_3(gal, nWalkers=10,
     end = time.time()
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
-
-    acor_time = sampler.acor
+    
+    acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
 
     #######################################################################################
     # ***********
@@ -2949,7 +2949,7 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
     flatprobs = probs.reshape((-1))
 
     try:
-        acor_time = sampler.acor
+        acor_time = sampler.get_autocorr_time(self, low=5, c=10)
     except:
         acor_time = None
 
@@ -2989,9 +2989,9 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.ndim))
     # Walkers, iterations
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
-
-    acor_time = sampler.acor
-
+    
+    acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
+    
     # Make a dictionary:
     sampler_dict = { 'chain':               sampler.chain[:, nBurn:, :],
                      'lnprobability':       sampler.lnprobability[:, nBurn:],
@@ -3037,9 +3037,9 @@ def _make_sampler_dict_from_hdf5(b):
     # Walkers, iterations
     probs =     np.swapaxes(b.get_log_prob(), 0, 1)
     flatprobs = probs.reshape(-1)
-
-    acor_time = sampler.acor
-
+    
+    acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
+    
     # Make a dictionary:
     sampler_dict = { 'chain':                chain,
                      'flatchain':            flatchain,
