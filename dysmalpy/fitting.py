@@ -4,8 +4,8 @@
 # Main classes and functions for fitting DYSMALPY kinematic models
 #   to the observed data using MCMC
 
-# Some handling of MCMC / posterior distribution analysis inspired by speclens, 
-#    with thanks to Matt George: 
+# Some handling of MCMC / posterior distribution analysis inspired by speclens,
+#    with thanks to Matt George:
 #    https://github.com/mrgeorge/speclens/blob/master/speclens/fit.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -69,41 +69,41 @@ def fit(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
-           oversampled_chisq = True, 
+           oversampled_chisq = True,
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
-           fitflux = False, 
-           blob_name=None, 
+           fitflux = False,
+           blob_name=None,
            model_key_re = ['disk+bulge','r_eff_disk'],
-           model_key_halo=['halo'], 
+           model_key_halo=['halo'],
            do_plotting = True,
            save_burn = False,
            save_model = True,
            save_bestfit_cube=True,
-           save_data = True, 
+           save_data = True,
            outdir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
            continue_steps = False,
-           save_intermediate_sampler_chain = True, 
-           nStep_intermediate_save = 5, 
+           save_intermediate_sampler_chain = True,
+           nStep_intermediate_save = 5,
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_model = None,
            f_cube = None,
            f_sampler = None,
-           f_sampler_tmp = None, 
+           f_sampler_tmp = None,
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
            f_mcmc_results = None,
            f_chain_ascii = None,
-           f_vel_ascii = None, 
+           f_vel_ascii = None,
            f_log = None,
-           plot_type = 'pdf', 
-           overwrite = False, 
+           plot_type = 'pdf',
+           overwrite = False,
            **kwargs ):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
@@ -120,8 +120,8 @@ def fit(gal, nWalkers=10,
     Output:
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
-    
-    
+
+
     # --------------------------------
     # Check option validity:
     if blob_name is not None:
@@ -132,28 +132,28 @@ def fit(gal, nWalkers=10,
         else:
             # Array of blobs
             blob_arr = blob_name[:]
-        
+
         for blobn in blob_arr:
             if blobn.lower().strip() not in valid_blobnames:
                 raise ValueError("blob_name={} not recognized as option!".format(blobn))
-            
-            
+
+
     # Temporary: testing:
     if red_chisq:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
-        
-        
+
+
     # --------------------------------
     # Basic setup:
-    
+
     # For compatibility with Python 2.7:
     mod_in = copy.deepcopy(gal.model)
     gal.model = mod_in
-    
+
     #if nCPUs is None:
     if cpuFrac is not None:
         nCPUs = np.int(np.floor(cpu_count()*cpuFrac))
-    
+
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
     if oversampled_chisq:
@@ -164,38 +164,38 @@ def fit(gal, nWalkers=10,
     if (len(outdir) > 0):
         if (outdir[-1] != '/'): outdir += '/'
     ensure_dir(outdir)
-    
+
     # --------------------------------
     # Setup fit_kwargs dict:
     local_vars = locals()
-    fit_inkeys = ['nWalkers', 'cpuFrac', 'nCPUs', 'scale_param_a', 'nBurn', 'nSteps', 
-                  'minAF', 'maxAF', 'nEff', 'oversample', 'oversize', 'oversampled_chisq', 'red_chisq', 
-                  'profile1d_type', 'fitdispersion', 'fitflux', 
-                  'blob_name', 'model_key_re', 'model_key_halo', 
+    fit_inkeys = ['nWalkers', 'cpuFrac', 'nCPUs', 'scale_param_a', 'nBurn', 'nSteps',
+                  'minAF', 'maxAF', 'nEff', 'oversample', 'oversize', 'oversampled_chisq', 'red_chisq',
+                  'profile1d_type', 'fitdispersion', 'fitflux',
+                  'blob_name', 'model_key_re', 'model_key_halo',
                   'do_plotting', 'save_burn', 'save_model', 'save_bestfit_cube', 'save_data',
-                  'outdir', 'linked_posterior_names', 'nPostBins', 
-                  'continue_steps', 'save_intermediate_sampler_chain', 
-                  'nStep_intermediate_save', 'input_sampler', 
-                  'f_plot_trace_burnin', 'f_plot_trace', 
-                  'f_model', 'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler', 
-                  'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii', 
+                  'outdir', 'linked_posterior_names', 'nPostBins',
+                  'continue_steps', 'save_intermediate_sampler_chain',
+                  'nStep_intermediate_save', 'input_sampler',
+                  'f_plot_trace_burnin', 'f_plot_trace',
+                  'f_model', 'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler',
+                  'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii',
                   'f_vel_ascii', 'f_log', 'plot_type', 'overwrite']
     fit_kwargs = {}
     for key in fit_inkeys:
         fit_kwargs[key] = local_vars[key]
-    
-    
+
+
     # --------------------------------
     # Split by emcee version:
-    
+
     if np.int(emcee.__version__[0]) >= 3:
         mcmcResults = _fit_emcee_3(gal, **fit_kwargs)
     else:
         mcmcResults = _fit_emcee_221(gal, **fit_kwargs)
-    
+
     return mcmcResults
-    
-    
+
+
 
 
 
@@ -211,50 +211,50 @@ def _fit_emcee_221(gal, nWalkers=10,
            nEff = 10,
            oversample = 1,
            oversize = 1,
-           oversampled_chisq = True, 
+           oversampled_chisq = True,
            red_chisq = False,
            profile1d_type='circ_ap_cube',
            fitdispersion = True,
-           fitflux = False, 
-           blob_name=None, 
+           fitflux = False,
+           blob_name=None,
            model_key_re = ['disk+bulge','r_eff_disk'],
-           model_key_halo=['halo'], 
+           model_key_halo=['halo'],
            do_plotting = True,
-           save_burn = True, 
+           save_burn = True,
            save_model = True,
            save_bestfit_cube=True,
-           save_data = True, 
+           save_data = True,
            outdir = 'mcmc_fit_results/',
            linked_posterior_names= None,
            nPostBins = 50,
            continue_steps = False,
-           save_intermediate_sampler_chain = True, 
-           nStep_intermediate_save = 5, 
+           save_intermediate_sampler_chain = True,
+           nStep_intermediate_save = 5,
            input_sampler = None,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_model = None,
            f_cube = None,
            f_sampler = None,
-           f_sampler_tmp = None, 
+           f_sampler_tmp = None,
            f_burn_sampler = None,
            f_plot_param_corner = None,
            f_plot_bestfit = None,
            f_mcmc_results = None,
            f_chain_ascii = None,
-           f_vel_ascii = None, 
+           f_vel_ascii = None,
            f_log = None,
-           plot_type = 'pdf', 
-           overwrite = False, 
+           plot_type = 'pdf',
+           overwrite = False,
            **kwargs ):
-    
+
     # OLD version
-    
-    
+
+
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
     if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
     if (f_sampler_tmp is None): f_sampler_tmp = outdir+'mcmc_sampler_INPROGRESS.pickle'
-    
+
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
     if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
@@ -267,21 +267,21 @@ def _fit_emcee_221(gal, nWalkers=10,
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
-    
+
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not overwrite):
-        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner, 
+        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner,
                     f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
         fnames_opt = [f_model, f_cube, f_burn_sampler]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
-                
+
         for fname in fnames:
             if os.path.isfile(fname):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
-                
+
         # Return early if it won't save the results, sampler:
         if os.path.isfile(f_sampler) or os.path.isfile(f_mcmc_results):
             msg = "overwrite={}, and one of 'f_sampler' or 'f_mcmc_results' won't be saved,".format(overwrite)
@@ -289,36 +289,36 @@ def _fit_emcee_221(gal, nWalkers=10,
             logger.warning(msg)
             return None
     # ---------------------------------------------------
-    
+
     # Setup file redirect logging:
     if f_log is not None:
         loggerfile = logging.FileHandler(f_log)
         loggerfile.setLevel(logging.INFO)
         logger.addHandler(loggerfile)
-    
+
     # ++++++++++++++++++++++++++++++
-    
+
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'oversize':oversize, 
+    kwargs_dict = {'oversample':oversample, 'oversize':oversize,
                     'fitdispersion':fitdispersion,
-                    'fitflux':fitflux, 
-                    'blob_name': blob_name, 
-                    'model_key_re':model_key_re, 
-                    'model_key_halo': model_key_halo, 
-                    'red_chisq': red_chisq, 
-                    'oversampled_chisq': oversampled_chisq, 
+                    'fitflux':fitflux,
+                    'blob_name': blob_name,
+                    'model_key_re':model_key_re,
+                    'model_key_halo': model_key_halo,
+                    'red_chisq': red_chisq,
+                    'oversampled_chisq': oversampled_chisq,
                     'profile1d_type':profile1d_type}
 
     nBurn_orig = nBurn
-    
+
     nDim = gal.model.nparams_free
-    
+
     if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
         sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
                     args=[gal], kwargs=kwargs_dict,
                     a = scale_param_a, threads = nCPUs)
-        
+
         # --------------------------------
         # Initialize walker starting positions
         initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
@@ -333,41 +333,41 @@ def _fit_emcee_221(gal, nWalkers=10,
                 message += '\n'
                 message += "Must set input_sampler if you will restart the sampler."
                 raise ValueError(message)
-        
-        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
-                            kwargs_dict=kwargs_dict, 
+
+        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal,
+                            kwargs_dict=kwargs_dict,
                             scale_param_a=scale_param_a)
-            
+
         initial_pos = input_sampler['chain'][:,-1,:]
         if blob_name is not None:
             blob = input_sampler['blobs']
-            
+
         # Close things
         input_sampler = None
-        
+
     elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
         input_sampler = load_pickle(f_sampler_tmp)
-        
-        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal, 
-                            kwargs_dict=kwargs_dict, 
+
+        sampler = reinitialize_emcee_sampler(input_sampler, gal=gal,
+                            kwargs_dict=kwargs_dict,
                             scale_param_a=scale_param_a)
         nBurn = nBurn_orig - (input_sampler['burn_step_cur'] + 1)
-            
+
         initial_pos = input_sampler['chain'][:,-1,:]
         if blob_name is not None:
             blob = input_sampler['blobs']
-            
+
         # If it saved after burn finished, but hasn't saved any of the normal steps: reset sampler
         if ((nBurn == 0) & (input_sampler['step_cur'] < 0)):
             blob = None
             sampler.reset()
             if blob_name is not None:
                  sampler.clear_blobs()
-            
+
         # Close things
         input_sampler = None
 
-            
+
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
@@ -376,17 +376,17 @@ def _fit_emcee_221(gal, nWalkers=10,
         logger.info("    velocity file: {}".format(gal.data.filename_velocity))
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
-    
+
     #logger.info('\n')
     logger.info('\n'+'nCPUs: {}'.format(nCPUs))
     logger.info('nWalkers: {}'.format(nWalkers))
     logger.info('lnlike: red_chisq={}'.format(red_chisq))
     logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
-    
+
     #logger.info('\n')
     logger.info('\n'+'blobs: {}'.format(blob_name))
-    
-    
+
+
     #logger.info('\n')
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
     if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
@@ -394,7 +394,7 @@ def _fit_emcee_221(gal, nWalkers=10,
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(oversample))
-    
+
 
     ################################################################
     # --------------------------------
@@ -415,42 +415,42 @@ def _fit_emcee_221(gal, nWalkers=10,
             if save_intermediate_sampler_chain:
                 if k < sampler.chain.shape[1]:
                     continue
-        
-            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+
+            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(),
                         np.mean(sampler.acceptance_fraction)  ) )
             ###
             pos_cur = pos.copy()    # copy just in case things are set strangely
-            
+
             # Run one sample step:
             if blob_name is not None:
-                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+                pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob,
                         rstate0=state, blobs0 = blob)
             else:
                 pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
 
-            
+
             # --------------------------------
             # Save intermediate steps if set:
             if save_intermediate_sampler_chain:
                 if ((k+1) % nStep_intermediate_save == 0):
                     sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
-                    sampler_dict_tmp['burn_step_cur'] = k 
+                    sampler_dict_tmp['burn_step_cur'] = k
                     sampler_dict_tmp['step_cur'] = -99
                     if f_sampler_tmp is not None:
                         # Save stuff to file, for future use:
                         dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
             # --------------------------------
-            
+
         #####
         end = time.time()
         elapsed = end-start
-        
-        
+
+
         try:
             acor_time = sampler.acor
         except:
             acor_time = "Undefined, chain did not converge"
-            
+
         #######################################################################################
         # Return Burn-in info
         # ****
@@ -510,14 +510,14 @@ def _fit_emcee_221(gal, nWalkers=10,
         # No burn-in: set initial position:
         if nBurn_orig > 0:
             logger.info('\nUsing previously completed burn-in'+'\n')
-            
+
         pos = np.array(initial_pos)
         prob = None
         state = None
-        
+
         if (not continue_steps) | (not save_intermediate_sampler_chain):
             blob = None
-            
+
     #######################################################################################
     # ****
     # --------------------------------
@@ -528,23 +528,23 @@ def _fit_emcee_221(gal, nWalkers=10,
 
     if sampler.chain.shape[1] > 0:
         logger.info('\n   Resuming with existing sampler chain'+'\n')
-        
+
     # --------------------------------
     # Run sampler: output info at each step
     for ii in six.moves.xrange(nSteps):
-        
+
         # --------------------------------
         # If continuing chain, only start past existing chain length:
         if continue_steps | save_intermediate_sampler_chain:
             if ii < sampler.chain.shape[1]:
                 continue
-        
+
         pos_cur = pos.copy()    # copy just in case things are set strangely
-        
+
         # --------------------------------
         # Only do one step at a time:
         if blob_name is not None:
-            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, 
+            pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob,
                     rstate0=state, blobs0 = blob)
         else:
             pos, prob, state = sampler.run_mcmc(pos_cur, 1, lnprob0=prob, rstate0=state)
@@ -556,17 +556,17 @@ def _fit_emcee_221(gal, nWalkers=10,
         stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
-        
+
         try:
             acor_time = sampler.acor
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
             acor_time = "Undefined, chain did not converge"
             logger.info(" {}: Chain too short for acor to run".format(ii) )
-                     
+
         # --------------------------------
         # Case: test for convergence and truncate early:
-        # Criteria checked: whether acceptance fraction within (minAF, maxAF), 
+        # Criteria checked: whether acceptance fraction within (minAF, maxAF),
         #                   and whether total number of steps > nEff * average autocorrelation time:
         #                   to make sure the paramter space is well explored.
         if ((minAF is not None) & (maxAF is not None) & \
@@ -578,7 +578,7 @@ def _fit_emcee_221(gal, nWalkers=10,
                     if ii >= acor_force_min:
                         logger.info(" Finishing calculations early at step {}.".format(ii+1))
                         break
-                        
+
         # --------------------------------
         # Save intermediate steps if set:
         if save_intermediate_sampler_chain:
@@ -602,12 +602,12 @@ def _fit_emcee_221(gal, nWalkers=10,
     end = time.time()
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
-    
+
     try:
         acor_time = sampler.acor
     except:
         acor_time = "Undefined, chain did not converge"
-        
+
     #######################################################################################
     # ***********
     # Consider overall acceptance fraction
@@ -634,13 +634,13 @@ def _fit_emcee_221(gal, nWalkers=10,
     #   Burn-in is already cut by resetting the sampler at the beginning.
     # Get pickleable format:  # _fit_io.make_emcee_sampler_dict
     sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
-    
-    
+
+
     if f_sampler is not None:
         # Save stuff to file, for future use:
         dump_pickle(sampler_dict, filename=f_sampler, overwrite=overwrite)
-        
-    
+
+
     # --------------------------------
     # Cleanup intermediate saves:
     if save_intermediate_sampler_chain:
@@ -648,20 +648,20 @@ def _fit_emcee_221(gal, nWalkers=10,
             if os.path.isfile(f_sampler_tmp):
                 os.remove(f_sampler_tmp)
     # --------------------------------
-    
+
     if nCPUs > 1:
         sampler.pool.close()
-    
+
     ##########################################
     ##########################################
     ##########################################
-    
+
     # --------------------------------
     # Bundle the results up into a results class:
     mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
                               f_plot_trace_burnin = f_plot_trace_burnin,
                               f_plot_trace = f_plot_trace,
-                              f_sampler = f_sampler, 
+                              f_sampler = f_sampler,
                               f_plot_param_corner = f_plot_param_corner,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
@@ -669,23 +669,23 @@ def _fit_emcee_221(gal, nWalkers=10,
                               blob_name=blob_name)
     if oversampled_chisq:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
-                              
+
     # Do all analysis, plotting, saving:
-    mcmcResults.analyze_plot_save_results(gal,    
-                  linked_posterior_names=linked_posterior_names, 
-                  nPostBins=nPostBins, 
-                  model_key_re=model_key_re, 
-                  model_key_halo=model_key_halo, 
-                  oversample=oversample, 
-                  oversize=oversize, 
-                  profile1d_type=profile1d_type, 
-                  fitdispersion=fitdispersion, 
-                  fitflux=fitflux, 
-                  save_data=save_data, 
+    mcmcResults.analyze_plot_save_results(gal,
+                  linked_posterior_names=linked_posterior_names,
+                  nPostBins=nPostBins,
+                  model_key_re=model_key_re,
+                  model_key_halo=model_key_halo,
+                  oversample=oversample,
+                  oversize=oversize,
+                  profile1d_type=profile1d_type,
+                  fitdispersion=fitdispersion,
+                  fitflux=fitflux,
+                  save_data=save_data,
                   save_bestfit_cube=save_bestfit_cube,
-                  f_cube=f_cube, 
-                  f_model=f_model, 
-                  f_vel_ascii = f_vel_ascii, 
+                  f_cube=f_cube,
+                  f_model=f_model,
+                  f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
                   overwrite=overwrite)
 
@@ -693,11 +693,11 @@ def _fit_emcee_221(gal, nWalkers=10,
     # Clean up logger:
     if f_log is not None:
         logger.removeHandler(loggerfile)
-        
-        
+
+
 
     return mcmcResults
-    
+
 def _fit_emcee_3(gal, nWalkers=10,
        cpuFrac=None,
        nCPUs = 1,
@@ -709,18 +709,18 @@ def _fit_emcee_3(gal, nWalkers=10,
        nEff = 10,
        oversample = 1,
        oversize = 1,
-       oversampled_chisq = True, 
+       oversampled_chisq = True,
        red_chisq = False,
        profile1d_type='circ_ap_cube',
        fitdispersion = True,
-       fitflux = False, 
-       blob_name=None, 
+       fitflux = False,
+       blob_name=None,
        model_key_re = ['disk+bulge','r_eff_disk'],
-       model_key_halo=['halo'], 
+       model_key_halo=['halo'],
        do_plotting = True,
        save_model = True,
        save_bestfit_cube=True,
-       save_data = True, 
+       save_data = True,
        outdir = 'mcmc_fit_results/',
        linked_posterior_names= None,
        nPostBins = 50,
@@ -735,16 +735,16 @@ def _fit_emcee_3(gal, nWalkers=10,
        f_plot_bestfit = None,
        f_mcmc_results = None,
        f_chain_ascii = None,
-       f_vel_ascii = None, 
+       f_vel_ascii = None,
        f_log = None,
-       plot_type = 'pdf', 
-       overwrite = False, 
+       plot_type = 'pdf',
+       overwrite = False,
        **kwargs ):
     # new version
-    
+
     # filetype for saving sampler: HDF5
     ftype_sampler = 'h5'
-    
+
     # If the output filenames aren't defined: use default output filenames
     if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
     if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
@@ -756,32 +756,32 @@ def _fit_emcee_3(gal, nWalkers=10,
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
-    
+
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not overwrite):
-        fnames = [f_plot_trace_burnin, f_plot_trace, f_plot_param_corner, 
+        fnames = [f_plot_trace_burnin, f_plot_trace, f_plot_param_corner,
                     f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
         fnames_opt = [f_model, f_cube]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
-                
+
         for fname in fnames:
             if os.path.isfile(fname):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
-                
+
         # Return early if it won't save the results, sampler:
         if os.path.isfile(f_mcmc_results):
             msg = "overwrite={}, and 'f_mcmc_results' won't be saved,".format(overwrite)
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
-            
+
         # Check length of sampler:
         if os.path.isfile(f_sampler):
             backend = emcee.backends.HDFBackend(f_sampler, name='mcmc')
-            
+
             try:
                 if backend.get_chain().shape[0] >= nSteps:
                     msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(overwrite, backend.get_chain().shape[0])
@@ -796,61 +796,61 @@ def _fit_emcee_3(gal, nWalkers=10,
         # Overwrite: remove old file versions
         if os.path.isfile(f_sampler): os.remove(f_sampler)
         if os.path.isfile(f_mcmc_results): os.remove(f_mcmc_results)
-        
+
     # ---------------------------------------------------
-    
+
     # Setup file redirect logging:
     if f_log is not None:
         loggerfile = logging.FileHandler(f_log)
         loggerfile.setLevel(logging.INFO)
         logger.addHandler(loggerfile)
-    
+
     # ++++++++++++++++++++++++++++++
-    
+
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'oversize':oversize, 
+    kwargs_dict = {'oversample':oversample, 'oversize':oversize,
                     'fitdispersion':fitdispersion,
-                    'fitflux':fitflux, 
-                    'blob_name': blob_name, 
-                    'model_key_re':model_key_re, 
-                    'model_key_halo': model_key_halo, 
-                    'red_chisq': red_chisq, 
-                    'oversampled_chisq': oversampled_chisq, 
+                    'fitflux':fitflux,
+                    'blob_name': blob_name,
+                    'model_key_re':model_key_re,
+                    'model_key_halo': model_key_halo,
+                    'red_chisq': red_chisq,
+                    'oversampled_chisq': oversampled_chisq,
                     'profile1d_type':profile1d_type}
 
     nBurn_orig = nBurn
-    
+
     nDim = gal.model.nparams_free
-    
-    
+
+
     # --------------------------------
     # Start pool, moves, backend:
     pool = Pool(nCPUs)
     moves = emcee.moves.StretchMove(a=scale_param_a)
-    
+
     backend_burn = emcee.backends.HDFBackend(f_sampler, name="burnin_mcmc")
-    
+
     if overwrite:
         backend_burn.reset(nWalkers, nDim)
-    
+
     sampler_burn = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                backend=backend_burn, pool=pool, moves=moves, 
+                backend=backend_burn, pool=pool, moves=moves,
                 args=[gal], kwargs=kwargs_dict)
-                
-    nBurnCur = sampler_burn.iteration  
-        
+
+    nBurnCur = sampler_burn.iteration
+
     nBurn = nBurn_orig - nBurnCur
-    
+
     # --------------------------------
     # Initialize walker starting positions
     if sampler_burn.iteration == 0:
         initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
     else:
         initial_pos = sampler_burn.get_last_sample()
-    
-    
+
+
     # --------------------------------
     # Output some fitting info to logger:
     logger.info("*************************************")
@@ -859,22 +859,22 @@ def _fit_emcee_3(gal, nWalkers=10,
         logger.info("    velocity file: {}".format(gal.data.filename_velocity))
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
-    
+
     logger.info('\n'+'nCPUs: {}'.format(nCPUs))
     logger.info('nWalkers: {}'.format(nWalkers))
     logger.info('lnlike: red_chisq={}'.format(red_chisq))
     logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
-    
+
     logger.info('\n'+'blobs: {}'.format(blob_name))
-    
-    
+
+
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
     if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(oversample))
-    
+
 
     ################################################################
     # --------------------------------
@@ -885,30 +885,30 @@ def _fit_emcee_3(gal, nWalkers=10,
         start = time.time()
 
         ####
-        
+
         pos = initial_pos
         for k in six.moves.xrange(nBurn_orig):
             # --------------------------------
             # If recovering intermediate save, only start past existing chain length:
-            
+
             if k < sampler_burn.iteration:
                 continue
-            
-            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(), 
+
+            logger.info(" k={}, time.time={}, a_frac={}".format( k, datetime.datetime.now(),
                         np.mean(sampler_burn.acceptance_fraction)  ) )
             ###
-            
+
             # Run one sample step:
             pos = sampler_burn.run_mcmc(pos, 1)
-            
+
         #####
         end = time.time()
         elapsed = end-start
 
-        
+
         acor_time = sampler_burn.acor
-        
-        
+
+
         #######################################################################################
         # Return Burn-in info
         # ****
@@ -942,37 +942,37 @@ def _fit_emcee_3(gal, nWalkers=10,
             logger.info('\n#################\n'
                         "acorr time undefined -> can't check convergence\n"
                         '#################\n')
-                        
+
         # --------------------------------
         # Plot burn-in trace, if output file set
         if (do_plotting) & (f_plot_trace_burnin is not None):
             sampler_burn_dict = make_emcee_sampler_dict(sampler_burn, nBurn=0)
             mcmcResults_burn = MCMCResults(model=gal.model, sampler=sampler_burn_dict)
             plotting.plot_trace(mcmcResults_burn, fileout=f_plot_trace_burnin, overwrite=overwrite)
-            
+
 
     else:
         # --------------------------------
         # No burn-in: set initial position:
         if nBurn_orig > 0:
             logger.info('\nUsing previously completed burn-in'+'\n')
-        
+
         pos = initial_pos
-        
-    
+
+
     #######################################################################################
     # Setup sampler:
     # --------------------------------
     # Start backend:
     backend = emcee.backends.HDFBackend(f_sampler, name="mcmc")
-    
+
     if overwrite:
         backend.reset(nWalkers, nDim)
-    
+
     sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
-                backend=backend, pool=pool, moves=moves, 
+                backend=backend, pool=pool, moves=moves,
                 args=[gal], kwargs=kwargs_dict)
-                
+
     #######################################################################################
     # *************************************************************************************
     # --------------------------------
@@ -980,20 +980,20 @@ def _fit_emcee_3(gal, nWalkers=10,
     logger.info('\nEnsemble sampling:\n'
                 'Start: {}\n'.format(datetime.datetime.now()))
     start = time.time()
-    
+
     if sampler.iteration > 0:
         logger.info('\n   Resuming with existing sampler chain'+'\n')
-    
+
     # --------------------------------
     # Run sampler: output info at each step
     for ii in six.moves.xrange(nSteps):
-        
+
         # --------------------------------
         # If continuing chain, only start past existing chain length:
         if ii < sampler.iteration:
             continue
-            
-        
+
+
         # --------------------------------
         # Only do one step at a time:
         pos = sampler.run_mcmc(pos, 1)
@@ -1005,14 +1005,14 @@ def _fit_emcee_3(gal, nWalkers=10,
         stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
-        
+
         acor_time = sampler.acor
         logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
-        
-                     
+
+
         # --------------------------------
         # Case: test for convergence and truncate early:
-        # Criteria checked: whether acceptance fraction within (minAF, maxAF), 
+        # Criteria checked: whether acceptance fraction within (minAF, maxAF),
         #                   and whether total number of steps > nEff * average autocorrelation time:
         #                   to make sure the paramter space is well explored.
         if ((minAF is not None) & (maxAF is not None) & \
@@ -1024,7 +1024,7 @@ def _fit_emcee_3(gal, nWalkers=10,
                     if ii >= acor_force_min:
                         logger.info(" Finishing calculations early at step {}.".format(ii+1))
                         break
-                        
+
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
@@ -1037,7 +1037,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     end = time.time()
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
-    
+
     acor_time = sampler.acor
 
     #######################################################################################
@@ -1061,26 +1061,26 @@ def _fit_emcee_3(gal, nWalkers=10,
                 ''+acortimemsg+'\n'
                 '******************')
 
-    
+
     if nCPUs > 1:
         pool.close()
         sampler.pool.close()
         sampler_burn.pool.close()
-        
+
     ##########################################
     ##########################################
     ##########################################
-    
+
     # --------------------------------
     # Setup sampler dict:
     sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0)
-    
+
     # --------------------------------
     # Bundle the results up into a results class:
     mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
                               f_plot_trace_burnin = f_plot_trace_burnin,
                               f_plot_trace = f_plot_trace,
-                              f_sampler = f_sampler, 
+                              f_sampler = f_sampler,
                               f_plot_param_corner = f_plot_param_corner,
                               f_plot_bestfit = f_plot_bestfit,
                               f_results= f_mcmc_results,
@@ -1088,23 +1088,23 @@ def _fit_emcee_3(gal, nWalkers=10,
                               blob_name=blob_name)
     if oversampled_chisq:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
-                              
+
     # Do all analysis, plotting, saving:
-    mcmcResults.analyze_plot_save_results(gal,    
-                  linked_posterior_names=linked_posterior_names, 
-                  nPostBins=nPostBins, 
-                  model_key_re=model_key_re, 
-                  model_key_halo=model_key_halo, 
-                  oversample=oversample, 
-                  oversize=oversize, 
-                  profile1d_type=profile1d_type, 
-                  fitdispersion=fitdispersion, 
-                  fitflux=fitflux, 
-                  save_data=save_data, 
+    mcmcResults.analyze_plot_save_results(gal,
+                  linked_posterior_names=linked_posterior_names,
+                  nPostBins=nPostBins,
+                  model_key_re=model_key_re,
+                  model_key_halo=model_key_halo,
+                  oversample=oversample,
+                  oversize=oversize,
+                  profile1d_type=profile1d_type,
+                  fitdispersion=fitdispersion,
+                  fitflux=fitflux,
+                  save_data=save_data,
                   save_bestfit_cube=save_bestfit_cube,
-                  f_cube=f_cube, 
-                  f_model=f_model, 
-                  f_vel_ascii = f_vel_ascii, 
+                  f_cube=f_cube,
+                  f_model=f_model,
+                  f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
                   overwrite=overwrite)
 
@@ -1112,21 +1112,21 @@ def _fit_emcee_3(gal, nWalkers=10,
     # Clean up logger:
     if f_log is not None:
         logger.removeHandler(loggerfile)
-        
-        
+
+
 
     return mcmcResults
-    
+
 
 def fit_mpfit(gal,
               oversample=1,
               oversize=1,
               fitdispersion=True,
-              fitflux=False, 
-              use_weights=False, 
+              fitflux=False,
+              use_weights=False,
               profile1d_type='circ_ap_cube',
               model_key_re = ['disk+bulge','r_eff_disk'],
-              model_key_halo = ['halo'], 
+              model_key_halo = ['halo'],
               maxiter=200,
               do_plotting=True,
               save_model=True,
@@ -1138,7 +1138,7 @@ def fit_mpfit(gal,
               f_plot_bestfit = None,
               f_results = None,
               f_vel_ascii = None,
-              f_log = None, 
+              f_log = None,
               blob_name=None,
               plot_type='pdf',
               overwrite=False):
@@ -1157,7 +1157,7 @@ def fit_mpfit(gal,
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.{}'.format(plot_type)
     if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
-    
+
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not overwrite):
@@ -1166,11 +1166,11 @@ def fit_mpfit(gal,
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
-                
+
         for fname in fnames:
             if os.path.isfile(fname):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
-                
+
         # Return early if it won't save the results, sampler:
         if os.path.isfile(f_results):
             msg = "overwrite={}, and 'f_results' won't be saved,".format(overwrite)
@@ -1178,7 +1178,7 @@ def fit_mpfit(gal,
             logger.warning(msg)
             return None
     # ---------------------------------------------------
-    
+
     # Setup file redirect logging:
     if f_log is not None:
         loggerfile = logging.FileHandler(f_log)
@@ -1256,10 +1256,10 @@ def fit_mpfit(gal,
     # Save all of the fitting results in an MPFITResults object
     mpfitResults = MPFITResults(model=gal.model,
                                 f_plot_bestfit=f_plot_bestfit,
-                                f_results=f_results, 
+                                f_results=f_results,
                                 blob_name=blob_name)
 
-    mpfitResults.input_results(m, gal=gal, 
+    mpfitResults.input_results(m, gal=gal,
                 model_key_re=model_key_re, model_key_halo=model_key_halo)
 
     # Update theta to best-fit:
@@ -1269,11 +1269,11 @@ def fit_mpfit(gal,
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
 
     #
-    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                     model_key_re=model_key_re)
-    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                             model_key_re=model_key_re)
-                            
+
     # Get vmax and vrot
     if model_key_re is not None:
         comp = gal.model.components.__getitem__(model_key_re[0])
@@ -1289,21 +1289,21 @@ def fit_mpfit(gal,
     if f_model is not None:
         # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
-        
+
 
     if save_bestfit_cube:
         gal.model_cube.data.write(f_cube, overwrite=overwrite)
-        
+
         #######
         # DEBUGGING:
         if gal.data.ndim == 3:
             gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=overwrite)
-        
+
             gal.data.data.write(f_cube+'.data.fits', overwrite=overwrite)
         #######
 
     if do_plotting & (f_plot_bestfit is not None):
-        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux,
                               oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
                               profile1d_type=profile1d_type, overwrite=overwrite)
 
@@ -1396,7 +1396,7 @@ class FitResults(object):
             if os.path.isfile(filename):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
                 return None
-                
+
         if filename is not None:
             dump_pickle(self, filename=filename, overwrite=overwrite)  # Save FitResults class to a pickle file
 
@@ -1433,7 +1433,7 @@ class FitResults(object):
             if os.path.isfile(fileout):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
                 return None
-        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
                               oversample=oversample, oversize=oversize, fileout=fileout, overwrite=overwrite)
 
     def reload_results(self, filename=None):
@@ -1446,32 +1446,32 @@ class FitResults(object):
                 self.__dict__[key] = resultsSaved.__dict__[key]
             except:
                 pass
-                
+
     def results_report(self, gal=None, filename=None, params=None, report_type='short', overwrite=False):
         """Return a result report string, or save to file.
            report_type = 'short':   like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'pretty'
                        = 'long':    like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'machine'
         """
-        
+
         report = dpy_utils_io.create_results_report(gal, self, report_type=report_type, params=params)
-        
+
         if filename is not None:
             with open(filename, 'w') as f:
                 f.write(report)
         else:
             return report
-        
+
 
 
 class MCMCResults(FitResults):
     """
     Class to hold results of MCMC fitting to DYSMALPY models.
-    
-    Note: emcee sampler object is ported to a dictionary in 
+
+    Note: emcee sampler object is ported to a dictionary in
             mcmcResults.sampler
-        
+
         The name of the free parameters in the chain are accessed through:
-            mcmcResults.chain_param_names, 
+            mcmcResults.chain_param_names,
                 or more generally (separate model + parameter names) through
                 mcmcResults.free_param_names
     """
@@ -1480,7 +1480,7 @@ class MCMCResults(FitResults):
                  f_plot_trace_burnin=None,
                  f_plot_trace=None,
                  f_burn_sampler=None,
-                 f_mcmc_results=None, 
+                 f_mcmc_results=None,
                  f_sampler=None,
                  f_plot_param_corner=None,
                  f_plot_bestfit=None,
@@ -1504,51 +1504,51 @@ class MCMCResults(FitResults):
         self.f_sampler = f_sampler
         self.f_plot_param_corner = f_plot_param_corner
         self.f_chain_ascii = f_chain_ascii
-        
+
         self.blob_name = blob_name
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                           f_results=f_results, fit_method='MCMC')
-                                          
-                                          
-    def analyze_plot_save_results(self, gal, 
-                linked_posterior_names=None, 
-                nPostBins=50, 
-                model_key_re=None, 
-                model_key_halo=None, 
-                oversample=None, 
-                oversize=None, 
-                profile1d_type=None, 
-                fitdispersion=True, 
-                fitflux=False, 
-                save_data=True, 
+
+
+    def analyze_plot_save_results(self, gal,
+                linked_posterior_names=None,
+                nPostBins=50,
+                model_key_re=None,
+                model_key_halo=None,
+                oversample=None,
+                oversize=None,
+                profile1d_type=None,
+                fitdispersion=True,
+                fitflux=False,
+                save_data=True,
                 save_bestfit_cube=False,
-                f_cube=None, 
-                f_model=None, 
-                f_vel_ascii = None, 
+                f_cube=None,
+                f_model=None,
+                f_vel_ascii = None,
                 do_plotting = True,
                 overwrite=False):
         """
         Wrapper for post-sample analysis + plotting -- in case code broke and only have sampler saved.
-        
+
         """
-                
+
         if self.f_chain_ascii is not None:
             self.save_chain_ascii(filename=self.f_chain_ascii, overwrite=overwrite)
 
         # Get the best-fit values, uncertainty bounds from marginalized posteriors
         self.analyze_posterior_dist(gal=gal, linked_posterior_names=linked_posterior_names,
                     nPostBins=nPostBins)
-                
+
         # Update theta to best-fit:
         gal.model.update_parameters(self.bestfit_parameters)
-                
+
         if self.blob_name is not None:
             if isinstance(self.blob_name, str):
                 blob_names = [self.blob_name]
             else:
                 blob_names = self.blob_name[:]
-            
+
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
                     self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=self.blob_name)  # here blob_name should be the *full* list
@@ -1558,35 +1558,35 @@ class MCMCResults(FitResults):
                     self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
                 elif blobn.lower() == 'rb':
                     self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
-            
-        
-        gal.create_model_data(oversample=oversample, oversize=oversize, 
+
+
+        gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
-        
-        self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+
+        self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                         model_key_re=model_key_re)
-        self.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+        self.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                                 model_key_re=model_key_re)
-        
+
         if model_key_re is not None:
             comp = gal.model.components.__getitem__(model_key_re[0])
             param_i = comp.param_names.index(model_key_re[1])
-            r_eff = comp.parameters[param_i] 
+            r_eff = comp.parameters[param_i]
             self.vrot_bestfit = gal.model.velocity_profile(1.38*r_eff, compute_dm=False)
-    
-    
+
+
         self.vmax_bestfit = gal.model.get_vmax()
-    
+
         if self.f_results is not None:
             self.save_results(filename=self.f_results, overwrite=overwrite)
-        
+
         if f_model is not None:
             # Save model w/ updated theta equal to best-fit:
             gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
 
         if save_bestfit_cube:
             gal.model_cube.data.write(f_cube, overwrite=overwrite)
-        
+
         # --------------------------------
         # Plot trace, if output file set
         if (do_plotting) & (self.f_plot_trace is not None) :
@@ -1598,16 +1598,16 @@ class MCMCResults(FitResults):
             plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=self.blob_name, overwrite=overwrite)
 
         if (do_plotting) & (self.f_plot_bestfit is not None):
-            plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+            plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
                                   oversample=oversample, oversize=oversize, fileout=self.f_plot_bestfit,
                                   profile1d_type=profile1d_type, overwrite=overwrite)
-                              
+
         # --------------------------------
         # Save velocity / other profiles to ascii file:
         if f_vel_ascii is not None:
             self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
-            
-            
+
+
     def mod_linear_param_posterior(self, gal=None):
         linear_posterior = []
         j = -1
@@ -1623,21 +1623,21 @@ class MCMCResults(FitResults):
                         linear_posterior.append(True)
                     else:
                         linear_posterior.append(False)
-        
+
         self.linear_posterior = linear_posterior
-    
+
     def back_map_linear_param_bestfits(self, mcmc_param_bestfit, mcmc_limits, mcmc_limits_percentile):
         mcmc_param_bestfit_linear = mcmc_param_bestfit.copy()
         mcmc_limits_linear = mcmc_limits.copy()
-        
+
         for j in range(len(mcmc_param_bestfit)):
             if self.linear_posterior[j]:
                 mcmc_param_bestfit[j] = np.log10(mcmc_param_bestfit[j])
                 mcmc_limits[:,j] = np.log10(mcmc_limits[:, j])
                 mcmc_limits_percentile[:,j] = np.log10(mcmc_limits_percentile[:, j])
-                
+
         return mcmc_param_bestfit, mcmc_param_bestfit_linear, mcmc_limits, mcmc_limits_linear, mcmc_limits_percentile
-        
+
     def analyze_posterior_dist(self, gal=None, linked_posterior_names=None, nPostBins=50):
         """
         Default analysis of posterior distributions from MCMC fitting:
@@ -1651,12 +1651,12 @@ class MCMCResults(FitResults):
                                 format: set of linked parameter sets, with each linked parameter set
                                         consisting of len-2 tuples/lists of the
                                         component+parameter names.
-                                
-                                
+
+
         Structure explanation:
         (1) Want to analyze component+param 1 and 2 together, and then
             3 and 4 together.
-                                
+
             Input structure would be:
                 linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
                 with
@@ -1665,15 +1665,15 @@ class MCMCResults(FitResults):
                 for a full array of:
                 linked_posterior_names =
                     [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
-                            
+
         (2) Want to analyze component+param 1 and 2 together:
             linked_posterior_names = [ joint_param_bundle1 ]
             with
             join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-                            
+
             for a full array of:
                 linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
-                            
+
                 eg: look at halo: mvirial and disk+bulge: total_mass together
                     linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
                     or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
@@ -1687,10 +1687,10 @@ class MCMCResults(FitResults):
 
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
-        
+
         mcmc_limits = shortest_span_bounds(self.sampler['flatchain'], percentile=0.6827)
-        
-        
+
+
         ## location of peaks of *marginalized histograms* for each parameter
         mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
         for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
@@ -1700,20 +1700,20 @@ class MCMCResults(FitResults):
 
         ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
         mcmc_param_bestfit = find_peak_gaussian_KDE(self.sampler['flatchain'], mcmc_peak_hist)
-        
+
         # --------------------------------------------
         if linked_posterior_names is not None:
             # Make sure the param of self is updated
             #   (for ref. when reloading saved mcmcResult objects)
-            
+
             self.linked_posterior_names = linked_posterior_names
             linked_posterior_ind_arr = get_linked_posterior_indices(self,
                             linked_posterior_names=linked_posterior_names)
-            
+
             guess = mcmc_param_bestfit.copy()
-            
+
             bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
-                            guess=guess, 
+                            guess=guess,
                             linked_posterior_ind_arr=linked_posterior_ind_arr,
                             nPostBins=nPostBins)
 
@@ -1726,13 +1726,13 @@ class MCMCResults(FitResults):
         # --------------------------------------------
         # Uncertainty bounds are currently determined from marginalized posteriors
         #   (even if the best-fit is found from linked posterior).
-        
+
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
-        
+
         self.bestfit_parameters = mcmc_param_bestfit
         self.bestfit_redchisq = None
-        
+
         # ++++++++++++++++++++++++=
         # Original 68% percentile interval:
         mcmc_stack_percentile = np.concatenate(([mcmc_param_bestfit], mcmc_limits_percentile), axis=0)
@@ -1740,7 +1740,7 @@ class MCMCResults(FitResults):
 
         mcmc_uncertainties_1sig_percentile = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
                             list(zip(*mcmc_stack_percentile)))))
-                            
+
         # 1sig lower, upper uncertainty
         self.bestfit_parameters_err_percentile = mcmc_uncertainties_1sig_percentile
 
@@ -1751,8 +1751,8 @@ class MCMCResults(FitResults):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err_percentile = mcmc_param_bestfit - mcmc_limits_percentile[0]
         self.bestfit_parameters_u68_err_percentile = mcmc_limits_percentile[1] - mcmc_param_bestfit
-        
-        
+
+
         # ++++++++++++++++++++++++=
         # From new shortest credible interval:
         mcmc_stack = np.concatenate(([mcmc_param_bestfit], mcmc_limits), axis=0)
@@ -1771,13 +1771,13 @@ class MCMCResults(FitResults):
         # Separate 1sig l, u uncertainty, for utility:
         self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
         self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
-        
-        
+
+
     def analyze_blob_posterior_dist(self, bestfit=None, parname=None, blob_name=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
         if self.sampler is None:
             raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
-        
+
         if ('flatblobs' not in self.sampler.keys()):
             if len(self.sampler['blobs'].shape) == 2:
                 # Only 1 blob: nSteps, nWalkers:
@@ -1787,7 +1787,7 @@ class MCMCResults(FitResults):
                 flatblobs = self.sampler['blobs'].reshape(-1,self.sampler['blobs'].shape[2])
             else:
                 raise ValueError("Sampler blob length not recognized")
-            
+
             self.sampler['flatblobs'] = flatblobs
 
         if isinstance(blob_name, str):
@@ -1797,23 +1797,23 @@ class MCMCResults(FitResults):
             pname = parname.strip()
             indv = blob_name.index(pname)
             blobs = self.sampler['flatblobs'][:,indv]
-            
+
         # Unpack MCMC samples: lower, upper 1, 2 sigma
         mcmc_limits_percentile = np.percentile(blobs, [15.865, 84.135], axis=0)
-        
+
         mcmc_limits = shortest_span_bounds(blobs, percentile=0.6827)
-        
+
         # --------------------------------------------
         # Save best-fit results in the MCMCResults instance
         self.__dict__['bestfit_{}'.format(pname)] = bestfit
         self.__dict__['bestfit_{}_l68_err'.format(pname)] = bestfit - mcmc_limits[0]
         self.__dict__['bestfit_{}_u68_err'.format(pname)] = mcmc_limits[1] - bestfit
-        
-        
+
+
         self.__dict__['bestfit_{}_l68_err_percentile'.format(pname)] = bestfit - mcmc_limits_percentile[0]
         self.__dict__['bestfit_{}_u68_err_percentile'.format(pname)] = mcmc_limits_percentile[1] - bestfit
-        
-        
+
+
     def analyze_dm_posterior_dist(self, gal=None, model_key_re=None, blob_name=None):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
@@ -1824,19 +1824,19 @@ class MCMCResults(FitResults):
         """
         fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
         self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm', blob_name=blob_name)
-        
+
     def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         mvirial_mcmc_param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
         self.analyze_blob_posterior_dist(bestfit=mvirial_mcmc_param_bestfit, parname='mvirial', blob_name=blob_name)
-        
+
     def analyze_alpha_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         alpha_mcmc_param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
         self.analyze_blob_posterior_dist(bestfit=alpha_mcmc_param_bestfit, parname='alpha', blob_name=blob_name)
-        
+
     def analyze_rb_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
         rb_mcmc_param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
         self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb', blob_name=blob_name)
-        
+
     def get_uncertainty_ellipse(self, namex=None, namey=None, bins=50):
         """
         Using component name, get sampler chain for param x and y, and estimate joint uncertainty ellipse
@@ -1853,11 +1853,11 @@ class MCMCResults(FitResults):
         except:
             # eg, Single blob value flatblobs
             chain_y = self.sampler[namey[0]]
-        
+
         PA, stddev_x, stddev_y  = fit_uncertainty_ellipse(chain_x, chain_y, bins=bins)
-        return PA, stddev_x, stddev_y 
-        
-        
+        return PA, stddev_x, stddev_y
+
+
     def save_chain_ascii(self, filename=None, overwrite=False):
         # Check for existing file:
         if (not overwrite) and (filename is not None):
@@ -1870,7 +1870,7 @@ class MCMCResults(FitResults):
                 blobset = True
             except:
                 blobset = False
-            
+
             if ('flatblobs' not in self.sampler.keys()) & (blobset):
                 if len(self.sampler['blobs'].shape) == 2:
                     # Only 1 blob: nSteps, nWalkers:
@@ -1880,7 +1880,7 @@ class MCMCResults(FitResults):
                     flatblobs = self.sampler['blobs'].reshape(-1,self.sampler['blobs'].shape[2])
                 else:
                     raise ValueError("Sampler blob length not recognized")
-            
+
                 self.sampler['flatblobs'] = flatblobs
 
             with open(filename, 'w') as f:
@@ -1894,7 +1894,7 @@ class MCMCResults(FitResults):
                         for blobn in self.blob_name:
                             namestr += '  {}'.format(blobn)
                 f.write(namestr+'\n')
-                
+
                 # flatchain shape: (flat)step, params
                 for i in six.moves.xrange(self.sampler['flatchain'].shape[0]):
                     datstr = '  '.join(map(str, self.sampler['flatchain'][i,:]))
@@ -1904,7 +1904,7 @@ class MCMCResults(FitResults):
                         else:
                             for k in range(len(self.blob_name)):
                                 datstr += '  {}'.format(self.sampler['flatblobs'][i,k])
-                                
+
                     f.write(datstr+'\n')
 
 
@@ -1913,23 +1913,23 @@ class MCMCResults(FitResults):
         """Reload the MCMC sampler saved earlier"""
         if filename is None:
             filename = self.f_sampler
-        
+
         hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']
         if (filename.split('.')[-1].lower() in hdf5_aliases):
             self.sampler = _reload_sampler_hdf5(filename=filename)
-            
+
         elif (filename.split('.')[-1].lower() in pickle_aliases):
             self.sampler = _reload_sampler_pickle(filename=filename)
-            
-        
-        
+
+
+
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None,
                      overwrite=False):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
-        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                 oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
         self.plot_trace(fileout=f_plot_trace, overwrite=overwrite)
 
@@ -1951,14 +1951,14 @@ class MPFITResults(FitResults):
     def __init__(self, model=None, f_plot_bestfit=None, f_results=None, blob_name=None):
 
         self._mpfit_object = None
-        
-        
+
+
         self.blob_name = blob_name
 
         super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                          f_results=f_results, fit_method='MPFIT')
 
-    def input_results(self, mpfit_obj, gal=None, 
+    def input_results(self, mpfit_obj, gal=None,
                     model_key_re=None, model_key_halo=None):
         """
         Save the best fit results from MPFIT in the MPFITResults object
@@ -1979,15 +1979,15 @@ class MPFITResults(FitResults):
 
         if mpfit_obj.status > 0:
             self.bestfit_redchisq = mpfit_obj.fnorm/mpfit_obj.dof
-            
-            
+
+
         # Add "blob" bestfit:
         if self.blob_name is not None:
             if isinstance(self.blob_name, str):
                 blob_names = [self.blob_name]
             else:
                 blob_names = self.blob_name[:]
-                
+
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
                     param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
@@ -1997,12 +1997,12 @@ class MPFITResults(FitResults):
                     param_bestfit = gal.model.get_halo_alpha(model_key_halo=model_key_halo)
                 elif blobn.lower() == 'rb':
                     param_bestfit = gal.model.get_halo_rb(model_key_halo=model_key_halo)
-                    
+
                 self.analyze_blob_value(bestfit=param_bestfit, parname=blobn.lower())
-                
-            
-                
-                
+
+
+
+
     def analyze_blob_value(self, bestfit=None, parname=None):
         # Eg: parname = 'fdm' / 'mvirial' / 'alpha'
         pname = parname.strip()
@@ -2012,30 +2012,30 @@ class MPFITResults(FitResults):
         # Save best-fit results in the MCMCResults instance
         self.__dict__['bestfit_{}'.format(pname)] = bestfit
         self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
-        
+
 
     def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
                      f_plot_bestfit=None, overwrite=False):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
-        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux, 
+        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                           oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
 
 
 def log_prob(theta, gal,
              oversample=1,
              oversize=1,
-             red_chisq=False, 
-             oversampled_chisq=None, 
+             red_chisq=False,
+             oversampled_chisq=None,
              fitdispersion=True,
-             fitflux=False, 
-             blob_name = None, 
+             fitflux=False,
+             blob_name = None,
              profile1d_type=None,
-             model_key_re=None, 
+             model_key_re=None,
              model_key_halo=None):
     """
     Evaluate the log probability of the given model
     """
-    
+
     # Update the parameters
     gal.model.update_parameters(theta)
 
@@ -2055,15 +2055,15 @@ def log_prob(theta, gal,
         # Update the model data
         gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center, profile1d_type=profile1d_type)
-                              
+
         # Evaluate likelihood prob of theta
-        llike = log_like(gal, red_chisq=red_chisq, 
-                    oversampled_chisq=oversampled_chisq, 
-                    fitdispersion=fitdispersion, 
-                    fitflux=fitflux, 
-                    blob_name=blob_name, 
+        llike = log_like(gal, red_chisq=red_chisq,
+                    oversampled_chisq=oversampled_chisq,
+                    fitdispersion=fitdispersion,
+                    fitflux=fitflux,
+                    blob_name=blob_name,
                     model_key_re=model_key_re, model_key_halo=model_key_halo)
-                    
+
         if blob_name is not None:
             lprob = lprior + llike[0]
         else:
@@ -2072,7 +2072,7 @@ def log_prob(theta, gal,
         if not np.isfinite(lprob):
             # Make sure the non-finite ln_prob is -Inf, for emcee handling
             lprob = -np.inf
-            
+
         if blob_name is not None:
             if len(llike) == 2:
                 return lprob, llike[1]
@@ -2082,22 +2082,22 @@ def log_prob(theta, gal,
             return lprob
 
 
-def log_like(gal, red_chisq=False, 
-                oversampled_chisq=None, 
-                fitdispersion=True, 
-                fitflux=False, 
-                blob_name=None, 
-                model_key_re=None, 
+def log_like(gal, red_chisq=False,
+                oversampled_chisq=None,
+                fitdispersion=True,
+                fitflux=False,
+                blob_name=None,
+                model_key_re=None,
                 model_key_halo=None):
-    
+
     # Temporary: testing:
-    if oversampled_chisq is None: 
+    if oversampled_chisq is None:
         raise ValueError
-        
+
     if red_chisq:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
-        
-        
+
+
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
 
@@ -2105,13 +2105,13 @@ def log_like(gal, red_chisq=False,
         dat = gal.data.data.unmasked_data[:].value[msk]
         mod = gal.model_data.data.unmasked_data[:].value[msk]
         err = gal.data.error.unmasked_data[:].value[msk]
-        
+
         # Weights:
         wgt = 1.
         if hasattr(gal.data, 'weight'):
             if gal.data.weight is not None:
                 wgt = gal.data.weight[msk]
-            
+
         # Artificially mask zero errors which are masked
         #err[((err==0) & (msk==0))] = 99.
         chisq_arr_raw = (((dat - mod)/err)**2) * wgt + np.log( (2.*np.pi*err**2) / wgt )
@@ -2124,11 +2124,11 @@ def log_like(gal, red_chisq=False,
         else:
             invnu = 1.
         llike = -0.5*chisq_arr_raw.sum() * invnu
-        
+
 
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-        
+
         #msk = gal.data.mask
         if hasattr(gal.data, 'mask_velocity'):
             if gal.data.mask_velocity is not None:
@@ -2137,11 +2137,11 @@ def log_like(gal, red_chisq=False,
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-        
+
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
-        
+
         if hasattr(gal.data, 'mask_vel_disp'):
             if gal.data.mask_vel_disp is not None:
                 msk = gal.data.mask_vel_disp
@@ -2149,25 +2149,25 @@ def log_like(gal, red_chisq=False,
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-            
+
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
-        
+
         if fitflux:
             msk = gal.data.mask
             flux_dat = gal.data.data['flux'][msk]
             flux_mod = gal.model_data.data['flux'][msk]
             if gal.data.error['flux'] is not None:
-                flux_err = gal.data.error['flux'][msk] 
+                flux_err = gal.data.error['flux'][msk]
             else:
                 flux_err = 0.1 * gal.data.data['flux'][msk] # PLACEHOLDER
-        
+
         wgt = 1.
         if hasattr(gal.data, 'weight'):
             if gal.data.weight is not None:
                 wgt = gal.data.weight[msk]
-                
+
 
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
@@ -2176,31 +2176,31 @@ def log_like(gal, red_chisq=False,
                                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
-                                                       
+
         # Includes velocity shift
         chisq_arr_raw_vel = ((((vel_dat - vel_mod)/vel_err)**2) * wgt +
                                np.log( (2.*np.pi*vel_err**2) / wgt ))
-        
+
         #####
         if oversampled_chisq:
             invnu = 1. / gal.data.oversample_factor_chisq
-        
+
         # Data includes velocity
         fac_mask = 1
         chisq_arr_sum = chisq_arr_raw_vel.sum()
-        
+
         if fitdispersion:
             fac_mask += 1
             chisq_arr_raw_disp = ((((disp_dat - disp_mod)/disp_err)**2) * wgt +
                                     np.log( (2.*np.pi*disp_err**2) / wgt))
             chisq_arr_sum += chisq_arr_raw_disp.sum()
-            
+
         if fitflux:
             fac_mask += 1
             chisq_arr_raw_flux = ((((flux_dat - flux_mod)/flux_err)**2) * wgt +
                                     np.log( (2.*np.pi*flux_err**2) / wgt))
             chisq_arr_sum += chisq_arr_raw_flux.sum()
-            
+
         ####
         if ((not oversampled_chisq) and (red_chisq)):
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
@@ -2208,25 +2208,25 @@ def log_like(gal, red_chisq=False,
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
         else:
             invnu = 1.
-            
+
         ####
         llike = -0.5*(chisq_arr_sum) * invnu
-            
-        
-        
+
+
+
     elif gal.data.ndim == 0:
 
         msk = gal.data.mask
         data = gal.data.data
         mod = gal.model_data.data
         err = gal.data.error
-        
+
         wgt = 1.
         if hasattr(gal.data, 'weight'):
             if gal.data.weight is not None:
                 wgt = gal.data.weight
-                
-            
+
+
         chisq_arr = ((((data - mod)/err)**2) * wgt + np.log((2.*np.pi*err**2) / wgt))
         #
         if oversampled_chisq:
@@ -2246,7 +2246,7 @@ def log_like(gal, red_chisq=False,
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
-        
+
     ####
     if blob_name is not None:
         if isinstance(blob_name, str):
@@ -2255,7 +2255,7 @@ def log_like(gal, red_chisq=False,
         else:
             # Array of blobs
             blob_arr = blob_name[:]
-        
+
         #
         blobvals = []
         for blobn in blob_arr:
@@ -2269,19 +2269,19 @@ def log_like(gal, red_chisq=False,
                 blobv = gal.model.get_halo_rb(model_key_halo=model_key_halo)
             #
             blobvals.append(blobv)
-        
+
         # Preserve old behavior if there's only a single blob value: return float blob
         if isinstance(blob_name, str):
             blobvals = blobvals[0]
-            
-        
+
+
         return llike, blobvals
-        
+
     else:
         return llike
-        
-def chisq_eval(gal, fitdispersion=True, fitflux=False, 
-                use_weights=False, 
+
+def chisq_eval(gal, fitdispersion=True, fitflux=False,
+                use_weights=False,
                 model_key_re=['disk+bulge','r_eff_disk']):
     #
     if gal.data.ndim == 3:
@@ -2291,14 +2291,14 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
         dat = gal.data.data.unmasked_data[:].value[msk]
         mod = gal.model_data.data.unmasked_data[:].value[msk]
         err = gal.data.error.unmasked_data[:].value[msk]
-        
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
-                    
+
 
         # Artificially mask zero errors which are masked
         #err[((err==0) & (msk==0))] = 99.
@@ -2307,7 +2307,7 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
         chsq = chisq_arr_raw.sum() * invnu
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-        
+
         #msk = gal.data.mask
         if hasattr(gal.data, 'mask_velocity'):
             if gal.data.mask_velocity is not None:
@@ -2316,11 +2316,11 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-            
+
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
-        
+
         if hasattr(gal.data, 'mask_vel_disp'):
             if gal.data.mask_vel_disp is not None:
                 msk = gal.data.mask_vel_disp
@@ -2328,11 +2328,11 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-            
+
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
-        
+
         if fitflux:
             msk = gal.data.mask
             flux_dat = gal.data.data['flux'][msk]
@@ -2341,14 +2341,14 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
                 flux_err = gal.data.error['flux'][msk]
             except:
                 flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
-                
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
-            
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
@@ -2356,22 +2356,22 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
                                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
-                                                       
+
         # Includes velocity shift
-        
+
         chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
         invnu = 1.
-        
+
         chisq_sum = chisq_arr_raw_vel.sum()
-        
+
         if fitdispersion:
             chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
             chisq_sum += chisq_arr_raw_disp.sum()
         if fitflux:
             chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
             chisq_sum += chisq_arr_raw_flux.sum()
-        
-        
+
+
         chsq = ( chisq_sum ) * invnu
 
 
@@ -2382,28 +2382,28 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
         data = gal.data.data
         mod = gal.model_data.data
         err = gal.data.error
-        
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight
-                    
+
 
         chisq_arr = ((data - mod)/err)**2 * wgt
 
-        chsq = chisq_arr.sum() 
+        chsq = chisq_arr.sum()
 
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
-        
+
 
     return chsq
-    
-    
-def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False, 
+
+
+def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                 model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
     if gal.data.ndim == 3:
@@ -2413,14 +2413,14 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         dat = gal.data.data.unmasked_data[:].value[msk]
         mod = gal.model_data.data.unmasked_data[:].value[msk]
         err = gal.data.error.unmasked_data[:].value[msk]
-        
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
-                    
+
 
         # Artificially mask zero errors which are masked
         #err[((err==0) & (msk==0))] = 99.
@@ -2445,11 +2445,11 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-            
+
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
-        
+
         #
         if hasattr(gal.data, 'mask_vel_disp'):
             if gal.data.mask_vel_disp is not None:
@@ -2461,7 +2461,7 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
-        
+
         if fitflux:
             msk = gal.data.mask
             flux_dat = gal.data.data['flux'][msk]
@@ -2470,17 +2470,17 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                 flux_err = gal.data.error['flux'][msk]
             except:
                 flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
-            
-            
-        
+
+
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
-                    
-            
+
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
@@ -2488,51 +2488,51 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
-        
-        
+
+
         #####
-        
+
         ### Data includes velocity
         # Includes velocity shift
         chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
         fac_mask = 1
         chisq_arr_sum = chisq_arr_raw_vel.sum()
-        
+
         if fitdispersion:
             fac_mask += 1
-            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt 
+            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
             chisq_arr_sum += chisq_arr_raw_disp.sum()
-            
+
         if fitflux:
             fac_mask += 1
-            chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt 
+            chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
             chisq_arr_sum += chisq_arr_raw_flux.sum()
-            
+
         ####
         if red_chisq:
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
-            
-            
+
+
         ####
         redchsq = (chisq_arr_sum) * invnu
-        
-    
+
+
     elif gal.data.ndim == 0:
 
         msk = gal.data.mask
         data = gal.data.data
         mod = gal.model_data.data
         err = gal.data.error
-        
+
         # Weights:
         wgt = 1.
         if use_weights:
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight
-                    
+
 
         chisq_arr = (((data - mod)/err)**2) * wgt
         if red_chisq:
@@ -2549,7 +2549,7 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
-        
+
 
     return redchsq
 
@@ -2564,7 +2564,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
         mod = gal.model_data.data.unmasked_data[:].value
         err = gal.data.error.unmasked_data[:].value
         msk = gal.data.mask
-        
+
         # Weights:
         if use_weights:
             if hasattr(gal.data, 'weight'):
@@ -2576,7 +2576,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
                 wgt = 1.
         else:
             wgt = 1.
-            
+
         # Artificially mask zero errors which are masked
         err[((err == 0) & (msk == 0))] = 99.
         chisq_arr_raw = msk * (((dat - mod) / err)) * np.sqrt(wgt)
@@ -2592,7 +2592,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
                 msk = gal.data.mask
         else:
             msk = gal.data.mask
-            
+
         # Weights:
         if use_weights:
             if hasattr(gal.data, 'weight'):
@@ -2604,11 +2604,11 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
                 wgt = 1.
         else:
             wgt = 1.
-        
+
         vel_dat = gal.data.data['velocity'][msk]
         vel_mod = gal.model_data.data['velocity'][msk]
         vel_err = gal.data.error['velocity'][msk]
-        
+
         if hasattr(gal.data, 'mask_vel_disp'):
             if gal.data.mask_vel_disp is not None:
                 msk = gal.data.mask_vel_disp
@@ -2619,8 +2619,8 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
         disp_dat = gal.data.data['dispersion'][msk]
         disp_mod = gal.model_data.data['dispersion'][msk]
         disp_err = gal.data.error['dispersion'][msk]
-        
-        
+
+
         if fitflux:
             msk = gal.data.mask
             flux_dat = gal.data.data['flux'][msk]
@@ -2629,14 +2629,14 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
                 flux_err = gal.data.error['flux'][msk]
             except:
                 flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
-        
+
         # Correct model for instrument dispersion if the data is instrument corrected:
         if 'inst_corr' in gal.data.data.keys():
             if gal.data.data['inst_corr']:
                 disp_mod = np.sqrt(
                     disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
                         u.km / u.s).value ** 2)
-        
+
         chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err) * np.sqrt(wgt)
         if fitdispersion:
             chisq_arr_raw_disp = ((disp_dat - disp_mod) / disp_err) * np.sqrt(wgt)
@@ -2660,7 +2660,7 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
         raise ValueError
 
     status = 0
-    
+
     return [status, chisq_arr_raw]
 
 def setup_oversampled_chisq(gal):
@@ -2680,8 +2680,8 @@ def setup_oversampled_chisq(gal):
             PSF_FWHM = np.max([gal.instrument.beam.beam1.major.value, gal.instrument.beam.beam2.major.value])
         except:
             PSF_FWHM = np.max([gal.instrument.beam.beam1.major, gal.instrument.beam.beam2.major])
-            
-            
+
+
     if gal.data.ndim == 1:
         rarrtmp = gal.data.rarr.copy()
         rarrtmp.sort()
@@ -2691,7 +2691,7 @@ def setup_oversampled_chisq(gal):
         gal.data.oversample_factor_chisq = (PSF_FWHM / gal.instrument.pixscale.value)**2
     elif gal.data.ndim == 3:
         raise ValueError("need to implement!")
-    
+
     return gal
 
 def initialize_walkers(model, nWalkers=None):
@@ -2768,7 +2768,7 @@ def find_peak_gaussian_KDE(flatchain, initval):
             peakvals[i] = fmin(lambda x: -kern(x), initval[i],disp=False)
         return peakvals
     else:
-        
+
         kern = gaussian_kde(flatchain)
         peakval = fmin(lambda x: -kern(x), initval,disp=False)
 
@@ -2782,45 +2782,45 @@ def find_peak_gaussian_KDE_multiD(flatchain, linked_inds, initval):
     """
     Return chain parameters that give peak of the posterior PDF *FOR LINKED PARAMETERS, using KDE.
     """
-    
+
     nparams = len(linked_inds)
     kern = gaussian_kde(flatchain[:,linked_inds].T)
     peakvals = fmin(lambda x: -kern(x), initval,disp=False)
-    
+
     return peakvals
-    
+
 
 def find_multiD_pk_hist(flatchain, linked_inds, nPostBins=25):
     H2, edges = np.histogramdd(flatchain[:,linked_inds], bins=nPostBins)
-    
+
     wh_pk = np.where(H2 == H2.max())[0][0]
-    
+
     pk_vals = np.zeros(len(linked_inds))
-    
+
     for k in six.moves.xrange(len(linked_inds)):
         pk_vals[k] = np.average([edges[k][wh_pk], edges[k][wh_pk+1]])
-    
+
     return pk_vals
 
 
 
 def get_linked_posterior_peak_values(flatchain,
-                guess = None, 
+                guess = None,
                 linked_posterior_ind_arr=None,
                 nPostBins=50):
     """
     Get linked posterior best-fit values using a multi-D histogram for the
     given linked parameter indices.
-    
+
     Input:
         flatchain:                  sampler flatchain, shape (Nwalkers, Nparams)
         linked_posterior_inds_arr:  array of arrays of parameters to be analyzed together
-        
+
                                     eg: analyze ind1+ind2 together, and then ind3+ind4 together
                                     linked_posterior_inds_arr = [ [ind1, ind2], [ind3, ind4] ]
-                                    
+
         nPostBins:                  number of bins on each parameter "edge" of the multi-D histogram
-                                    
+
     Output:
         bestfit_theta_linked:       array of the linked bestfit paramter values from multiD param space
                                     eg:
@@ -2831,7 +2831,7 @@ def get_linked_posterior_peak_values(flatchain,
     bestfit_theta_linked = np.array([])
 
     for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-        bestfit_thetas = find_peak_gaussian_KDE_multiD(flatchain, linked_posterior_ind_arr[k], 
+        bestfit_thetas = find_peak_gaussian_KDE_multiD(flatchain, linked_posterior_ind_arr[k],
                 guess[linked_posterior_ind_arr[k]])
         if len(bestfit_theta_linked) >= 1:
             bestfit_theta_linked = np.stack(bestfit_theta_linked, np.array([bestfit_thetas]) )
@@ -2841,40 +2841,40 @@ def get_linked_posterior_peak_values(flatchain,
 
     return bestfit_theta_linked
 
-    
+
 
 def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
     """
     Convert the input set of linked posterior names to set of indices:
-    
+
     Input:
         (example structure)
-        
+
         To analyze all parameters together:
         linked_posterior_names = 'all'
-        
-        
+
+
         Alternative: only link some parameters:
-        
+
         linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
-        with 
+        with
         join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
         jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
         for a full array of:
-        linked_posterior_names = 
+        linked_posterior_names =
             [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
-            
-            
+
+
         Also if doing single bundle must have:
-        linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ] 
-    
+        linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
+
     Output:
         linked_posterior_inds = [ joint_bundle1_inds, joint_bundle2_inds ]
         with joint_bundle1_inds = [ ind1, ind2 ], etc
-        
-        ex: 
+
+        ex:
             output = [ [ind1, ind2], [ind3, ind4] ]
-        
+
     """
     linked_posterior_ind_arr = None
     try:
@@ -2884,36 +2884,36 @@ def get_linked_posterior_indices(mcmcResults, linked_posterior_names=None):
         pass
     if linked_posterior_ind_arr is None:
         free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
-        
+
         linked_posterior_ind_arr = []
         for k in six.moves.xrange(len(linked_posterior_names)):
             # Loop over *sets* of linked posteriors:
             # This is an array of len-2 arrays/tuples with cmp, param names
             linked_post_inds = []
             for j in six.moves.xrange(len(linked_posterior_names[k])):
-                
-                indp = get_param_index(mcmcResults, linked_posterior_names[k][j], 
+
+                indp = get_param_index(mcmcResults, linked_posterior_names[k][j],
                             free_cmp_param_arr=free_cmp_param_arr)
                 linked_post_inds.append(indp)
-                
-    
+
+
             linked_posterior_ind_arr.append(linked_post_inds)
-        
-        
+
+
     return linked_posterior_ind_arr
 
 def get_param_index(mcmcResults, param_name, free_cmp_param_arr=None):
     if free_cmp_param_arr is None:
         free_cmp_param_arr = make_arr_cmp_params(mcmcResults)
-    
+
     cmp_param = param_name[0].strip().lower()+':'+param_name[1].strip().lower()
-    
+
     try:
         whmatch = np.where(free_cmp_param_arr == cmp_param)[0][0]
     except:
         raise ValueError(cmp_param+' component+parameter not found in free parameters of mcmcResults')
     return whmatch
-    
+
 
 def make_arr_cmp_params(mcmcResults):
     arr = np.array([])
@@ -2930,15 +2930,15 @@ def make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=3):
     Save chain + key results from emcee sampler instance to a dict,
     as the emcee samplers aren't pickleable.
     """
-    
+
     if emcee_vers == 3:
         return _make_emcee_sampler_dict_v3(sampler, nBurn=nBurn)
     elif emcee_vers == 2:
         return _make_emcee_sampler_dict_v2(sampler, nBurn=nBurn)
     else:
         raise ValueError("Emcee version {} not supported!".format(emcee_vers))
-    
-    
+
+
 def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
     """ Syntax for emcee v2.2.1 """
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
@@ -2947,13 +2947,13 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
     # Walkers, iterations
     probs =     sampler.lnprobability[:, nBurn:]
     flatprobs = probs.reshape((-1))
-    
+
     try:
         acor_time = sampler.acor
     except:
         acor_time = None
-        
-        
+
+
     # Make a dictionary:
     sampler_dict = { 'chain':             chain,
                      'flatchain':         flatchain,
@@ -2962,13 +2962,13 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
                      'nIter':             sampler.iterations,
                      'nParam':            sampler.dim,
                      'nCPU':              sampler.threads,
-                     'nWalkers':          len(sampler.chain), 
+                     'nWalkers':          len(sampler.chain),
                      'acceptance_fraction': sampler.acceptance_fraction,
                      'acor_time': acor_time }
-           
+
     if len(sampler.blobs) > 0:
         sampler_dict['blobs'] = np.array(sampler.blobs[nBurn:])
-        
+
         if len(np.shape(sampler.blobs)) == 2:
             # Only 1 blob: nSteps, nWalkers:
             sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1)
@@ -2977,21 +2977,21 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
             sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
         else:
             raise ValueError("Sampler blob length not recognized")
-        
-        
+
+
     return sampler_dict
-    
+
 
 def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
     """ Syntax for emcee v3 """
-    
+
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.ndim))
     # Walkers, iterations
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
-    
+
     acor_time = sampler.acor
-        
+
     # Make a dictionary:
     sampler_dict = { 'chain':               sampler.chain[:, nBurn:, :],
                      'lnprobability':       sampler.lnprobability[:, nBurn:],
@@ -2999,11 +2999,11 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
                     'flatlnprobability':    probs,
                     'nIter':                sampler.iteration,
                     'nParam':               sampler.ndim,
-                    'nCPU':                 sampler.pool._processes,   # sampler.threads, 
-                    'nWalkers':             sampler.nwalkers, 
+                    'nCPU':                 sampler.pool._processes,   # sampler.threads,
+                    'nWalkers':             sampler.nwalkers,
                     'acceptance_fraction':  sampler.acceptance_fraction,
                     'acor_time':            acor_time }
-           
+
     if len(sampler.blobs) > 0:
         if len(np.shape(sampler.blobs)) == 2:
             # Only 1 blob: nSteps, nWalkers:
@@ -3015,11 +3015,11 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
             flatblobs = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
         else:
             raise ValueError("Sampler blob shape not recognized")
-            
+
         sampler_dict['flatblobs'] = flatblobs
-        
+
     return sampler_dict
-    
+
 
 def _reload_sampler_hdf5(filename=None, backend_name='mcmc'):
     # Load backend from file
@@ -3030,28 +3030,28 @@ def _make_sampler_dict_from_hdf5(b):
     """  Construct a dysmalpy 'sampler_dict' out of the chain info stored in the emcee v3 HDF5 file """
     nwalkers =  b.shape[0]
     ndim =      b.shape[1]
-    
+
     chain =     np.swapaxes(b.get_chain(), 0, 1)
     flatchain = chain.reshape((-1, ndim))
-    
+
     # Walkers, iterations
     probs =     np.swapaxes(b.get_log_prob(), 0, 1)
     flatprobs = probs.reshape(-1)
-    
+
     acor_time = sampler.acor
-        
+
     # Make a dictionary:
-    sampler_dict = { 'chain':                chain, 
+    sampler_dict = { 'chain':                chain,
                      'flatchain':            flatchain,
-                     'lnprobability':        probs, 
+                     'lnprobability':        probs,
                      'flatlnprobability':    flatprobs,
-                     'nIter':                b.iteration, 
-                     'nParam':               ndim, 
-                     'nCPU':                 None,  
-                     'nWalkers':             nwalkers, 
-                     'acceptance_fraction':  b.accepted / float(b.iteration), 
+                     'nIter':                b.iteration,
+                     'nParam':               ndim,
+                     'nCPU':                 None,
+                     'nWalkers':             nwalkers,
+                     'acceptance_fraction':  b.accepted / float(b.iteration),
                      'acor_time':            acor_time }
-           
+
     if b.has_blobs() :
         sampler_dict['blobs'] = b.get_blobs()
         if len(b.get_blobs().shape) == 2:
@@ -3062,41 +3062,41 @@ def _make_sampler_dict_from_hdf5(b):
             flatblobs = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler_dict['blobs'])[2])
         else:
             raise ValueError("Sampler blob shape not recognized")
-            
+
         sampler_dict['flatblobs'] = flatblobs
-        
+
 
     return sampler_dict
 
 def _reload_sampler_pickle(filename=None):
     return load_pickle(filename)
-    
-    
-def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None, 
+
+
+def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                     scale_param_a=None):
     """
     Re-setup emcee sampler, using existing chain / etc, so more steps can be run.
     """
-    
+
     # This will break for updated version of emcee
     # works for emcee v2.2.1
     if emcee.__version__ == '2.2.1':
-        
+
         sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
-                    log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a, 
+                    log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a,
                     threads=sampler_dict['nCPU'])
-                    
+
         sampler._chain = copy.deepcopy(sampler_dict['chain'])
         sampler._blobs = list(copy.deepcopy(sampler_dict['blobs']))
         sampler._lnprob = copy.deepcopy(sampler_dict['lnprobability'])
         sampler.iterations = sampler_dict['nIter']
-        sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']), 
+        sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']),
                             dtype=np.int64)
     ###
     elif np.int(emcee.__version__[0]) >= 3:
         # This is based off of HDF5 files, which automatically makes it easy to reload + resetup the sampler
         raise ValueError
-        
+
     ###
     else:
         try:
@@ -3104,29 +3104,29 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
             backend.nwalkers = sampler_dict['nWalkers']
             backend.ndim = sampler_dict['nParam']
             backend.iteration = sampler_dict['nIter']
-            backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'], 
+            backend.accepted = np.array(sampler_dict['nIter']*sampler_dict['acceptance_fraction'],
                                 dtype=np.int64)
             backend.chain = sampler_dict['chain']
             backend.log_prob = sampler_dict['lnprobability']
             backend.blobs = sampler_dict['blobs']
             backend.initialized = True
-            
-            
-            sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], 
+
+
+            sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'],
                         sampler_dict['nParam'],
-                        log_prob, 
-                        args=[gal], kwargs=kwargs_dict, 
-                        backend=backend, 
-                        a=scale_param_a, 
+                        log_prob,
+                        args=[gal], kwargs=kwargs_dict,
+                        backend=backend,
+                        a=scale_param_a,
                         threads=sampler_dict['nCPU'])
-            
+
         except:
             raise ValueError
-    
-    
-    
+
+
+
     return sampler
-    
+
 
 
 def mpfit_printer(fcn, x, iter, fnorm, functkw=None,
@@ -3175,8 +3175,8 @@ def load_pickle(filename):
     with open(filename, 'rb') as f:
         data = copy.deepcopy(_pickle.load(f))
     return data
-    
-    
+
+
 def dump_pickle(data, filename=None, overwrite=False):
     """ Small wrapper function to pickle a structure """
     # Check for existing file:
@@ -3184,7 +3184,7 @@ def dump_pickle(data, filename=None, overwrite=False):
         if os.path.isfile(filename):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
             return None
-            
+
     with open(filename, 'wb') as f:
         _pickle.dump(data, f )
     return None
@@ -3192,25 +3192,25 @@ def dump_pickle(data, filename=None, overwrite=False):
 
 def reload_all_fitting(filename_galmodel=None, filename_mcmc_results=None):
     gal = galaxy.load_galaxy_object(filename=filename_galmodel)
-    
-    mcmcResults = MCMCResults() 
-    
+
+    mcmcResults = MCMCResults()
+
     mcmcResults.reload_results(filename=filename_mcmc_results)
     #mcmcResults.reload_sampler(filename=filename_sampler)
-    
+
     return gal, mcmcResults
-    
+
 def reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None):
-    
+
     gal = galaxy.load_galaxy_object(filename=filename_galmodel)
-    
-    results = MPFITResults() 
-    
+
+    results = MPFITResults()
+
     results.reload_results(filename=filename_results)
-    
+
     return gal, results
-    
-    
+
+
 
 def norm(x): # Euclidean norm
     return np.sqrt(np.sum(x**2))
@@ -3220,14 +3220,14 @@ def norm(x): # Euclidean norm
 def find_shortest_conf_interval(xarr, percentile_frac):
     # Canonical 1sigma: 0.6827
     xsort = np.sort(xarr)
-    
+
     N = len(xarr)
-    i_max = np.int64(np.round(percentile_frac*N)) 
+    i_max = np.int64(np.round(percentile_frac*N))
     len_arr = xsort[i_max:] - xsort[0:N-i_max]
-    
+
     argmin = np.argmin(len_arr)
     l_val, u_val = xsort[argmin], xsort[argmin+i_max-1]
-    
+
     return l_val, u_val
 
 def shortest_span_bounds(arr, percentile=0.6827):
@@ -3237,8 +3237,5 @@ def shortest_span_bounds(arr, percentile=0.6827):
         limits = np.ones((2, arr.shape[1]))
         for j in six.moves.xrange(arr.shape[1]):
             limits[:, j] = find_shortest_conf_interval(arr[:,j], percentile)
-    
+
     return limits
-    
-    
-    
