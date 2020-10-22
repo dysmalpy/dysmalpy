@@ -25,10 +25,12 @@ from distutils.version import LooseVersion
 
 from pkg_resources import DistributionNotFound, get_distribution
 
-try:
-    __version__ = get_distribution("dysmalpy").version
-except DistributionNotFound:
-    __version__ = "unknown version"
+import dysmalpy
+
+# try:
+#     __version__ = get_distribution("dysmalpy").version
+# except DistributionNotFound:
+#     __version__ = "unknown version"
 
 # -- Project information -----------------------------------------------------
 
@@ -37,8 +39,8 @@ copyright = '2020, MPE/IR Group'
 author = 'Sedona Price and Taro Shimizu'
 
 # The full version, including alpha/beta/rc tags
-version = __version__
-release = __version__
+version = dysmalpy.__version__
+release = dysmalpy.__version__
 
 # -- General configuration ----------------------------------------------------
 
