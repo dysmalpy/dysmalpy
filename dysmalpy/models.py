@@ -816,7 +816,7 @@ class ModelSet:
         # Option for dealing with 3D data:
         self.per_spaxel_norm_3D = False
 
-    def add_component(self, model, name, light=False, geom_type='galaxy',
+    def add_component(self, model, name=None, light=False, geom_type='galaxy',
                       disp_type='galaxy'):
         """
         Add a model component to the set
