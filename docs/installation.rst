@@ -49,14 +49,14 @@ From Source
 ``dysmalpy`` can also be installed from source. You can download the
 package `here`_.
 
-.. _here: releases/dysmalpy-1.0.tar.gz
+.. _here: releases/dysmalpy-1.0.0.tar.gz
 
 From a terminal, change directories to where the package was downloaded
 and type:
 
 .. code-block:: console
 
-    $ tar zxvf dysmalpy-N.N.tar.gz
+    $ tar zxvf dysmalpy-N.N.N.tar.gz
     $ cd dysmalpy-N.N
     $ python setup.py install
 
