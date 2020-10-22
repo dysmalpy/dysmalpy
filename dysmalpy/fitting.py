@@ -3218,9 +3218,9 @@ def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_type=N
         raise ValueError("Must set 'fit_type'! Options are 'mpfit' or 'mcmc'.")
         
     if fit_type.lower().strip() == 'mcmc':
-        return _reload_all_fitting_mcmc(filename_galmodel=None, filename_results=None)
+        return _reload_all_fitting_mcmc(filename_galmodel=filename_galmodel, filename_results=filename_results)
     elif fit_type.lower().strip() == 'mpfit':
-        return _reload_all_fitting_mpfit(filename_galmodel=None, filename_results=None)
+        return _reload_all_fitting_mpfit(filename_galmodel=filename_galmodel, filename_results=filename_results)
     else:
         raise ValueError("Fit type {} not recognized!".format(fit_type))
     
