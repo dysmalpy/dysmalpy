@@ -170,7 +170,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None, outdir=
         
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
-            results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
+            results = fitting.fit_mcmc(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
                                   scale_param_a=fit_dict['scale_param_a'], nBurn=fit_dict['nBurn'],
                                   nSteps=fit_dict['nSteps'], minAF=fit_dict['minAF'],
                                   maxAF=fit_dict['maxAF'],

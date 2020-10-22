@@ -94,7 +94,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
 
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
-            results = fitting.fit(gal, nWalkers=fit_dict['nWalkers'],
+            results = fitting.fit_mcmc(gal, nWalkers=fit_dict['nWalkers'],
                                        nCPUs=fit_dict['nCPUs'],
                                        scale_param_a=fit_dict['scale_param_a'],
                                        nBurn=fit_dict['nBurn'],
@@ -190,7 +190,8 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         
         try:
             gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                                    filename_results=fit_dict['f_mcmc_results'], 
+                                    fit_type=params['fit_method'])
         except:
             # Something went wrong after sampler was saved
             gal = copy.deepcopy(galtmp)
@@ -230,7 +231,8 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         
         # Reload fitting stuff to get the updated gal object
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                                    filename_results=fit_dict['f_mcmc_results'], 
+                                    fit_type=params['fit_method'])
                                     
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
@@ -239,8 +241,9 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
         
         # reload results:
-        gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
-                                    filename_results=fit_dict['f_results'])
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                                    filename_results=fit_dict['f_results'], 
+                                    fit_type=params['fit_method'])
         # Don't reanalyze anything...
     else:
         raise ValueError(

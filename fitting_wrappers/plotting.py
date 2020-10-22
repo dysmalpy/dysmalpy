@@ -107,10 +107,12 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     # Reload the best-fit:
     if fit_dict['fit_method'] == 'mcmc':
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                    filename_results=fit_dict['f_mcmc_results'], 
+                    fit_type=fit_dict['fit_method'])
     elif fit_dict['fit_method'] == 'mpfit':
-        gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
-                    filename_results=fit_dict['f_results'])
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                    filename_results=fit_dict['f_results'], 
+                    fit_type=fit_dict['fit_method'])
                     
                     
     print("results.bestfit_parameters={}".format(results.bestfit_parameters))
@@ -201,10 +203,12 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
     # Reload the best-fit:
     if fit_dict['fit_method'] == 'mcmc':
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
-                    filename_mcmc_results=fit_dict['f_mcmc_results'])
+                    filename_results=fit_dict['f_mcmc_results'], 
+                    fit_type=fit_dict['fit_method'])
     elif fit_dict['fit_method'] == 'mpfit':
-        gal, results = fitting.reload_all_fitting_mpfit(filename_galmodel=fit_dict['f_model'], 
-                    filename_results=fit_dict['f_results'])
+        gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
+                    filename_results=fit_dict['f_results'], 
+                    fit_type=fit_dict['fit_method'])
                     
     # Load the other data:
     if fit_ndim == 2:
