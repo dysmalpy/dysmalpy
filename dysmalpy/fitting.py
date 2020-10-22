@@ -3038,7 +3038,7 @@ def _make_sampler_dict_from_hdf5(b):
     probs =     np.swapaxes(b.get_log_prob(), 0, 1)
     flatprobs = probs.reshape(-1)
     
-    acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
+    acor_time = b.get_autocorr_time(tol=10, quiet=True)
     
     # Make a dictionary:
     sampler_dict = { 'chain':                chain,
