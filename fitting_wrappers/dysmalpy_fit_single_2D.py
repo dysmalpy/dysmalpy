@@ -191,7 +191,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         try:
             gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_results=fit_dict['f_mcmc_results'], 
-                                    fit_type=params['fit_method'])
+                                    fit_method=params['fit_method'])
         except:
             # Something went wrong after sampler was saved
             gal = copy.deepcopy(galtmp)
@@ -232,7 +232,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         # Reload fitting stuff to get the updated gal object
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_results=fit_dict['f_mcmc_results'], 
-                                    fit_type=params['fit_method'])
+                                    fit_method=params['fit_method'])
                                     
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
@@ -243,7 +243,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         # reload results:
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'], 
                                     filename_results=fit_dict['f_results'], 
-                                    fit_type=params['fit_method'])
+                                    fit_method=params['fit_method'])
         # Don't reanalyze anything...
     else:
         raise ValueError(

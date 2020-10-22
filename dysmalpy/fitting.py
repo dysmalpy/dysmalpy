@@ -3199,7 +3199,7 @@ def dump_pickle(data, filename=None, overwrite=False):
 
 
 
-def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_type=None):
+def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method=None):
     """
     Utility to reload the Galaxy and Results object from a previous fit.
     
@@ -3209,20 +3209,20 @@ def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_type=N
             Full path to the file storing the Galaxy object
     filename_results :  str
             Full path to the file storing the FitResults object
-    fit_type : str
-            Type of fit that was run. Used to determine the subclass of FitResults for reloading.
+    fit_method : str
+            Fitting method that was run. Used to determine the subclass of FitResults for reloading.
             Can be set to `mpfit` or `mcmc`.
     """
     
-    if fit_type is None:
-        raise ValueError("Must set 'fit_type'! Options are 'mpfit' or 'mcmc'.")
+    if fit_method is None:
+        raise ValueError("Must set 'fit_method'! Options are 'mpfit' or 'mcmc'.")
         
-    if fit_type.lower().strip() == 'mcmc':
+    if fit_method.lower().strip() == 'mcmc':
         return _reload_all_fitting_mcmc(filename_galmodel=filename_galmodel, filename_results=filename_results)
-    elif fit_type.lower().strip() == 'mpfit':
+    elif fit_method.lower().strip() == 'mpfit':
         return _reload_all_fitting_mpfit(filename_galmodel=filename_galmodel, filename_results=filename_results)
     else:
-        raise ValueError("Fit type {} not recognized!".format(fit_type))
+        raise ValueError("Fit type {} not recognized!".format(fit_method))
     
 
 def _reload_all_fitting_mcmc(filename_galmodel=None, filename_results=None):
