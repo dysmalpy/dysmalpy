@@ -166,13 +166,13 @@ def run_mcmc_full_2D():
     yshift = 0    # pixels from center
     vel_shift = 0 # velocity shift at center ; km/s
     geom_fixed = {'inc': False,
-                  'pa': True,
+                  'pa':  False,    # True,
                   'xshift': False,
                   'yshift': False,
                   'vel_shift': False}
 
-    geom_bounds = {'inc': (0, 90),
-                   'pa': (90, 180),
+    geom_bounds = {'inc': (52, 72),
+                   'pa': (132, 152),
                    'xshift': (-2.5, 2.5),
                    'yshift': (-2.5, 2.5),
                    'vel_shift': (-100, 100)}
@@ -181,6 +181,8 @@ def run_mcmc_full_2D():
                            fixed=geom_fixed, bounds=geom_bounds, name='geom')
 
 
+    geom.inc.prior = parameters.BoundedSineGaussianPrior(center=62, stddev=0.1)
+    
     # ## Add all model components to ModelSet ##
 
 
@@ -272,9 +274,13 @@ def run_mcmc_full_2D():
                                       vel_disp_err=err_disp, mask=mask, 
                                       inst_corr=inst_corr)
 
+    # Use moment for fitting -- on single pixel scale it does not 
+    #     appear to strongly impact the results, and it's faster
+    data2d.moment = True
+    
     # Add data to Galaxy object:
     gal.data = data2d
-
+    
 
     # -----------------
 
@@ -286,8 +292,8 @@ def run_mcmc_full_2D():
     ## FULL TEST
     nwalkers = 1000
     ncpus = 190
-    scale_param_a = 3
-    nburn = 50
+    scale_param_a = 5 #3
+    nburn = 175
     nsteps = 200
     minaf = None
     maxaf = None
@@ -306,6 +312,8 @@ def run_mcmc_full_2D():
         extra = ''
     outdir_mcmc_full = outdir_mcmc = outdir + 'MCMC_full_run_nw{}_ns{}{}/'.format(nwalkers, nsteps, extra)
 
+    f_log = outdir_mcmc_full + 'mcmc_run.log'
+
     # Choose plot filetype:
     plot_type = 'pdf'
     
@@ -316,6 +324,7 @@ def run_mcmc_full_2D():
                                    oversample=oversample, outdir=outdir_mcmc_full,
                                    fitdispersion=fitdispersion,
                                    blob_name=blob_name, 
+                                   f_log=f_log, 
                                    plot_type=plot_type, overwrite=False)
 
 
