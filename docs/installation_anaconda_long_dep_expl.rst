@@ -1,9 +1,9 @@
 .. _install:
 .. highlight:: shell
 
-============
+======================================================================
 Setting up python and DysmalPy dependencies using Anaconda and ``pip``
-============
+======================================================================
 
 This guide walks you through the steps needed to
 set up a DysmalPy-ready python installation
@@ -23,7 +23,7 @@ for installing the DysmalPy dependencies.
 .. _conda_install:
 
 Install Anaconda
-------------
+----------------
 
 Currently, Anaconda has installers available for Windows, MacOS, and Linux,
 which can be downloaded from their website: `Anaconda downloads`_.
@@ -47,7 +47,7 @@ The full Anaconda installation requires at least 3 GB of disk space initially.
 .. _conda_env_create:
 
 Creating an Anaconda environment
-------------
+--------------------------------
 
 If you already have an Anaconda python installation, we suggest creating a new environment where
 the DysmalPy dependencies can be installed. This ensures that any package dependency requirements
@@ -84,7 +84,7 @@ modifying your shell login script (e.g., your .bashrc, .bash_profile, .profile, 
 .. _conda_env_activate:
 
 Activating an Anaconda environment
-~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you have installed the DysmalPy dependencies in the non-root Anaconda environment,
 you activate this environment with the following command:
@@ -124,13 +124,55 @@ or for Windows:
 
     $ deactivate
 
+.. tip::
+    Check that your environment is activated by running
+
+    .. code-block:: console
+
+        $ which python
+
+    This should return a path ending with ``envs/my-env/bin/python``.
+
+    If this is **not** the version of python returned, you may have to
+    run ``$ conda deactivate`` twice (first to deactivate ``my-env``, then to
+    deactivate ``base``).
+    Then reactivate ``my-env`` by running ``$ conda activate my-env``
+    or the equivalent activate command for your OS / version of conda.
+
+
+.. _add_channels:
+
+Adding channels to ``conda``
+----------------------------
+
+A number of the DysmalPy dependencies are not available in the default Anaconda channels,
+but are instead available in the ``astroconda`` channel.
+To ensure these channels are installed, from the terminal or the Anaconda Prompt, run:
+
+.. code-block:: console
+
+    $ conda config --add channels http://ssb.stsci.edu/astroconda
+    $ conda config --add channels http://astroconda.org/channel/main
+
+To verify the channels have been added, check that the ``astroconda`` urls show up in
+the list of channels returned by the following command:
+
+.. code-block:: console
+
+    $ conda config --show channels
+
 
 
 
 .. _install_deps:
 
 Installing DysmalPy dependencies with ``conda`` and ``pip``
-------------
+-----------------------------------------------------------
+
+.. note::
+    If you already had an installation of Anaconda,
+    you should ensure it's up to date before proceeding by running
+    ``$ conda update conda``
 
 The benefit of using an Anaconda python distribution is the easy management of
 packages, and all of their dependencies.
@@ -146,19 +188,25 @@ that the package requirement is already satisfied.)
 
 These commands should be run from the terminal or an Anaconda Prompt.
 
-.. warning::
+.. attention::
     If you are using an environment, activate it before proceeding with the
     installation of the dependencies.
     See :ref:`'Activating an Anaconda environment'<conda_env_activate>`.
 
 
+.. attention::
+    Before beginning with dependency installation, make sure the
+    ``astroconda`` channel has been added to conda.
+    See :ref:`'Adding channels to conda<add_channels>'`.
+
+
 #. Ensure `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_, and ``dill`` are installed:
 
-.. _ipython: https://www.ipython.org
-.. _NumPy: https://www.numpy.org
-.. _SciPy: https://www.scipy.org
-.. _matplotlib: https://www.matplotlib.org
-.. _cython: https://www.cython.org
+.. _ipython: ipython.org
+.. _NumPy: numpy.org
+.. _SciPy: scipy.org
+.. _matplotlib: matplotlib.org
+.. _cython: cython.org
 
 Run the following command:
 
@@ -192,13 +240,11 @@ most recent version by running
 .. _AstroPy installation documentation: docs.astropy.org/en/stable/install.html#using-conda
 
 
-#. Install the optional AstroPy dependencies, to ensure full functionality:
+#. Install some of the non-default AstroPy dependencies:
 
 .. code-block:: console
 
-    $ conda install -c astropy -c defaults \
-        scipy h5py beautifulsoup4 html5lib bleach pyyaml pandas sortedcontainers \
-        pytz matplotlib setuptools mpmath bottleneck jplephem asdf
+    $ conda install -c astropy -c defaults h5py pandas
 
 
 
@@ -252,16 +298,16 @@ most recent version by running
 .. tip::
     If for some reason the package can't be found, try running the installation by
     specifying the ```astropy`` or ``conda-forge`` channels:
-    ``conda install -c astropy PACKAGE``
+    ``$ conda install -c astropy PACKAGE``
     or
-    ``conda install -c conda-forge PACKAGE``
+    ``$ conda install -c conda-forge PACKAGE``
 
     If this still fails, as a last resort try to use ``pip`` to install the package by running:
-    ``pip install PACKAGE``
+    ``$ pip install PACKAGE``
 
 .. note::
     If AstroPy is already installed, it can be updated to the
-    most recent version by running ``conda update astropy``.
+    most recent version by running ``$ conda update astropy``.
 
     (See also the `AstroPy installation documentation`_.)
 
