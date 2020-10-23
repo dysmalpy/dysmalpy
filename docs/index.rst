@@ -14,6 +14,8 @@ dysmalpy
    :maxdepth: 1
    :caption: Contents:
 
+   installation.rst
+   installation_anaconda.rst
    api.rst
 
 .. toctree::

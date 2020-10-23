@@ -1,17 +1,13 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
-"""
-This is an Astropy affiliated package.
-"""
+import dysmalpy.galaxy
+import dysmalpy.models
+import dysmalpy.fitting
+import dysmalpy.instrument
+import dysmalpy.data_classes
+import dysmalpy.aperture_classes
+import dysmalpy.parameters
+import dysmalpy.utils
+import dysmalpy.utils_io
 
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-from ._astropy_init import *
-# ----------------------------------------------------------------------------
-
-if not _ASTROPY_SETUP_:
-    # For egg_info test builds to pass, put package imports here.
-
-    pass
-
+__version__ = "1.0.0"
