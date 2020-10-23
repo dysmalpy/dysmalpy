@@ -49,6 +49,11 @@ The full Anaconda installation requires at least 3 GB of disk space initially.
 Creating an Anaconda environment
 --------------------------------
 
+.. note::
+    If you already had an installation of Anaconda,
+    you should ensure it's up to date before proceeding by running
+    ``$ conda update conda``
+
 If you already have an Anaconda python installation, we suggest creating a new environment where
 the DysmalPy dependencies can be installed. This ensures that any package dependency requirements
 do not conflict with dependencies of any other packages you have installed.
@@ -128,6 +133,44 @@ or for Windows:
 
     $ deactivate
 
+.. tip::
+    Check that your environment is activated by running
+
+    .. code-block:: console
+
+        $ which python
+
+    This should return a path ending with ``envs/my-env/bin/python``.
+
+    If this is **not** the version of python returned, you may have to
+    run ``$ conda deactivate`` twice (first to deactivate ``my-env``, then to
+    deactivate ``base``).
+    Then reactivate ``my-env`` by running ``$ conda activate my-env``.
+
+
+
+.. _add_channels:
+
+Adding channels to ``conda``
+----------------------------
+
+A number of the DysmalPy dependencies are not available in the default Anaconda channels,
+but are instead available in the ``astroconda`` channel.
+To ensure these channels are installed, from the terminal or the Anaconda Prompt, run:
+
+.. code-block:: console
+
+    $ conda config --add channels http://ssb.stsci.edu/astroconda
+    $ conda config --add channels http://astroconda.org/channel/main
+
+To verify the channels have been added, check that the ``astroconda`` urls show up in
+the list of channels returned by the following command:
+
+.. code-block:: console
+
+    $ conda config --show channels
+
+
 
 
 .. _install_deps:
@@ -141,18 +184,23 @@ packages, and all of their dependencies.
 Most of the dependencies of DysmalPy can be installed with ``conda``. The remainder
 will be installed using ``pip`` at the end.
 
-.. warning::
+.. attention::
     If you are using an environment, activate it before proceeding with the
     installation of the dependencies.
     See :ref:`'Activating an Anaconda environment'<conda_env_activate>`.
 
 
+.. attention::
+    Before beginning with dependency installation, make sure the
+    ``astroconda`` channel has been added to conda.
+    See :ref:`'Adding channels to conda<add_channels>'`.
+
 
 #. Install dependencies with ``conda``:
 
-    We will use `conda` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
-    We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
-    and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
+We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
+We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
+and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
 
     .. _ipython: https://ipython.org/
     .. _NumPy: https://numpy.org/
@@ -164,35 +212,32 @@ will be installed using ``pip`` at the end.
     .. _shapely: https://github.com/Toblerity/Shapely
     .. _cython: https://cython.org
 
-    From the terminal or an Anaconda prompt, run the following:
+From the terminal or an Anaconda prompt, run the following:
 
-    .. code-block:: console
+.. code-block:: console
 
-        $ conda install astropy ipython numpy scipy matplotlib cython dill
-        $ conda install -c astropy -c defaults \
-            scipy h5py beautifulsoup4 html5lib bleach pyyaml pandas sortedcontainers \
-            pytz matplotlib setuptools mpmath bottleneck jplephem asdf
-        $ conda install -c conda-forge -c astropy emcee shapely corner
+    $ conda install astropy ipython numpy scipy matplotlib cython dill
+    $ conda install -c astropy -c defaults h5py pandas
+    $ conda install -c conda-forge -c astropy emcee shapely corner
 
 
 #. Install remaining dependencies with ``pip``:
 
-    We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
+We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
 
     .. _spectral-cube: https://spectral-cube.readthedocs.io
     .. _radio-beam: https://radio-beam.readthedocs.io
 
-    Again from the terminal or an Anaconda prompt, run:
+Again from the terminal or an Anaconda prompt, run:
 
-    .. code-block:: console
+.. code-block:: console
 
-        $ pip install spectral-cube radio-beam
+    $ pip install spectral-cube radio-beam
 
 
 .. note::
     If AstroPy is already installed, it can be updated to the
-    most recent version by running ``conda update astropy``.
-
+    most recent version by running ``$ conda update astropy``.
     (See also the `AstroPy installation documentation`_.)
 
 .. _AstroPy installation documentation: docs.astropy.org/en/stable/install.html#using-conda
@@ -201,9 +246,9 @@ will be installed using ``pip`` at the end.
 .. tip::
     If for some reason the package can't be found, try running the installation by
     specifying the ``astropy`` or ``conda-forge`` channels:
-    ``conda install -c astropy PACKAGE``
+    ``$ conda install -c astropy PACKAGE``
     or
-    ``conda install -c conda-forge PACKAGE``
+    ``$ conda install -c conda-forge PACKAGE``
 
     If this still fails, as a last resort try to use ``pip`` to install the package by running:
-    ``pip install PACKAGE``
+    ``$ pip install PACKAGE``
