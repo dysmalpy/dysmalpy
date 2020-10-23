@@ -288,7 +288,7 @@ def run_mcmc_full_1D():
     # Options passed to emcee
     ## FULL TEST
     ncpus = 190
-    scale_param_a = 3
+    scale_param_a = 5 #3
     nwalkers = 1000
     nburn = 50
     nsteps = 200

@@ -60,10 +60,13 @@ logger = logging.getLogger('DysmalPy')
 
 
 def fit(*args, **kwargs):
+    
     wrn_msg = "fitting.fit has been depreciated.\n"
     wrn_msg += "Instead call 'fitting.fit_mcmc' or 'fitting.fit_mpfit'."
+    
     raise ValueError(wrn_msg)
     
+    return None
     
 
 def fit_mcmc(gal, nWalkers=10,
