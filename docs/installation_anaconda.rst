@@ -1,0 +1,209 @@
+.. _install_conda:
+.. highlight:: shell
+
+========================
+Python Environment Setup
+========================
+
+This guide walks you through the steps needed to
+set up a DysmalPy-ready python installation
+with the required dependencies.
+
+If you already have an Anaconda python installation on your computer,
+we recommend making a new environment (see :ref:`'Creating an Anaconda environment'<conda_env_create>`)
+for installing the DysmalPy dependencies.
+
+.. note::
+    If you install the DysmalPy dependencies in an Anaconda environment,
+    and not the root installation, then you will need to activate this
+    environment before running DysmalPy.
+    (See :ref:`'Activating an Anaconda environment'<conda_env_activate>`).
+
+
+.. _conda_install:
+
+Install Anaconda
+----------------
+
+Currently, Anaconda has installers available for Windows, MacOS, and Linux,
+which can be downloaded from their website: `Anaconda downloads`_.
+
+.. _Anaconda downloads: www.anaconda.com/products/individual#Downloads
+
+This installer (GUI for Windows and MacOS; shell script for Linux) will
+guide you through the installation process. However, for further instructions or
+in case problems arise, we refer you to the
+`Anaconda installation guide`_.
+
+.. _Anaconda installation guide: docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
+
+The full Anaconda installation requires at least 3 GB of disk space initially.
+(Alternatively, you can install `Miniconda`_, which requires only 400 MB of disk space initially)
+
+.. _Miniconda: docs.conda.io/en/latest/miniconda.html
+
+
+
+.. _conda_env_create:
+
+Creating an Anaconda environment
+--------------------------------
+
+If you already have an Anaconda python installation, we suggest creating a new environment where
+the DysmalPy dependencies can be installed. This ensures that any package dependency requirements
+do not conflict with dependencies of any other packages you have installed.
+
+To create a new environment with python installed, from the terminal or an Anaconda Prompt,
+use the following command:
+
+.. code-block:: console
+
+    $ conda create --name my-env python
+
+
+or, if you want to select a specific version of python, use for example:
+
+.. code-block:: console
+
+    $ conda create --name my-env python=3.6
+
+.. warning::
+    We do not recommend using a version of python below ``3.6``, as we haven't checked
+    whether DysmalPy and its dependencies works properly with these previous versions.
+
+
+Then follow the prompts to finish creating the new environment ``my-env``.
+
+(Further information about Anaconda environments can be found `here`_).
+
+.. _here: docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
+
+
+Now that you have a dedicated environment for DysmalPy, you will either need to
+activate the environment before you run DysmalPy, or activate it by default by
+modifying your shell login script (e.g., your .bashrc, .bash_profile, .profile, .tcshrc, ... file).
+
+
+
+.. _conda_env_activate:
+
+Activating an Anaconda environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have installed the DysmalPy dependencies in the non-root Anaconda environment,
+you activate this environment with the following command:
+
+.. code-block:: console
+
+    $ conda activate my-env
+
+or for MacOS and Linux
+
+.. code-block:: console
+
+    $ source activate my-env
+
+or for Windows:
+
+.. code-block:: console
+
+    $ activate my-env
+
+
+To deactivate the environment, you can then use the command:
+
+.. code-block:: console
+
+    $ conda deactivate
+
+or for MacOS and Linux
+
+.. code-block:: console
+
+    $ source deactivate
+
+or for Windows:
+
+.. code-block:: console
+
+    $ deactivate
+
+
+
+.. _install_deps:
+
+Installing DysmalPy dependencies with ``conda`` and ``pip``
+-----------------------------------------------------------
+
+The benefit of using an Anaconda python distribution is the easy management of
+packages, and all of their dependencies.
+
+Most of the dependencies of DysmalPy can be installed with ``conda``. The remainder
+will be installed using ``pip`` at the end.
+
+.. warning::
+    If you are using an environment, activate it before proceeding with the
+    installation of the dependencies.
+    See :ref:`'Activating an Anaconda environment'<conda_env_activate>`.
+
+
+
+#. Install dependencies with ``conda``:
+
+    We will use `conda` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
+    We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
+    and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
+
+    .. _ipython: https://ipython.org/
+    .. _NumPy: https://numpy.org/
+    .. _SciPy: https://scipy.org
+    .. _matplotlib: https://matplotlib.org
+    .. _AstroPy: https://astropy.org
+    .. _emcee: https://emcee.readthedocs.io
+    .. _corner: https://corner.readthedocs.io
+    .. _shapely: https://github.com/Toblerity/Shapely
+    .. _cython: https://cython.org
+
+    From the terminal or an Anaconda prompt, run the following:
+
+    .. code-block:: console
+
+        $ conda install astropy ipython numpy scipy matplotlib cython dill
+        $ conda install -c astropy -c defaults \
+            scipy h5py beautifulsoup4 html5lib bleach pyyaml pandas sortedcontainers \
+            pytz matplotlib setuptools mpmath bottleneck jplephem asdf
+        $ conda install -c conda-forge -c astropy emcee shapely corner
+
+
+#. Install remaining dependencies with ``pip``:
+
+    We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
+
+    .. _spectral-cube: https://spectral-cube.readthedocs.io
+    .. _radio-beam: https://radio-beam.readthedocs.io
+
+    Again from the terminal or an Anaconda prompt, run:
+
+    .. code-block:: console
+
+        $ pip install spectral-cube radio-beam
+
+
+.. note::
+    If AstroPy is already installed, it can be updated to the
+    most recent version by running ``conda update astropy``.
+
+    (See also the `AstroPy installation documentation`_.)
+
+.. _AstroPy installation documentation: docs.astropy.org/en/stable/install.html#using-conda
+
+
+.. tip::
+    If for some reason the package can't be found, try running the installation by
+    specifying the ``astropy`` or ``conda-forge`` channels:
+    ``conda install -c astropy PACKAGE``
+    or
+    ``conda install -c conda-forge PACKAGE``
+
+    If this still fails, as a last resort try to use ``pip`` to install the package by running:
+    ``pip install PACKAGE``

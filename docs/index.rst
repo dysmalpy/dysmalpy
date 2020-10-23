@@ -15,6 +15,7 @@ dysmalpy
    :caption: Contents:
 
    installation.rst
+   installation_anaconda.rst
    api.rst
 
 .. toctree::
