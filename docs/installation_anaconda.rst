@@ -198,9 +198,9 @@ will be installed using ``pip`` at the end.
 
 #. Install dependencies with ``conda``:
 
-We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
-We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
-and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
+    We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
+    We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
+    and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
 
     .. _ipython: https://ipython.org/
     .. _NumPy: https://numpy.org/
@@ -212,27 +212,27 @@ and ``dill`` are installed, as well as a number of other ``astropy`` dependencie
     .. _shapely: https://github.com/Toblerity/Shapely
     .. _cython: https://cython.org
 
-From the terminal or an Anaconda prompt, run the following:
+    From the terminal or an Anaconda prompt, run the following:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ conda install astropy ipython numpy scipy matplotlib cython dill
-    $ conda install -c astropy -c defaults h5py pandas
-    $ conda install -c conda-forge -c astropy emcee shapely corner
+        $ conda install astropy ipython numpy scipy matplotlib cython dill
+        $ conda install -c astropy -c defaults h5py pandas
+        $ conda install -c conda-forge -c astropy emcee shapely corner
 
 
 #. Install remaining dependencies with ``pip``:
 
-We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
+    We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
 
-    .. _spectral-cube: https://spectral-cube.readthedocs.io
-    .. _radio-beam: https://radio-beam.readthedocs.io
+        .. _spectral-cube: https://spectral-cube.readthedocs.io
+        .. _radio-beam: https://radio-beam.readthedocs.io
 
-Again from the terminal or an Anaconda prompt, run:
+    Again from the terminal or an Anaconda prompt, run:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ pip install spectral-cube radio-beam
+        $ pip install spectral-cube radio-beam
 
 
 .. note::
