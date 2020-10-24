@@ -50,7 +50,8 @@ setup(
     long_description=readme,
     include_package_data=True,
     name='dysmalpy',
-    packages=['dysmalpy'],
+    packages=['dysmalpy', 'dysmalpy.extern'],
+    package_data={'dysmalpy': ['data/noordermeer/*.save']},
     version=__version__,
     ext_modules=cythonize("dysmalpy/cutils.pyx")
 )
