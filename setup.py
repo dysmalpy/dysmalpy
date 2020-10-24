@@ -9,6 +9,8 @@ try:
 except:
     from distutils.core import setup
 
+from Cython.Build import cythonize
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 init_string = open(os.path.join(dir_path, 'dysmalpy', '__init__.py')).read()
@@ -24,6 +26,8 @@ requirements = ['numpy', 'scipy', 'matplotlib', 'astropy',
                 'emcee', 'corner', 'cython', 'dill',
                 'shapely', 'spectral-cube', 'radio-beam',
                 'h5py', 'pandas', 'six']
+
+setup_requirements = ['Cython', 'numpy']
 
 setup(
     author="Taro Shimizu & Sedona Price",
@@ -41,10 +45,12 @@ setup(
     ],
     description="A modelling and fitting package for galaxy kinematics.",
     install_requires=requirements,
+    setup_requires=setup_requirements,
     license="3-clause BSD",
     long_description=readme,
     include_package_data=True,
     name='dysmalpy',
     packages=['dysmalpy'],
     version=__version__,
+    ext_modules=cythonize("dysmalpy/cutils.pyx")
 )
