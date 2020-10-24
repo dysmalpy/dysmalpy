@@ -1,4 +1,4 @@
-.. _install_conda:
+.. _install-conda:
 .. highlight:: shell
 
 ========================
@@ -187,13 +187,13 @@ will be installed using ``pip`` at the end.
 .. attention::
     If you are using an environment, activate it before proceeding with the
     installation of the dependencies.
-    See :ref:`'Activating an Anaconda environment'<conda_env_activate>`.
+    See :ref:`Activating an Anaconda environment <conda_env_activate>`.
 
 
 .. attention::
     Before beginning with dependency installation, make sure the
     ``astroconda`` channel has been added to conda.
-    See :ref:`'Adding channels to conda<add_channels>'`.
+    See :ref:`Adding channels to conda <add_channels>`.
 
 
 #. Install dependencies with ``conda``:
