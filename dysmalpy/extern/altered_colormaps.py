@@ -2,8 +2,9 @@
 Provides functions for altering colormaps to make them more suitable for
 particular use cases.
 
-Written by Chris J. White (https://github.com/c-white); 
-used with permission 
+Originally written by Chris J. White (https://github.com/c-white);
+used with permission.
+Slightly modified for compatibility with python/matplotlib updates.
 
 From Drummond Fielding and Chris White GSPS talk, 24 March 2017
 
