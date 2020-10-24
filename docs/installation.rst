@@ -5,9 +5,6 @@
 Installation
 ============
 
-Dependencies
-------------
-
 AFS Machine
 -----------
 
@@ -46,10 +43,14 @@ installed.
 From Source
 -----------
 
-``dysmalpy`` can also be installed from source. You can download the
-package `here`_.
+``dysmalpy`` can also be installed from source. You will need to setup
+Python 3 on your machine and install all of the dependent packages. Please
+follow the instructions in :ref:`Python Environment Setup <install-conda>` .
 
-.. _here: releases/dysmalpy-1.0.0.tar.gz
+
+After this is completed, you can download the latest DysmalPy package `here`_.
+
+.. _here: releases/dysmalpy-1.0.1.tar.gz
 
 From a terminal, change directories to where the package was downloaded
 and type:
@@ -57,6 +58,8 @@ and type:
 .. code-block:: console
 
     $ tar zxvf dysmalpy-N.N.N.tar.gz
-    $ cd dysmalpy-N.N
+    $ cd dysmalpy-N.N.N
     $ python setup.py install
 
+N.N.N is the current version. After the installation is complete, you should
+be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
