@@ -28,7 +28,7 @@ out_dir = '/data/dysmalpy/3D_tests/EGS4_24985/first_test/200walkers/'
 
 # Function to tie the scale height to the effective radius
 def tie_sigz_reff(model_set):
- 
+
     reff = model_set.components['disk+bulge'].r_eff_disk.value
     invq = model_set.components['disk+bulge'].invq_disk
     sigz = 2.0*reff/invq/2.35482
@@ -133,10 +133,10 @@ def setup_gal(data_dir=None, out_dir=None):
                    'yshift': (-10, -4),
                    'vel_shift': (-100., 100.)}
 
-    geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift, vel_shift=vel_shift, 
+    geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift, vel_shift=vel_shift,
                            fixed=geom_fixed, bounds=geom_bounds, name='geom')
     #
-    
+
     geom.inc.prior = parameters.BoundedSineGaussianPrior(center=inc, stddev=0.1)
 
     # Add all of the model components to the ModelSet
@@ -167,7 +167,7 @@ def setup_gal(data_dir=None, out_dir=None):
     spec_start = -1000*u.km/u.s              # Starting value of spectrum
     spec_step = 10*u.km/u.s                  # Spectral step
     nspec = 201                              # Number of spectral pixels
-    
+
     sig_inst = 38*u.km/u.s                   # Instrumental spectral resolution
 
     beam = instrument.GaussianBeam(major=beamsize)
@@ -224,14 +224,14 @@ def setup_gal(data_dir=None, out_dir=None):
     # do_plotting = True
     # oversample = 1
 
-    params = {'outdir': out_dir, 
+    params = {'outdir': out_dir,
               'galID': 'GS4_43501',
               'fit_method': 'mcmc',
-              'fit_module': fitting.emcee, 
+              'fit_module': fitting.emcee,
               'fdata': data_dir+'GS4_43501.obs_prof.txt',
               'profile1d_type': 'circ_ap_cube',
-              'moment_calc': False, 
-              'partial_weight': False, 
+              'moment_calc': False,
+              'partial_weight': False,
               'param_filename': None,
               'nWalkers': 20,
               'nCPUs': 2,
@@ -250,27 +250,27 @@ def setup_gal(data_dir=None, out_dir=None):
     return gal, params
 
 def run_3d_test(data_dir=None, out_dir=None):
-    
-    ** FIX THIS WITH UPDATED GALAXY SELECTION, AND APPROPRIATE PARAM BOUNDS + INITIAL VALUES ***
-    
+
+    #** FIX THIS WITH UPDATED GALAXY SELECTION, AND APPROPRIATE PARAM BOUNDS + INITIAL VALUES ***
+
     gal, params = setup_gal(data_dir=data_dir, out_dir=out_dir)
-    
-    
+
+
     mcmc_results = fitting.fit(gal, nWalkers=params['nWalkers'], nCPUs=params['nCPUs'],
                                scale_param_a=params['scale_param_a'], nBurn=params['nBurn'],
                                nSteps=params['nSteps'], minAF=params['minAF'], maxAF=params['maxAF'],
                                nEff=params['nEff'], do_plotting=params['do_plotting'],
                                oversample=params['oversample'], outdir=params['outdir'],
-                               fitdispersion=params['fitdispersion'], 
+                               fitdispersion=params['fitdispersion'],
                                oversampled_chisq=params['oversampled_chisq'])
-    
+
     #
     utils_io.save_results_ascii_files(fit_results=mcmc_results, gal=gal, params=params)
-                               
+
     return mcmc_results
 
 if __name__ == "__main__":
-    
+
     try:
         data_dir = sys.argv[1]
         out_dir  = sys.argv[2]
@@ -278,8 +278,8 @@ if __name__ == "__main__":
         #data_dir = '/Users/sedona/Dropbox/RCOut_Reinhard/rc_2019_analysis/2D_maps/'
         data_dir = '/Users/sedona/data/mpe_ir/outer_rc_2019/RC40/'
         out_dir  = '/Users/sedona/data/dysmalpy_tests/test3D/'
-    
-    
+
+
     fitting.ensure_dir(out_dir)
-    
+
     run_3d_test(data_dir=data_dir, out_dir=out_dir)
