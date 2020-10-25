@@ -4834,7 +4834,7 @@ class KinematicOptions:
         v^2_{\rm rot}(r) = v^2_{\rm circ} - 2 \sigma_0^2 \frac{b_n}{n} \left(\frac{r}{R_e}\right)^{1/n}
 
     Finally, for `pressure_support_type=3`, the asymmetric drift is determined using
-    the pressure gradient (assuming constant veloctiy dispersion :math:\sigma_0`).
+    the pressure gradient (assuming constant veloctiy dispersion :math:`\sigma_0`).
     This approach allows for explicitly incorporating different gradients
     :math:`d\ln{}\rho(r)/d\ln{}r` for different components (versus applying the disk geometry inherent in the
     in the later parts of the Burkert et al. derivation).
