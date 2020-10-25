@@ -4803,7 +4803,7 @@ class KinematicOptions:
 
     Notes
     -----
-    Adiabatic contraction is applied following Burkert et al (2010) [1]_.
+    **Adiabatic contraction** is applied following Burkert et al (2010) [1]_.
     The recipe involves numerically solving these two implicit equations:
 
     .. math::
@@ -4815,14 +4815,12 @@ class KinematicOptions:
     Adiabatic contraction then can only be applied if there is a halo and baryon component
     in the `ModelSet`.
 
-    TODO: Sedona needs to document the different pressure support types!
 
-
-    Pressure support (i.e., asymmetric drift) can be calculated in three different ways.
+    **Pressure support** (i.e., asymmetric drift) can be calculated in three different ways.
 
     By default (`pressure_support_type=1`), the asymmetric drift derivation from
     Burkert et al. (2010) [1]_, Equation (11) is applied
-    (assuming an exponential disk, with $R_e = 1.678 R_e$):
+    (assuming an exponential disk, with :math:`R_e=1.678R_e`):
 
     .. math::
 
@@ -4833,12 +4831,12 @@ class KinematicOptions:
 
     .. math::
 
-        v^2_{\rm rot}(r) = v^2_{\rm circ} - 2. \sigma_0^2 \frac{b_n}{n} \left(\frac{r}{R_e}\right)^{1/n}
+        v^2_{\rm rot}(r) = v^2_{\rm circ} - 2 \sigma_0^2 \frac{b_n}{n} \left(\frac{r}{R_e}\right)^{1/n}
 
     Finally, for `pressure_support_type=3`, the asymmetric drift is determined using
-    the pressure gradient (assuming constant veloctiy dispersion $\sigma_0$).
+    the pressure gradient (assuming constant veloctiy dispersion :math:\sigma_0`).
     This approach allows for explicitly incorporating different gradients
-    $d\ln rho(r)/d\ln r$ for different components (versus applying the disk geometry inherent in the
+    :math:`d\ln{}\rho(r)/d\ln{}r` for different components (versus applying the disk geometry inherent in the
     in the later parts of the Burkert et al. derivation).
     For `pressure_support_type=3`, we follow Eq (3) of Burkert et al. (2010):
 
