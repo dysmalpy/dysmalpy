@@ -33,7 +33,7 @@ from astropy.table import Table
 # Local imports
 from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge',
+__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk',
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto',
            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialInflow', 'DustExtinction',
@@ -2080,6 +2080,7 @@ class ExpDisk(MassModel):
 
     r_eff : float
         Effective radius in kpc
+
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -4792,7 +4793,7 @@ class KinematicOptions:
         If True, apply asymmetric drift correction when deriving the rotational velocity
 
     pressure_support_type : {1, 2, 3}
-        Type of asymmetric drift correction
+        Type of asymmetric drift correction. Default is 1 (following Burkert et al. 2010).
 
     pressure_support_re : float
         Effective radius in kpc to use for asymmetric drift calculation
@@ -4815,6 +4816,37 @@ class KinematicOptions:
     in the `ModelSet`.
 
     TODO: Sedona needs to document the different pressure support types!
+
+
+    Pressure support (i.e., asymmetric drift) can be calculated in three different ways.
+
+    By default (`pressure_support_type=1`), the asymmetric drift derivation from
+    Burkert et al. (2010) [1]_, Equation (11) is applied
+    (assuming an exponential disk, with $R_e = 1.678 R_e$):
+
+    .. math::
+
+        v^2_{\rm rot}(r) = v^2_{\rm circ} - 3.36 \sigma_0^2 \left(\frac{r}{R_e}\right)
+
+    Alternatively, for `pressure_support_type=2`, the Sersic index can be taken into account beginning from
+    Eq (9) of Burkert et al. (2010), so the asymmetric drift is then:
+
+    .. math::
+
+        v^2_{\rm rot}(r) = v^2_{\rm circ} - 2. \sigma_0^2 \frac{b_n}{n} \left(\frac{r}{R_e}\right)^{1/n}
+
+    Finally, for `pressure_support_type=3`, the asymmetric drift is determined using
+    the pressure gradient (assuming constant veloctiy dispersion $\sigma_0$).
+    This approach allows for explicitly incorporating different gradients
+    $d\ln rho(r)/d\ln r$ for different components (versus applying the disk geometry inherent in the
+    in the later parts of the Burkert et al. derivation).
+    For `pressure_support_type=3`, we follow Eq (3) of Burkert et al. (2010):
+
+    .. math::
+
+        v^2_{\rm rot}(r) = v^2_{\rm circ} + \sigma_0^2 \frac{d \ln \rho(r)}{d \ln r}
+
+
 
     Warnings
     --------
