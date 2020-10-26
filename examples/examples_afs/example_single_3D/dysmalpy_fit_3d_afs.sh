@@ -11,5 +11,4 @@ export PYTHONPATH="/afs/mpe.mpg.de/astrosoft/dysmalpy/fitting_wrappers/:$PYTHONP
 # Run fitting
 export DPY_PATH='/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy'
 
-python $DPY_PATH/fitting_wrappers/dysmalpy_fit_single_3D.py $1
-
+python $DPY_PATH/dysmalpy/fitting_wrappers/dysmalpy_fit_single_3D.py $1
