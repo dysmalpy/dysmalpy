@@ -16,7 +16,7 @@ dysmalpy
 
    installation.rst
    installation_anaconda.rst
-   example_downloads.rst
+   examples_downloads.rst
    api.rst
 
 .. toctree::
