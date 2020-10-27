@@ -18,4 +18,4 @@ The files used to run these examples can be downloaded separately here
 
 `dysmalpy_example_data.tar.gz`_
 
-.. _dysmalpy_example_data.tar.gz: releases/dysmalpy_example_data.tar.gz
+.. _dysmalpy_example_data.tar.gz: examples/dysmalpy_example_data.tar.gz
