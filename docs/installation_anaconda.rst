@@ -28,19 +28,19 @@ Install Anaconda
 Currently, Anaconda has installers available for Windows, MacOS, and Linux,
 which can be downloaded from their website: `Anaconda downloads`_.
 
-.. _Anaconda downloads: www.anaconda.com/products/individual#Downloads
+.. _Anaconda downloads: https://www.anaconda.com/products/individual#Downloads
 
 This installer (GUI for Windows and MacOS; shell script for Linux) will
 guide you through the installation process. However, for further instructions or
 in case problems arise, we refer you to the
 `Anaconda installation guide`_.
 
-.. _Anaconda installation guide: docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
+.. _Anaconda installation guide: https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
 
 The full Anaconda installation requires at least 3 GB of disk space initially.
 (Alternatively, you can install `Miniconda`_, which requires only 400 MB of disk space initially)
 
-.. _Miniconda: docs.conda.io/en/latest/miniconda.html
+.. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
 
 
 
@@ -81,7 +81,7 @@ Then follow the prompts to finish creating the new environment ``my-env``.
 
 (Further information about Anaconda environments can be found `here`_).
 
-.. _here: docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
+.. _here: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
 
 
 Now that you have a dedicated environment for DysmalPy, you will either need to
@@ -240,7 +240,7 @@ will be installed using ``pip`` at the end.
     most recent version by running ``$ conda update astropy``.
     (See also the `AstroPy installation documentation`_.)
 
-.. _AstroPy installation documentation: docs.astropy.org/en/stable/install.html#using-conda
+.. _AstroPy installation documentation: https://docs.astropy.org/en/stable/install.html#using-conda
 
 
 .. tip::
