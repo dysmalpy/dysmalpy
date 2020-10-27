@@ -5,6 +5,20 @@
 Installation
 ============
 
+.. _install_windows:
+
+Windows `.bat` File
+-------------------
+
+A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.params``),
+should be available next week.
+
+Prior to using DysmalPy with this `.bat` file, the DysmalPy source code
+and dependencies will need to be installed (see :ref:`'From Source'<install_source>`).
+
+
+.. _install_afs:
+
 AFS Machine
 -----------
 
@@ -39,6 +53,8 @@ For those who are more familiar with Python, you can simply add
 '/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy/' to your ``PYTHONPATH``
 environment variable. Be sure to have all of the required packages
 installed.
+
+.. _install_source:
 
 From Source
 -----------
