@@ -28,6 +28,7 @@ from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
+from dysmalpy.utils_io import write_bestfit_obs_file
 
 __all__ = ['Galaxy']
 
@@ -747,7 +748,7 @@ class Galaxy:
             if os.path.isfile(filename):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
                 return None
-              
+
         if filename is not None:
             galtmp = copy.deepcopy(self)
 
@@ -777,6 +778,19 @@ class Galaxy:
         if filename is not None:
             galtmp = _pickle.load(open(filename, "rb"))
             return galtmp
+
+
+    def save_model_data(self, filename=None, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+
+        if filename is not None:
+            write_bestfit_obs_file(gal=gal, fname=filename,
+                            ndim=gal.model_data.ndim, overwrite=overwrite)
+
 
 
 def load_galaxy_object(filename=None):

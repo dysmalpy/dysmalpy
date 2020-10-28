@@ -2295,6 +2295,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
 
     if not curve_files_exist:
+        # *_out-1dplots.txt
         create_vel_profile_files(gal=gal, outpath=outpath, oversample=oversample, oversize=oversize,
                     profile1d_type=profile1d_type, aperture_radius=aperture_radius,
                     fname_finer=fname_model,
@@ -2991,5 +2992,3 @@ def extract_2D_moments_from_cube(gal):
                         inst_corr = True, moment=True)
 
     return gal
-
-
