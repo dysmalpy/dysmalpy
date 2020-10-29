@@ -17,7 +17,8 @@ from dysmalpy import utils as dysmalpy_utils
 
 import astropy.io.fits as fits
 
-from dysmalpy.fitting_wrappers import utils_calcs
+from dysmalpy.fitting_wrappers.utils_calcs import auto_gen_3D_mask
+from dysmalpy.fitting_wrappers.setup_gal_models import setup_data_weighting_method
 
 def read_fitting_params_input(fname=None):
     params = {}

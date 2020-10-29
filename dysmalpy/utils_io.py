@@ -78,20 +78,20 @@ def read_bestfit_1d_obs_file(filename=None):
 
     return model_data
 
-def write_bestfit_obs_file(gal=None, fname=None, ndim=None, overwrite=False):
+def write_model_obs_file(gal=None, fname=None, ndim=None, overwrite=False):
     if ndim == 1:
-        write_bestfit_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
     elif ndim == 2:
-        write_bestfit_2d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_2d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
     elif ndim == 3:
-        write_bestfit_3d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_3d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
     elif ndim == 0:
-        write_bestfit_0d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_0d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
     else:
         raise ValueError("ndim={} not recognized!".format(ndim))
 
 
-def write_bestfit_1d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_1d_obs_file(gal=None, fname=None, overwrite=False):
     """
     Short function to save *observed* space 1D model profile for a galaxy (eg, for plotting, etc)
     Follows form of H.Ü. example.
@@ -114,7 +114,7 @@ def write_bestfit_1d_obs_file(gal=None, fname=None, overwrite=False):
     return None
 
 
-def write_bestfit_2d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
     """
     Method to save the model 2D maps for a galaxy.
     """
@@ -171,13 +171,13 @@ def write_bestfit_2d_obs_file(gal=None, fname=None, overwrite=False):
 
     return None
 
-def write_bestfit_3d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_3d_obs_file(gal=None, fname=None, overwrite=False):
 
-    gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=overwrite)
+    gal.model_data.data.write(fname, overwrite=overwrite)
 
     return None
 
-def write_bestfit_0d_obs_file(gal=None, fname=None, overwrite=False, spec_type=None):
+def write_model_0d_obs_file(gal=None, fname=None, overwrite=False, spec_type=None):
     if (not overwrite) and (fname is not None):
         if os.path.isfile(fname):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
@@ -646,7 +646,7 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m)
 
     # --------------------------------------------------------------------------
-    write_bestfit_1d_obs_file(gal=gal, fname=fname_model_matchdata)
+    write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata)
 
 
     # Reload galaxy object: reset things
@@ -720,7 +720,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                               aperture_radius=aperture_radius)
 
 
-    write_bestfit_1d_obs_file(gal=gal, fname=fname)
+    write_model_1d_obs_file(gal=gal, fname=fname)
 
     return None
 
