@@ -34,7 +34,8 @@ except:
 
 
 
-def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
+def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
+            outdir=None, plot_type='pdf', overwrite=False):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -125,6 +126,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
                                        f_chain_ascii=fit_dict['f_chain_ascii'],
                                        f_vel_ascii=fit_dict['f_vel_ascii'],
                                        f_log=fit_dict['f_log'],
+                                       overwrite=overwrite,
                                        plot_type=plot_type)
 
         elif fit_dict['fit_method'] == 'mpfit':
@@ -143,6 +145,7 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None, outdir=
                                         f_vel_ascii=fit_dict['f_vel_ascii'],
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
+                                        overwrite=overwrite, 
                                         plot_type=plot_type)
 
         # Save results

@@ -31,7 +31,8 @@ except:
     from . import plotting as fw_plotting
 
 
-def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
+def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
+            outdir=None, plot_type='pdf', overwrite=False):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -69,7 +70,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None, outdir=
             '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
                 params['fit_method']))
 
-    if fit_exists:
+    if fit_exists and not (overwrite):
         print('------------------------------------------------------------------')
         print(' Fitting already complete for: {}'.format(params['galID']))
         print("   make new output folder or remove previous fitting files")
@@ -78,6 +79,13 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None, outdir=
     else:
         # Copy paramfile that is OS independent
         shutil.copy(param_filename, outdir)
+
+        if fit_exists:
+            if params['fit_method'] == 'mcmc':
+                os.remove(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
+
+            elif params['fit_method'] == 'mpfit':
+                os.remove(outdir + '{}_mpfit_results.pickle'.format(params['galID']))
 
         #######################
         # Setup
@@ -115,6 +123,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None, outdir=
                                   f_vel_ascii=fit_dict['f_vel_ascii'],
                                   f_log=fit_dict['f_log'],
                                   continue_steps=fit_dict['continue_steps'],
+                                  overwrite=overwrite,
                                   plot_type=plot_type)
 
         elif fit_dict['fit_method'] == 'mpfit':
@@ -134,6 +143,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None, outdir=
                                         f_vel_ascii=fit_dict['f_vel_ascii'],
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
+                                        overwrite=overwrite,
                                         plot_type=plot_type)
 
         # Save results

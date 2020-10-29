@@ -82,18 +82,19 @@ def default_load_3D_data(param_filename=None):
     data3d = utils_io.load_single_object_3D_data(params=params)
     return data3d
 #
-def dysmalpy_fit_single_3D_wrapper(param_filename=None, default_load_data=True):
+def dysmalpy_fit_single_3D_wrapper(param_filename=None, default_load_data=True, overwrite=False):
 
     if default_load_data:
         data3d = default_load_3D_data(param_filename=param_filename)
     else:
         data3d = user_specific_load_3D_data(param_filename=param_filename)
 
-    dysmalpy_fit_single_3D(param_filename=param_filename, data=data3d)
+    dysmalpy_fit_single_3D(param_filename=param_filename, data=data3d, overwrite=overwrite)
 
     return None
 
-def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
+def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
+        outdir=None, plot_type='pdf', overwrite=False):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -195,6 +196,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None, outdir=
                                   f_chain_ascii=fit_dict['f_chain_ascii'],
                                   f_vel_ascii=fit_dict['f_vel_ascii'],
                                   f_log=fit_dict['f_log'],
+                                  overwrite=overwrite,
                                   plot_type=plot_type)
 
         elif fit_dict['fit_method'] == 'mpfit':
@@ -213,6 +215,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None, outdir=
                                         f_vel_ascii=fit_dict['f_vel_ascii'],
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
+                                        overwrite=overwrite, 
                                         plot_type=plot_type)
 
         # Save results
