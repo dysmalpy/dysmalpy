@@ -1320,7 +1320,7 @@ def fit_mpfit(gal,
     gal.create_model_data(oversample=oversample, oversize=oversize,
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
 
-    #
+    ###
     mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                     model_key_re=model_key_re)
     mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1347,14 +1347,6 @@ def fit_mpfit(gal,
 
     if save_bestfit_cube:
         gal.model_cube.data.write(f_cube, overwrite=overwrite)
-
-        # #######
-        # # DEBUGGING:
-        # if gal.data.ndim == 3:
-        #     gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=overwrite)
-        #
-        #     gal.data.data.write(f_cube+'.data.fits', overwrite=overwrite)
-        # #######
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux,

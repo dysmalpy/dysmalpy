@@ -714,15 +714,16 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m)
 
     # --------------------------------------------------------------------------
-    write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata)
+    if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
+        write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata)
 
-
-    # Reload galaxy object: reset things
-    gal = copy.deepcopy(galin)
 
     # Try finer scale:
+    if (not os.path.isfile(fname_finer)) | (overwrite):
+        # Reload galaxy object: reset things
+        gal = copy.deepcopy(galin)
 
-    write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
+        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
                 profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
                 partial_weight=partial_weight, overwrite=overwrite)
 
