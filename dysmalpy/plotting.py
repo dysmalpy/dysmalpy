@@ -2261,12 +2261,13 @@ def plot_bestfit(mcmcResults, gal,
     return None
 
 
-#
 def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False,
             outpath = None,
             plotfile = None,
             profile1d_type = None,
-            fname_model = None, fname_intrinsic = None,
+            fname_model_matchdata = None,
+            fname_model_finer = None,
+            fname_intrinsic = None,
             oversample=3, oversize=1, aperture_radius=None,
             moment=False,
             partial_weight=False,
@@ -2276,8 +2277,10 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         raise ValueError
     if plotfile is None:
         plotfile = '{}{}_rot_components.{}'.format(outpath, gal.name, plot_type)
-    if fname_model is None:
-        fname_model = '{}{}_out-1dplots_finer_sampling.txt'.format(outpath, gal.name)
+    if fname_model_matchdata is None:
+        fname_model_matchdata = '{}{}_out-1dplots.txt'.format(outpath, gal.name)
+    if fname_model_finer is None:
+        fname_model_finer = '{}{}_out-1dplots_finer_sampling.txt'.format(outpath, gal.name)
     if fname_intrinsic is None:
         fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
 
@@ -2292,15 +2295,16 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         curve_files_exist = False
         file_exists = False
     else:
-        curve_files_exist = (os.path.isfile(fname_model) and os.path.isfile(fname_intrinsic))
+        curve_files_exist = (os.path.isfile(fname_model_finer) and os.path.isfile(fname_intrinsic))
 
 
     if not curve_files_exist:
         # *_out-1dplots.txt
         create_vel_profile_files(gal=gal, outpath=outpath, oversample=oversample, oversize=oversize,
                     profile1d_type=profile1d_type, aperture_radius=aperture_radius,
-                    fname_finer=fname_model,
+                    fname_finer=fname_model_finer,
                     fname_intrinsic=fname_intrinsic,
+                    fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
                     overwrite=overwrite_curve_files)
