@@ -5,42 +5,44 @@ from __future__ import (absolute_import, division, print_function,
 
 import os, sys
 
-
 import numpy as np
 import astropy.units as u
 import astropy.constants as apy_con
 
 from dysmalpy import parameters
 from dysmalpy import fitting
-from dysmalpy import models
-
+from dysmalpy import galaxy, instrument, models
 from dysmalpy import aperture_classes
+
+try:
+    import tied_functions
+except:
+    from . import tied_functions
 
 import emcee
 
-
-def add_disk_bulge_comp(gal=None, mod_set=None, params=None)
-
-def setup_gal_model_base(params=None):
-    raise ValueError("Need to implement this!")
-
+def setup_gal_model_base(params=None,
+        tied_fdm_func=None,
+        tied_mvirial_func_NFW=None,
+        tied_mvirial_func_SMHM=None,
+        tied_alpha_TPH_func=None,
+        tied_rB_Burk_func=None,
+        tied_alpha_Ein_func=None,
+        tied_n_Ein_func=None,
+        tied_sigmaz_func=None):
 
     if 'components_list' in params.keys():
         components_list = params['components_list']
     else:
         components_list = ['disk+bulge', 'const_disp_prof', 'geometry', 'zheight_gaus']
         if params['include_halo']:
-            components_list.append(['halo'])
+            components_list.append('halo')
             # Or explicitly do NFW / TPH / etc?
 
     if 'light_components_list' in params.keys():
         light_components_list = params['light_components_list']
     else:
         light_components_list = ['disk']
-
-
-
-
 
     # ------------------------------------------------------------
     # Initialize the Galaxy, Instrument, and Model Set
@@ -50,400 +52,477 @@ def setup_gal_model_base(params=None):
 
     # ------------------------------------------------------------
     # Baryonic Component: Combined Disk+Bulge
-
     if 'disk+bulge' in components_list:
-
-        total_mass =  params['total_mass']        # log M_sun
-        bt =          params['bt']                # Bulge-Total ratio
-        r_eff_disk =  params['r_eff_disk']        # kpc
-        n_disk =      params['n_disk']
-        invq_disk =   params['invq_disk']         # 1/q0, disk
-        r_eff_bulge = params['r_eff_bulge']       # kpc
-        n_bulge =     params['n_bulge']
-        invq_bulge =  params['invq_bulge']
-        noord_flat =  params['noord_flat']        # Switch for applying Noordermeer flattening
-
-        # Fix components
-        bary_fixed = {'total_mass': params['total_mass_fixed'],
-                      'r_eff_disk': params['r_eff_disk_fixed'],
-                      'n_disk': params['n_disk_fixed'],
-                      'r_eff_bulge': params['r_eff_bulge_fixed'],
-                      'n_bulge': params['n_bulge_fixed'],
-                      'bt': params['bt_fixed']}
-
-        # Set bounds
-        bary_bounds = {'total_mass': (params['total_mass_bounds'][0], params['total_mass_bounds'][1]),
-                       'r_eff_disk': (params['r_eff_disk_bounds'][0], params['r_eff_disk_bounds'][1]),
-                       'n_disk':     (params['n_disk_bounds'][0], params['n_disk_bounds'][1]),
-                       'r_eff_bulge': (params['r_eff_bulge_bounds'][0], params['r_eff_bulge_bounds'][1]),
-                       'n_bulge': (params['n_bulge_bounds'][0], params['n_bulge_bounds'][1]),
-                       'bt':         (params['bt_bounds'][0], params['bt_bounds'][1])}
-
-
-        no_baryons = False
-        if 'disk' in light_components_list:
-            light_component_bary = 'disk'
-        elif 'bulge' in light_components_list:
-            light_component_bary = 'bulge'
-        elif 'disk+bulge' in light_components_list:
-            light_component_bary = 'total'
-        else:
-            no_baryons = True
-
-        bary = models.DiskBulge(total_mass=total_mass, bt=bt,
-                                r_eff_disk=r_eff_disk, n_disk=n_disk,
-                                invq_disk=invq_disk,
-                                r_eff_bulge=r_eff_bulge, n_bulge=n_bulge,
-                                invq_bulge=invq_bulge,
-                                noord_flat=noord_flat,
-                                name='disk+bulge',
-                                fixed=bary_fixed, bounds=bary_bounds,
-                                light_component=light_component_bary)
-
-        if 'linear_masses' in params.keys():
-            if params['linear_masses']:
-                bary = models.LinearDiskBulge(total_mass=total_mass, bt=bt,
-                                        r_eff_disk=r_eff_disk, n_disk=n_disk,
-                                        invq_disk=invq_disk,
-                                        r_eff_bulge=r_eff_bulge, n_bulge=n_bulge,
-                                        invq_bulge=invq_bulge,
-                                        noord_flat=noord_flat,
-                                        name='disk+bulge',
-                                        fixed=bary_fixed, bounds=bary_bounds)
-
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='total_mass', params=params)
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='bt', params=params)
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='r_eff_disk', params=params)
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='n_disk', params=params)
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='r_eff_bulge', params=params)
-        bary = utils_io.set_comp_param_prior(comp=bary, param_name='n_bulge', params=params)
-
-        # --------------------------------------
-        # Add the model component to the ModelSet
-        if no_baryons:
-            raise ValueError("You must include baryons, they are the light tracers.")
-        else:
-            mod_set.add_component(bary, light=True)
+        mod_set = add_disk_bulge_comp(gal=gal, mod_set=mod_set, params=params,
+                            light_components_list=light_components_list)
 
     # ------------------------------------------------------------
     # Halo Component: (if added)
     # ------------------------------------------------------------
-
     if 'halo' in components_list:
+        mod_set = add_halo_comp(gal=gal, mod_set=mod_set, params=params,
+                    tied_fdm_func=tied_fdm_func,
+                    tied_mvirial_func_NFW=tied_mvirial_func_NFW,
+                    tied_mvirial_func_SMHM=tied_mvirial_func_SMHM,
+                    tied_alpha_TPH_func=tied_alpha_TPH_func,
+                    tied_rB_Burk_func=tied_rB_Burk_func,
+                    tied_alpha_Ein_func=tied_alpha_Ein_func,
+                    tied_n_Ein_func=tied_n_Ein_func)
 
-        # Halo component
-        if (params['halo_profile_type'].strip().upper() == 'NFW'):
-
-            # NFW halo fit:
-            mvirial =                   params['mvirial']
-            conc =                      params['halo_conc']
-            fdm =                       params['fdm']
-
-            halo_fixed = {'mvirial':    params['mvirial_fixed'],
-                          'conc':       params['halo_conc_fixed'],
-                          'fdm':        params['fdm_fixed']}
-
-            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
-                           'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
-                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1])}
-
-            halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z,
-                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
-            #
-            if 'linear_masses' in params.keys():
-                if params['linear_masses']:
-                    halo = models.LinearNFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z,
-                                      fixed=halo_fixed, bounds=halo_bounds, name='halo')
-
-
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
-            # if params['fdm_fixed'] is False:
-            #     # Tie the virial mass to fDM
-            #     halo.mvirial.tied = utils_io.tie_lmvirial_NFW
-            #     halo.mvirial.fixed = False
-            # else:
-            #     if params['mvirial_fixed'] is False:
-            #         # Tie fDM to the virial mass
-            #         halo.fdm.tied = utils_io.tie_fdm
-            #         halo.fdm.fixed = False
-
-            if (params['fdm_fixed'] is False) and (params['mvirial_fixed'] is False):
-                fdm_tied = mvir_tied = False
-                if 'mvirial_tied' in params.keys():
-                    if params['mvirial_tied']:
-                        mvir_tied = True
-                    else:
-                        mvir_tied = False
-                if 'fdm_tied' in params.keys():
-                    if params['fdm_tied']:
-                        fdm_tied = True
-                    else:
-                        fdm_tied = False
-
-
-                if (not fdm_tied) and (not mvir_tied):
-                    msg = "For the NFW halo, 'fdm' and 'mvirial' cannot both be free,\n"
-                    msg += "if one is not tied to the other. Setting 'mvirial=Tied'.\n"
-                    msg += "Alternatively, specify 'mvirial_tied, True' (to fit fdm)\n"
-                    msg += " or 'fdm_tied, True' (to fit mvirial)."
-                    print(msg)
-
-                    params['mvirial_tied'] = True
-
-
-            #
-            if 'fdm_tied' in params.keys():
-                if params['fdm_tied']:
-                    # Tie fDM to the virial mass
-                    halo.fdm.tied = utils_io.tie_fdm
-                    halo.fdm.fixed = False
-
-            if 'mvirial_tied' in params.keys():
-                if params['mvirial_tied']:
-                    # Tie the virial mass to fDM
-                    halo.mvirial.tied = utils_io.tie_lmvirial_NFW
-                    halo.mvirial.fixed = False
-
-        elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
-            # Two-power halo fit:
-
-            # Add values needed:
-            bary.lmstar = params['lmstar']
-            bary.fgas =  params['fgas']
-            bary.mhalo_relation = params['mhalo_relation']
-            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
-
-            # Setup parameters:
-            mvirial =  params['mvirial']
-            conc =     params['halo_conc']
-            alpha =    params['alpha']
-            beta =     params['beta']
-            fdm =      params['fdm']
-
-            halo_fixed = {'mvirial':    params['mvirial_fixed'],
-                          'conc':       params['halo_conc_fixed'],
-                          'alpha':      params['alpha_fixed'],
-                          'beta':       params['beta_fixed'],
-                          'fdm':        params['fdm_fixed']}
-
-            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
-                           'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
-                           'alpha':     (params['alpha_bounds'][0], params['alpha_bounds'][1]),
-                           'beta':      (params['beta_bounds'][0], params['beta_bounds'][1]),
-                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
-
-            halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc,
-                                alpha=alpha, beta=beta, fdm=fdm, z=gal.z,
-                                fixed=halo_fixed, bounds=halo_bounds, name='halo')
-
-            # Tie the virial mass to Mstar
-            if params['mvirial_tied']:
-                halo.mvirial.tied = utils_io.tied_mhalo_mstar
-
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='alpha', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='beta', params=params)
-
-            if params['fdm_fixed'] is False:
-                # Tie the virial mass to fDM
-                halo.alpha.tied = utils_io.tie_alpha_TwoPower
-                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
-        elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
-            # Burkert halo profile:
-
-            # Add values needed:
-            bary.lmstar = params['lmstar']
-            bary.fgas =  params['fgas']
-            bary.mhalo_relation = params['mhalo_relation']
-            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
-
-            # Setup parameters:
-            mvirial =  params['mvirial']
-            rB =       params['rB']
-            fdm =      params['fdm']
-
-            halo_fixed = {'mvirial':    params['mvirial_fixed'],
-                          'rB':         params['rB_fixed'],
-                          'fdm':        params['fdm_fixed']}
-
-            halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
-                           'rB':        (params['rB_bounds'][0], params['rB_bounds'][1]),
-                           'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
-
-            halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z,
-                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
-
-            # Tie the virial mass to Mstar
-            if params['mvirial_tied']:
-                halo.mvirial.tied = utils_io.tied_mhalo_mstar
-
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
-
-            if params['fdm_fixed'] is False:
-                # Tie the virial mass to fDM
-                halo.rB.tied = utils_io.tie_rB_Burkert
-                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
-        elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
-            # Einastro halo profile:
-            # Add values needed:
-            bary.lmstar = params['lmstar']
-            bary.fgas =  params['fgas']
-            bary.mhalo_relation = params['mhalo_relation']
-            bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
-
-            # Setup parameters:
-            mvirial =           params['mvirial']
-            fdm =               params['fdm']
-            conc =              params['conc']
-
-            halo_fixed = {'mvirial':        params['mvirial_fixed'],
-                          'conc':           params['halo_conc_fixed'],
-                          'fdm':            params['fdm_fixed']}
-
-            halo_bounds = {'mvirial':       (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
-                           'conc':          (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
-                           'fdm':           (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
-
-            if 'alphaEinasto' in params.keys():
-                alphaEinasto =                  params['alphaEinasto']
-                halo_fixed['alphaEinasto'] =    params['alphaEinasto_fixed']
-                halo_bounds['alphaEinasto'] =   (params['alphaEinasto_bounds'][0],
-                                                 params['alphaEinasto_bounds'][1])
-                halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, conc=conc, fdm=fdm, z=gal.z,
-                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
-            elif 'nEinasto' in params.keys():
-                nEinasto =                  params['nEinasto']
-                halo_fixed['nEinasto'] =    params['nEinasto_fixed']
-                halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
-                halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, conc=conc, fdm=fdm, z=gal.z,
-                              fixed=halo_fixed, bounds=halo_bounds, name='halo')
-
-            # Tie the virial mass to Mstar
-            if params['mvirial_tied']:
-                halo.mvirial.tied = utils_io.tied_mhalo_mstar
-
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-            halo = utils_io.set_comp_param_prior(comp=halo, param_name='rB', params=params)
-
-            if params['fdm_fixed'] is False:
-                # Tie the virial mass to fDM
-                if 'alphaEinasto' in params.keys():
-                    halo.alphaEinasto.tied = utils_io.tie_alphaEinasto_Einasto
-                elif 'nEinasto' in params.keys():
-                    halo.alphaEinasto.tied = utils_io.tie_nEinasto_Einasto
-                halo = utils_io.set_comp_param_prior(comp=halo, param_name='fdm', params=params)
-
-        else:
-            raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
-
-        # --------------------------------------
-        # Add the model component to the ModelSet
-        mod_set.add_component(halo)
-
-    # ------------------------------------------------------------
     # ------------------------------------------------------------
     # Dispersion profile
-
     if 'const_disp_prof' in components_list:
-
-        sigma0 = params['sigma0']       # km/s
-        disp_fixed = {'sigma0': params['sigma0_fixed']}
-        disp_bounds = {'sigma0': (params['sigma0_bounds'][0], params['sigma0_bounds'][1])}
-
-        disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed, bounds=disp_bounds, name='dispprof')
-
-        disp_prof = utils_io.set_comp_param_prior(comp=disp_prof, param_name='sigma0', params=params)
-
-        # --------------------------------------
-        # Add the model component to the ModelSet
-        mod_set.add_component(disp_prof)
+        mod_set = add_const_disp_prof_comp(gal=gal, mod_set=mod_set, params=params)
 
     # ------------------------------------------------------------
     # z-height profile
-
     if 'zheight_gaus' in components_list:
-
-        sigmaz = params['sigmaz']      # kpc
-        zheight_fixed = {'sigmaz': params['sigmaz_fixed']}
-        zheight_bounds = {'sigmaz': (params['sigmaz_bounds'][0], params['sigmaz_bounds'][1])}
-
-        zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
-                                           fixed=zheight_fixed, bounds=zheight_bounds)
-        if params['zheight_tied']:
-            zheight_prof.sigmaz.tied = utils_io.tie_sigz_reff
-        else:
-            # Do prior changes away from default flat prior, if so specified:
-            zheight_prof = utils_io.set_comp_param_prior(comp=zheight_prof, param_name='sigmaz', params=params)
-
-        # --------------------------------------
-        # Add the model component to the ModelSet
-        mod_set.add_component(zheight_prof)
+        mod_set = add_zheight_gaus_comp(gal=gal, mod_set=mod_set, params=params,
+                    tied_sigmaz_func=tied_sigmaz_func)
 
     # --------------------------------------
     # Geometry
-
     if 'geometry' in components_list:
-        inc = params['inc']       # degrees
-
-        if 'pa' in list(params.keys()):
-            pa =  params['pa']
-        else:
-            pa = params['slit_pa']  # default convention; neg r is blue side
-
-
-
-        lsjlkjslksdf
-
-        xshift = 0                  # pixels from center
-        yshift = 0                  # pixels from center
-        vel_shift =
-
-        geom_fixed = {'inc': params['inc_fixed'],
-                      'pa': True,
-                      'xshift': True,
-                      'yshift': True}
-
-        geom_bounds = {'inc':  (params['inc_bounds'][0], params['inc_bounds'][1]),
-                       'pa':  (-180., 180.),
-                       'xshift':  (-1., 1.),
-                       'yshift':  (-1., 1.),
-                       'vel_shift': (A, B)}
-
-        geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift, vel_shift=vel_shift,
-                               fixed=geom_fixed, bounds=geom_bounds, name='geom')
-        geom = utils_io.set_comp_param_prior(comp=geom, param_name='inc', params=params)
-
-        if 'pa' in list(params.keys()):
-            geom = utils_io.set_comp_param_prior(comp=geom, param_name='pa', params=params)
-        if 'xshift' in list(params.keys()):
-            geom = utils_io.set_comp_param_prior(comp=geom, param_name='xshift', params=params)
-        if 'yshift' in list(params.keys()):
-            geom = utils_io.set_comp_param_prior(comp=geom, param_name='yshift', params=params)
-        if 'vel_shift' in list(params.keys()):
-            geom = utils_io.set_comp_param_prior(comp=geom, param_name='vel_shift', params=params)
-
-
-
-        # --------------------------------------
-        # Add the model component to the ModelSet
-
-        mod_set.add_component(geom)
+        mod_set = add_geometry_comp(gal=gal, mod_set=mod_set, params=params)
 
     # --------------------------------------
     # Set some kinematic options for calculating the velocity profile
     mod_set.kinematic_options.adiabatic_contract = params['adiabatic_contract']
     mod_set.kinematic_options.pressure_support = params['pressure_support']
 
-
     # --------------------------------------
     # Set up the instrument
+    inst = setup_instrument_params(inst=inst, params=params)
+
+    # Add the model set and instrument to the Galaxy
+    gal.model = mod_set
+    gal.instrument = inst
+
+    return gal
+
+def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    total_mass =  params['total_mass']        # log M_sun
+    bt =          params['bt']                # Bulge-Total ratio
+    r_eff_disk =  params['r_eff_disk']        # kpc
+    n_disk =      params['n_disk']
+    invq_disk =   params['invq_disk']         # 1/q0, disk
+    r_eff_bulge = params['r_eff_bulge']       # kpc
+    n_bulge =     params['n_bulge']
+    invq_bulge =  params['invq_bulge']
+    noord_flat =  params['noord_flat']        # Switch for applying Noordermeer flattening
+
+    # Fix components
+    bary_fixed = {'total_mass': params['total_mass_fixed'],
+                  'r_eff_disk': params['r_eff_disk_fixed'],
+                  'n_disk': params['n_disk_fixed'],
+                  'r_eff_bulge': params['r_eff_bulge_fixed'],
+                  'n_bulge': params['n_bulge_fixed'],
+                  'bt': params['bt_fixed']}
+
+    # Set bounds
+    bary_bounds = {'total_mass': (params['total_mass_bounds'][0], params['total_mass_bounds'][1]),
+                   'r_eff_disk': (params['r_eff_disk_bounds'][0], params['r_eff_disk_bounds'][1]),
+                   'n_disk':     (params['n_disk_bounds'][0], params['n_disk_bounds'][1]),
+                   'r_eff_bulge': (params['r_eff_bulge_bounds'][0], params['r_eff_bulge_bounds'][1]),
+                   'n_bulge': (params['n_bulge_bounds'][0], params['n_bulge_bounds'][1]),
+                   'bt':         (params['bt_bounds'][0], params['bt_bounds'][1])}
+
+
+    no_baryons = False
+    if 'disk' in light_components_list:
+        light_component_bary = 'disk'
+    elif 'bulge' in light_components_list:
+        light_component_bary = 'bulge'
+    elif 'disk+bulge' in light_components_list:
+        light_component_bary = 'total'
+    else:
+        no_baryons = True
+
+    bary = models.DiskBulge(total_mass=total_mass, bt=bt,
+                            r_eff_disk=r_eff_disk, n_disk=n_disk,
+                            invq_disk=invq_disk,
+                            r_eff_bulge=r_eff_bulge, n_bulge=n_bulge,
+                            invq_bulge=invq_bulge,
+                            noord_flat=noord_flat,
+                            name='disk+bulge',
+                            fixed=bary_fixed, bounds=bary_bounds,
+                            light_component=light_component_bary)
+
+    if 'linear_masses' in params.keys():
+        if params['linear_masses']:
+            bary = models.LinearDiskBulge(total_mass=total_mass, bt=bt,
+                                    r_eff_disk=r_eff_disk, n_disk=n_disk,
+                                    invq_disk=invq_disk,
+                                    r_eff_bulge=r_eff_bulge, n_bulge=n_bulge,
+                                    invq_bulge=invq_bulge,
+                                    noord_flat=noord_flat,
+                                    name='disk+bulge',
+                                    fixed=bary_fixed, bounds=bary_bounds)
+
+    bary = set_comp_param_prior(comp=bary, param_name='total_mass', params=params)
+    bary = set_comp_param_prior(comp=bary, param_name='bt', params=params)
+    bary = set_comp_param_prior(comp=bary, param_name='r_eff_disk', params=params)
+    bary = set_comp_param_prior(comp=bary, param_name='n_disk', params=params)
+    bary = set_comp_param_prior(comp=bary, param_name='r_eff_bulge', params=params)
+    bary = set_comp_param_prior(comp=bary, param_name='n_bulge', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    if no_baryons:
+        raise ValueError("You must include baryons, they are the light tracers.")
+    else:
+        mod_set.add_component(bary, light=True)
+
+    return mod_set
+
+def add_halo_comp(gal=None, mod_set=None, params=None,
+        tied_fdm_func=None,
+        tied_mvirial_func_NFW=None,
+        tied_mvirial_func_SMHM=None,
+        tied_alpha_TPH_func=None,
+        tied_rB_Burk_func=None,
+        tied_alpha_Ein_func=None,
+        tied_n_Ein_func=None):
+
+    if tied_fdm_func is None:
+        tied_fdm_func = tied_functions.tie_fdm
+    if tied_mvirial_func_NFW is None:
+        tied_mvirial_func_NFW = tied_functions.tie_lmvirial_NFW
+    if tied_mvirial_func_SMHM is None:
+        tied_mvirial_func_SMHM = tied_functions.tied_mhalo_mstar
+    if tied_alpha_TPH_func is None:
+        tied_alpha_TPH_func = tied_functions.tie_alpha_TwoPower
+    if tied_rB_Burk_func is None:
+        tied_rB_Burk_func = tied_functions.tie_rB_Burkert
+    if tied_alpha_Ein_func is None:
+        tied_alpha_Ein_func = tied_functions.tie_alphaEinasto_Einasto
+    if tied_n_Ein_func is None:
+        tied_n_Ein_func = tied_functions.tie_nEinasto_Einasto
+
+    # Halo component
+    if (params['halo_profile_type'].strip().upper() == 'NFW'):
+
+        # NFW halo fit:
+        mvirial =                   params['mvirial']
+        conc =                      params['halo_conc']
+        fdm =                       params['fdm']
+
+        halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                      'conc':       params['halo_conc_fixed'],
+                      'fdm':        params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
+                       'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1])}
+
+        halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z,
+                          fixed=halo_fixed, bounds=halo_bounds, name='halo')
+        #
+        if 'linear_masses' in params.keys():
+            if params['linear_masses']:
+                halo = models.LinearNFW(mvirial=mvirial, conc=conc, fdm=fdm, z=gal.z,
+                                  fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
+        if (params['fdm_fixed'] is False) and (params['mvirial_fixed'] is False):
+            fdm_tied = mvir_tied = False
+            if 'mvirial_tied' in params.keys():
+                if params['mvirial_tied']:
+                    mvir_tied = True
+                else:
+                    mvir_tied = False
+            if 'fdm_tied' in params.keys():
+                if params['fdm_tied']:
+                    fdm_tied = True
+                else:
+                    fdm_tied = False
+
+            if (not fdm_tied) and (not mvir_tied):
+                msg = "For the NFW halo, 'fdm' and 'mvirial' cannot both be free,\n"
+                msg += "if one is not tied to the other. Setting 'mvirial=Tied'.\n"
+                msg += "Alternatively, specify 'mvirial_tied, True' (to fit fdm)\n"
+                msg += " or 'fdm_tied, True' (to fit mvirial)."
+                print(msg)
+
+                params['mvirial_tied'] = True
+
+        elif ((not params['fdm_fixed']) & (params['mvirial_fixed'])):
+            if 'mvirial_tied' not in params.keys():
+                params['mvirial_tied'] = True
+            else:
+                if (not params['mvirial_tied']):
+                    # Override setting and make tied, as it can't be truly fixed
+                    params['mvirial_tied'] = True
+        elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
+            if 'fdm_tied' not in params.keys():
+                params['fdm_tied'] = True
+            else:
+                if (not params['fdm_tied']):
+                    # Override setting and make tied, as it can't be truly fixed
+                    params['fdm_tied'] = True
+
+        if 'fdm_tied' in params.keys():
+            if params['fdm_tied']:
+                # Tie fDM to the virial mass
+                halo.fdm.tied = tied_fdm_func
+                halo.fdm.fixed = False
+
+
+        if 'mvirial_tied' in params.keys():
+            if params['mvirial_tied']:
+                # Tie the virial mass to fDM
+                halo.mvirial.tied = tied_mvirial_func_NFW
+                halo.mvirial.fixed = False
+
+    elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
+        # Two-power halo fit:
+
+        # Add values needed:
+        bary.lmstar = params['lmstar']
+        bary.fgas =  params['fgas']
+        bary.mhalo_relation = params['mhalo_relation']
+        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+
+        # Setup parameters:
+        mvirial =  params['mvirial']
+        conc =     params['halo_conc']
+        alpha =    params['alpha']
+        beta =     params['beta']
+        fdm =      params['fdm']
+
+        halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                      'conc':       params['halo_conc_fixed'],
+                      'alpha':      params['alpha_fixed'],
+                      'beta':       params['beta_fixed'],
+                      'fdm':        params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       'conc':      (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
+                       'alpha':     (params['alpha_bounds'][0], params['alpha_bounds'][1]),
+                       'beta':      (params['beta_bounds'][0], params['beta_bounds'][1]),
+                       'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+
+        halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc,
+                            alpha=alpha, beta=beta, fdm=fdm, z=gal.z,
+                            fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        # Tie the virial mass to Mstar
+        if params['mvirial_tied']:
+            halo.mvirial.tied = tied_mvirial_func_SMHM
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='alpha', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='beta', params=params)
+
+        if params['fdm_fixed'] is False:
+            # Tie the virial mass to fDM
+            halo.alpha.tied = tied_alpha_TPH_func
+            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
+    elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
+        # Burkert halo profile:
+
+        # Add values needed:
+        bary.lmstar = params['lmstar']
+        bary.fgas =  params['fgas']
+        bary.mhalo_relation = params['mhalo_relation']
+        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+
+        # Setup parameters:
+        mvirial =  params['mvirial']
+        rB =       params['rB']
+        fdm =      params['fdm']
+
+        halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                      'rB':         params['rB_fixed'],
+                      'fdm':        params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       'rB':        (params['rB_bounds'][0], params['rB_bounds'][1]),
+                       'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+
+        halo = models.Burkert(mvirial=mvirial, rB=rB, fdm=fdm, z=gal.z,
+                          fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        # Tie the virial mass to Mstar
+        if params['mvirial_tied']:
+            halo.mvirial.tied = tied_mvirial_func_SMHM
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='rB', params=params)
+
+        if params['fdm_fixed'] is False:
+            # Tie the virial mass to fDM
+            halo.rB.tied = tied_rB_Burk_func
+            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
+    elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
+        # Einastro halo profile:
+        # Add values needed:
+        bary.lmstar = params['lmstar']
+        bary.fgas =  params['fgas']
+        bary.mhalo_relation = params['mhalo_relation']
+        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+
+        # Setup parameters:
+        mvirial =           params['mvirial']
+        fdm =               params['fdm']
+        conc =              params['conc']
+
+        halo_fixed = {'mvirial':        params['mvirial_fixed'],
+                      'conc':           params['halo_conc_fixed'],
+                      'fdm':            params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':       (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       'conc':          (params['halo_conc_bounds'][0], params['halo_conc_bounds'][1]),
+                       'fdm':           (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+
+        if 'alphaEinasto' in params.keys():
+            alphaEinasto =                  params['alphaEinasto']
+            halo_fixed['alphaEinasto'] =    params['alphaEinasto_fixed']
+            halo_bounds['alphaEinasto'] =   (params['alphaEinasto_bounds'][0],
+                                             params['alphaEinasto_bounds'][1])
+            halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, conc=conc, fdm=fdm, z=gal.z,
+                          fixed=halo_fixed, bounds=halo_bounds, name='halo')
+        elif 'nEinasto' in params.keys():
+            nEinasto =                  params['nEinasto']
+            halo_fixed['nEinasto'] =    params['nEinasto_fixed']
+            halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
+            halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, conc=conc, fdm=fdm, z=gal.z,
+                          fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        # Tie the virial mass to Mstar
+        if params['mvirial_tied']:
+            halo.mvirial.tied = tied_mvirial_func_SMHM
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='rB', params=params)
+
+        if params['fdm_fixed'] is False:
+            # Tie the Einasto param to fDM
+            if 'alphaEinasto' in params.keys():
+                halo.alphaEinasto.tied = tied_alpha_Ein_func
+            elif 'nEinasto' in params.keys():
+                halo.nEinasto.tied = tied_n_Ein_func
+            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
+    else:
+        raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(halo)
+
+    return mod_set
+
+def add_const_disp_prof_comp(gal=None, mod_set=None, params=None):
+
+    sigma0 = params['sigma0']       # km/s
+    disp_fixed = {'sigma0': params['sigma0_fixed']}
+    disp_bounds = {'sigma0': (params['sigma0_bounds'][0], params['sigma0_bounds'][1])}
+
+    disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
+                        bounds=disp_bounds, name='dispprof')
+
+    disp_prof = set_comp_param_prior(comp=disp_prof, param_name='sigma0', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(disp_prof)
+
+    return mod_set
+
+def add_zheight_gaus_comp(gal=None, mod_set=None, params=None,
+            tied_sigmaz_func=None):
+
+    if tied_sigmaz_func is None:
+        tied_sigmaz_func = tied_functions.tie_sigz_reff
+
+    sigmaz = params['sigmaz']      # kpc
+    zheight_fixed = {'sigmaz': params['sigmaz_fixed']}
+    zheight_bounds = {'sigmaz': (params['sigmaz_bounds'][0], params['sigmaz_bounds'][1])}
+
+    zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
+                                       fixed=zheight_fixed, bounds=zheight_bounds)
+    if params['zheight_tied']:
+        zheight_prof.sigmaz.tied = tied_sigmaz_func
+    else:
+        # Do prior changes away from default flat prior, if so specified:
+        zheight_prof = set_comp_param_prior(comp=zheight_prof, param_name='sigmaz', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(zheight_prof)
+
+    return mod_set
+
+def add_geometry_comp(gal=None, mod_set=None, params=None):
+    params = _preprocess_geom_parameters(params=params)
+
+    inc = params['inc']                # degrees
+    pa =  params['pa']                 # default convention; neg r is blue side
+
+    xshift = params['xshift']          # pixels from center
+    yshift = params['yshift']          # pixels from center
+    vel_shift = params['vel_shift']    # km/s ; systemic vel
+
+    geom_fixed = {'inc': params['inc_fixed'],
+                  'pa': params['pa_fixed'],
+                  'xshift': params['xshift_fixed'],
+                  'yshift': params['yshift_fixed'],
+                  'vel_shift': params['vel_shift_fixed']}
+
+    geom_bounds = {'inc':  (params['inc_bounds'][0], params['inc_bounds'][1]),
+                   'pa':  (params['pa_bounds'][0], params['pa_bounds'][1]),
+                   'xshift':  (params['xshift_bounds'][0], params['xshift_bounds'][1]),
+                   'yshift':  (params['yshift_bounds'][0], params['yshift_bounds'][1]),
+                   'vel_shift': (params['vel_shift_bounds'][0], params['vel_shift_bounds'][1])}
+
+    geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift, vel_shift=vel_shift,
+                           fixed=geom_fixed, bounds=geom_bounds, name='geom')
+    geom = set_comp_param_prior(comp=geom, param_name='inc', params=params)
+    geom = set_comp_param_prior(comp=geom, param_name='pa', params=params)
+    geom = set_comp_param_prior(comp=geom, param_name='xshift', params=params)
+    geom = set_comp_param_prior(comp=geom, param_name='yshift', params=params)
+    geom = set_comp_param_prior(comp=geom, param_name='vel_shift', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+
+    mod_set.add_component(geom)
+
+    return mod_set
+
+def _preprocess_geom_parameters(params=None):
+    if 'pa' not in list(params.keys()):
+        params['pa'] = params['slit_pa']  # default convention; neg r is blue side
+
+    for key in ['xshift', 'yshift', 'vel_shift']:
+        if key not in list(params.keys()):
+            params[key] = 0.
+
+    for key in ['xshift', 'yshift', 'vel_shift', 'inc', 'pa']:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['xshift', 'yshift']:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (-1.,1.)
+
+    if 'vel_shift_bounds' not in list(params.keys()):
+        params['vel_shift_bounds'] = (-100., 100.)
+    if 'pa_bounds' not in list(params.keys()):
+        params['pa_bounds'] = (-180., 180.)
+    if 'inc' not in list(params.keys()):
+        params['inc_bounds'] = (0., 90.)
+
+    return params
+
+def setup_instrument_params(inst=None, params=None):
     pixscale = params['pixscale']*u.arcsec                # arcsec/pixel
     fov = [params['fov_npix'], params['fov_npix']]        # (nx, ny) pixels
     spec_type = params['spec_type']                       # 'velocity' or 'wavelength'
@@ -499,15 +578,8 @@ def setup_gal_model_base(params=None):
     # Set the beam kernel so it doesn't have to be calculated every step
     inst.set_beam_kernel(support_scaling=12.)   # ORIGINAL: support_scaling=8.
 
-    # Add the model set and instrument to the Galaxy
-    gal.model = mod_set
-    gal.instrument = inst
+    return inst
 
-
-
-    return gal
-
-    return none
 
 
 def setup_fit_dict(params=None, ndim_data=None):
@@ -541,8 +613,6 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     f_plot_trace_burnin = outdir+'{}_mcmc_burnin_trace.{}'.format(galID, plot_type)
     f_plot_trace = outdir+'{}_mcmc_trace.{}'.format(galID, plot_type)
     f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
-
-
 
     if ndim_data == 1:
         f_model_bestfit = outdir+'{}_out-1dplots.txt'.format(galID)
