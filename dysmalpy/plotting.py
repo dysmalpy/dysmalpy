@@ -2271,6 +2271,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             moment=False,
             partial_weight=False,
             plot_type='pdf'):
+
     if (plotfile is None) & (outpath is None):
         raise ValueError
     if plotfile is None:
@@ -2301,7 +2302,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
                     fname_finer=fname_model,
                     fname_intrinsic=fname_intrinsic,
                     moment=moment,
-                    partial_weight=partial_weight)
+                    partial_weight=partial_weight,
+                    overwrite=overwrite_curve_files)
 
 
     if not file_exists:

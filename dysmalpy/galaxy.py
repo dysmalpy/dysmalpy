@@ -558,12 +558,14 @@ class Galaxy:
 
             if spec_type == "velocity":
                 if extrac_type == 'moment':
+                    flux = self.model_cube.data.moment0().to(u.km/u.s).value
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                 elif extrac_type == 'gauss':
                     mom0 = self.model_cube.data.moment0().to(u.km/u.s).value
                     mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
                     mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                    flux = np.zeros(mom0.shape)
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
                     for i in range(mom0.shape[0]):
@@ -578,6 +580,7 @@ class Galaxy:
                             best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value,
                                         self.model_cube.data.unmasked_data[:,i,j].value)
 
+                            flux[i,j] =  np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
 
@@ -589,6 +592,7 @@ class Galaxy:
                     rest_value=line_center)
 
                 if extrac_type == 'moment':
+                    flux = cube_with_vel.moment0().value
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
                 elif extrac_type == 'gauss':
@@ -601,7 +605,7 @@ class Galaxy:
                                  "'wavelength.'")
 
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
-                                     vel_disp=disp)
+                                     vel_disp=disp, flux=flux)
 
         elif ndim_final == 1:
 

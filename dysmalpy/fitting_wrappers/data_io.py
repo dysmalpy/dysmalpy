@@ -17,7 +17,7 @@ from dysmalpy import utils as dysmalpy_utils
 
 import astropy.io.fits as fits
 
-from dysmalpy.fitting_wrappers.utils_calcs import auto_gen_3D_mask
+from dysmalpy.fitting_wrappers.utils_calcs import auto_gen_3D_mask, _auto_truncate_crop_cube
 from dysmalpy.fitting_wrappers.setup_gal_models import setup_data_weighting_method
 
 def read_fitting_params_input(fname=None):
@@ -599,54 +599,6 @@ def read_results_ascii_file(fname=None):
     return data
 
 
-def write_bestfit_1d_obs_file(gal=None, fname=None):
-    """
-    Short function to save *observed* space 1D obs profile for a galaxy (eg, for plotting, etc)
-    Follows form of H.Ü. example.
-    """
-    model_r = gal.model_data.rarr
-    model_flux = gal.model_data.data['flux']
-    model_vel = gal.model_data.data['velocity']
-    model_disp = gal.model_data.data['dispersion']
-
-    # Write 1D circular aperture plots to text file
-    np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
-               fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
-               header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
-
-
-    return None
-
-def read_bestfit_1d_obs_file(fname=None, mirror=False):
-    """
-    Short function to save load space 1D obs profile for a galaxy (eg, for plotting, etc)
-    Follows form of H.Ü. example.
-    """
-
-    # Load the model file
-    dat_arr =   np.loadtxt(fname)
-    gal_r =     dat_arr[:,0]
-    gal_flux =  dat_arr[:,1]
-    gal_vel =   dat_arr[:,2]
-    gal_disp =  dat_arr[:,3]
-
-    slit_width = None
-    slit_pa = None
-
-    if mirror:
-        gal_r = np.append(-1.*gal_r[::-1][:-1], gal_r)
-        gal_flux = np.append(1.*gal_flux[::-1][:-1], gal_flux)
-        gal_vel = np.append(-1.*gal_vel[::-1][:-1], gal_vel)
-        gal_disp = np.append(1.*gal_disp[::-1][:-1], gal_disp)
-
-    #
-    model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,
-                             vel_disp=gal_disp, flux=gal_flux,
-                             slit_width=slit_width,
-                             slit_pa=slit_pa)
-    model_data.apertures = None
-
-    return model_data
 
 
 def make_catalog_row_entry(ascii_data=None, galID=None):

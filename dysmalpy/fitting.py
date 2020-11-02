@@ -154,6 +154,8 @@ def fit_mcmc(gal, nWalkers=10,
     if red_chisq:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
 
+    # Check the FOV is large enough to cover the data output:
+    dpy_utils_io._check_data_inst_FOV_compatibility(gal)
 
     # --------------------------------
     # Basic setup:
@@ -1182,6 +1184,9 @@ def fit_mpfit(gal,
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
+
+    # Check the FOV is large enough to cover the data output:
+    dpy_utils_io._check_data_inst_FOV_compatibility(gal)
 
     # Create output directory
     if len(outdir) > 0:

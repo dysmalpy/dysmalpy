@@ -7,6 +7,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
+import os
+import re
+import logging
 
 # Third party imports
 import numpy as np
@@ -15,6 +18,7 @@ from scipy import interpolate
 import copy
 
 from astropy.io import fits
+import astropy.units as u
 
 import datetime
 
@@ -25,7 +29,25 @@ except:
     from . import aperture_classes
     from . import data_classes
 
-#
+# try:
+#     from dysmalpy._version import __version__ as __dpy_version__
+# except:
+#     from ._version import __version__ as __dpy_version__
+
+
+#--------------------------------------------------------------
+# Get DysmalPy version:
+dir_path = os.path.dirname(os.path.realpath(__file__))
+init_string = open(os.path.join(dir_path, '__init__.py')).read()
+VERS = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VERS, init_string, re.M)
+__dpy_version__ = mo.group(1)
+#--------------------------------------------------------------
+
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
+
 # Class for intrinsic rot curve
 class RotCurveInt(object):
     def __init__(self, r=None, vcirc_tot=None, vcirc_bar=None, vcirc_dm=None):
@@ -51,6 +73,8 @@ def read_model_intrinsic_profile(filename=None):
     model_int = RotCurveInt(r=gal_r, vcirc_tot=vcirc_tot, vcirc_bar=vcirc_bar, vcirc_dm=vcirc_dm)
 
     return model_int
+
+
 
 def read_bestfit_1d_obs_file(filename=None):
     """
@@ -119,12 +143,22 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
     Method to save the model 2D maps for a galaxy.
     """
 
-    flux_mod = gal.model_data.data['flux']
+    data_mask = gal.data.mask
+
     vel_mod =  gal.model_data.data['velocity']
-    disp_mod = gal.model_data.data['dispersion']
+
+    if gal.model_data.data['flux'] is not None:
+        flux_mod = gal.model_data.data['flux']
+    else:
+        flux_mod = np.ones(vel_mod.shape) * np.NaN
+
+    if gal.model_data.data['dispersion'] is not None:
+        disp_mod = gal.model_data.data['dispersion']
+    else:
+        disp_mod = np.ones(vel_mod.shape) * np.NaN
 
     # Correct model for instrument dispersion if the data is instrument corrected:
-    if 'inst_corr' in gal.data.data.keys():
+    if ('inst_corr' in gal.data.data.keys()) & (gal.model_data.data['dispersion'] is not None):
         if gal.data.data['inst_corr']:
             disp_mod = np.sqrt(disp_mod**2 -
                                gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
@@ -132,7 +166,7 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
                                                    # below the instrumental dispersion
 
     try:
-        spec_unit = gal.instrument.spec_start.unit
+        spec_unit = gal.instrument.spec_start.unit.to_string()
     except:
         spec_unit = 'km/s'  # Assume default
 
@@ -142,32 +176,50 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
     hdr['NAXIS1'] = (flux_mod.shape[0], 'x size')
     hdr['NAXIS2'] = (flux_mod.shape[1], 'y size')
 
-    hdr['PIXSCALE'] = gal.data.pixscale
+    hdr['WCSAXES'] = (2, 'Number of coordinate axes')
 
-    hdr['CUNIT1'] = ('ARCSEC', 'x unit')
-    hdr['CUNIT2'] = ('ARCSEC', 'y unit')
-    hdr['CDELT1'] = hdr['CDELT2'] = (hdr['PIXSCALE'], 'pixel scale')
-    hdr['CRVAL1'] = (0., 'Reference position x')
-    hdr['CRVAL2'] = (0., 'Reference position y')
     try:
-        hdr['CRPIX1'] = (gal.data.xcenter - gal.model.geometry.xshift + 1, 'Reference pixel x')
-        hdr['CRPIX2'] = (gal.data.ycenter - gal.model.geometry.yshift + 1, 'Reference pixel y')
+        hdr['PIXSCALE'] = (gal.data.pixscale.value / 3600., 'pixel scale [deg]') # Convert pixscale from arcsec to deg
     except:
-        hdr['CRPIX1'] = ((vel_mod.shape[0]-1)/2. + 1, 'Reference pixel x')
-        hdr['CRPIX2'] = ((vel_mod.shape[1]-1)/2. + 1, 'Reference pixel y')
+        hdr['PIXSCALE'] = (gal.data.pixscale / 3600., 'pixel scale [deg]')  # Convert pixscale from arcsec to deg
+
+    hdr['CUNIT1'] = ('deg', 'Units of coordinate increment and value')
+    hdr['CUNIT2'] = ('deg', 'Units of coordinate increment and value')
+    hdr['CDELT1'] = hdr['CDELT2'] = (hdr['PIXSCALE'], 'Units of coordinate increment and value')
+
+
+    hdr['CRVAL1'] = (0., '[deg] Coordinate value at reference point')
+    hdr['CRVAL2'] = (0., '[deg] Coordinate value at reference point')
+    #try:
+    if gal.data.xcenter is not None:
+        xcenter = gal.data.xcenter + 1
+    else:
+        xcenter = (vel_mod.shape[1]-1)/2. + 1
+    if gal.data.ycenter is not None:
+        ycenter = gal.data.ycenter + 1
+    else:
+        ycenter = (vel_mod.shape[0]-1)/2. + 1
+
+    hdr['CRPIX1'] = (xcenter + gal.model.geometry.xshift.value, 'Pixel coordinate of reference point')
+    hdr['CRPIX2'] = (ycenter + gal.model.geometry.yshift.value, 'Pixel coordinate of reference point')
 
     hdr['BUNIT'] = (spec_unit, 'Spectral unit')
 
-    hdu_flux = fits.ImageHDU(data=flux_mod, header=hdr, name='flux')
-    hdu_vel =  fits.ImageHDU(data=vel_mod,  header=hdr, name='velocity')
-    hdu_disp = fits.ImageHDU(data=disp_mod, header=hdr, name='dispersion')
+    hdr['HISTORY'] = 'Written by dysmalpy v{} on {}'.format(__dpy_version__, datetime.datetime.now())
+
+    hdr_flux = hdr.copy()
+    hdr_flux['BUNIT'] = ('', 'Arbitrary flux units')
+
+    hdu_flux = fits.ImageHDU(data=flux_mod * data_mask, header=hdr_flux, name='flux')
+    hdu_vel =  fits.ImageHDU(data=vel_mod * data_mask,  header=hdr, name='velocity')
+    hdu_disp = fits.ImageHDU(data=disp_mod * data_mask, header=hdr, name='dispersion')
 
     hdul = fits.HDUList()
     hdul.append(hdu_flux)
     hdul.append(hdu_vel)
     hdul.append(hdu_disp)
 
-    new_hdul.writeto(fname, overwrite=overwrite)
+    hdul.writeto(fname, overwrite=overwrite)
 
     return None
 
@@ -530,6 +582,21 @@ def create_results_report(gal, results, params=None, report_type='short'):
 
 
 
+#########################
+def _check_data_inst_FOV_compatibility(gal):
+    logger_msg = None
+    if gal.data.ndim == 1:
+        if min(gal.instrument.fov)/2. <  np.abs(gal.data.rarr).max() / gal.instrument.pixscale.value:
+            logger_msg = "FOV smaller than the maximum data extent!\n"
+            logger_msg += "FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(gal.instrument.fov[0],
+                            gal.instrument.fov[1], np.abs(gal.data.rarr).max()/ gal.instrument.pixscale)
+
+    if logger_msg is not None:
+        logger.warning(logger_msg)
+
+    return None
+
+
 
 #########################
 
@@ -616,7 +683,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
             fname_model_matchdata=None,
             fname_finer=None,
             fname_intrinsic=None,
-            fname_intrinsic_m = None):
+            fname_intrinsic_m = None,
+            overwrite=False):
     #
     if outpath is None:
         raise ValueError
@@ -656,17 +724,18 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
 
     write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
                 profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
-                partial_weight=partial_weight)
+                partial_weight=partial_weight, overwrite=overwrite)
 
 
     return None
 
-#
+
 def write_1d_obs_finer_scale(gal=None, fname=None,
             profile1d_type=None, aperture_radius=None,
             oversample=3, oversize=1,
             partial_weight=False,
-            moment=False):
+            moment=False,
+            overwrite=False):
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -720,7 +789,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                               aperture_radius=aperture_radius)
 
 
-    write_model_1d_obs_file(gal=gal, fname=fname)
+    write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
 
     return None
 
