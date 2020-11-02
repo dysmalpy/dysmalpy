@@ -227,7 +227,8 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                         plot_type=plot_type)
 
         # Save results
-        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
+                        overwrite=overwrite)
 
     return None
 

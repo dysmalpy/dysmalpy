@@ -1493,10 +1493,10 @@ class FitResults(object):
             except:
                 pass
 
-    def results_report(self, gal=None, filename=None, params=None, report_type='short', overwrite=False):
+    def results_report(self, gal=None, filename=None, params=None, report_type='pretty', overwrite=False):
         """Return a result report string, or save to file.
-           report_type = 'short':   like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'pretty'
-                       = 'long':    like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'machine'
+           report_type = 'pretty':   More human-readable
+                       = 'machine':  Machine-readable ascii table (though with mixed column types)
         """
 
         report = dpy_utils_io.create_results_report(gal, self, report_type=report_type, params=params)

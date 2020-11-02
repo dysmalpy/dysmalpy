@@ -154,7 +154,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                         plot_type=plot_type)
 
         # Save results
-        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
+                        overwrite=overwrite)
 
         # Make component plot:
         if fit_dict['do_plotting']:
@@ -162,11 +163,22 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                 params['aperture_radius'] = -99.
             # Reload bestfit case
             gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
+
+            if ('partial_weight' in params.keys()):
+                partial_weight = params['partial_weight']
+            else:
+                # # Preserve previous default behavior
+                # partial_weight = False
+
+                ## NEW default behavior: always use partial_weight:
+                partial_weight = True
+
             plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                     profile1d_type = fit_dict['profile1d_type'],
                     oversample=fit_dict['oversample'], oversize=fit_dict['oversize'],
                     aperture_radius=params['aperture_radius'],
                     plot_type=plot_type,
+                    partial_weight=partial_weight,
                     overwrite=overwrite, overwrite_curve_files=overwrite)
 
 
@@ -240,7 +252,8 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
                                     fit_method=params['fit_method'])
 
         # Save results
-        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params)
+        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
+                        overwrite=overwrite)
 
     elif params['fit_method'] == 'mpfit':
         galtmp, fit_dict = setup_single_object_1D(params=params, data=data)
