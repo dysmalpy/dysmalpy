@@ -64,9 +64,10 @@ Python 3 on your machine and install all of the dependent packages. Please
 follow the instructions in :ref:`Python Environment Setup <install-conda>` .
 
 
-After this is completed, you can download the latest DysmalPy package `here`_.
+After this is completed, you can download the latest DysmalPy package `here`_
+(current version: 1.1.0).
 
-.. _here: releases/dysmalpy-1.0.0.tar.gz
+.. _here: releases/dysmalpy-1.1.0.tar.gz
 
 From a terminal, change directories to where the package was downloaded
 and type:
