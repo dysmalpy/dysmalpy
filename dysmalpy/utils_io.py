@@ -190,7 +190,7 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
 
     hdr['CRVAL1'] = (0., '[deg] Coordinate value at reference point')
     hdr['CRVAL2'] = (0., '[deg] Coordinate value at reference point')
-    #try:
+    # Uses FITS standard where first pixel is (1,1)
     if gal.data.xcenter is not None:
         xcenter = gal.data.xcenter + 1
     else:
