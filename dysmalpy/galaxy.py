@@ -28,6 +28,7 @@ from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
+from dysmalpy.utils_io import write_model_obs_file
 
 __all__ = ['Galaxy']
 
@@ -557,12 +558,14 @@ class Galaxy:
 
             if spec_type == "velocity":
                 if extrac_type == 'moment':
+                    flux = self.model_cube.data.moment0().to(u.km/u.s).value
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
                     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
                 elif extrac_type == 'gauss':
                     mom0 = self.model_cube.data.moment0().to(u.km/u.s).value
                     mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
                     mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                    flux = np.zeros(mom0.shape)
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
                     for i in range(mom0.shape[0]):
@@ -577,6 +580,7 @@ class Galaxy:
                             best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value,
                                         self.model_cube.data.unmasked_data[:,i,j].value)
 
+                            flux[i,j] =  np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
                             vel[i,j] = best_fit.mean.value
                             disp[i,j] = best_fit.stddev.value
 
@@ -588,6 +592,7 @@ class Galaxy:
                     rest_value=line_center)
 
                 if extrac_type == 'moment':
+                    flux = cube_with_vel.moment0().value
                     vel = cube_with_vel.moment1().value
                     disp = cube_with_vel.linewidth_sigma().value
                 elif extrac_type == 'gauss':
@@ -600,7 +605,7 @@ class Galaxy:
                                  "'wavelength.'")
 
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
-                                     vel_disp=disp)
+                                     vel_disp=disp, flux=flux)
 
         elif ndim_final == 1:
 
@@ -747,7 +752,7 @@ class Galaxy:
             if os.path.isfile(filename):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
                 return None
-              
+
         if filename is not None:
             galtmp = copy.deepcopy(self)
 
@@ -777,6 +782,19 @@ class Galaxy:
         if filename is not None:
             galtmp = _pickle.load(open(filename, "rb"))
             return galtmp
+
+
+    def save_model_data(self, filename=None, overwrite=False):
+        # Check for existing file:
+        if (not overwrite) and (filename is not None):
+            if os.path.isfile(filename):
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                return None
+
+        if filename is not None:
+            write_model_obs_file(gal=self, fname=filename,
+                            ndim=self.model_data.ndim, overwrite=overwrite)
+
 
 
 def load_galaxy_object(filename=None):

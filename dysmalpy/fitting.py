@@ -60,14 +60,14 @@ logger = logging.getLogger('DysmalPy')
 
 
 def fit(*args, **kwargs):
-    
+
     wrn_msg = "fitting.fit has been depreciated.\n"
     wrn_msg += "Instead call 'fitting.fit_mcmc' or 'fitting.fit_mpfit'."
-    
+
     raise ValueError(wrn_msg)
-    
+
     return None
-    
+
 
 def fit_mcmc(gal, nWalkers=10,
            cpuFrac=None,
@@ -103,6 +103,7 @@ def fit_mcmc(gal, nWalkers=10,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_model = None,
+           f_model_bestfit = None,
            f_cube = None,
            f_sampler = None,
            f_sampler_tmp = None,
@@ -153,6 +154,8 @@ def fit_mcmc(gal, nWalkers=10,
     if red_chisq:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
 
+    # Check the FOV is large enough to cover the data output:
+    dpy_utils_io._check_data_inst_FOV_compatibility(gal)
 
     # --------------------------------
     # Basic setup:
@@ -188,7 +191,8 @@ def fit_mcmc(gal, nWalkers=10,
                   'continue_steps', 'save_intermediate_sampler_chain',
                   'nStep_intermediate_save', 'input_sampler',
                   'f_plot_trace_burnin', 'f_plot_trace',
-                  'f_model', 'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler',
+                  'f_model', 'f_model_bestfit',
+                  'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler',
                   'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii',
                   'f_vel_ascii', 'f_log', 'plot_type', 'overwrite']
     fit_kwargs = {}
@@ -245,6 +249,7 @@ def _fit_emcee_221(gal, nWalkers=10,
            f_plot_trace_burnin = None,
            f_plot_trace = None,
            f_model = None,
+           f_model_bestfit = None,
            f_cube = None,
            f_sampler = None,
            f_sampler_tmp = None,
@@ -278,6 +283,17 @@ def _fit_emcee_221(gal, nWalkers=10,
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+
+
+    if f_model_bestfit is None:
+        if gal.data.ndim == 1:
+            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+        elif gal.data.ndim == 2:
+            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+        elif gal.data.ndim == 3:
+            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+        elif gal.data.ndim == 0:
+            f_model_bestfit = outdir+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
@@ -740,6 +756,7 @@ def _fit_emcee_3(gal, nWalkers=10,
        f_plot_trace_burnin = None,
        f_plot_trace = None,
        f_model = None,
+       f_model_bestfit = None,
        f_cube = None,
        f_sampler = None,
        f_plot_param_corner = None,
@@ -767,6 +784,16 @@ def _fit_emcee_3(gal, nWalkers=10,
     if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
     if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
     if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+
+    if f_model_bestfit is None:
+        if gal.data.ndim == 1:
+            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+        elif gal.data.ndim == 2:
+            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+        elif gal.data.ndim == 3:
+            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+        elif gal.data.ndim == 0:
+            f_model_bestfit = outdir+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
@@ -917,8 +944,8 @@ def _fit_emcee_3(gal, nWalkers=10,
         elapsed = end-start
 
         acor_time = sampler_burn.get_autocorr_time(tol=10, quiet=True)
-        
-        
+
+
         #######################################################################################
         # Return Burn-in info
         # ****
@@ -1015,7 +1042,7 @@ def _fit_emcee_3(gal, nWalkers=10,
         stepinfomsg = "ii={}, a_frac={}".format( ii, np.mean(sampler.acceptance_fraction) )
         timemsg = " time.time()={}".format(nowtime)
         logger.info( stepinfomsg+timemsg )
-        
+
         acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
         #acor_time = sampler.get_autocorr_time(quiet=True)
         logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
@@ -1048,7 +1075,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     end = time.time()
     elapsed = end-start
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
-    
+
     acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
 
     #######################################################################################
@@ -1145,6 +1172,7 @@ def fit_mpfit(gal,
               save_data=True,
               outdir='mpfit_fit_results/',
               f_model = None,
+              f_model_bestfit = None,
               f_cube=None,
               f_plot_bestfit = None,
               f_results = None,
@@ -1157,6 +1185,9 @@ def fit_mpfit(gal,
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
 
+    # Check the FOV is large enough to cover the data output:
+    dpy_utils_io._check_data_inst_FOV_compatibility(gal)
+
     # Create output directory
     if len(outdir) > 0:
         if outdir[-1] != '/': outdir += '/'
@@ -1168,6 +1199,16 @@ def fit_mpfit(gal,
     if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.{}'.format(plot_type)
     if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
     if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
+
+    if f_model_bestfit is None:
+        if gal.data.ndim == 1:
+            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+        elif gal.data.ndim == 2:
+            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+        elif gal.data.ndim == 3:
+            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+        elif gal.data.ndim == 0:
+            f_model_bestfit = outdir+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
@@ -1279,7 +1320,7 @@ def fit_mpfit(gal,
     gal.create_model_data(oversample=oversample, oversize=oversize,
                           line_center=gal.model.line_center, profile1d_type=profile1d_type)
 
-    #
+    ###
     mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                     model_key_re=model_key_re)
     mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1301,17 +1342,11 @@ def fit_mpfit(gal,
         # Save model w/ updated theta equal to best-fit:
         gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
 
+    if f_model_bestfit is not None:
+        gal.save_model_data(filename=f_model_bestfit, overwrite=overwrite)
 
     if save_bestfit_cube:
         gal.model_cube.data.write(f_cube, overwrite=overwrite)
-
-        #######
-        # DEBUGGING:
-        if gal.data.ndim == 3:
-            gal.model_data.data.write(f_cube+'.scaled.fits', overwrite=overwrite)
-
-            gal.data.data.write(f_cube+'.data.fits', overwrite=overwrite)
-        #######
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1458,10 +1493,10 @@ class FitResults(object):
             except:
                 pass
 
-    def results_report(self, gal=None, filename=None, params=None, report_type='short', overwrite=False):
+    def results_report(self, gal=None, filename=None, params=None, report_type='pretty', overwrite=False):
         """Return a result report string, or save to file.
-           report_type = 'short':   like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'pretty'
-                       = 'long':    like fitting_wrappers.utils_io.save_results_ascii_files_mcmc 'machine'
+           report_type = 'pretty':   More human-readable
+                       = 'machine':  Machine-readable ascii table (though with mixed column types)
         """
 
         report = dpy_utils_io.create_results_report(gal, self, report_type=report_type, params=params)
@@ -1594,6 +1629,11 @@ class MCMCResults(FitResults):
         if f_model is not None:
             # Save model w/ updated theta equal to best-fit:
             gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
+
+
+
+        if f_model_bestfit is not None:
+            gal.save_model_data(filename=f_model_bestfit, overwrite=overwrite)
 
         if save_bestfit_cube:
             gal.model_cube.data.write(f_cube, overwrite=overwrite)
@@ -3000,9 +3040,9 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
     samples = sampler.chain[:, nBurn:, :].reshape((-1, sampler.ndim))
     # Walkers, iterations
     probs = sampler.lnprobability[:, nBurn:].reshape((-1))
-    
+
     acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
-    
+
     # Make a dictionary:
     sampler_dict = { 'chain':               sampler.chain[:, nBurn:, :],
                      'lnprobability':       sampler.lnprobability[:, nBurn:],
@@ -3048,9 +3088,9 @@ def _make_sampler_dict_from_hdf5(b):
     # Walkers, iterations
     probs =     np.swapaxes(b.get_log_prob(), 0, 1)
     flatprobs = probs.reshape(-1)
-    
+
     acor_time = b.get_autocorr_time(tol=10, quiet=True)
-    
+
     # Make a dictionary:
     sampler_dict = { 'chain':                chain,
                      'flatchain':            flatchain,
@@ -3205,7 +3245,7 @@ def dump_pickle(data, filename=None, overwrite=False):
 def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method=None):
     """
     Utility to reload the Galaxy and Results object from a previous fit.
-    
+
     Parameters
     ----------
     filename_galmodel : str
@@ -3216,17 +3256,17 @@ def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method
             Fitting method that was run. Used to determine the subclass of FitResults for reloading.
             Can be set to `mpfit` or `mcmc`.
     """
-    
+
     if fit_method is None:
         raise ValueError("Must set 'fit_method'! Options are 'mpfit' or 'mcmc'.")
-        
+
     if fit_method.lower().strip() == 'mcmc':
         return _reload_all_fitting_mcmc(filename_galmodel=filename_galmodel, filename_results=filename_results)
     elif fit_method.lower().strip() == 'mpfit':
         return _reload_all_fitting_mpfit(filename_galmodel=filename_galmodel, filename_results=filename_results)
     else:
         raise ValueError("Fit type {} not recognized!".format(fit_method))
-    
+
 
 def _reload_all_fitting_mcmc(filename_galmodel=None, filename_results=None):
     gal = galaxy.load_galaxy_object(filename=filename_galmodel)

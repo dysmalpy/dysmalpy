@@ -27,29 +27,29 @@ __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
 # Base Class for a data container
 class Data(object):
 
-    def __init__(self, data=None, error=None, weight=None, 
+    def __init__(self, data=None, error=None, weight=None,
                  ndim=None, mask=None,
-                 shape=None, 
-                 filename_velocity=None, 
-                 filename_dispersion=None, 
-                 smoothing_type=None, 
-                 smoothing_npix=1, 
-                 xcenter=None, 
+                 shape=None,
+                 filename_velocity=None,
+                 filename_dispersion=None,
+                 smoothing_type=None,
+                 smoothing_npix=1,
+                 xcenter=None,
                  ycenter=None):
-                 
+
         self.data = data
         self.error = error
         self.weight = weight
         self.ndim = ndim
         self.shape = shape
         self.mask = np.array(mask, dtype=np.bool)
-        
+
         self.smoothing_type = smoothing_type
         self.smoothing_npix = smoothing_npix
-        
+
         self.filename_velocity = filename_velocity
         self.filename_dispersion = filename_dispersion
-        
+
         self.xcenter = xcenter
         self.ycenter = ycenter
 
@@ -60,24 +60,24 @@ class Data1D(Data):
     """
 
     def __init__(self, r, velocity, vel_err=None, vel_disp=None,
-                 vel_disp_err=None, 
-                 flux=None, 
-                 flux_err=None, 
-                 mask=None, 
-                 mask_velocity=None, 
-                 mask_vel_disp=None, 
-                 weight=None, 
+                 vel_disp_err=None,
+                 flux=None,
+                 flux_err=None,
+                 mask=None,
+                 mask_velocity=None,
+                 mask_vel_disp=None,
+                 weight=None,
                  slit_width=None,
-                 slit_pa=None, aper_center_pix_shift=None, 
+                 slit_pa=None, aper_center_pix_shift=None,
                  estimate_err=False, error_frac=0.2,
-                 inst_corr=False, 
-                 filename_velocity=None, 
-                 filename_dispersion=None, 
-                 profile1d_type=None, 
-                 xcenter=None, 
+                 inst_corr=False,
+                 filename_velocity=None,
+                 filename_dispersion=None,
+                 profile1d_type=None,
+                 xcenter=None,
                  ycenter=None):
         # Default assume 1D dispersion is **NOT** instrument corrected
-        
+
         if r.shape != velocity.shape:
             raise ValueError("r and velocity are not the same size.")
 
@@ -87,18 +87,18 @@ class Data1D(Data):
 
         else:
             mask = np.ones(len(velocity))
-            
+
         if mask_velocity is not None:
             if mask_velocity.shape != velocity.shape:
                 raise ValueError("mask_velocity and velocity are not the same size.")
-                
-                
+
+
         data = {'velocity': velocity}
-        
+
         # Information about *dispersion* instrument correction
         data['inst_corr'] = inst_corr
-        
-            
+
+
         if vel_disp is None:
 
             data['dispersion'] = None
@@ -142,7 +142,7 @@ class Data1D(Data):
 
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
-                                 
+
             #
             if mask_vel_disp is not None:
                 if mask_vel_disp.shape != velocity.shape:
@@ -152,18 +152,18 @@ class Data1D(Data):
         else:
 
             error['dispersion'] = None
-            
+
         #
         if flux is None:
             data['flux'] = None
         else:
             if flux.shape != velocity.shape:
                 raise ValueError("flux and velocity are not the same size.")
-                
+
             data['flux'] = flux
-            
+
             error['flux'] = flux_err
-            
+
         ############
         self.aper_center_pix_shift = aper_center_pix_shift
 
@@ -171,17 +171,17 @@ class Data1D(Data):
         self.slit_width = slit_width
         self.slit_pa = slit_pa
         self.rarr = r
-        
+
         self.apertures = None
         self.profile1d_type = profile1d_type
-        
+
         super(Data1D, self).__init__(data=data, error=error, weight=weight, ndim=1,
                                      shape=shape, mask=mask,
-                                     filename_velocity=filename_velocity, 
-                                     filename_dispersion=filename_dispersion, 
-                                      xcenter=xcenter, 
+                                     filename_velocity=filename_velocity,
+                                     filename_dispersion=filename_dispersion,
+                                      xcenter=xcenter,
                                       ycenter=ycenter)
-                                     
+
         #
         if mask_velocity is not None:
             self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
@@ -194,17 +194,18 @@ class Data1D(Data):
 
 
 class Data2D(Data):
-    
+
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
-                 vel_disp_err=None, mask=None, estimate_err=False,
-                  mask_velocity=None, 
+                 vel_disp_err=None, flux = None,
+                 mask=None, estimate_err=False,
+                  mask_velocity=None,
                   mask_vel_disp=None,
-                  weight=None, 
+                  weight=None,
                  error_frac=0.2, ra=None, dec=None, ref_pixel=None,
-                 inst_corr=False, 
-                 filename_velocity=None, 
-                 filename_dispersion=None, 
-                 smoothing_type=None, 
+                 inst_corr=False,
+                 filename_velocity=None,
+                 filename_dispersion=None,
+                 smoothing_type=None,
                  smoothing_npix=1,
                  moment=False,
                  xcenter=None,
@@ -216,13 +217,13 @@ class Data2D(Data):
 
         else:
             mask = np.ones(velocity.shape)
-            
+
         if mask_velocity is not None:
             if mask_velocity.shape != velocity.shape:
                 raise ValueError("mask_velocity and velocity are not the same size.")
 
         data = {'velocity': velocity}
-        
+
         # Information about *dispersion* instrument correction
         data['inst_corr'] = inst_corr
 
@@ -236,6 +237,15 @@ class Data2D(Data):
                 raise ValueError("vel_disp and velocity are not the same size.")
 
             data['dispersion'] = vel_disp
+
+        # Info about flux, if it's included:
+        if flux is None:
+            data['flux'] = None
+        else:
+            if flux.shape != velocity.shape:
+                raise ValueError("flux and velocity are not the same size.")
+
+            data['flux'] = flux
 
         # Override any array given to vel_err if estimate_err is True
         if estimate_err:
@@ -264,7 +274,7 @@ class Data2D(Data):
                 error['dispersion'] = None
 
         elif (vel_disp is not None) and (vel_disp_err is not None):
-            
+
             if vel_disp_err.shape != velocity.shape:
 
                 raise ValueError("vel_disp_err and velocity are not the"
@@ -273,7 +283,7 @@ class Data2D(Data):
             if mask_vel_disp is not None:
                 if mask_vel_disp.shape != velocity.shape:
                     raise ValueError("mask_vel_disp and velocity are not the same size.")
-            
+
 
             error['dispersion'] = vel_disp_err
         else:
@@ -292,9 +302,9 @@ class Data2D(Data):
         self.ref_pixel = ref_pixel
         super(Data2D, self).__init__(data=data, error=error, weight=weight, ndim=2,
                                      shape=shape, mask=mask,
-                                     filename_velocity=filename_velocity, 
+                                     filename_velocity=filename_velocity,
                                      filename_dispersion=filename_dispersion,
-                                     smoothing_type=smoothing_type, 
+                                     smoothing_type=smoothing_type,
                                      smoothing_npix=smoothing_npix,
                                      xcenter=xcenter,
                                      ycenter=ycenter)
@@ -307,15 +317,15 @@ class Data2D(Data):
             self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
         else:
             self.mask_vel_disp = None
-            
+
         # Whether kin was extracted through moments, or gaussian fits (True: moment / False: gaussian)
         self.moment = moment
 
 class Data3D(Data):
 
     def __init__(self, cube, pixscale, spec_type, spec_arr,
-                 err_cube=None, weight=None, 
-                 mask_cube=None, 
+                 err_cube=None, weight=None,
+                 mask_cube=None,
                  mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
                  ref_pixel=None, spec_unit=None, flux_map=None,
@@ -337,10 +347,10 @@ class Data3D(Data):
             mask_spec = np.ones(len(spec_arr))
 
         mask = _create_cube_mask(mask_sky=mask_sky, mask_spec=mask_spec)
-        
+
         if mask_cube is not None:
             mask = mask*mask_cube
-        
+
         if err_cube is not None:
             if err_cube.shape != cube.shape:
                 raise ValueError("err_cube and cube are not the same size.")
@@ -416,7 +426,7 @@ class Data0D(Data):
     Data class for storing a single spectrum
     """
 
-    def __init__(self, x, flux, flux_err=None, weight=None, 
+    def __init__(self, x, flux, flux_err=None, weight=None,
                  mask=None, integrate_cube=True, slit_width=None,
                  slit_pa=None, estimate_err=False, error_frac=0.2):
 

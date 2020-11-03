@@ -149,21 +149,20 @@ or for Windows:
 
 
 
-.. _add_channels:
+.. _add_channel:
 
-Adding channels to ``conda``
-----------------------------
+Adding channel to ``conda``
+---------------------------
 
 A number of the DysmalPy dependencies are not available in the default Anaconda channels,
 but are instead available in the ``astroconda`` channel.
-To ensure these channels are installed, from the terminal or the Anaconda Prompt, run:
+To ensure this channel is installed, from the terminal or the Anaconda Prompt, run:
 
 .. code-block:: console
 
     $ conda config --add channels http://ssb.stsci.edu/astroconda
-    $ conda config --add channels http://astroconda.org/channel/main
 
-To verify the channels have been added, check that the ``astroconda`` urls show up in
+To verify the channel has been added, check that the ``astroconda`` url shows up in
 the list of channels returned by the following command:
 
 .. code-block:: console
