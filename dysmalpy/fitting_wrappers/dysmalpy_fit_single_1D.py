@@ -80,12 +80,25 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
     if fit_exists and not (overwrite):
         print('------------------------------------------------------------------')
         print(' Fitting already complete for: {}'.format(params['galID']))
-        print("   make new output folder or remove previous fitting files")
+        print('   make new output folder or remove previous fitting files')
         print('------------------------------------------------------------------')
-        print(" ")
+        print(' ')
     else:
         # Copy paramfile that is OS independent
-        shutil.copy(param_filename, outdir)
+        param_filename_nopath = param_filename.split('/')[-1]
+        galID_strp = "".join(params['galID'].strip().split("_"))
+        galID_strp = "".join(galID_strp.split("-"))
+        galID_strp = "".join(galID_strp.split(" "))
+        paramfile_strp = "".join(param_filename_nopath.strip().split("_"))
+        paramfile_strp = "".join(paramfile_strp.split("-"))
+        paramfile_strp = "".join(paramfile_strp.split(" "))
+        if galID_strp.strip().lower() in paramfile_strp.strip().lower():
+            # Already has galID in param filename:
+            shutil.copy(param_filename, outdir)
+        else:
+            # Copy, prepending galID
+            shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
+
 
         if fit_exists:
             if params['fit_method'] == 'mcmc':
