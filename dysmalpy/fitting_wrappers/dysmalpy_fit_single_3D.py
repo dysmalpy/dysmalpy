@@ -147,11 +147,21 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
         print('------------------------------------------------------------------')
         print(" ")
     else:
-        # Copy paramfile into outdir for posterity:
-        #os.system('cp {} {}'.format(param_filename, outdir))
-
         # Copy paramfile that is OS independent
-        shutil.copy(param_filename, outdir)
+        param_filename_nopath = param_filename.split('/')[-1]
+        galID_strp = "".join(params['galID'].strip().split("_"))
+        galID_strp = "".join(galID_strp.split("-"))
+        galID_strp = "".join(galID_strp.split(" "))
+        paramfile_strp = "".join(param_filename_nopath.strip().split("_"))
+        paramfile_strp = "".join(paramfile_strp.split("-"))
+        paramfile_strp = "".join(paramfile_strp.split(" "))
+        if galID_strp.strip().lower() in paramfile_strp.strip().lower():
+            # Already has galID in param filename:
+            shutil.copy(param_filename, outdir)
+        else:
+            # Copy, prepending galID
+            shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
+
 
         #######################
         # Setup
@@ -160,9 +170,6 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
             os.remove(fit_dict['f_log'])
-
-        #
-
 
         # #######
         # # DEBUGGING:
