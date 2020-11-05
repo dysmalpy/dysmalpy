@@ -330,7 +330,7 @@ def menc_from_vcirc(vcirc, r):
     return menc
 
 
-def make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=None,
+def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=None,
             maxr=None, maxr_y=None):
 
     oversize = 1.5  # Padding factor for x trimming
@@ -1892,7 +1892,8 @@ class ModelSet:
             sigmar = self.dispersion_profile(rgal)
 
             if zcalc_truncate:
-                ai = make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
+                # Truncate in the z direction by flagging what pixels to include in propogation
+                ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
                     dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
                 cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
             else:
