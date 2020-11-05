@@ -2198,7 +2198,7 @@ def plot_data_model_comparison(gal,theta = None,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
-                    **kwrags_galmodel)
+                    **kwargs_galmodel)
 
 
         # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")

@@ -13,10 +13,6 @@ import warnings
 import numpy as np
 import astropy.units as u
 
-# config_c_m_data = config.Config_create_model_data(**kwargs)
-# config_sim_cube = config.Config_simulate_cube(**kwargs)
-# config_mcmc =     config.Config_fit_mcmc(**kwargs)
-
 
 class ConfigBase:
     """
@@ -26,7 +22,7 @@ class ConfigBase:
     def __init__(self, **kwargs):
         self.set_defaults()
         self.fill_values(**kwargs)
-        self._dict = self.as_dict()
+        self._dict = self.to_dict()
 
     def set_defaults(self):
         raise ValueError("Must be set for each inheriting class!")
@@ -40,15 +36,11 @@ class ConfigBase:
     def dict(self):
         return self._dict
 
-    def as_dict(self):
+    def to_dict(self):
         kwarg_dict = {}
         for key in self.__dict__.keys():
             kwarg_dict[key] = self.__dict__[key]
         return kwarg_dict
-
-
-
-
 
 
 class Config_create_model_data(ConfigBase):
@@ -100,24 +92,39 @@ class Config_simulate_cube(ConfigBase):
 
 
 
-class Config_fit_mcmc(ConfigBase):
+class ConfigFitBase(ConfigBase):
     """
     Class to handle settings for fitting.fit_mcmc
     """
     def __init__(self, **kwargs):
-        super(Config_fit_mcmc, self).__init__(**kwargs)
+        super(ConfigFitBase, self).__init__(**kwargs)
     def set_defaults(self):
-        raise ValueError
+        # Fitting defaults that are shared between all fitting methods
+        raise NotImplementedError
 
-class Config_fit_mpfit(ConfigBase):
+class Config_fit_mcmc(ConfigFitBase):
     """
     Class to handle settings for fitting.fit_mcmc
     """
     def __init__(self, **kwargs):
+        self.set_mcmc_defaults()
+        super(Config_fit_mcmc, self).__init__(**kwargs)
+
+    def set_mcmc_defaults(self):
+        # MCMC specific defaults
+        raise NotImplementedError
+
+class Config_fit_mpfit(ConfigFitBase):
+    """
+    Class to handle settings for fitting.fit_mcmc
+    """
+    def __init__(self, **kwargs):
+        self.set_mpfit_defaults()
         super(Config_fit_mpfit, self).__init__(**kwargs)
 
-    def set_defaults(self):
-        raise ValueError
+    def set_mpfit_defaults(self):
+        # MPFIT specific defaults
+        raise NotImplementedError
 
 
 

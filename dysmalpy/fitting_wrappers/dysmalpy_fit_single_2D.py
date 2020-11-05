@@ -32,9 +32,6 @@ except:
     from . import utils_io
     from . import plotting as fw_plotting
 
-
-
-
 def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
             outdir=None, plot_type='pdf', overwrite=False):
 

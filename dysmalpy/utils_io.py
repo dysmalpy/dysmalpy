@@ -287,14 +287,14 @@ class Report(object):
         self._report += string
 
 
-    def create_results_report(self, gal, results, params=None):
+    def create_results_report(self, gal, results, params=None, **kwargs):
         if self.report_type.lower().strip() == 'pretty':
-            self._create_results_report_pretty(gal, results, params=params)
+            self._create_results_report_pretty(gal, results, params=params, **kwargs)
         elif self.report_type.lower().strip() == 'machine':
-            self._create_results_report_machine(gal, results, params=params)
+            self._create_results_report_machine(gal, results, params=params, **kwargs)
 
 
-    def _create_results_report_pretty(self, gal, results, params=None):
+    def _create_results_report_pretty(self, gal, results, params=None,**kwargs):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -375,8 +375,11 @@ class Report(object):
                     partial_weight = gal.data.apertures.apertures[0].partial_weight
 
         if zcalc_truncate is None:
-            config_sim_cube = Config_simulate_cube()
-            zcalc_truncate = config_sim_cube.zcalc_truncate
+            if 'zcalc_truncate' in kwargs.keys():
+                zcalc_truncate = kwargs['zcalc_truncate']
+            else:
+                config_sim_cube = Config_simulate_cube()
+                zcalc_truncate = "[Default: {}]".format(config_sim_cube.zcalc_truncate)
 
         # Save info on weighting / moments:
         if weighting_method is not None:
@@ -489,7 +492,7 @@ class Report(object):
 
 
 
-    def _create_results_report_machine(self, gal, results, params=None):
+    def _create_results_report_machine(self, gal, results, params=None, **kwargs):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -642,7 +645,7 @@ class Report(object):
 
 
 
-def create_results_report(gal, results, params=None, report_type='pretty'):
+def create_results_report(gal, results, params=None, report_type='pretty', **kwargs):
 
     if results.fit_method is None:
         return None
@@ -657,7 +660,7 @@ def create_results_report(gal, results, params=None, report_type='pretty'):
 
 
     report = Report(report_type=report_type, fit_method=results.fit_method)
-    report.create_results_report(gal, results, params=params)
+    report.create_results_report(gal, results, params=params, **kwargs)
 
     return report.report
 
@@ -806,6 +809,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
             moment=False,
             overwrite=False, **kwargs_galmodel):
     profile1d_type = kwargs_galmodel['profile1d_type']
+    aperture_radius = kwargs_galmodel['aperture_radius']
 
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])

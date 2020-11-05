@@ -23,7 +23,6 @@ import copy
 import numpy as np
 import astropy.units as u
 
-
 try:
     import utils_io
     import plotting as fw_plotting
