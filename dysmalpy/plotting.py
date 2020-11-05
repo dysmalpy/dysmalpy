@@ -1606,7 +1606,7 @@ def plot_model_multid_base(gal,
                 #pass
                 gal.model.geometry.vel_shift = 0
 
-                
+
         kwargs_galmodel_1d = kwargs_galmodel.copy()
         kwargs_galmodel_1d['ndim_final'] = 1
         gal.create_model_data(**kwargs_galmodel_1d)
@@ -2242,7 +2242,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             fname_model_finer = None,
             fname_intrinsic = None,
             moment=False,
-            partial_weight=False,
+            partial_weight=True,
             plot_type='pdf',
             **kwargs_galmodel):
 

@@ -133,7 +133,7 @@ def fit_mcmc(gal, nWalkers=10,
 
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
     # --------------------------------
     # Check option validity:
@@ -266,7 +266,7 @@ def _fit_emcee_221(gal, nWalkers=10,
     # OLD version
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
 
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
@@ -422,7 +422,7 @@ def _fit_emcee_221(gal, nWalkers=10,
         logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
-    logger.info('nSubpixels: {}'.format(oversample))
+    logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
 
     ################################################################
@@ -768,7 +768,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     # new version
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
     # filetype for saving sampler: HDF5
     ftype_sampler = 'h5'
@@ -911,7 +911,7 @@ def _fit_emcee_3(gal, nWalkers=10,
         logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
-    logger.info('nSubpixels: {}'.format(oversample))
+    logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
 
     ################################################################
@@ -1182,7 +1182,7 @@ def fit_mpfit(gal,
     """
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
 
     # Check the FOV is large enough to cover the data output:
@@ -1258,7 +1258,7 @@ def fit_mpfit(gal,
 
     # Setup dictionary of arguments that mpfit_chisq needs
     fa_init = {'gal':gal, 'fitdispersion':fitdispersion, 'fitflux':fitflux, 'use_weights': use_weights}
-    fa = {**fa, **kwargs_galmodel}
+    fa = {**fa_init, **kwargs_galmodel}
 
     # Run mpfit
     # Output some fitting info to logger:
@@ -1275,7 +1275,7 @@ def fit_mpfit(gal,
         logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
-    logger.info('nSubpixels: {}'.format(oversample))
+    logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
     logger.info('\nMPFIT Fitting:\n'
                 'Start: {}\n'.format(datetime.datetime.now()))
@@ -1468,7 +1468,7 @@ class FitResults(object):
         :return:
         """
 
-    def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1, fileout=None, overwrite=False):
+    def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, fileout=None, overwrite=False, **kwargs_galmodel):
         """Plot/replot the bestfit for the MCMC fitting"""
         #if fileout is None:
         #    fileout = self.f_plot_bestfit
@@ -1478,7 +1478,7 @@ class FitResults(object):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
                 return None
         plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                              oversample=oversample, oversize=oversize, fileout=fileout, overwrite=overwrite)
+                             fileout=fileout, overwrite=overwrite, **kwargs_galmodel)
 
     def reload_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -1645,8 +1645,7 @@ class MCMCResults(FitResults):
 
         if (do_plotting) & (self.f_plot_bestfit is not None):
             plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                                  oversample=oversample, oversize=oversize, fileout=self.f_plot_bestfit,
-                                  profile1d_type=profile1d_type, overwrite=overwrite)
+                                  fileout=self.f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
 
         # --------------------------------
         # Save velocity / other profiles to ascii file:
@@ -1970,13 +1969,13 @@ class MCMCResults(FitResults):
 
 
 
-    def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
+    def plot_results(self, gal, fitdispersion=True, fitflux=False,
                      f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None,
-                     overwrite=False):
+                     overwrite=False, **kwargs_galmodel):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
+                fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
         self.plot_trace(fileout=f_plot_trace, overwrite=overwrite)
 
 
@@ -2060,11 +2059,11 @@ class MPFITResults(FitResults):
         self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
 
 
-    def plot_results(self, gal, fitdispersion=True, fitflux=False, oversample=1, oversize=1,
-                     f_plot_bestfit=None, overwrite=False):
+    def plot_results(self, gal, fitdispersion=True, fitflux=False,
+                     f_plot_bestfit=None, overwrite=False, **kwargs_galmodel):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                          oversample=oversample, oversize=oversize, fileout=f_plot_bestfit, overwrite=overwrite)
+                         fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
 
 
 def log_prob(theta, gal,
