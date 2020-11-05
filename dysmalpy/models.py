@@ -341,6 +341,7 @@ def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=N
     xsize = np.int(np.floor(2.*(maxr * oversize) +0.5))
     ysize = np.int(np.floor( 2.*maxr_y + 0.5))
 
+    # Sample += 2 * scale length thickness
     # Modify: make sure there are at least 3 *whole* pixels sampled:
     zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
 
@@ -1743,8 +1744,9 @@ class ModelSet:
 
         zcalc_truncate: bool
             Setting the default behavior of filling the model cube. If True,
-            then the cube is only filled with flux to within +- XXXX above and below
-            the galaxy midplane (to speed up the calculation).
+            then the cube is only filled with flux
+            to within +- 2 * scale length thickness above and below
+            the galaxy midplane (minimum: 3 whole pixels; to speed up the calculation).
             If False, then no truncation is
             applied and the cube is filled over the full range of zgal.
             Default: True
@@ -4805,6 +4807,9 @@ class ZHeightProfile(_DysmalFittable1DModel):
     _type = 'zheight'
 
 
+    # Must set property z_scalelength for each subclass,
+    #   for use with getting indices ai for filling simulated cube
+
 class ZHeightGauss(ZHeightProfile):
     r"""
     Gaussian flux distribution in the z-direction
@@ -4830,6 +4835,11 @@ class ZHeightGauss(ZHeightProfile):
     @staticmethod
     def evaluate(z, sigmaz):
         return np.exp(-0.5*(z/sigmaz)**2)
+
+    @property
+    def z_scalelength(self):
+        return self.sigmaz
+
 
 
 # ****** Kinematic Options Class **********
