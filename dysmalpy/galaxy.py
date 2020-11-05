@@ -286,45 +286,8 @@ class Galaxy:
         if line_center is None:
             line_center = self.model.line_center
 
-        # config_c_m_data = config.Config_create_model_data(**kwargs)
-        # config_sim_cube = config.Config_simulate_cube(**kwargs)
-        #
-        # if line_center is None:
-        #     line_center = self.model.line_center
-        #
-        #
-        # # TESTING:
-        # del ndim_final
-        # del nx_sky
-        # del ny_sky
-        # del rstep
-        # del spec_type
-        # del spec_step
-        # del spec_start
-        # del nspec
-        # del line_center
-        # del spec_unit
-        # del aper_centers
-        # del slit_width
-        # del slit_pa
-        # del profile1d_type
-        # del from_instrument
-        # del from_data
-        # del oversample
-        # del oversize
-        # del aperture_radius
-        # del pix_perp
-        # del pix_parallel
-        # del pix_length
-        # del skip_downsample
-        # del partial_aperture_weight
-        # del xcenter
-        # del ycenter
-        # del zcalc_truncate
-
         # Pull parameters from the observed data if specified
         if from_data:
-
             ndim_final = self.data.ndim
 
             if ndim_final == 3:

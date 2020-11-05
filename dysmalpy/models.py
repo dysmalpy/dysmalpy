@@ -1893,14 +1893,18 @@ class ModelSet:
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
 
+            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             if zcalc_truncate:
+                ##print("    models.py: TRUE: zcalc_truncate={}".format(zcalc_truncate))
                 # Truncate in the z direction by flagging what pixels to include in propogation
                 ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
                     dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
                 cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
             else:
+                ##print("    models.py: FALSE: zcalc_truncate={}".format(zcalc_truncate))
                 # Do complete cube propogation calculation
                 cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample

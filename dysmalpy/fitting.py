@@ -135,6 +135,7 @@ def fit_mcmc(gal, nWalkers=10,
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
+
     # --------------------------------
     # Check option validity:
     if blob_name is not None:
@@ -267,7 +268,6 @@ def _fit_emcee_221(gal, nWalkers=10,
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
 
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
     if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
@@ -423,7 +423,6 @@ def _fit_emcee_221(gal, nWalkers=10,
     if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
         logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
-
 
     ################################################################
     # --------------------------------
@@ -711,17 +710,15 @@ def _fit_emcee_221(gal, nWalkers=10,
                   save_bestfit_cube=save_bestfit_cube,
                   f_cube=f_cube,
                   f_model=f_model,
+                  f_model_bestfit = f_model_bestfit,
                   f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
                   overwrite=overwrite,
                   **kwargs_galmodel)
 
-
     # Clean up logger:
     if f_log is not None:
         logger.removeHandler(loggerfile)
-
-
 
     return mcmcResults
 
@@ -861,7 +858,6 @@ def _fit_emcee_3(gal, nWalkers=10,
     nBurn_orig = nBurn
 
     nDim = gal.model.nparams_free
-
 
     # --------------------------------
     # Start pool, moves, backend:
@@ -1139,6 +1135,7 @@ def _fit_emcee_3(gal, nWalkers=10,
                   save_bestfit_cube=save_bestfit_cube,
                   f_cube=f_cube,
                   f_model=f_model,
+                  f_model_bestfit = f_model_bestfit,
                   f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
                   overwrite=overwrite,
@@ -1148,8 +1145,6 @@ def _fit_emcee_3(gal, nWalkers=10,
     # Clean up logger:
     if f_log is not None:
         logger.removeHandler(loggerfile)
-
-
 
     return mcmcResults
 
@@ -1183,7 +1178,6 @@ def fit_mpfit(gal,
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
 
     # Check the FOV is large enough to cover the data output:
     dpy_utils_io._check_data_inst_FOV_compatibility(gal)
@@ -1491,13 +1485,17 @@ class FitResults(object):
             except:
                 pass
 
-    def results_report(self, gal=None, filename=None, params=None, report_type='pretty', overwrite=False):
+    def results_report(self, gal=None, filename=None, params=None,
+                    report_type='pretty', overwrite=False, **kwargs):
         """Return a result report string, or save to file.
            report_type = 'pretty':   More human-readable
                        = 'machine':  Machine-readable ascii table (though with mixed column types)
+
+           **kwargs: can pass other setting values: eg zcalc_truncate.
         """
 
-        report = dpy_utils_io.create_results_report(gal, self, report_type=report_type, params=params)
+        report = dpy_utils_io.create_results_report(gal, self, report_type=report_type,
+                        params=params, **kwargs)
 
         if filename is not None:
             with open(filename, 'w') as f:
@@ -1566,6 +1564,7 @@ class MCMCResults(FitResults):
                 save_bestfit_cube=False,
                 f_cube=None,
                 f_model=None,
+                f_model_bestfit = None,
                 f_vel_ascii = None,
                 do_plotting = True,
                 overwrite=False,
