@@ -26,7 +26,7 @@ import dill as _pickle
 # Package imports
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
-from dysmalpy.utils import apply_smoothing_3D, rebin
+from dysmalpy.utils import apply_smoothing_3D, rebin, config_create_model_data
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 
@@ -120,17 +120,19 @@ class Galaxy:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
 
-    def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
-                          rstep=None, spec_type='velocity', spec_step=10.,
-                          spec_start=-1000., nspec=201, line_center=None,
-                          spec_unit=(u.km/u.s), aper_centers=None,
-                          slit_width=None, slit_pa=None, profile1d_type=None,
-                          from_instrument=True, from_data=True,
-                          oversample=1, oversize=1,
-                          aperture_radius=None, pix_perp=None, pix_parallel=None,
-                          pix_length=None,
-                          skip_downsample=False, partial_aperture_weight=False,
-                          xcenter=None, ycenter=None):
+    # def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
+    #                       rstep=None, spec_type='velocity', spec_step=10.,
+    #                       spec_start=-1000., nspec=201, line_center=None,
+    #                       spec_unit=(u.km/u.s), aper_centers=None,
+    #                       slit_width=None, slit_pa=None, profile1d_type=None,
+    #                       from_instrument=True, from_data=True,
+    #                       oversample=1, oversize=1,
+    #                       aperture_radius=None, pix_perp=None, pix_parallel=None,
+    #                       pix_length=None,
+    #                       skip_downsample=False, partial_aperture_weight=False,
+    #                       xcenter=None, ycenter=None,
+    #                       zcalc_truncate=True):
+    def create_model_data(self, **kwargs):
         """
         Function to simulate data for the galaxy
 
@@ -271,45 +273,82 @@ class Galaxy:
         ycenter : float
                   y pixel coordinate of the center of the cube if it should be different than
                   ny_sky/2
+
+        zcalc_truncate: bool
+                If True, the cube is only filled with flux to within +- XXXX
+                above and below the galaxy midplane (to speed up the calculation).
+                Default: True
+
         """
 
+        # Bundle inputs into kwargs dicts:
+        c_m_kwargs, sim_cube_kwargs = config_create_model_data(**kwargs)
+        kwargs = None
+
+               #  sim_cube_kwargs = {'nx_sky':         None,
+               #                     'ny_sky':         None,
+               #                     'rstep':          None,
+               #                     'spec_type':     'velocity',
+               #                     'spec_step':      10.,
+               #                     'spec_start':     -1000.,
+               #                     'nspec':          201,
+               #                     'spec_unit':      (u.km/u.s),
+               #                     'xcenter':        None,
+               #                     'ycenter':        None,
+               #                     'oversample':     1,
+               #                     'oversize':       1,
+               #                     'zcalc_truncate': True }
+               # create_gal_model_kwargs = {'ndim_final':      3,
+               #                    'line_center':             None,
+               #                    'aper_centers':            None,
+               #                    'slit_width':              None,
+               #                    'slit_pa':                 None,
+               #                    'profile1d_type':          None,
+               #                    'from_instrument':         True,
+               #                    'from_data':               True,
+               #                    'aperture_radius':         None,
+               #                    'pix_perp':                None,
+               #                    'pix_parallel':            None,
+               #                    'pix_length':              None,
+               #                    'skip_downsample':         False,
+               #                    'partial_aperture_weight': False }
+
         # Pull parameters from the observed data if specified
-        if from_data:
+        if c_m_kwargs['from_data']:
 
-            ndim_final = self.data.ndim
+            c_m_kwargs['ndim_final'] = self.data.ndim
 
-            if ndim_final == 3:
-
-                nx_sky = self.data.shape[2]
-                ny_sky = self.data.shape[1]
-                nspec = self.data.shape[0]
+            if c_m_kwargs['ndim_final'] == 3:
+                sim_cube_kwargs['nx_sky'] = self.data.shape[2]
+                sim_cube_kwargs['ny_sky'] = self.data.shape[1]
+                sim_cube_kwargs['nspec'] = self.data.shape[0]
                 spec_ctype = self.data.data.wcs.wcs.ctype[-1]
                 if spec_ctype == 'WAVE':
-                    spec_type = 'wavelength'
+                    sim_cube_kwargs['spec_type'] = 'wavelength'
                 elif spec_ctype == 'VOPT':
-                    spec_type = 'velocity'
-                spec_start = self.data.data.spectral_axis[0].value
-                spec_unit = self.data.data.spectral_axis.unit
-                spec_step = (self.data.data.spectral_axis[1].value -
+                    sim_cube_kwargs['spec_type'] = 'velocity'
+                sim_cube_kwargs['spec_start'] = self.data.data.spectral_axis[0].value
+                sim_cube_kwargs['spec_unit'] = self.data.data.spectral_axis.unit
+                sim_cube_kwargs['spec_step'] = (self.data.data.spectral_axis[1].value -
                              self.data.data.spectral_axis[0].value)
-                rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
+                sim_cube_kwargs['rstep'] = self.data.data.wcs.wcs.cdelt[0]*3600.
 
                 try:
-                    xcenter = self.data.xcenter
+                    sim_cube_kwargs['xcenter'] = self.data.xcenter
                 except:
                     pass
                 try:
-                    ycenter = self.data.ycenter
+                    sim_cube_kwargs['ycenter'] = self.data.ycenter
                 except:
                     pass
 
-            elif ndim_final == 2:
+            elif c_m_kwargs['ndim_final'] == 2:
 
-                nx_sky = self.data.data['velocity'].shape[1]
-                ny_sky = self.data.data['velocity'].shape[0]
-                rstep = self.data.pixscale
+                sim_cube_kwargs['nx_sky'] = self.data.data['velocity'].shape[1]
+                sim_cube_kwargs['ny_sky'] = self.data.data['velocity'].shape[0]
+                sim_cube_kwargs['rstep'] = self.data.pixscale
                 try:
-                    xcenter = self.data.xcenter
+                    sim_cube_kwargs['xcenter'] = self.data.xcenter
                 except:
                     pass
                 try:
@@ -420,20 +459,23 @@ class Galaxy:
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
 
 
+        sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
+                                                  **sim_cube_kwargs)
 
-        sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
-                                                  ny_sky=ny_sky,
-                                                  dscale=self.dscale,
-                                                  rstep=rstep,
-                                                  spec_type=spec_type,
-                                                  spec_step=spec_step,
-                                                  nspec=nspec,
-                                                  spec_start=spec_start,
-                                                  spec_unit=spec_unit,
-                                                  oversample=oversample,
-                                                  oversize=oversize,
-                                                  xcenter=xcenter,
-                                                  ycenter=ycenter)
+        # sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
+        #                                           ny_sky=ny_sky,
+        #                                           dscale=self.dscale,
+        #                                           rstep=rstep,
+        #                                           spec_type=spec_type,
+        #                                           spec_step=spec_step,
+        #                                           nspec=nspec,
+        #                                           spec_start=spec_start,
+        #                                           spec_unit=spec_unit,
+        #                                           oversample=oversample,
+        #                                           oversize=oversize,
+        #                                           xcenter=xcenter,
+        #                                           ycenter=ycenter,
+        #                                           zcalc_truncate=zcalc_truncate)
 
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample):
@@ -477,28 +519,8 @@ class Galaxy:
                                  spec_unit=spec_unit)
 
         if ndim_final == 3:
-            # sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
-            # data_cube_flat = np.sum(self.data.data.unmasked_data[:].value*self.data.mask, axis=0)
-            # errsq_cube_flat = np.sum( ( self.data.error.unmasked_data[:].value**2 )*self.data.mask, axis=0)
-            #
-            # # Fill errsq_cube_flat == 0 of *masked* parts with 99.,
-            # #   so that later (data*sim/errsq) * mask is finite (and contributes nothing)
-            # # Potentially make this a *permanent mask* that can be accessed for faster calculations?
-            # mask_flat = np.sum(self.data.mask, axis=0)/self.data.mask.shape[0]
-            # mask_flat[mask_flat != 0] = 1.
-            # errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
-            #
-            # if self.model.per_spaxel_norm_3D:
-            # Do normalization on a per-spaxel basis -- eg, don't care about preserving
-            #   M/L ratio information from model.
-            # collapse in spectral dimension only: axis 0
 
             if from_data:
-
-                # # Throw a non-implemented error if smoothing + 3D model:
-                # if from_data:
-                #     if self.data.smoothing_type is not None:
-                #         raise NotImplementedError('Smoothing for 3D output not implemented yet!')
 
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,

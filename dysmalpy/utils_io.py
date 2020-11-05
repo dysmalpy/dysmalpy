@@ -350,7 +350,7 @@ class Report(object):
             self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
 
 
-        weighting_method = moment_calc = partial_weight = None
+        weighting_method = moment_calc = partial_weight = zcalc_truncate = None
         if params is not None:
             if 'weighting_method' in params.keys():
                 weighting_method = params['weighting_method']
@@ -358,6 +358,10 @@ class Report(object):
                 moment_calc = params['moment_calc']
             if 'partial_weight' in params.keys():
                 partial_weight = params['partial_weight']
+
+            if 'zcalc_truncate' in params.keys():
+                zcalc_truncate = params['zcalc_truncate']
+
         if 'apertures' in gal.data.__dict__.keys():
             if gal.data.apertures is not None:
                 if moment_calc is None:
@@ -372,6 +376,8 @@ class Report(object):
             self.add_line( 'moment_calc:           {}'.format(moment_calc))
         if partial_weight is not None:
             self.add_line( 'partial_weight:        {}'.format(partial_weight))
+        if zcalc_truncate is not None:
+            self.add_line( 'zcalc_truncate:        {}'.format(zcalc_truncate))
 
         # INFO on pressure support type:
         self.add_line( 'pressure_support:      {}'.format(gal.model.kinematic_options.pressure_support))
@@ -742,7 +748,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
             fname_finer=None,
             fname_intrinsic=None,
             fname_intrinsic_m = None,
-            overwrite=False):
+            overwrite=False,
+            zcalc_truncate=True):
     #
     if outpath is None:
         raise ValueError
@@ -765,7 +772,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     # ---------------------------------------------------------------------------
     gal.create_model_data(oversample=oversample, oversize=oversize,
                           line_center=gal.model.line_center,
-                          profile1d_type=profile1d_type)
+                          profile1d_type=profile1d_type,
+                          zcalc_truncate=zcalc_truncate)
 
     # -------------------
     # Save Bary/DM vcirc:
@@ -783,7 +791,8 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
 
         write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
                 profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
-                partial_weight=partial_weight, overwrite=overwrite)
+                partial_weight=partial_weight, overwrite=overwrite,
+                zcalc_truncate=zcalc_truncate)
 
 
     return None
@@ -794,7 +803,8 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
             oversample=3, oversize=1,
             partial_weight=False,
             moment=False,
-            overwrite=False):
+            overwrite=False,
+            zcalc_truncate=True):
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -836,7 +846,8 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
         gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type)
+                              profile1d_type=profile1d_type,
+                              zcalc_truncate=zcalc_truncate)
     else:
         gal.instrument.slit_width = gal.data.slit_width
         gal.create_model_data(from_data=False, from_instrument=True,
@@ -845,7 +856,8 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                               slit_width=gal.data.slit_width, slit_pa=gal.data.slit_pa,
                               profile1d_type=profile1d_type,
                               oversample=oversample, oversize=oversize,
-                              aperture_radius=aperture_radius)
+                              aperture_radius=aperture_radius,
+                              zcalc_truncate=zcalc_truncate)
 
 
     write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
