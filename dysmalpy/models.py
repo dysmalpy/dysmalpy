@@ -330,6 +330,42 @@ def menc_from_vcirc(vcirc, r):
     return menc
 
 
+def make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=None,
+            maxr=None, maxr_y=None):
+
+    oversize = 1.5  # Padding factor for x trimming
+
+    thick = model.zprofile.z_scalelength.value
+
+    # # maxr, maxr_y are already in pixel units
+    xsize = np.int(np.floor(2.*(maxr * oversize) +0.5))
+    ysize = np.int(np.floor( 2.*maxr_y + 0.5))
+
+    # Modify: make sure there are at least 3 *whole* pixels sampled:
+    zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+
+    if ( (xsize%2) < 0.5 ): xsize += 1
+    if ( (ysize%2) < 0.5 ): ysize += 1
+    if ( (zsize%2) < 0.5 ): zsize += 1
+
+    zi, yi, xi = np.indices(xgal.shape)
+    full_ai = np.vstack([xi.flatten(), yi.flatten(), zi.flatten()])
+
+    origpos = np.vstack([xgal.flatten() - np.mean(xgal.flatten()) + xsize/2.,
+                         ygal.flatten() - np.mean(ygal.flatten()) + ysize/2.,
+                         zgal.flatten() - np.mean(zgal.flatten()) + zsize/2.])
+
+
+    validpts = np.where( (origpos[0,:] >= -0.5) & (origpos[0,:] < xsize-0.5) & \
+                         (origpos[1,:] >= -0.5) & (origpos[1,:] < ysize-0.5) & \
+                         (origpos[2,:] >= -0.5) & (origpos[2,:] < zsize-0.5) )[0]
+
+    ai = full_ai[:,validpts]
+
+    return ai
+
+
+
 def apply_noord_flat(r, r_eff, mass, n, invq):
     """
     Calculate circular velocity for a thick Sersic component
@@ -1856,7 +1892,9 @@ class ModelSet:
             sigmar = self.dispersion_profile(rgal)
 
             if zcalc_truncate:
-                cube_final += lksdlkjsdlkjsdf
+                ai = make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
+                    dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
+                cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
             else:
                 # Do complete cube propogation calculation
                 cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
