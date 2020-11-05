@@ -307,7 +307,8 @@ def plot_data_model_comparison_0D(gal,
             oversample=1,
             oversize=1,
             fileout=None,
-            overwrite=False):
+            overwrite=False,
+            zcalc_truncate=True):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -324,7 +325,8 @@ def plot_data_model_comparison_0D(gal,
         galnew = copy.deepcopy(gal)
         galnew.data = data
         galnew.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=galnew.model.line_center)
+                              line_center=galnew.model.line_center,
+                              zcalc_truncate=zcalc_truncate)
         model_data = galnew.model_data
 
     else:
@@ -386,7 +388,8 @@ def plot_data_model_comparison_1D(gal,
         galnew.data = data
         galnew.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=galnew.model.line_center,
-                                profile1d_type=profile1d_type)
+                                profile1d_type=profile1d_type,
+                                zcalc_truncate=zcalc_truncate)
         model_data = galnew.model_data
 
     else:
@@ -1236,7 +1239,8 @@ def plot_model_multid_base(gal,
 
         gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, ndim_final=2,
-                                  from_data=True)
+                                  from_data=True,
+                                  zcalc_truncate=zcalc_truncate)
 
 
         keyxarr = ['data', 'model', 'residual']
@@ -1620,12 +1624,13 @@ def plot_model_multid_base(gal,
         if True:
             gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center,
-                                  ndim_final=1,profile1d_type=profile1d_type)
+                                  ndim_final=1,profile1d_type=profile1d_type,
+                                  zcalc_truncate=zcalc_truncate)
         # except:
         #     gal.create_model_data(oversample=oversample, oversize=oversize,
         #                           line_center=gal.model.line_center,
         #                           ndim_final=1, from_data=False,
-        #                           profile1d_type=profile1d_type)
+        #                           profile1d_type=profile1d_type, zcalc_truncate=zcalc_truncate)
 
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
@@ -1861,7 +1866,8 @@ def plot_model_2D_residual(gal,
 
         gal.create_model_data(oversample=oversample, oversize=oversize,
                                   line_center=gal.model.line_center, ndim_final=2,
-                                  from_data=True)
+                                  from_data=True,
+                                  zcalc_truncate=zcalc_truncate)
 
 
         keyyarr = ['residual']
@@ -2174,7 +2180,8 @@ def plot_data_model_comparison(gal,
                                vcrop_value=800.,
                                profile1d_type='circ_ap_cube',
                                remove_shift=False,
-                               overwrite=False):
+                               overwrite=False,
+                               zcalc_truncate=True):
     """
     Plot data, model, and residuals between the data and this model.
     """
@@ -2190,7 +2197,8 @@ def plot_data_model_comparison(gal,
         dummy_gal.model.update_parameters(theta)     # Update the parameters
         dummy_gal.create_model_data(oversample=oversample, oversize=oversize,
                               line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type)
+                              profile1d_type=profile1d_type,
+                              zcalc_truncate=zcalc_truncate)
 
     if gal.data.ndim == 1:
         plot_data_model_comparison_1D(dummy_gal,
@@ -2202,7 +2210,8 @@ def plot_data_model_comparison(gal,
                     fitflux=fitflux,
                     profile1d_type=profile1d_type,
                     fileout=fileout,
-                    overwrite=overwrite)
+                    overwrite=overwrite,
+                    zcalc_truncate=zcalc_truncate)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(dummy_gal,
                     theta = theta,
@@ -2210,7 +2219,8 @@ def plot_data_model_comparison(gal,
                     oversize=oversize,
                     fitdispersion=fitdispersion,
                     fileout=fileout,
-                    overwrite=overwrite)
+                    overwrite=overwrite,
+                    zcalc_truncate=zcalc_truncate)
     elif gal.data.ndim == 3:
         plot_data_model_comparison_3D(dummy_gal,
                     theta = theta,
@@ -2221,7 +2231,8 @@ def plot_data_model_comparison(gal,
                     fileout=fileout,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
-                    overwrite=overwrite)
+                    overwrite=overwrite,
+                    zcalc_truncate=zcalc_truncate)
 
 
         # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
@@ -2231,7 +2242,8 @@ def plot_data_model_comparison(gal,
                                       oversample=oversample,
                                       oversize=oversize,
                                       fileout=fileout,
-                                      overwrite=overwrite)
+                                      overwrite=overwrite,
+                                      zcalc_truncate=zcalc_truncate)
     else:
         logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
         raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
@@ -2249,14 +2261,16 @@ def plot_bestfit(mcmcResults, gal,
                  profile1d_type='circ_ap_cube',
                  vcrop_value=800.,
                  remove_shift=False,
-                 overwrite=False):
+                 overwrite=False,
+                 zcalc_truncate=True):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
             oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift,
-                               profile1d_type=profile1d_type, overwrite=overwrite)
+            profile1d_type=profile1d_type, overwrite=overwrite,
+            zcalc_truncate=zcalc_truncate)
 
     return None
 
@@ -2271,7 +2285,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             oversample=3, oversize=1, aperture_radius=None,
             moment=False,
             partial_weight=False,
-            plot_type='pdf'):
+            plot_type='pdf',
+            zcalc_truncate=True):
 
     if (plotfile is None) & (outpath is None):
         raise ValueError
@@ -2307,7 +2322,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
                     fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
-                    overwrite=overwrite_curve_files)
+                    overwrite=overwrite_curve_files,
+                    zcalc_truncate=zcalc_truncate)
 
 
     if not file_exists:

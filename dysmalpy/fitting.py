@@ -1318,7 +1318,9 @@ def fit_mpfit(gal,
     gal.model.update_parameters(mpfitResults.bestfit_parameters)
 
     gal.create_model_data(oversample=oversample, oversize=oversize,
-                          line_center=gal.model.line_center, profile1d_type=profile1d_type)
+                          line_center=gal.model.line_center,
+                          profile1d_type=profile1d_type,
+                          zcalc_truncate=zcalc_truncate)
 
     ###
     mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1607,7 +1609,9 @@ class MCMCResults(FitResults):
 
 
         gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center, profile1d_type=profile1d_type)
+                              line_center=gal.model.line_center,
+                              profile1d_type=profile1d_type,
+                              zcalc_truncate=zcalc_truncate)
 
         self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                         model_key_re=model_key_re)
@@ -2105,7 +2109,9 @@ def log_prob(theta, gal,
     else:
         # Update the model data
         gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center, profile1d_type=profile1d_type)
+                              line_center=gal.model.line_center,
+                              profile1d_type=profile1d_type,
+                              zcalc_truncate=zcalc_truncate)
 
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq,
@@ -2608,7 +2614,8 @@ def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, p
                 oversample=1, oversize=1, use_weights=False):
 
     gal.model.update_parameters(theta)
-    gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize, oversample=oversample)
+    gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize,
+                oversample=oversample, zcalc_truncate=zcalc_truncate)
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value

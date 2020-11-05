@@ -1653,7 +1653,8 @@ class ModelSet:
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
-                      xcenter=None, ycenter=None):
+                      xcenter=None, ycenter=None,
+                      zcalc_truncate=True):
                       #debug=False):
         """
         Simulate a line emission cube of this model set
@@ -1703,6 +1704,14 @@ class ModelSet:
         ycenter : float, optional
             The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
             center of the cube will be used.
+
+        zcalc_truncate: bool
+            Setting the default behavior of filling the model cube. If True,
+            then the cube is only filled with flux to within +- XXXX above and below
+            the galaxy midplane (to speed up the calculation).
+            If False, then no truncation is
+            applied and the cube is filled over the full range of zgal.
+            Default: True
 
         Returns
         -------
