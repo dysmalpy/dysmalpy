@@ -742,7 +742,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
 
 def create_vel_profile_files(gal=None, outpath=None,
             moment=False,
-            partial_weight=False,
+            partial_weight=True,
             fname_model_matchdata=None,
             fname_finer=None,
             fname_intrinsic=None,
@@ -793,7 +793,7 @@ def create_vel_profile_files(gal=None, outpath=None,
 
 
 def write_1d_obs_finer_scale(gal=None, fname=None,
-            partial_weight=False,
+            partial_weight=True,
             moment=False,
             overwrite=False, **kwargs_galmodel):
     profile1d_type = kwargs_galmodel['profile1d_type']

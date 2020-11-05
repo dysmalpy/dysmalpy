@@ -67,14 +67,16 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     if ('partial_weight' in params.keys()):
         partial_weight = params['partial_weight']
     else:
-        # Preserve previous default behavior
-        partial_weight = False
+        # # Preserve previous default behavior
+        # partial_weight = False
 
+        ## NEW default behavior: always use partial_weight:
+        partial_weight = True
 
 
     config_c_m_data = config.Config_create_model_data(**params)
     config_sim_cube = config.Config_simulate_cube(**params)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
     plotting.plot_rotcurve_components(gal=gal,
                 overwrite=overwrite, overwrite_curve_files=overwrite_curve_files,
@@ -145,13 +147,9 @@ def plot_results_multid_general(param_filename=None,
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
                         data=data, fit_ndim=fit_ndim)
     #
-            config_c_m_data = config.Config_create_model_data(**fit_dict)
-            config_sim_cube = config.Config_simulate_cube(**fit_dict)
-            kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
-    #
     config_c_m_data = config.Config_create_model_data(**fit_dict)
     config_sim_cube = config.Config_simulate_cube(**fit_dict)
-    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
     if theta is None:
         theta=results.bestfit_parameters

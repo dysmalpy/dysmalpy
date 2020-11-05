@@ -24,7 +24,7 @@ class ConfigBase:
     """
 
     def __init__(self, **kwargs):
-        self.set_defaults(self)
+        self.set_defaults()
         self.fill_values(**kwargs)
         self._dict = self.as_dict()
 
@@ -73,7 +73,8 @@ class Config_create_model_data(ConfigBase):
         self.pix_parallel = None
         self.pix_length = None
         self.skip_downsample = False
-        self.partial_aperture_weigth = False
+        self.partial_aperture_weight = False
+        #self.partial_weight = False   ## used for rot curve plotting -- but only passed to aperture
 
 class Config_simulate_cube(ConfigBase):
     """

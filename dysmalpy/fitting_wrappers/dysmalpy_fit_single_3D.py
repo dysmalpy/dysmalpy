@@ -170,7 +170,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
 
         config_c_m_data = config.Config_create_model_data(**fit_dict)
         config_sim_cube = config.Config_simulate_cube(**fit_dict)
-        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):

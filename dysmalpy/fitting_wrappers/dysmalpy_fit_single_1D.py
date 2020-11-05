@@ -114,7 +114,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
 
         config_c_m_data = config.Config_create_model_data(**fit_dict)
         config_sim_cube = config.Config_simulate_cube(**fit_dict)
-        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
 
         # Clean up existing log file:
@@ -241,7 +241,7 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
 
         config_c_m_data = config.Config_create_model_data(**fit_dict)
         config_sim_cube = config.Config_simulate_cube(**fit_dict)
-        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
                                     filename_results=fit_dict['f_mcmc_results'],
@@ -278,7 +278,7 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
 
         config_c_m_data = config.Config_create_model_data(**fit_dict)
         config_sim_cube = config.Config_simulate_cube(**fit_dict)
-        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
         # reload results:
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
@@ -295,7 +295,7 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
         if 'aperture_radius' not in params.keys():
             params['aperture_radius'] = -99.
 
-        
+
         kwargs_galmodel['aperture_radius'] = params['aperture_radius']
         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
                 overwrite=True, overwrite_curve_files=True,
