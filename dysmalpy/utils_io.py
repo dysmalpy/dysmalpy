@@ -376,7 +376,7 @@ class Report(object):
 
         if zcalc_truncate is None:
             config_sim_cube = Config_simulate_cube()
-            zcalc_truncate = config_sim_cube.config_sim_cube
+            zcalc_truncate = config_sim_cube.zcalc_truncate
 
         # Save info on weighting / moments:
         if weighting_method is not None:
