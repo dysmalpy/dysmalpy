@@ -21,6 +21,7 @@ from dysmalpy import galaxy
 from dysmalpy import models
 from dysmalpy import plotting
 from dysmalpy import utils as dysmalpy_utils
+from dysmalpy import config
 
 from dysmalpy import aperture_classes
 from dysmalpy import instrument
@@ -47,7 +48,7 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
         overwrite = False,
         overwrite_curve_files=False,
         outpath=None,
-        zcalc_truncate=True):
+        **kwargs_galmodel):
 
     # Reload the galaxy:
     gal = galaxy.load_galaxy_object(filename=fname_gal)
@@ -70,15 +71,17 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
         partial_weight = False
 
 
+
+    config_c_m_data = config.Config_create_model_data(**params)
+    config_sim_cube = config.Config_simulate_cube(**params)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+
     plotting.plot_rotcurve_components(gal=gal,
                 overwrite=overwrite, overwrite_curve_files=overwrite_curve_files,
                 outpath = outpath,
-                profile1d_type = params['profile1d_type'],
-                oversample=params['oversample'], oversize=params['oversize'],
-                aperture_radius=params['aperture_radius'],
                 moment=moment_calc,
                 partial_weight=partial_weight,
-                zcalc_truncate=zcalc_truncate)
+                **kwargs_galmodel)
 
 
     return None
@@ -135,11 +138,20 @@ def plot_results_multid_general(param_filename=None,
     remove_shift=True,
     show_1d_apers=False,
     theta = None,
-    fileout=None):
+    fileout=None,
+    **kwargs_galmodel):
 
 
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
                         data=data, fit_ndim=fit_ndim)
+    #
+            config_c_m_data = config.Config_create_model_data(**fit_dict)
+            config_sim_cube = config.Config_simulate_cube(**fit_dict)
+            kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+    #
+    config_c_m_data = config.Config_create_model_data(**fit_dict)
+    config_sim_cube = config.Config_simulate_cube(**fit_dict)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
 
     if theta is None:
         theta=results.bestfit_parameters
@@ -149,9 +161,9 @@ def plot_results_multid_general(param_filename=None,
 
     # Plot:
     plotting.plot_model_multid(gal, theta=theta,
-            fitdispersion=fit_dict['fitdispersion'],
-            oversample=fit_dict['oversample'],fileout=fileout,
-            show_1d_apers=show_1d_apers, remove_shift=remove_shift)
+            fitdispersion=fit_dict['fitdispersion'],fileout=fileout,
+            show_1d_apers=show_1d_apers, remove_shift=remove_shift,
+            **kwargs_galmodel)
 
 
     return None

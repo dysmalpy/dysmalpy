@@ -26,9 +26,10 @@ import dill as _pickle
 # Package imports
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
-from dysmalpy.utils import apply_smoothing_3D, rebin, config_create_model_data
+from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
+from dysmalpy import config
 
 __all__ = ['Galaxy']
 
@@ -281,186 +282,191 @@ class Galaxy:
 
         """
 
-        # Bundle inputs into kwargs dicts:
-        c_m_kwargs, sim_cube_kwargs = config_create_model_data(**kwargs)
-        kwargs = None
+        config_c_m_data = config.Config_create_model_data(**kwargs)
+        config_sim_cube = config.Config_simulate_cube(**kwargs)
 
-               #  sim_cube_kwargs = {'nx_sky':         None,
-               #                     'ny_sky':         None,
-               #                     'rstep':          None,
-               #                     'spec_type':     'velocity',
-               #                     'spec_step':      10.,
-               #                     'spec_start':     -1000.,
-               #                     'nspec':          201,
-               #                     'spec_unit':      (u.km/u.s),
-               #                     'xcenter':        None,
-               #                     'ycenter':        None,
-               #                     'oversample':     1,
-               #                     'oversize':       1,
-               #                     'zcalc_truncate': True }
-               # create_gal_model_kwargs = {'ndim_final':      3,
-               #                    'line_center':             None,
-               #                    'aper_centers':            None,
-               #                    'slit_width':              None,
-               #                    'slit_pa':                 None,
-               #                    'profile1d_type':          None,
-               #                    'from_instrument':         True,
-               #                    'from_data':               True,
-               #                    'aperture_radius':         None,
-               #                    'pix_perp':                None,
-               #                    'pix_parallel':            None,
-               #                    'pix_length':              None,
-               #                    'skip_downsample':         False,
-               #                    'partial_aperture_weight': False }
+        if config_c_m_data.line_center is None:
+            config_c_m_data.line_center = self.model.line_center
+
+
+        # TESTING:
+        del ndim_final
+        del nx_sky
+        del ny_sky
+        del rstep
+        del spec_type
+        del spec_step
+        del spec_start
+        del nspec
+        del line_center
+        del spec_unit
+        del aper_centers
+        del slit_width
+        del slit_pa
+        del profile1d_type
+        del from_instrument
+        del from_data
+        del oversample
+        del oversize
+        del aperture_radius
+        del pix_perp
+        del pix_parallel
+        del pix_length
+        del skip_downsample
+        del partial_aperture_weight
+        del xcenter
+        del ycenter
+        del zcalc_truncate
 
         # Pull parameters from the observed data if specified
-        if c_m_kwargs['from_data']:
+        if config_c_m_data.from_data:
 
-            c_m_kwargs['ndim_final'] = self.data.ndim
+            config_c_m_data.ndim_final = self.data.ndim
 
-            if c_m_kwargs['ndim_final'] == 3:
-                sim_cube_kwargs['nx_sky'] = self.data.shape[2]
-                sim_cube_kwargs['ny_sky'] = self.data.shape[1]
-                sim_cube_kwargs['nspec'] = self.data.shape[0]
+            if config_c_m_data.ndim_final == 3:
+                config_sim_cube.nx_sky = self.data.shape[2]
+                config_sim_cube.ny_sky = self.data.shape[1]
+                config_sim_cube.nspec = self.data.shape[0]
                 spec_ctype = self.data.data.wcs.wcs.ctype[-1]
                 if spec_ctype == 'WAVE':
-                    sim_cube_kwargs['spec_type'] = 'wavelength'
+                    config_sim_cube.spec_type = 'wavelength'
                 elif spec_ctype == 'VOPT':
-                    sim_cube_kwargs['spec_type'] = 'velocity'
-                sim_cube_kwargs['spec_start'] = self.data.data.spectral_axis[0].value
-                sim_cube_kwargs['spec_unit'] = self.data.data.spectral_axis.unit
-                sim_cube_kwargs['spec_step'] = (self.data.data.spectral_axis[1].value -
+                    config_sim_cube.spec_type = 'velocity'
+                config_sim_cube.spec_start = self.data.data.spectral_axis[0].value
+                config_sim_cube.spec_unit = self.data.data.spectral_axis.unit
+                config_sim_cube.spec_step = (self.data.data.spectral_axis[1].value -
                              self.data.data.spectral_axis[0].value)
-                sim_cube_kwargs['rstep'] = self.data.data.wcs.wcs.cdelt[0]*3600.
+                config_sim_cube.rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
 
                 try:
-                    sim_cube_kwargs['xcenter'] = self.data.xcenter
+                    config_sim_cube.xcenter = self.data.xcenter
                 except:
                     pass
                 try:
-                    sim_cube_kwargs['ycenter'] = self.data.ycenter
+                    config_sim_cube.ycenter = self.data.ycenter
                 except:
                     pass
 
-            elif c_m_kwargs['ndim_final'] == 2:
-
-                sim_cube_kwargs['nx_sky'] = self.data.data['velocity'].shape[1]
-                sim_cube_kwargs['ny_sky'] = self.data.data['velocity'].shape[0]
-                sim_cube_kwargs['rstep'] = self.data.pixscale
+            elif config_c_m_data.ndim_final == 2:
+                config_sim_cube.nx_sky = self.data.data['velocity'].shape[1]
+                config_sim_cube.ny_sky = self.data.data['velocity'].shape[0]
+                config_sim_cube.rstep = self.data.pixscale
                 try:
-                    sim_cube_kwargs['xcenter'] = self.data.xcenter
+                    config_sim_cube.xcenter = self.data.xcenter
                 except:
                     pass
                 try:
-                    ycenter = self.data.ycenter
+                    config_sim_cube.ycenter = self.data.ycenter
                 except:
                     pass
-                if from_instrument:
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
+                if config_c_m_data.from_instrument:
+                    config_sim_cube.spec_type = self.instrument.spec_type
+                    config_sim_cube.spec_start = self.instrument.spec_start.value
+                    config_sim_cube.spec_step = self.instrument.spec_step.value
+                    config_sim_cube.spec_unit = self.instrument.spec_start.unit
+                    config_sim_cube.nspec = self.instrument.nspec
 
-            elif ndim_final == 1:
+            elif config_c_m_data.ndim_final == 1:
 
-                if from_instrument:
-                    nx_sky = self.instrument.fov[0]
-                    ny_sky = self.instrument.fov[1]
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
-                    rstep = self.instrument.pixscale.value
+                if config_c_m_data.from_instrument:
+                    config_sim_cube.nx_sky = self.instrument.fov[0]
+                    config_sim_cube.ny_sky = self.instrument.fov[1]
+                    config_sim_cube.spec_type = self.instrument.spec_type
+                    config_sim_cube.spec_start = self.instrument.spec_start.value
+                    config_sim_cube.spec_step = self.instrument.spec_step.value
+                    config_sim_cube.spec_unit = self.instrument.spec_start.unit
+                    config_sim_cube.nspec = self.instrument.nspec
+                    config_sim_cube.rstep = self.instrument.pixscale.value
                 else:
 
                     maxr = 1.5*np.max(np.abs(self.data.rarr))
-                    if rstep is None:
-                        rstep = np.mean(self.data.rarr[1:] -
+                    if config_sim_cube.rstep is None:
+                        config_sim_cube.rstep = np.mean(self.data.rarr[1:] -
                                         self.data.rarr[0:-1])/3.
-                    if nx_sky is None:
-                        nx_sky = int(np.ceil(maxr/rstep))
-                    if ny_sky is None:
-                        ny_sky = int(np.ceil(maxr/rstep))
+                    if config_sim_cube.nx_sky is None:
+                        config_sim_cube.nx_sky = int(np.ceil(maxr/rstep))
+                    if config_sim_cube.ny_sky is None:
+                        config_sim_cube.ny_sky = int(np.ceil(maxr/rstep))
 
-                slit_width = self.data.slit_width
-                slit_pa = self.data.slit_pa
-                aper_centers = self.data.rarr
+                config_c_m_data.slit_width = self.data.slit_width
+                config_c_m_data.slit_pa = self.data.slit_pa
+                config_c_m_data.aper_centers = self.data.rarr
 
                 try:
-                    xcenter = self.data.xcenter
+                    config_sim_cube.xcenter = self.data.xcenter
                 except:
                     pass
                 try:
-                    ycenter = self.data.ycenter
+                    config_sim_cube.ycenter = self.data.ycenter
                 except:
                     pass
 
 
                 if 'profile1d_type' in self.data.__dict__.keys():
                     if self.data.profile1d_type is not None:
-                        profile1d_type = self.data.profile1d_type
+                        config_c_m_data.profile1d_type = self.data.profile1d_type
 
 
-            elif ndim_final == 0:
+            elif config_c_m_data.ndim_final == 0:
 
-                if from_instrument:
-                    nx_sky = self.instrument.fov[0]
-                    ny_sky = self.instrument.fov[1]
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
-                    rstep = self.instrument.pixscale.value
+                if config_c_m_data.from_instrument:
+                    config_sim_cube.nx_sky = self.instrument.fov[0]
+                    config_sim_cube.ny_sky = self.instrument.fov[1]
+                    config_sim_cube.spec_type = self.instrument.spec_type
+                    config_sim_cube.spec_start = self.instrument.spec_start.value
+                    config_sim_cube.spec_step = self.instrument.spec_step.value
+                    config_sim_cube.spec_unit = self.instrument.spec_start.unit
+                    config_sim_cube.nspec = self.instrument.nspec
+                    config_sim_cube.rstep = self.instrument.pixscale.value
 
                 else:
 
-                    if (nx_sky is None) | (ny_sky is None) | (rstep is None):
+                    if (config_sim_cube.nx_sky is None) | (config_sim_cube.ny_sky is None) | \
+                                (config_sim_cube.rstep is None):
 
                         raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                          "be set if from_instrument and/or from_data"
                                          " is False.")
 
-                slit_width = self.data.slit_width
-                slit_pa = self.data.slit_pa
-                xarr = self.data.x
+                config_c_m_data.slit_width = self.data.slit_width
+                config_c_m_data.slit_pa = self.data.slit_pa
+                config_c_m_data.xarr = self.data.x
 
         # Pull parameters from the instrument
-        elif from_instrument:
+        elif config_c_m_data.from_instrument:
 
-            nx_sky = self.instrument.fov[0]
-            ny_sky = self.instrument.fov[1]
-            spec_type = self.instrument.spec_type
-            spec_start = self.instrument.spec_start.value
-            spec_step = self.instrument.spec_step.value
-            spec_unit = self.instrument.spec_start.unit
-            nspec = self.instrument.nspec
-            rstep = self.instrument.pixscale.value
+            config_sim_cube.nx_sky = self.instrument.fov[0]
+            config_sim_cube.ny_sky = self.instrument.fov[1]
+            config_sim_cube.spec_type = self.instrument.spec_type
+            config_sim_cube.spec_start = self.instrument.spec_start.value
+            config_sim_cube.spec_step = self.instrument.spec_step.value
+            config_sim_cube.spec_unit = self.instrument.spec_start.unit
+            config_sim_cube.nspec = self.instrument.nspec
+            config_sim_cube.rstep = self.instrument.pixscale.value
 
             try:
-                slit_width = self.instrument.slit_width
+                config_c_m_data.slit_width = self.instrument.slit_width
             except:
                 pass
 
-            if (ndim_final == 1) & (profile1d_type is None):
+            if (config_c_m_data.ndim_final == 1) & (config_c_m_data.profile1d_type is None):
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
 
         else:
 
-            if (nx_sky is None) | (ny_sky is None) | (rstep is None):
+            if (config_sim_cube.nx_sky is None) | (config_sim_cube.ny_sky is None) | \
+                        (config_sim_cube.rstep is None):
 
                 raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                  "be set if from_instrument and/or from_data"
                                  " is False.")
             #
-            if (ndim_final == 1) & (profile1d_type is None):
+            if (config_c_m_data.ndim_final == 1) & (config_c_m_data.profile1d_type is None):
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
 
 
         sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
-                                                  **sim_cube_kwargs)
+                                                 **config_sim_cube.dict)
 
         # sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
         #                                           ny_sky=ny_sky,
@@ -478,15 +484,16 @@ class Galaxy:
         #                                           zcalc_truncate=zcalc_truncate)
 
         # Correct for any oversampling
-        if (oversample > 1) & (not skip_downsample):
-            sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
+        if (config_sim_cube.oversample > 1) & (not config_c_m_data.skip_downsample):
+            sim_cube_nooversamp = rebin(sim_cube, (config_sim_cube.ny_sky*config_sim_cube.oversize,
+                                config_sim_cube.nx_sky*config_sim_cube.oversize))
         else:
             sim_cube_nooversamp = sim_cube
 
-        if skip_downsample:
-            rstep /= (1.*oversample)
-            nx_sky *= oversample
-            ny_sky *= oversample
+        if config_c_m_data.skip_downsample:
+            config_sim_cube.rstep /= (1.*config_sim_cube.oversample)
+            config_sim_cube.nx_sky *= config_sim_cube.oversample
+            config_sim_cube.ny_sky *= config_sim_cube.oversample
             # Fix instrument:
             self.instrument.pixscale = rstep * u.arcsec
             self.instrument.fov = [nx_sky, ny_sky]
@@ -496,32 +503,29 @@ class Galaxy:
         # Apply beam smearing and/or instrumental spreading
         if self.instrument is not None:
             sim_cube_obs = self.instrument.convolve(cube=sim_cube_nooversamp,
-                                                    spec_center=line_center)
+                                                    spec_center=config_c_m_data.line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
 
 
         # Re-size the cube back down
-        if oversize > 1:
+        if config_sim_cube.oversize > 1:
             nx_oversize = sim_cube_obs.shape[2]
             ny_oversize = sim_cube_obs.shape[1]
             sim_cube_final = sim_cube_obs[:,
-                np.int(ny_oversize/2 - ny_sky/2):np.int(ny_oversize/2+ny_sky/2),
-                np.int(nx_oversize/2 - nx_sky/2):np.int(nx_oversize/2+nx_sky/2)]
+                np.int(ny_oversize/2 - config_sim_cube.ny_sky/2):np.int(ny_oversize/2+config_sim_cube.ny_sky/2),
+                np.int(nx_oversize/2 - config_sim_cube.nx_sky/2):np.int(nx_oversize/2+config_sim_cube.nx_sky/2)]
 
         else:
             sim_cube_final = sim_cube_obs
 
-        #
+        self.model_cube = Data3D(cube=sim_cube_final, pixscale=config_sim_cube.rstep,
+                                 spec_type=config_sim_cube.spec_type,
+                                 spec_arr=config_sim_cube.spec,
+                                 spec_unit=config_sim_cube.spec_unit)
 
-        self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
-                                 spec_type=spec_type, spec_arr=spec,
-                                 spec_unit=spec_unit)
-
-        if ndim_final == 3:
-
-            if from_data:
-
+        if config_c_m_data.ndim_final == 3:
+            if config_c_m_data.from_data:
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                             smoothing_type=self.data.smoothing_type,
@@ -549,14 +553,15 @@ class Galaxy:
                     scale3D[0, :, :] = scale
                     sim_cube_final_scale *= scale3D
 
-            self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=rstep,
+            self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=config_sim_cube.rstep,
                                      mask_cube=self.data.mask.copy(),
-                                     spec_type=spec_type, spec_arr=spec,
-                                     spec_unit=spec_unit)
+                                     spec_type=config_sim_cube.spec_type,
+                                     spec_arr=spec,
+                                     spec_unit=config_sim_cube.spec_unit)
 
-        elif ndim_final == 2:
+        elif config_c_m_data.ndim_final == 2:
 
-            if from_data:
+            if config_c_m_data.from_data:
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                                 smoothing_type=self.data.smoothing_type,
@@ -567,7 +572,7 @@ class Galaxy:
                     extrac_type = 'moment'
                 else:
                     extrac_type = 'gauss'
-            elif from_instrument:
+            elif config_c_m_data.from_instrument:
                 if 'moment' in self.instrument.__dict__.keys():
                     if self.instrument.moment:
                         extrac_type = 'moment'
@@ -578,7 +583,7 @@ class Galaxy:
             else:
                 extrac_type = 'moment'
 
-            if spec_type == "velocity":
+            if config_sim_cube.spec_type == "velocity":
                 if extrac_type == 'moment':
                     flux = self.model_cube.data.moment0().to(u.km/u.s).value
                     vel = self.model_cube.data.moment1().to(u.km/u.s).value
@@ -607,11 +612,11 @@ class Galaxy:
                             disp[i,j] = best_fit.stddev.value
 
 
-            elif spec_type == "wavelength":
+            elif config_sim_cube.spec_type == "wavelength":
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s,
                     velocity_convention='optical',
-                    rest_value=line_center)
+                    rest_value=config_c_m_data.line_center)
 
                 if extrac_type == 'moment':
                     flux = cube_with_vel.moment0().value
@@ -626,21 +631,21 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
 
-            self.model_data = Data2D(pixscale=rstep, velocity=vel,
+            self.model_data = Data2D(pixscale=config_sim_cube.rstep, velocity=vel,
                                      vel_disp=disp, flux=flux)
 
-        elif ndim_final == 1:
+        elif config_c_m_data.ndim_final == 1:
 
-            if spec_type == 'wavelength':
+            if config_sim_cube.spec_type == 'wavelength':
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
                     u.km / u.s, velocity_convention='optical',
-                    rest_value=line_center)
+                    rest_value=config_c_m_data.line_center)
 
                 cube_data = cube_with_vel.unmasked_data[:]
                 vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
 
-            elif spec_type == 'velocity':
+            elif config_sim_cube.spec_type == 'velocity':
 
                 cube_data = sim_cube_obs
                 vel_arr = spec
@@ -649,45 +654,46 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
 
-            if profile1d_type == 'circ_ap_pv':
-                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data, slit_width,
-                                                    slit_pa-180., rstep, vel_arr)
+            if config_c_m_data.profile1d_type == 'circ_ap_pv':
+                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data,
+                                config_c_m_data.slit_width,config_c_m_data.slit_pa-180.,
+                                config_sim_cube.rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
                                                   fill_value='extrapolate')
-                vel1d = vinterp(aper_centers)
-                disp1d = disp_interp(aper_centers)
+                vel1d = vinterp(config_c_m_data.per_centers)
+                disp1d = disp_interp(config_c_m_data.aper_centers)
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
-                flux1d = flux_interp(aper_centers)
+                flux1d = flux_interp(config_c_m_data.aper_centers)
                 aper_model = None
 
-            elif profile1d_type == 'single_pix_pv':
-                r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                                                    slit_pa-180., rstep, vel_arr)
+            elif config_c_m_data.profile1d_type == 'single_pix_pv':
+                r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, config_c_m_data.slit_width,
+                            config_c_m_data.slit_pa-180., config_sim_cube.rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
                                                   fill_value='extrapolate')
-                vel1d = vinterp(aper_centers)
-                disp1d = disp_interp(aper_centers)
+                vel1d = vinterp(config_c_m_data.aper_centers)
+                disp1d = disp_interp(config_c_m_data.aper_centers)
 
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
-                flux1d = flux_interp(aper_centers)
+                flux1d = flux_interp(config_c_m_data.aper_centers)
 
                 aper_model = None
             else:
 
-                if from_data:
+                if config_c_m_data.from_data:
                     if (self.data.aper_center_pix_shift is not None):
                         try:
                             center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0],
                                             self.data.ycenter + self.data.aper_center_pix_shift[1])
                         except:
-                            center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-                                            np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
+                            center_pixel = (np.int(config_sim_cube.nx_sky / 2) + self.data.aper_center_pix_shift[0],
+                                            np.int(config_sim_cube.ny_sky / 2) + self.data.aper_center_pix_shift[1])
                     else:
                         try:
                             # Catch case where center_pixel is (None, None)
@@ -704,9 +710,9 @@ class Galaxy:
 
                 #----------------------------------------------------------
                 #try:
-                if from_data:
+                if config_c_m_data.from_data:
                     aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr,
-                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+                            cube=cube_data, center_pixel = center_pixel, pixscale=config_sim_cube.rstep)
                     aper_model = None
 
                 # except:
@@ -716,28 +722,32 @@ class Galaxy:
                 else:
 
                     aper_model = aperture_classes.setup_aperture_types(gal=self,
-                                profile1d_type=profile1d_type,
-                                slit_width = slit_width, aper_centers=aper_centers, slit_pa=slit_pa,
-                                aperture_radius=aperture_radius,
-                                pix_perp=pix_perp, pix_parallel=pix_parallel,
-                                pix_length=pix_length,
-                                partial_weight=partial_aperture_weight,
+                                profile1d_type=config_c_m_data.profile1d_type,
+                                slit_width = config_c_m_data.slit_width,
+                                aper_centers=config_c_m_data.aper_centers,
+                                slit_pa=config_c_m_data.slit_pa,
+                                aperture_radius=config_c_m_data.aperture_radius,
+                                pix_perp=config_c_m_data.pix_perp,
+                                pix_parallel=config_c_m_data.pix_parallel,
+                                pix_length=config_c_m_data.pix_length,
+                                partial_weight=config_c_m_data.partial_aperture_weight,
                                 from_data=False)
 
 
                     aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr,
-                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+                            cube=cube_data, center_pixel = center_pixel,
+                            pixscale=config_sim_cube.rstep)
 
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, flux=flux1d,
-                                     slit_width=slit_width,
-                                     slit_pa=slit_pa)
+                                     slit_width=config_c_m_data.slit_width,
+                                     slit_pa=config_c_m_data.slit_pa)
             self.model_data.apertures = aper_model
-            self.model_data.profile1d_type = profile1d_type
+            self.model_data.profile1d_type = config_c_m_data.profile1d_type
 
-        elif ndim_final == 0:
+        elif config_c_m_data.ndim_final == 0:
 
             if self.data.integrate_cube:
 
@@ -754,18 +764,18 @@ class Galaxy:
                 raise NotImplementedError('Using slits to create spectrum not implemented yet!')
 
             self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
-                                     slit_width=self.data.slit_width, integrate_cube=self.data.integrate_cube,
-                                    )
+                                     slit_width=self.data.slit_width,
+                                     integrate_cube=self.data.integrate_cube)
 
         #
         # Reset instrument to orig value
-        if skip_downsample:
-            rstep *= oversample
-            nx_sky /= (1.*oversample)
-            ny_sky /= (1.*oversample)
+        if config_c_m_data.skip_downsample:
+            config_sim_cube.rstep *= config_sim_cube.oversample
+            config_sim_cube.nx_sky /= (1.*config_sim_cube.oversample)
+            config_sim_cube.ny_sky /= (1.*config_sim_cube.oversample)
             # Fix instrument:
-            self.instrument.pixscale = rstep * u.arcsec
-            self.instrument.fov = [nx_sky, ny_sky]
+            self.instrument.pixscale = config_sim_cube.rstep * u.arcsec
+            self.instrument.fov = [config_sim_cube.nx_sky, config_sim_cube.ny_sky]
             self.instrument.set_beam_kernel()
 
     def preserve_self(self, filename=None, save_data=True, overwrite=False):
