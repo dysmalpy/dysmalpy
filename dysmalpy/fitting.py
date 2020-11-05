@@ -21,6 +21,7 @@ from dysmalpy import plotting
 from dysmalpy import galaxy
 from dysmalpy.parameters import UniformLinearPrior
 from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
+from dysmalpy import config
 
 from dysmalpy.utils import fit_uncertainty_ellipse
 
@@ -78,11 +79,8 @@ def fit_mcmc(gal, nWalkers=10,
            minAF = 0.2,
            maxAF = 0.5,
            nEff = 10,
-           oversample = 1,
-           oversize = 1,
            oversampled_chisq = True,
            red_chisq = False,
-           profile1d_type='circ_ap_cube',
            fitdispersion = True,
            fitflux = False,
            blob_name=None,
@@ -133,6 +131,9 @@ def fit_mcmc(gal, nWalkers=10,
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
 
+    config_c_m_data = config.Config_create_model_data(**kwargs)
+    config_sim_cube = config.Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
 
     # --------------------------------
     # Check option validity:
@@ -181,10 +182,12 @@ def fit_mcmc(gal, nWalkers=10,
 
     # --------------------------------
     # Setup fit_kwargs dict:
+    fit_kwargs = kwargs_galmodel
+
     local_vars = locals()
     fit_inkeys = ['nWalkers', 'cpuFrac', 'nCPUs', 'scale_param_a', 'nBurn', 'nSteps',
-                  'minAF', 'maxAF', 'nEff', 'oversample', 'oversize', 'oversampled_chisq', 'red_chisq',
-                  'profile1d_type', 'fitdispersion', 'fitflux',
+                  'minAF', 'maxAF', 'nEff', 'oversampled_chisq', 'red_chisq',
+                  'fitdispersion', 'fitflux',
                   'blob_name', 'model_key_re', 'model_key_halo',
                   'do_plotting', 'save_burn', 'save_model', 'save_bestfit_cube', 'save_data',
                   'outdir', 'linked_posterior_names', 'nPostBins',
@@ -195,7 +198,6 @@ def fit_mcmc(gal, nWalkers=10,
                   'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler',
                   'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii',
                   'f_vel_ascii', 'f_log', 'plot_type', 'overwrite']
-    fit_kwargs = {}
     for key in fit_inkeys:
         fit_kwargs[key] = local_vars[key]
 
@@ -224,11 +226,8 @@ def _fit_emcee_221(gal, nWalkers=10,
            minAF = 0.2,
            maxAF = 0.5,
            nEff = 10,
-           oversample = 1,
-           oversize = 1,
            oversampled_chisq = True,
            red_chisq = False,
-           profile1d_type='circ_ap_cube',
            fitdispersion = True,
            fitflux = False,
            blob_name=None,
@@ -265,6 +264,9 @@ def _fit_emcee_221(gal, nWalkers=10,
            **kwargs ):
 
     # OLD version
+    config_c_m_data = config.Config_create_model_data(**kwargs)
+    config_sim_cube = config.Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
 
 
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
@@ -327,15 +329,15 @@ def _fit_emcee_221(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'oversize':oversize,
-                    'fitdispersion':fitdispersion,
+    kwargs_dict_mcmc = {'fitdispersion':fitdispersion,
                     'fitflux':fitflux,
                     'blob_name': blob_name,
                     'model_key_re':model_key_re,
                     'model_key_halo': model_key_halo,
                     'red_chisq': red_chisq,
-                    'oversampled_chisq': oversampled_chisq,
-                    'profile1d_type':profile1d_type}
+                    'oversampled_chisq': oversampled_chisq}
+
+    kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
 
     nBurn_orig = nBurn
 
@@ -703,9 +705,6 @@ def _fit_emcee_221(gal, nWalkers=10,
                   nPostBins=nPostBins,
                   model_key_re=model_key_re,
                   model_key_halo=model_key_halo,
-                  oversample=oversample,
-                  oversize=oversize,
-                  profile1d_type=profile1d_type,
                   fitdispersion=fitdispersion,
                   fitflux=fitflux,
                   save_data=save_data,
@@ -714,7 +713,8 @@ def _fit_emcee_221(gal, nWalkers=10,
                   f_model=f_model,
                   f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
-                  overwrite=overwrite)
+                  overwrite=overwrite,
+                  **kwargs_galmodel)
 
 
     # Clean up logger:
@@ -734,11 +734,8 @@ def _fit_emcee_3(gal, nWalkers=10,
        minAF = 0.2,
        maxAF = 0.5,
        nEff = 10,
-       oversample = 1,
-       oversize = 1,
        oversampled_chisq = True,
        red_chisq = False,
-       profile1d_type='circ_ap_cube',
        fitdispersion = True,
        fitflux = False,
        blob_name=None,
@@ -769,6 +766,9 @@ def _fit_emcee_3(gal, nWalkers=10,
        overwrite = False,
        **kwargs ):
     # new version
+    config_c_m_data = config.Config_create_model_data(**kwargs)
+    config_sim_cube = config.Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
 
     # filetype for saving sampler: HDF5
     ftype_sampler = 'h5'
@@ -848,15 +848,15 @@ def _fit_emcee_3(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict = {'oversample':oversample, 'oversize':oversize,
-                    'fitdispersion':fitdispersion,
+    kwargs_dict_mcmc = {'fitdispersion':fitdispersion,
                     'fitflux':fitflux,
                     'blob_name': blob_name,
                     'model_key_re':model_key_re,
                     'model_key_halo': model_key_halo,
                     'red_chisq': red_chisq,
-                    'oversampled_chisq': oversampled_chisq,
-                    'profile1d_type':profile1d_type}
+                    'oversampled_chisq': oversampled_chisq}
+
+    kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
 
     nBurn_orig = nBurn
 
@@ -1133,9 +1133,6 @@ def _fit_emcee_3(gal, nWalkers=10,
                   nPostBins=nPostBins,
                   model_key_re=model_key_re,
                   model_key_halo=model_key_halo,
-                  oversample=oversample,
-                  oversize=oversize,
-                  profile1d_type=profile1d_type,
                   fitdispersion=fitdispersion,
                   fitflux=fitflux,
                   save_data=save_data,
@@ -1144,7 +1141,8 @@ def _fit_emcee_3(gal, nWalkers=10,
                   f_model=f_model,
                   f_vel_ascii = f_vel_ascii,
                   do_plotting = do_plotting,
-                  overwrite=overwrite)
+                  overwrite=overwrite,
+                  **kwargs_galmodel)
 
 
     # Clean up logger:
@@ -1157,12 +1155,9 @@ def _fit_emcee_3(gal, nWalkers=10,
 
 
 def fit_mpfit(gal,
-              oversample=1,
-              oversize=1,
               fitdispersion=True,
               fitflux=False,
               use_weights=False,
-              profile1d_type='circ_ap_cube',
               model_key_re = ['disk+bulge','r_eff_disk'],
               model_key_halo = ['halo'],
               maxiter=200,
@@ -1180,10 +1175,15 @@ def fit_mpfit(gal,
               f_log = None,
               blob_name=None,
               plot_type='pdf',
-              overwrite=False):
+              overwrite=False,
+              **kwargs):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
+    config_c_m_data = config.Config_create_model_data(**kwargs)
+    config_sim_cube = config.Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+
 
     # Check the FOV is large enough to cover the data output:
     dpy_utils_io._check_data_inst_FOV_compatibility(gal)
@@ -1257,8 +1257,8 @@ def fit_mpfit(gal,
                 parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
 
     # Setup dictionary of arguments that mpfit_chisq needs
-    fa = {'gal':gal, 'fitdispersion':fitdispersion, 'fitflux':fitflux, 'profile1d_type':profile1d_type,
-            'oversample':oversample, 'oversize':oversize, 'use_weights': use_weights}
+    fa_init = {'gal':gal, 'fitdispersion':fitdispersion, 'fitflux':fitflux, 'use_weights': use_weights}
+    fa = {**fa, **kwargs_galmodel}
 
     # Run mpfit
     # Output some fitting info to logger:
@@ -1317,10 +1317,7 @@ def fit_mpfit(gal,
     # Update theta to best-fit:
     gal.model.update_parameters(mpfitResults.bestfit_parameters)
 
-    gal.create_model_data(oversample=oversample, oversize=oversize,
-                          line_center=gal.model.line_center,
-                          profile1d_type=profile1d_type,
-                          zcalc_truncate=zcalc_truncate)
+    gal.create_model_data(**kwargs_galmodel)
 
     ###
     mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1352,8 +1349,7 @@ def fit_mpfit(gal,
 
     if do_plotting & (f_plot_bestfit is not None):
         plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                              oversample=oversample, oversize=oversize, fileout=f_plot_bestfit,
-                              profile1d_type=profile1d_type, overwrite=overwrite)
+                              fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
 
     # Save velocity / other profiles to ascii file:
     if f_vel_ascii is not None:
@@ -1564,9 +1560,6 @@ class MCMCResults(FitResults):
                 nPostBins=50,
                 model_key_re=None,
                 model_key_halo=None,
-                oversample=None,
-                oversize=None,
-                profile1d_type=None,
                 fitdispersion=True,
                 fitflux=False,
                 save_data=True,
@@ -1575,7 +1568,8 @@ class MCMCResults(FitResults):
                 f_model=None,
                 f_vel_ascii = None,
                 do_plotting = True,
-                overwrite=False):
+                overwrite=False,
+                **kwargs_galmodel):
         """
         Wrapper for post-sample analysis + plotting -- in case code broke and only have sampler saved.
 
@@ -1608,10 +1602,7 @@ class MCMCResults(FitResults):
                     self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
 
 
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type,
-                              zcalc_truncate=zcalc_truncate)
+        gal.create_model_data(**kwargs_galmodel)
 
         self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
                         model_key_re=model_key_re)
@@ -2077,16 +2068,14 @@ class MPFITResults(FitResults):
 
 
 def log_prob(theta, gal,
-             oversample=1,
-             oversize=1,
              red_chisq=False,
              oversampled_chisq=None,
              fitdispersion=True,
              fitflux=False,
              blob_name = None,
-             profile1d_type=None,
              model_key_re=None,
-             model_key_halo=None):
+             model_key_halo=None,
+             **kwargs_galmodel):
     """
     Evaluate the log probability of the given model
     """
@@ -2108,10 +2097,7 @@ def log_prob(theta, gal,
             return -np.inf
     else:
         # Update the model data
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type,
-                              zcalc_truncate=zcalc_truncate)
+        gal.create_model_data(**kwargs_galmodel)
 
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq,
@@ -2610,12 +2596,11 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
 
     return redchsq
 
-def mpfit_chisq(theta, fjac=None, gal=None, fitdispersion=True, fitflux=False, profile1d_type='circ_ap_cube',
-                oversample=1, oversize=1, use_weights=False):
+def mpfit_chisq(theta, fjac=None, gal=None,fitdispersion=True, fitflux=False,
+                use_weights=False, **kwargs_galmodel):
 
     gal.model.update_parameters(theta)
-    gal.create_model_data(profile1d_type=profile1d_type, oversize=oversize,
-                oversample=oversample, zcalc_truncate=zcalc_truncate)
+    gal.create_model_data(**kwargs_galmodel)
 
     if gal.data.ndim == 3:
         dat = gal.data.data.unmasked_data[:].value

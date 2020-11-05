@@ -17,6 +17,7 @@ from dysmalpy import fitting
 from dysmalpy import instrument
 from dysmalpy import parameters
 from dysmalpy import plotting
+from dysmalpy import config
 
 from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 
@@ -108,6 +109,10 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
         # Setup
         gal, fit_dict = setup_single_object_2D(params=params, data=data)
 
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
             os.remove(fit_dict['f_log'])
@@ -125,7 +130,6 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
                                        do_plotting=fit_dict['do_plotting'],
                                        red_chisq=fit_dict['red_chisq'],
                                        oversampled_chisq=fit_dict['oversampled_chisq'],
-                                       oversample=fit_dict['oversample'],
                                        fitdispersion=fit_dict['fitdispersion'],
                                        blob_name=fit_dict['blob_name'],
                                        outdir=fit_dict['outdir'],
@@ -146,13 +150,12 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
                                        f_vel_ascii=fit_dict['f_vel_ascii'],
                                        f_log=fit_dict['f_log'],
                                        overwrite=overwrite,
-                                       plot_type=plot_type)
+                                       plot_type=plot_type,
+                                       **kwargs_galmodel)
 
         elif fit_dict['fit_method'] == 'mpfit':
 
-            results = fitting.fit_mpfit(gal, oversample=fit_dict['oversample'],
-                                        oversize=fit_dict['oversize'],
-                                        fitdispersion=fit_dict['fitdispersion'],
+            results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
                                         maxiter=fit_dict['maxiter'],
                                         do_plotting=fit_dict['do_plotting'],
                                         outdir=fit_dict['outdir'],
@@ -165,7 +168,8 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
                                         overwrite=overwrite,
-                                        plot_type=plot_type)
+                                        plot_type=plot_type,
+                                        **kwargs_galmodel)
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
@@ -212,6 +216,9 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
         # Reload stuff
         galtmp, fit_dict = setup_single_object_2D(params=params, data=data)
 
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
 
         try:
             gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
@@ -245,15 +252,14 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, o
                       linked_posterior_names=fit_dict['linked_posterior_names'],
                       model_key_re=fit_dict['model_key_re'],
                       model_key_halo=fit_dict['model_key_halo'],
-                      oversample=fit_dict['oversample'],
-                      oversize=fit_dict['oversize'],
                       fitdispersion=fit_dict['fitdispersion'],
                       f_model=fit_dict['f_model'],
                       f_model_bestfit=fit_dict['f_model_bestfit'],
                       f_vel_ascii = fit_dict['f_vel_ascii'],
                       save_data=True,
                       save_bestfit_cube=False,
-                      do_plotting = True)
+                      do_plotting = True,
+                      **kwargs_galmodel)
 
         # Reload fitting stuff to get the updated gal object
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],

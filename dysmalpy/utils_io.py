@@ -740,8 +740,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
-            profile1d_type=None, aperture_radius=None,
+def create_vel_profile_files(gal=None, outpath=None,
             moment=False,
             partial_weight=False,
             fname_model_matchdata=None,
@@ -749,7 +748,7 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
             fname_intrinsic=None,
             fname_intrinsic_m = None,
             overwrite=False,
-            zcalc_truncate=True):
+            **kwargs_galmodel):
     #
     if outpath is None:
         raise ValueError
@@ -770,10 +769,7 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     galin = copy.deepcopy(gal)
 
     # ---------------------------------------------------------------------------
-    gal.create_model_data(oversample=oversample, oversize=oversize,
-                          line_center=gal.model.line_center,
-                          profile1d_type=profile1d_type,
-                          zcalc_truncate=zcalc_truncate)
+    gal.create_model_data(**kwargs_galmodel)
 
     # -------------------
     # Save Bary/DM vcirc:
@@ -789,22 +785,19 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
         # Reload galaxy object: reset things
         gal = copy.deepcopy(galin)
 
-        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
-                profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
-                partial_weight=partial_weight, overwrite=overwrite,
-                zcalc_truncate=zcalc_truncate)
+        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
+                partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
 
 
     return None
 
 
 def write_1d_obs_finer_scale(gal=None, fname=None,
-            profile1d_type=None, aperture_radius=None,
-            oversample=3, oversize=1,
             partial_weight=False,
             moment=False,
-            overwrite=False,
-            zcalc_truncate=True):
+            overwrite=False, **kwargs_galmodel):
+    profile1d_type = kwargs_galmodel['profile1d_type']
+
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -844,20 +837,18 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     moment=moment)
 
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type,
-                              zcalc_truncate=zcalc_truncate)
+        gal.create_model_data(**kwargs_galmodel)
     else:
         gal.instrument.slit_width = gal.data.slit_width
-        gal.create_model_data(from_data=False, from_instrument=True,
-                              ndim_final=1,
-                              aper_centers=aper_centers_interp,
-                              slit_width=gal.data.slit_width, slit_pa=gal.data.slit_pa,
-                              profile1d_type=profile1d_type,
-                              oversample=oversample, oversize=oversize,
-                              aperture_radius=aperture_radius,
-                              zcalc_truncate=zcalc_truncate)
+        kwargs_galmodel_in = kwargs_galmodel.copy()
+        kwargs_galmodel_in['from_data'] = False
+        kwargs_galmodel_in['from_instrument'] = True
+        kwargs_galmodel_in['ndim_final'] = 1
+        kwargs_galmodel_in['aper_centers'] = aper_centers_interp
+        kwargs_galmodel_in['slit_width'] = gal.data.slit_width
+        kwargs_galmodel_in['slit_pa'] = gal.data.slit_pa
+        kwargs_galmodel_in['aperture_radius'] = aperture_radius
+        gal.create_model_data(**kwargs_galmodel_in)
 
 
     write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)

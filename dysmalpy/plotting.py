@@ -43,6 +43,7 @@ from .utils_io import create_vel_profile_files, read_bestfit_1d_obs_file, read_m
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
+from .config import Config_create_model_data, Config_simulate_cube
 
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
@@ -302,13 +303,8 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     return None
 
 
-def plot_data_model_comparison_0D(gal,
-            data = None,
-            oversample=1,
-            oversize=1,
-            fileout=None,
-            overwrite=False,
-            zcalc_truncate=True):
+def plot_data_model_comparison_0D(gal, data = None, fileout=None,
+        overwrite=False, **kwargs_galmodel):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -324,9 +320,7 @@ def plot_data_model_comparison_0D(gal,
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
-        galnew.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=galnew.model.line_center,
-                              zcalc_truncate=zcalc_truncate)
+        galnew.create_model_data(**kwargs_galmodel)
         model_data = galnew.model_data
 
     else:
@@ -365,12 +359,10 @@ def plot_data_model_comparison_0D(gal,
 def plot_data_model_comparison_1D(gal,
             data = None,
             theta = None,
-            oversample=1,
-            oversize=1,
             fitdispersion=True,
             fitflux=False,
-            profile1d_type=None,
-            fileout=None, overwrite=False):
+            fileout=None, overwrite=False,
+            **kwargs_galmodel):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -386,10 +378,7 @@ def plot_data_model_comparison_1D(gal,
         # Setup the model with the correct dimensionality:
         galnew = copy.deepcopy(gal)
         galnew.data = data
-        galnew.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=galnew.model.line_center,
-                                profile1d_type=profile1d_type,
-                                zcalc_truncate=zcalc_truncate)
+        galnew.create_model_data(**kwargs_galmodel)
         model_data = galnew.model_data
 
     else:
@@ -547,13 +536,12 @@ def plot_data_model_comparison_1D(gal,
 
 def plot_data_model_comparison_2D(gal,
             theta = None,
-            oversample=1,
-            oversize=1,
             fitdispersion=True,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
-            overwrite=False):
+            overwrite=False,
+            **kwargs_galmodel):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -784,8 +772,6 @@ def plot_data_model_comparison_2D(gal,
 #
 def plot_data_model_comparison_3D(gal,
             theta = None,
-            oversample=1,
-            oversize=1,
             fitdispersion=True,
             fileout=None,
             symmetric_residuals=True,
@@ -794,7 +780,8 @@ def plot_data_model_comparison_3D(gal,
             inst_corr = True,
             vcrop=False,
             vcrop_value=800.,
-            overwrite=False):
+            overwrite=False,
+            **kwargs_galmodel):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -803,26 +790,26 @@ def plot_data_model_comparison_3D(gal,
             return None
 
     plot_model_multid(gal, theta=theta, fitdispersion=fitdispersion,
-                oversample=oversample, oversize=oversize, fileout=fileout,
+                fileout=fileout,
                 symmetric_residuals=symmetric_residuals, max_residual=max_residual,
                 show_1d_apers=show_1d_apers,
                 inst_corr=False,
                 vcrop=vcrop,
                 vcrop_value=vcrop_value,
-                overwrite=overwrite)
+                overwrite=overwrite,
+                **kwargs_galmodel)
 
     return None
 
 
 
 def plot_model_1D(gal,
-            oversample=1,
-            oversize=1,
             fitdispersion=True,
             fitflux=False,
             best_dispersion=None,
             inst_corr=True,
-            fileout=None):
+            fileout=None,
+            **kwargs_galmodel):
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
@@ -889,13 +876,12 @@ def plot_model_1D(gal,
 
 
 def plot_model_2D(gal,
-            oversample=1,
-            oversize=1,
             fitdispersion=True,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
-            inst_corr=True):
+            inst_corr=True,
+            **kwargs_galmodel):
     #
 
     ######################################
@@ -1038,7 +1024,7 @@ def plot_model_2D(gal,
 
 
 def plot_model_multid(gal, theta=None, fitdispersion=True,
-            oversample=1, oversize=1, fileout=None,
+            fileout=None,
             symmetric_residuals=True, max_residual=100.,
             show_1d_apers=False, inst_corr=None,
             xshift = None,
@@ -1046,7 +1032,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
             vcrop=False,
             vcrop_value=800.,
             remove_shift=True,
-            overwrite=False):
+            overwrite=False,
+            **kwargs_galmodel):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -1058,20 +1045,20 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion,
                     symmetric_residuals=symmetric_residuals, max_residual=max_residual,
-                    oversample=oversample, oversize=oversize, fileout=fileout,
+                    fileout=fileout,
                     xshift = xshift,
                     yshift = yshift,
                     show_1d_apers=show_1d_apers,
                     remove_shift=True,
-                    overwrite=overwrite)
+                    overwrite=overwrite, **kwargs_galmodel)
     elif gal.data.ndim == 2:
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data,
                     theta=theta,fitdispersion=fitdispersion,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
-                    oversample=oversample, oversize=oversize, fileout=fileout,
+                    fileout=fileout,
                     show_1d_apers=show_1d_apers,
                     remove_shift=remove_shift,
-                    overwrite=overwrite)
+                    overwrite=overwrite, **kwargs_galmodel)
 
     elif gal.data.ndim == 3:
 
@@ -1087,11 +1074,11 @@ def plot_model_multid(gal, theta=None, fitdispersion=True,
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
-                    oversample=oversample, oversize=oversize, fileout=fileout,
+                    fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr,
                     vcrop=vcrop, vcrop_value=vcrop_value,
                     remove_shift=remove_shift,
-                    overwrite=overwrite)
+                    overwrite=overwrite, **kwargs_galmodel)
 
         # raise ValueError("Not implemented yet!")
 
@@ -1105,16 +1092,14 @@ def plot_model_multid_base(gal,
             max_residual=100.,
             xshift = None,
             yshift = None,
-            oversample=1,
-            oversize=1,
             fileout=None,
             vcrop = False,
             vcrop_value = 800.,
             show_1d_apers=False,
             remove_shift = True,
-            profile1d_type=None,
             inst_corr=None,
-            overwrite=False):
+            overwrite=False,
+            **kwargs_galmodel):
 
     #
     # Check for existing file:
@@ -1237,10 +1222,10 @@ def plot_model_multid_base(gal,
             if yshift is not None:
                 gal.model.geometry.yshift = yshift
 
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                                  line_center=gal.model.line_center, ndim_final=2,
-                                  from_data=True,
-                                  zcalc_truncate=zcalc_truncate)
+        kwargs_galmodel_2d = kwargs_galmodel.copy()
+        kwargs_galmodel_2d['ndim_final'] = 2
+        kwargs_galmodel_2d['from_data'] = True
+        gal.create_model_data(**kwargs_galmodel_2d)
 
 
         keyxarr = ['data', 'model', 'residual']
@@ -1620,17 +1605,12 @@ def plot_model_multid_base(gal,
                 gal.data.aper_center_pix_shift = (0,0)
                 #pass
                 gal.model.geometry.vel_shift = 0
-        #try:
-        if True:
-            gal.create_model_data(oversample=oversample, oversize=oversize,
-                                  line_center=gal.model.line_center,
-                                  ndim_final=1,profile1d_type=profile1d_type,
-                                  zcalc_truncate=zcalc_truncate)
-        # except:
-        #     gal.create_model_data(oversample=oversample, oversize=oversize,
-        #                           line_center=gal.model.line_center,
-        #                           ndim_final=1, from_data=False,
-        #                           profile1d_type=profile1d_type, zcalc_truncate=zcalc_truncate)
+
+                
+        kwargs_galmodel_1d = kwargs_galmodel.copy()
+        kwargs_galmodel_1d['ndim_final'] = 1
+        gal.create_model_data(**kwargs_galmodel_1d)
+
 
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
@@ -1762,14 +1742,13 @@ def plot_model_2D_residual(gal,
             max_residual=100.,
             xshift = None,
             yshift = None,
-            oversample=1,
-            oversize=1,
             fileout=None,
             vcrop = False,
             vcrop_value = 800.,
             show_1d_apers=False,
             remove_shift = True,
-            inst_corr=None):
+            inst_corr=None,
+            **kwargs_galmodel):
 
     #
     ######################################
@@ -1864,10 +1843,11 @@ def plot_model_2D_residual(gal,
             if yshift is not None:
                 gal.model.geometry.yshift = yshift
 
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                                  line_center=gal.model.line_center, ndim_final=2,
-                                  from_data=True,
-                                  zcalc_truncate=zcalc_truncate)
+        #
+        kwargs_galmodel_2d = kwargs_galmodel.copy()
+        kwargs_galmodel_2d['ndim_final'] = 2
+        kwargs_galmodel_2d['from_data'] = True
+        gal.create_model_data(**kwargs_galmodel_2d)
 
 
         keyyarr = ['residual']
@@ -2168,20 +2148,16 @@ def plot_model_2D_residual(gal,
 
 
 
-def plot_data_model_comparison(gal,
-                               theta = None,
-                               oversample=1,
-                               oversize=1,
+def plot_data_model_comparison(gal,theta = None,
                                fitdispersion=True,
                                fitflux=False,
                                fileout=None,
                                vcrop=False,
                                show_1d_apers=False,
                                vcrop_value=800.,
-                               profile1d_type='circ_ap_cube',
                                remove_shift=False,
                                overwrite=False,
-                               zcalc_truncate=True):
+                               **kwargs_galmodel):
     """
     Plot data, model, and residuals between the data and this model.
     """
@@ -2195,55 +2171,43 @@ def plot_data_model_comparison(gal,
 
     if theta is not None:
         dummy_gal.model.update_parameters(theta)     # Update the parameters
-        dummy_gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type,
-                              zcalc_truncate=zcalc_truncate)
+        dummy_gal.create_model_data(**kwargs_galmodel)
 
     if gal.data.ndim == 1:
         plot_data_model_comparison_1D(dummy_gal,
                     data = None,
                     theta = theta,
-                    oversample=oversample,
-                    oversize=oversize,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
-                    profile1d_type=profile1d_type,
                     fileout=fileout,
                     overwrite=overwrite,
-                    zcalc_truncate=zcalc_truncate)
+                    **kwargs_galmodel)
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(dummy_gal,
                     theta = theta,
-                    oversample=oversample,
-                    oversize=oversize,
                     fitdispersion=fitdispersion,
                     fileout=fileout,
                     overwrite=overwrite,
-                    zcalc_truncate=zcalc_truncate)
+                    **kwargs_galmodel)
     elif gal.data.ndim == 3:
         plot_data_model_comparison_3D(dummy_gal,
                     theta = theta,
-                    oversample=oversample,
-                    oversize=oversize,
                     fitdispersion=fitdispersion,
                     show_1d_apers=show_1d_apers,
                     fileout=fileout,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
-                    zcalc_truncate=zcalc_truncate)
+                    **kwrags_galmodel)
 
 
         # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
 
     elif gal.data.ndim == 0:
         plot_data_model_comparison_0D(dummy_gal,
-                                      oversample=oversample,
-                                      oversize=oversize,
                                       fileout=fileout,
                                       overwrite=overwrite,
-                                      zcalc_truncate=zcalc_truncate)
+                                      **kwargs_galmodel)
     else:
         logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
         raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
@@ -2251,26 +2215,22 @@ def plot_data_model_comparison(gal,
     return None
 
 def plot_bestfit(mcmcResults, gal,
-                 oversample=1,
-                 oversize=1,
                  fitdispersion=True,
                  fitflux=False,
                  show_1d_apers=False,
                  fileout=None,
                  vcrop=False,
-                 profile1d_type='circ_ap_cube',
                  vcrop_value=800.,
                  remove_shift=False,
                  overwrite=False,
-                 zcalc_truncate=True):
+                 **kwargs_galmodel):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
-            oversample=oversample, oversize=oversize, fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
+            fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers, remove_shift=remove_shift,
-            profile1d_type=profile1d_type, overwrite=overwrite,
-            zcalc_truncate=zcalc_truncate)
+            overwrite=overwrite, **kwargs_galmodel)
 
     return None
 
@@ -2278,15 +2238,13 @@ def plot_bestfit(mcmcResults, gal,
 def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False,
             outpath = None,
             plotfile = None,
-            profile1d_type = None,
             fname_model_matchdata = None,
             fname_model_finer = None,
             fname_intrinsic = None,
-            oversample=3, oversize=1, aperture_radius=None,
             moment=False,
             partial_weight=False,
             plot_type='pdf',
-            zcalc_truncate=True):
+            **kwargs_galmodel):
 
     if (plotfile is None) & (outpath is None):
         raise ValueError
@@ -2315,15 +2273,14 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
     if not curve_files_exist:
         # *_out-1dplots.txt
-        create_vel_profile_files(gal=gal, outpath=outpath, oversample=oversample, oversize=oversize,
-                    profile1d_type=profile1d_type, aperture_radius=aperture_radius,
+        create_vel_profile_files(gal=gal, outpath=outpath,
                     fname_finer=fname_model_finer,
                     fname_intrinsic=fname_intrinsic,
                     fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
                     overwrite=overwrite_curve_files,
-                    zcalc_truncate=zcalc_truncate)
+                    **kwargs_galmodel)
 
 
     if not file_exists:

@@ -17,6 +17,7 @@ from dysmalpy import fitting
 from dysmalpy import instrument
 from dysmalpy import parameters
 from dysmalpy import plotting
+from dysmalpy import config
 
 import copy
 import numpy as np
@@ -167,6 +168,10 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
         # Setup
         gal, fit_dict = setup_single_object_3D(params=params, data=data)
 
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data, **config_sim_cube}
+
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
             os.remove(fit_dict['f_log'])
@@ -193,7 +198,6 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                   nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
                                   red_chisq=fit_dict['red_chisq'],
                                   oversampled_chisq = fit_dict['oversampled_chisq'],
-                                  oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
                                   blob_name=fit_dict['blob_name'],
                                   linked_posterior_names=fit_dict['linked_posterior_names'],
@@ -212,13 +216,12 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                   f_vel_ascii=fit_dict['f_vel_ascii'],
                                   f_log=fit_dict['f_log'],
                                   overwrite=overwrite,
-                                  plot_type=plot_type)
+                                  plot_type=plot_type,
+                                  **kwargs_galmodel)
 
         elif fit_dict['fit_method'] == 'mpfit':
 
-            results = fitting.fit_mpfit(gal, oversample=fit_dict['oversample'],
-                                        oversize=fit_dict['oversize'],
-                                        fitdispersion=fit_dict['fitdispersion'],
+            results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
                                         maxiter=fit_dict['maxiter'],
                                         do_plotting=fit_dict['do_plotting'],
                                         outdir=fit_dict['outdir'],
@@ -231,7 +234,8 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
                                         overwrite=overwrite,
-                                        plot_type=plot_type)
+                                        plot_type=plot_type,
+                                        **kwargs_galmodel)
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
