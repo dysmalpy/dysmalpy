@@ -29,6 +29,11 @@ except:
     from . import aperture_classes
     from . import data_classes
 
+try:
+    from config import Config_simulate_cube
+except:
+    from .config import Config_simulate_cube
+
 # try:
 #     from dysmalpy._version import __version__ as __dpy_version__
 # except:
@@ -368,6 +373,10 @@ class Report(object):
                     moment_calc = gal.data.apertures.apertures[0].moment
                 if partial_weight is None:
                     partial_weight = gal.data.apertures.apertures[0].partial_weight
+
+        if zcalc_truncate is None:
+            config_sim_cube = Config_simulate_cube()
+            zcalc_truncate = config_sim_cube.config_sim_cube
 
         # Save info on weighting / moments:
         if weighting_method is not None:

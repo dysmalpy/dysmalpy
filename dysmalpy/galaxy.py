@@ -277,8 +277,9 @@ class Galaxy:
                   ny_sky/2
 
         zcalc_truncate: bool
-                If True, the cube is only filled with flux to within +- XXXX
-                above and below the galaxy midplane (to speed up the calculation).
+                If True, the cube is only filled with flux to within
+                +- 2 * scale length thickness above and below the galaxy midplane
+                (minimum: 3 whole pixels; to speed up the calculation).
                 Default: True
 
         """
