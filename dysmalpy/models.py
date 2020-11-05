@@ -1854,7 +1854,12 @@ class ModelSet:
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
-            cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+
+            if zcalc_truncate:
+                cube_final += lksdlkjsdlkjsdf
+            else:
+                # Do complete cube propogation calculation
+                cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
 
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
