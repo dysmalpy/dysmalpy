@@ -319,6 +319,9 @@ class Report(object):
                 self.add_line( 'Datafiles:' )
                 self.add_line( ' vel:  {}'.format(gal.data.filename_velocity) )
                 self.add_line( ' disp: {}'.format(gal.data.filename_dispersion) )
+                if hasattr(gal.data, 'file_flux'):
+                    if gal.data.file_flux is not None:
+                        self.add_line( ' flux: {}'.format(gal.data.file_flux) )
             elif (gal.data.filename_velocity is not None):
                 self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
         elif hasattr(gal.data, 'filename_velocity'):
@@ -332,12 +335,23 @@ class Report(object):
                     self.add_line( ' verr: {}'.format(params['fdata_verr']) )
                     self.add_line( ' disp: {}'.format(params['fdata_disp']) )
                     self.add_line( ' derr: {}'.format(params['fdata_derr']) )
+                    if params['fitflux']:
+                        try:
+                            self.add_line( ' flux: {}'.format(params['fdata_flux']) )
+                            self.add_line( ' ferr: {}'.format(params['fdata_ferr']) )
+                        except:
+                            pass
                     try:
                         self.add_line( ' mask: {}'.format(params['fdata_mask']) )
                     except:
                         pass
                 except:
-                    pass
+                    try:
+                        self.add_line( 'Datafiles:' )
+                        self.add_line( ' cube:  {}'.format(params['fdata_cube']) )
+                        self.add_line( ' err:   {}'.format(params['fdata_err']) )
+                    except:
+                        pass
 
         if params is not None:
             self.add_line( 'Paramfile: {}'.format(params['param_filename']) )
@@ -355,8 +369,13 @@ class Report(object):
             self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
 
 
+        fitdispersion = fitflux = None
         weighting_method = moment_calc = partial_weight = zcalc_truncate = None
         if params is not None:
+            if 'fitdispersion' in params.keys():
+                fitdispersion = params['fitdispersion']
+            if 'fitflux' in params.keys():
+                fitflux = params['fitflux']
             if 'weighting_method' in params.keys():
                 weighting_method = params['weighting_method']
             if 'moment_calc' in params.keys():
@@ -380,6 +399,14 @@ class Report(object):
             else:
                 config_sim_cube = Config_simulate_cube()
                 zcalc_truncate = "[Default: {}]".format(config_sim_cube.zcalc_truncate)
+
+        # Save info on fitdispersion / fitflux
+        if fitdispersion is not None:
+            self.add_line( 'fitdispersion:         {}'.format(fitdispersion))
+        if fitflux is not None:
+            self.add_line( 'fitflux:               {}'.format(fitflux))
+        if ((fitdispersion is not None) or (fitflux is not None)):
+            self.add_line( '' )
 
         # Save info on weighting / moments:
         if weighting_method is not None:

@@ -199,6 +199,7 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                   red_chisq=fit_dict['red_chisq'],
                                   oversampled_chisq = fit_dict['oversampled_chisq'],
                                   fitdispersion=fit_dict['fitdispersion'],
+                                  fitflux=fit_dict['fitflux'],
                                   blob_name=fit_dict['blob_name'],
                                   linked_posterior_names=fit_dict['linked_posterior_names'],
                                   outdir=fit_dict['outdir'],
@@ -220,8 +221,8 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
                                   **kwargs_galmodel)
 
         elif fit_dict['fit_method'] == 'mpfit':
-
             results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
+                                        fitflux=fit_dict['fitflux'],
                                         maxiter=fit_dict['maxiter'],
                                         do_plotting=fit_dict['do_plotting'],
                                         outdir=fit_dict['outdir'],
