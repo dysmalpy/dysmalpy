@@ -162,6 +162,11 @@ class Data1D(Data):
 
             data['flux'] = flux
 
+        if flux_err is None:
+            error['flux'] = None
+        else:
+            if flux_err.shape != velocity.shape:
+                raise ValueError("flux_err and velocity are not the same size.")
             error['flux'] = flux_err
 
         ############
@@ -196,7 +201,7 @@ class Data1D(Data):
 class Data2D(Data):
 
     def __init__(self, pixscale, velocity, vel_err=None, vel_disp=None,
-                 vel_disp_err=None, flux = None,
+                 vel_disp_err=None, flux = None, flux_err=None,
                  mask=None, estimate_err=False,
                   mask_velocity=None,
                   mask_vel_disp=None,
@@ -205,6 +210,7 @@ class Data2D(Data):
                  inst_corr=False,
                  filename_velocity=None,
                  filename_dispersion=None,
+                 filename_flux=None,
                  smoothing_type=None,
                  smoothing_npix=1,
                  moment=False,
@@ -290,6 +296,13 @@ class Data2D(Data):
 
             error['dispersion'] = None
 
+        if flux_err is None:
+            error['flux'] = None
+        else:
+            if flux_err.shape != flux.shape:
+                raise ValueError("flux_err and flux are not the same size.")
+            error['flux'] = flux_err
+
         shape = velocity.shape
         # Catch a case where Astropy unit might be passed:
         if (type(pixscale) == u.quantity.Quantity):
@@ -320,6 +333,8 @@ class Data2D(Data):
 
         # Whether kin was extracted through moments, or gaussian fits (True: moment / False: gaussian)
         self.moment = moment
+
+        self.filename_flux = filename_flux
 
 class Data3D(Data):
 

@@ -358,6 +358,18 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
 
 # _rotate_points and symmetrize_velfield from cap_symmetrize_velfield.py within display_pixels
 # package created by Michele Cappelari.
+#######################################################################
+#
+# Copyright (C) 2004-2014, Michele Cappellari
+# E-mail: cappellari_at_astro.ox.ac.uk
+#
+# This software is provided as is without any warranty whatsoever.
+# Permission to use, for non-commercial purposes is granted.
+# Permission to modify for personal or internal use is granted,
+# provided this copyright and disclaimer are included unchanged
+# at the beginning of the file. All other rights are reserved.
+#
+#######################################################################
 
 def _rotate_points(x, y, ang):
     """
@@ -536,4 +548,3 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     #     PA += 180.
 
     return PA, stddev_x, stddev_y
-

@@ -26,9 +26,11 @@ import dill as _pickle
 # Package imports
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
+from dysmalpy.instrument import Instrument
 from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
+from dysmalpy import config
 
 __all__ = ['Galaxy']
 
@@ -85,17 +87,21 @@ class Galaxy:
             self.model = ModelSet()
         else:
             self.model = model
-        self.data = data
 
-        self.data1d = data1d
-        self.data2d = data2d
-        self.data3d = data3d
+        self._data = data
 
-        self.instrument = instrument
+        self._data1d = data1d
+        self._data2d = data2d
+        self._data3d = data3d
+        self._instrument = instrument
+
         self._cosmo = cosmo
-        self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+
+        #self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+        self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self.model_data = None
         self.model_cube = None
+
 
     @property
     def z(self):
@@ -107,19 +113,113 @@ class Galaxy:
             raise ValueError("Redshift can't be negative!")
         self._z = value
 
+        # Reset dscale:
+        self._set_dscale()
+
     @property
     def cosmo(self):
         return self._cosmo
 
     @cosmo.setter
     def cosmo(self, new_cosmo):
-        if isinstance(apy_cosmo.FLRW, new_cosmo):
+        if not isinstance(new_cosmo, apy_cosmo.FLRW):
             raise TypeError("Cosmology must be an astropy.cosmology.FLRW "
                             "instance.")
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
 
+        # Reset dscale:
+        self._set_dscale()
+
+    @property
+    def dscale(self):
+        return self._dscale
+
+    def _set_dscale(self):
+        self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, new_data):
+        if not np.any(isinstance(new_data, Data1D) | isinstance(new_data, Data2D) | \
+            isinstance(new_data, Data3D) | isinstance(new_data, Data0D)):
+            raise TypeError("Data must be one of the following instances: "
+                            "   dysmalpy.Data0D, dysmalpy.Data1D, "
+                            "   dysmalpy.Data2D, dysmalpy.Data3D")
+        self._data = new_data
+        self._setup_checks()
+
+    @property
+    def data1d(self):
+        return self._data1d
+
+    @data1d.setter
+    def data1d(self, new_data1d):
+        if not (isinstance(new_data1d, Data1D)):
+            raise TypeError("Data1D must be an instance of dysmalpy.Data1D")
+        self._data1d = new_data1d
+
+    @property
+    def data2d(self):
+        return self._data2d
+
+    @data2d.setter
+    def data2d(self, new_data2d):
+        if not (isinstance(new_data2d, Data2D)):
+            raise TypeError("Data2D must be an instance of dysmalpy.Data2D")
+        self._data2d = new_data2d
+
+    @property
+    def data3d(self):
+        return self._data3d
+
+    @data3d.setter
+    def data3d(self, new_data3d):
+        if not (isinstance(new_data3d, Data3D)):
+            raise TypeError("Data3D must be an instance of dysmalpy.Data3D")
+        self._data3d = new_data3d
+
+
+    @property
+    def instrument(self):
+        return self._instrument
+
+    @instrument.setter
+    def instrument(self, new_instrument):
+        if not (isinstance(new_instrument, Instrument)):
+            raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
+        self._instrument = new_instrument
+        self._setup_checks()
+
+    def _setup_checks(self):
+        self._check_1d_datasize()
+
+    def _check_1d_datasize(self):
+        if (self.data is not None) & (self.instrument is not None):
+            if (isinstance(self.data, Data1D)):
+                # --------------------------------------------------
+                # Check FOV and issue warning if too small:
+                maxr = np.max(np.abs(self.data.rarr))
+                rstep = self.instrument.pixscale.value
+                if ((self.instrument.fov[0] < maxr/rstep) | (self.instrument.fov[1] < maxr/rstep)):
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** WARNING ***\n"
+                    wmsg += "instrument.fov[0,1]="
+                    wmsg += "({},{}) is too small".format(self.instrument.fov[0], self.instrument.fov[1])
+                    wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
+                    wmsg += "********************************************************************\n"
+                    logger.warning(wmsg)
+                    raise ValueError(wmsg)
+                # --------------------------------------------------
+
+
+
+    # def create_model_data(self, **kwargs):
     def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
                           rstep=None, spec_type='velocity', spec_step=10.,
                           spec_start=-1000., nspec=201, line_center=None,
@@ -130,7 +230,8 @@ class Galaxy:
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
                           pix_length=None,
                           skip_downsample=False, partial_aperture_weight=False,
-                          xcenter=None, ycenter=None):
+                          xcenter=None, ycenter=None,
+                          zcalc_truncate=True):
         """
         Function to simulate data for the galaxy
 
@@ -271,15 +372,22 @@ class Galaxy:
         ycenter : float
                   y pixel coordinate of the center of the cube if it should be different than
                   ny_sky/2
+
+        zcalc_truncate: bool
+                If True, the cube is only filled with flux to within
+                +- 2 * scale length thickness above and below the galaxy midplane
+                (minimum: 3 whole pixels; to speed up the calculation).
+                Default: True
+
         """
+        if line_center is None:
+            line_center = self.model.line_center
 
         # Pull parameters from the observed data if specified
         if from_data:
-
             ndim_final = self.data.ndim
 
             if ndim_final == 3:
-
                 nx_sky = self.data.shape[2]
                 ny_sky = self.data.shape[1]
                 nspec = self.data.shape[0]
@@ -304,7 +412,6 @@ class Galaxy:
                     pass
 
             elif ndim_final == 2:
-
                 nx_sky = self.data.data['velocity'].shape[1]
                 ny_sky = self.data.data['velocity'].shape[0]
                 rstep = self.data.pixscale
@@ -338,12 +445,27 @@ class Galaxy:
 
                     maxr = 1.5*np.max(np.abs(self.data.rarr))
                     if rstep is None:
-                        rstep = np.mean(self.data.rarr[1:] -
-                                        self.data.rarr[0:-1])/3.
+                        # Rough subsampling of ~3 as a "pixel size" = rstep
+                        rstep = np.mean(self.data.rarr[1:] - self.data.rarr[0:-1])/3.
                     if nx_sky is None:
                         nx_sky = int(np.ceil(maxr/rstep))
                     if ny_sky is None:
                         ny_sky = int(np.ceil(maxr/rstep))
+
+                    # --------------------------------------------------
+                    # Check FOV and issue warning if too small:
+                    maxr = np.max(np.abs(self.data.rarr))
+                    if ((nx_sky < maxr/rstep) | (ny_sky < maxr/rstep)):
+                        wmsg =  "dysmalpy.Galaxy:\n"
+                        wmsg += "****************************************************************\n"
+                        wmsg += "*** WARNING ***\n"
+                        wmsg += "FOV (nx_sky,ny_sky)="
+                        wmsg += "({},{}) is too small".format(nx_sky, ny_sky)
+                        wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
+                        wmsg += "****************************************************************\n"
+                        logger.warning(wmsg)
+                        raise ValueError(wmsg)
+                    # --------------------------------------------------
 
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
@@ -378,7 +500,8 @@ class Galaxy:
 
                 else:
 
-                    if (nx_sky is None) | (ny_sky is None) | (rstep is None):
+                    if (nx_sky is None) | (ny_sky is None) | \
+                                (rstep is None):
 
                         raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                          "be set if from_instrument and/or from_data"
@@ -410,7 +533,8 @@ class Galaxy:
 
         else:
 
-            if (nx_sky is None) | (ny_sky is None) | (rstep is None):
+            if (nx_sky is None) | (ny_sky is None) | \
+                        (rstep is None):
 
                 raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
                                  "be set if from_instrument and/or from_data"
@@ -420,6 +544,8 @@ class Galaxy:
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
 
 
+        # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
+        #                                          **sim_cube_kwargs.dict)
 
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,
@@ -433,11 +559,13 @@ class Galaxy:
                                                   oversample=oversample,
                                                   oversize=oversize,
                                                   xcenter=xcenter,
-                                                  ycenter=ycenter)
+                                                  ycenter=ycenter,
+                                                  zcalc_truncate=zcalc_truncate)
 
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample):
-            sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize, nx_sky*oversize))
+            sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
+                                nx_sky*oversize))
         else:
             sim_cube_nooversamp = sim_cube
 
@@ -470,36 +598,13 @@ class Galaxy:
         else:
             sim_cube_final = sim_cube_obs
 
-        #
-
         self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
-                                 spec_type=spec_type, spec_arr=spec,
+                                 spec_type=spec_type,
+                                 spec_arr=spec,
                                  spec_unit=spec_unit)
 
         if ndim_final == 3:
-            # sim_cube_flat = np.sum(sim_cube_obs*self.data.mask, axis=0)
-            # data_cube_flat = np.sum(self.data.data.unmasked_data[:].value*self.data.mask, axis=0)
-            # errsq_cube_flat = np.sum( ( self.data.error.unmasked_data[:].value**2 )*self.data.mask, axis=0)
-            #
-            # # Fill errsq_cube_flat == 0 of *masked* parts with 99.,
-            # #   so that later (data*sim/errsq) * mask is finite (and contributes nothing)
-            # # Potentially make this a *permanent mask* that can be accessed for faster calculations?
-            # mask_flat = np.sum(self.data.mask, axis=0)/self.data.mask.shape[0]
-            # mask_flat[mask_flat != 0] = 1.
-            # errsq_cube_flat[((errsq_cube_flat == 0.) & (mask_flat==0))] = 99.
-            #
-            # if self.model.per_spaxel_norm_3D:
-            # Do normalization on a per-spaxel basis -- eg, don't care about preserving
-            #   M/L ratio information from model.
-            # collapse in spectral dimension only: axis 0
-
             if from_data:
-
-                # # Throw a non-implemented error if smoothing + 3D model:
-                # if from_data:
-                #     if self.data.smoothing_type is not None:
-                #         raise NotImplementedError('Smoothing for 3D output not implemented yet!')
-
                 if self.data.smoothing_type is not None:
                     self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                             smoothing_type=self.data.smoothing_type,
@@ -529,7 +634,8 @@ class Galaxy:
 
             self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=rstep,
                                      mask_cube=self.data.mask.copy(),
-                                     spec_type=spec_type, spec_arr=spec,
+                                     spec_type=spec_type,
+                                     spec_arr=spec,
                                      spec_unit=spec_unit)
 
         elif ndim_final == 2:
@@ -604,6 +710,21 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
 
+
+            # Normalize flux:
+            if from_data:
+                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
+                    num = np.sum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
+                    den = np.sum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
+
+                    scale = num / den
+                    flux *= scale
+                elif (self.data.data['flux'] is not None):
+                    num = np.sum(self.data.mask*(self.data.data['flux']*flux))
+                    den = np.sum(self.data.mask*(flux**2))
+                    scale = num / den
+                    flux *= scale
+
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp, flux=flux)
 
@@ -628,13 +749,14 @@ class Galaxy:
                                  "'wavelength.'")
 
             if profile1d_type == 'circ_ap_pv':
-                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data, slit_width,
-                                                    slit_pa-180., rstep, vel_arr)
+                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data,
+                                slit_width,slit_pa-180.,
+                                rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
                                                   fill_value='extrapolate')
-                vel1d = vinterp(aper_centers)
+                vel1d = vinterp(per_centers)
                 disp1d = disp_interp(aper_centers)
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
@@ -643,7 +765,7 @@ class Galaxy:
 
             elif profile1d_type == 'single_pix_pv':
                 r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                                                    slit_pa-180., rstep, vel_arr)
+                            slit_pa-180., rstep, vel_arr)
                 vinterp = scp_interp.interp1d(r1d, vel1d,
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
@@ -695,17 +817,37 @@ class Galaxy:
 
                     aper_model = aperture_classes.setup_aperture_types(gal=self,
                                 profile1d_type=profile1d_type,
-                                slit_width = slit_width, aper_centers=aper_centers, slit_pa=slit_pa,
+                                slit_width = slit_width,
+                                aper_centers=aper_centers,
+                                slit_pa=slit_pa,
                                 aperture_radius=aperture_radius,
-                                pix_perp=pix_perp, pix_parallel=pix_parallel,
+                                pix_perp=pix_perp,
+                                pix_parallel=pix_parallel,
                                 pix_length=pix_length,
                                 partial_weight=partial_aperture_weight,
                                 from_data=False)
 
 
                     aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr,
-                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
+                            cube=cube_data, center_pixel = center_pixel,
+                            pixscale=rstep)
 
+
+            # Normalize flux:
+            if from_data:
+                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
+                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
+                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d)/(self.data.error['flux']**2))
+                        den = np.sum(self.data.mask*(flux1d**2)/(self.data.error['flux']**2))
+
+                        scale = num / den
+                        flux1d *= scale
+                elif (self.data.data['flux'] is not None):
+                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
+                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d))
+                        den = np.sum(self.data.mask*(flux1d**2))
+                        scale = num / den
+                        flux1d *= scale
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
@@ -732,8 +874,8 @@ class Galaxy:
                 raise NotImplementedError('Using slits to create spectrum not implemented yet!')
 
             self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
-                                     slit_width=self.data.slit_width, integrate_cube=self.data.integrate_cube,
-                                    )
+                                     slit_width=self.data.slit_width,
+                                     integrate_cube=self.data.integrate_cube)
 
         #
         # Reset instrument to orig value

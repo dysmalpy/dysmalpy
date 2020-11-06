@@ -29,6 +29,11 @@ except:
     from . import aperture_classes
     from . import data_classes
 
+try:
+    from config import Config_simulate_cube
+except:
+    from .config import Config_simulate_cube
+
 # try:
 #     from dysmalpy._version import __version__ as __dpy_version__
 # except:
@@ -282,14 +287,14 @@ class Report(object):
         self._report += string
 
 
-    def create_results_report(self, gal, results, params=None):
+    def create_results_report(self, gal, results, params=None, **kwargs):
         if self.report_type.lower().strip() == 'pretty':
-            self._create_results_report_pretty(gal, results, params=params)
+            self._create_results_report_pretty(gal, results, params=params, **kwargs)
         elif self.report_type.lower().strip() == 'machine':
-            self._create_results_report_machine(gal, results, params=params)
+            self._create_results_report_machine(gal, results, params=params, **kwargs)
 
 
-    def _create_results_report_pretty(self, gal, results, params=None):
+    def _create_results_report_pretty(self, gal, results, params=None,**kwargs):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -314,6 +319,9 @@ class Report(object):
                 self.add_line( 'Datafiles:' )
                 self.add_line( ' vel:  {}'.format(gal.data.filename_velocity) )
                 self.add_line( ' disp: {}'.format(gal.data.filename_dispersion) )
+                if hasattr(gal.data, 'file_flux'):
+                    if gal.data.file_flux is not None:
+                        self.add_line( ' flux: {}'.format(gal.data.file_flux) )
             elif (gal.data.filename_velocity is not None):
                 self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
         elif hasattr(gal.data, 'filename_velocity'):
@@ -327,12 +335,23 @@ class Report(object):
                     self.add_line( ' verr: {}'.format(params['fdata_verr']) )
                     self.add_line( ' disp: {}'.format(params['fdata_disp']) )
                     self.add_line( ' derr: {}'.format(params['fdata_derr']) )
+                    if params['fitflux']:
+                        try:
+                            self.add_line( ' flux: {}'.format(params['fdata_flux']) )
+                            self.add_line( ' ferr: {}'.format(params['fdata_ferr']) )
+                        except:
+                            pass
                     try:
                         self.add_line( ' mask: {}'.format(params['fdata_mask']) )
                     except:
                         pass
                 except:
-                    pass
+                    try:
+                        self.add_line( 'Datafiles:' )
+                        self.add_line( ' cube:  {}'.format(params['fdata_cube']) )
+                        self.add_line( ' err:   {}'.format(params['fdata_err']) )
+                    except:
+                        pass
 
         if params is not None:
             self.add_line( 'Paramfile: {}'.format(params['param_filename']) )
@@ -350,20 +369,44 @@ class Report(object):
             self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
 
 
-        weighting_method = moment_calc = partial_weight = None
+        fitdispersion = fitflux = None
+        weighting_method = moment_calc = partial_weight = zcalc_truncate = None
         if params is not None:
+            if 'fitdispersion' in params.keys():
+                fitdispersion = params['fitdispersion']
+            if 'fitflux' in params.keys():
+                fitflux = params['fitflux']
             if 'weighting_method' in params.keys():
                 weighting_method = params['weighting_method']
             if 'moment_calc' in params.keys():
                 moment_calc = params['moment_calc']
             if 'partial_weight' in params.keys():
                 partial_weight = params['partial_weight']
+
+            if 'zcalc_truncate' in params.keys():
+                zcalc_truncate = params['zcalc_truncate']
+
         if 'apertures' in gal.data.__dict__.keys():
             if gal.data.apertures is not None:
                 if moment_calc is None:
                     moment_calc = gal.data.apertures.apertures[0].moment
                 if partial_weight is None:
                     partial_weight = gal.data.apertures.apertures[0].partial_weight
+
+        if zcalc_truncate is None:
+            if 'zcalc_truncate' in kwargs.keys():
+                zcalc_truncate = kwargs['zcalc_truncate']
+            else:
+                config_sim_cube = Config_simulate_cube()
+                zcalc_truncate = "[Default: {}]".format(config_sim_cube.zcalc_truncate)
+
+        # Save info on fitdispersion / fitflux
+        if fitdispersion is not None:
+            self.add_line( 'fitdispersion:         {}'.format(fitdispersion))
+        if fitflux is not None:
+            self.add_line( 'fitflux:               {}'.format(fitflux))
+        if ((fitdispersion is not None) or (fitflux is not None)):
+            self.add_line( '' )
 
         # Save info on weighting / moments:
         if weighting_method is not None:
@@ -372,6 +415,8 @@ class Report(object):
             self.add_line( 'moment_calc:           {}'.format(moment_calc))
         if partial_weight is not None:
             self.add_line( 'partial_weight:        {}'.format(partial_weight))
+        if zcalc_truncate is not None:
+            self.add_line( 'zcalc_truncate:        {}'.format(zcalc_truncate))
 
         # INFO on pressure support type:
         self.add_line( 'pressure_support:      {}'.format(gal.model.kinematic_options.pressure_support))
@@ -474,7 +519,7 @@ class Report(object):
 
 
 
-    def _create_results_report_machine(self, gal, results, params=None):
+    def _create_results_report_machine(self, gal, results, params=None, **kwargs):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -627,7 +672,7 @@ class Report(object):
 
 
 
-def create_results_report(gal, results, params=None, report_type='pretty'):
+def create_results_report(gal, results, params=None, report_type='pretty', **kwargs):
 
     if results.fit_method is None:
         return None
@@ -642,7 +687,7 @@ def create_results_report(gal, results, params=None, report_type='pretty'):
 
 
     report = Report(report_type=report_type, fit_method=results.fit_method)
-    report.create_results_report(gal, results, params=params)
+    report.create_results_report(gal, results, params=params, **kwargs)
 
     return report.report
 
@@ -734,15 +779,15 @@ def _calc_Rout_max_2D(gal=None, results=None):
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
-            profile1d_type=None, aperture_radius=None,
+def create_vel_profile_files(gal=None, outpath=None,
             moment=False,
-            partial_weight=False,
+            partial_weight=True,
             fname_model_matchdata=None,
             fname_finer=None,
             fname_intrinsic=None,
             fname_intrinsic_m = None,
-            overwrite=False):
+            overwrite=False,
+            **kwargs_galmodel):
     #
     if outpath is None:
         raise ValueError
@@ -763,9 +808,7 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
     galin = copy.deepcopy(gal)
 
     # ---------------------------------------------------------------------------
-    gal.create_model_data(oversample=oversample, oversize=oversize,
-                          line_center=gal.model.line_center,
-                          profile1d_type=profile1d_type)
+    gal.create_model_data(**kwargs_galmodel)
 
     # -------------------
     # Save Bary/DM vcirc:
@@ -781,20 +824,20 @@ def create_vel_profile_files(gal=None, outpath=None, oversample=3, oversize=1,
         # Reload galaxy object: reset things
         gal = copy.deepcopy(galin)
 
-        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, oversample=oversample, oversize=oversize,
-                profile1d_type=profile1d_type, aperture_radius=aperture_radius, moment=moment,
-                partial_weight=partial_weight, overwrite=overwrite)
+        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
+                partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
 
 
     return None
 
 
 def write_1d_obs_finer_scale(gal=None, fname=None,
-            profile1d_type=None, aperture_radius=None,
-            oversample=3, oversize=1,
-            partial_weight=False,
+            partial_weight=True,
             moment=False,
-            overwrite=False):
+            overwrite=False, **kwargs_galmodel):
+    profile1d_type = kwargs_galmodel['profile1d_type']
+    aperture_radius = kwargs_galmodel['aperture_radius']
+
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -834,18 +877,18 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     moment=moment)
 
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
-        gal.create_model_data(oversample=oversample, oversize=oversize,
-                              line_center=gal.model.line_center,
-                              profile1d_type=profile1d_type)
+        gal.create_model_data(**kwargs_galmodel)
     else:
         gal.instrument.slit_width = gal.data.slit_width
-        gal.create_model_data(from_data=False, from_instrument=True,
-                              ndim_final=1,
-                              aper_centers=aper_centers_interp,
-                              slit_width=gal.data.slit_width, slit_pa=gal.data.slit_pa,
-                              profile1d_type=profile1d_type,
-                              oversample=oversample, oversize=oversize,
-                              aperture_radius=aperture_radius)
+        kwargs_galmodel_in = kwargs_galmodel.copy()
+        kwargs_galmodel_in['from_data'] = False
+        kwargs_galmodel_in['from_instrument'] = True
+        kwargs_galmodel_in['ndim_final'] = 1
+        kwargs_galmodel_in['aper_centers'] = aper_centers_interp
+        kwargs_galmodel_in['slit_width'] = gal.data.slit_width
+        kwargs_galmodel_in['slit_pa'] = gal.data.slit_pa
+        kwargs_galmodel_in['aperture_radius'] = aperture_radius
+        gal.create_model_data(**kwargs_galmodel_in)
 
 
     write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
