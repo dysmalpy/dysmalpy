@@ -17,11 +17,11 @@ from dysmalpy import fitting
 from dysmalpy import instrument
 from dysmalpy import parameters
 from dysmalpy import plotting
+from dysmalpy import config
 
 import copy
 import numpy as np
 import astropy.units as u
-
 
 try:
     import utils_io
@@ -111,6 +111,11 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
         # Setup
         gal, fit_dict = setup_single_object_1D(params=params, data=data)
 
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
             os.remove(fit_dict['f_log'])
@@ -123,9 +128,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                   nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
                                   red_chisq=fit_dict['red_chisq'],
                                   oversampled_chisq = fit_dict['oversampled_chisq'],
-                                  profile1d_type=fit_dict['profile1d_type'],
-                                  oversample=fit_dict['oversample'],
                                   fitdispersion=fit_dict['fitdispersion'],
+                                  fitflux=fit_dict['fitflux'],
                                   linked_posterior_names=fit_dict['linked_posterior_names'],
                                   blob_name=fit_dict['blob_name'],
                                   outdir=fit_dict['outdir'],
@@ -144,14 +148,12 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                   f_log=fit_dict['f_log'],
                                   continue_steps=fit_dict['continue_steps'],
                                   overwrite=overwrite,
-                                  plot_type=plot_type)
+                                  plot_type=plot_type,
+                                  **kwargs_galmodel)
 
         elif fit_dict['fit_method'] == 'mpfit':
-
-            results = fitting.fit_mpfit(gal, oversample=fit_dict['oversample'],
-                                        oversize=fit_dict['oversize'],
-                                        fitdispersion=fit_dict['fitdispersion'],
-                                        profile1d_type=fit_dict['profile1d_type'],
+            results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
+                                        fitflux=fit_dict['fitflux'],
                                         maxiter=fit_dict['maxiter'],
                                         do_plotting=fit_dict['do_plotting'],
                                         outdir=fit_dict['outdir'],
@@ -164,7 +166,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                         f_log=fit_dict['f_log'],
                                         blob_name=fit_dict['blob_name'],
                                         overwrite=overwrite,
-                                        plot_type=plot_type)
+                                        plot_type=plot_type,
+                                        **kwargs_galmodel)
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
@@ -186,13 +189,12 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                 ## NEW default behavior: always use partial_weight:
                 partial_weight = True
 
+            kwargs_galmodel['aperture_radius'] = params['aperture_radius']
             plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
-                    profile1d_type = fit_dict['profile1d_type'],
-                    oversample=fit_dict['oversample'], oversize=fit_dict['oversize'],
-                    aperture_radius=params['aperture_radius'],
                     plot_type=plot_type,
                     partial_weight=partial_weight,
-                    overwrite=overwrite, overwrite_curve_files=overwrite)
+                    overwrite=overwrite, overwrite_curve_files=overwrite,
+                    **kwargs_galmodel)
 
 
 
@@ -236,6 +238,11 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
         # Reload stuff
         galtmp, fit_dict = setup_single_object_1D(params=params, data=data)
 
+
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
                                     filename_results=fit_dict['f_mcmc_results'],
                                     fit_method=params['fit_method'])
@@ -246,10 +253,8 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
                       linked_posterior_names=fit_dict['linked_posterior_names'],
                       model_key_re=fit_dict['model_key_re'],
                       model_key_halo=fit_dict['model_key_halo'],
-                      oversample=fit_dict['oversample'],
-                      oversize=fit_dict['oversize'],
                       fitdispersion=fit_dict['fitdispersion'],
-                      profile1d_type=fit_dict['profile1d_type'],
+                      fitflux=fit_dict['fitflux'],
                       f_model=fit_dict['f_model'],
                       f_model_bestfit=fit_dict['f_model_bestfit'],
                       f_vel_ascii = fit_dict['f_vel_ascii'],
@@ -257,7 +262,8 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
                       save_bestfit_cube=True,
                       f_cube=fit_dict['f_cube'],
                       do_plotting = fit_dict['do_plotting'],
-                      plot_type=plot_type)
+                      plot_type=plot_type,
+                      **kwargs_galmodel)
 
         # Reload fitting stuff to get the updated gal object
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
@@ -270,6 +276,10 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
 
     elif params['fit_method'] == 'mpfit':
         galtmp, fit_dict = setup_single_object_1D(params=params, data=data)
+
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
         # reload results:
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
@@ -286,12 +296,12 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
         if 'aperture_radius' not in params.keys():
             params['aperture_radius'] = -99.
 
+
+        kwargs_galmodel['aperture_radius'] = params['aperture_radius']
         plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
-                profile1d_type = fit_dict['profile1d_type'],
-                oversample=fit_dict['oversample'], oversize=fit_dict['oversize'],
-                aperture_radius=params['aperture_radius'],
                 overwrite=True, overwrite_curve_files=True,
-                plot_type=plot_type)
+                plot_type=plot_type,
+                **kwargs_galmodel)
 
     # Plot multid, if enabled:
     if 'fdata_vel' in params.keys():
@@ -318,7 +328,6 @@ def setup_single_object_1D(params=None, data=None):
         if datadir is None:
             datadir = ''
 
-
         if 'fdata_mask' in params.keys():
             fdata_mask = params['fdata_mask']
         else:
@@ -335,6 +344,15 @@ def setup_single_object_1D(params=None, data=None):
 
     #
     gal.data.profile1d_type = params['profile1d_type']
+
+    # --------------------------------------------------
+    # Check FOV and issue warning if too small:
+    maxr = np.max(np.abs(gal.data.rarr))
+    if (params['fov_npix'] < maxr/params['pixscale']):
+        wmsg = "Input FOV 'fov_npix'={}".format(params['fov_npix'])
+        wmsg += " is too small for max data extent ({} pix)".format(maxr/params['pixscale'])
+        print("WARNING: dysmalpy_fit_single_1D: {}".format(wmsg))
+    # --------------------------------------------------
 
     # ------------------------------------------------------------
     # Setup fitting dict:

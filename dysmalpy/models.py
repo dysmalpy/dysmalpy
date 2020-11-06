@@ -330,6 +330,45 @@ def menc_from_vcirc(vcirc, r):
     return menc
 
 
+def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=None,
+            maxr=None, maxr_y=None):
+
+    oversize = 1.5  # Padding factor for x trimming
+
+    thick = model.zprofile.z_scalelength.value
+    if not np.isfinite(thick):
+        thick = 0.
+
+    # # maxr, maxr_y are already in pixel units
+    xsize = np.int(np.floor(2.*(maxr * oversize) +0.5))
+    ysize = np.int(np.floor( 2.*maxr_y + 0.5))
+
+    # Sample += 2 * scale length thickness
+    # Modify: make sure there are at least 3 *whole* pixels sampled:
+    zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+
+    if ( (xsize%2) < 0.5 ): xsize += 1
+    if ( (ysize%2) < 0.5 ): ysize += 1
+    if ( (zsize%2) < 0.5 ): zsize += 1
+
+    zi, yi, xi = np.indices(xgal.shape)
+    full_ai = np.vstack([xi.flatten(), yi.flatten(), zi.flatten()])
+
+    origpos = np.vstack([xgal.flatten() - np.mean(xgal.flatten()) + xsize/2.,
+                         ygal.flatten() - np.mean(ygal.flatten()) + ysize/2.,
+                         zgal.flatten() - np.mean(zgal.flatten()) + zsize/2.])
+
+
+    validpts = np.where( (origpos[0,:] >= -0.5) & (origpos[0,:] < xsize-0.5) & \
+                         (origpos[1,:] >= -0.5) & (origpos[1,:] < ysize-0.5) & \
+                         (origpos[2,:] >= -0.5) & (origpos[2,:] < zsize-0.5) )[0]
+
+    ai = full_ai[:,validpts]
+
+    return ai
+
+
+
 def apply_noord_flat(r, r_eff, mass, n, invq):
     """
     Calculate circular velocity for a thick Sersic component
@@ -1391,16 +1430,12 @@ class ModelSet:
 
                     whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
                     if len(whfin) < len(r):
-                        # FLAG42
                         raise ValueError
 
                     rhotot = rhotot + cmpnt_rho
                     drho_dr = drho_dr + cmpnt_drhodr
 
         dlnrhotot_dlnr = r / rhotot * (drho_dr)
-
-        ## FLAG42
-        #raise ValueError
 
         return dlnrhotot_dlnr
 
@@ -1653,7 +1688,8 @@ class ModelSet:
     def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
-                      xcenter=None, ycenter=None):
+                      xcenter=None, ycenter=None,
+                      zcalc_truncate=True):
                       #debug=False):
         """
         Simulate a line emission cube of this model set
@@ -1703,6 +1739,15 @@ class ModelSet:
         ycenter : float, optional
             The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
             center of the cube will be used.
+
+        zcalc_truncate: bool
+            Setting the default behavior of filling the model cube. If True,
+            then the cube is only filled with flux
+            to within +- 2 * scale length thickness above and below
+            the galaxy midplane (minimum: 3 whole pixels; to speed up the calculation).
+            If False, then no truncation is
+            applied and the cube is filled over the full range of zgal.
+            Default: True
 
         Returns
         -------
@@ -1845,7 +1890,19 @@ class ModelSet:
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
-            cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+
+            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            if zcalc_truncate:
+                ##print("    models.py: TRUE: zcalc_truncate={}".format(zcalc_truncate))
+                # Truncate in the z direction by flagging what pixels to include in propogation
+                ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
+                    dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
+                cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
+            else:
+                ##print("    models.py: FALSE: zcalc_truncate={}".format(zcalc_truncate))
+                # Do complete cube propogation calculation
+                cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
@@ -4752,6 +4809,9 @@ class ZHeightProfile(_DysmalFittable1DModel):
     _type = 'zheight'
 
 
+    # Must set property z_scalelength for each subclass,
+    #   for use with getting indices ai for filling simulated cube
+
 class ZHeightGauss(ZHeightProfile):
     r"""
     Gaussian flux distribution in the z-direction
@@ -4777,6 +4837,11 @@ class ZHeightGauss(ZHeightProfile):
     @staticmethod
     def evaluate(z, sigmaz):
         return np.exp(-0.5*(z/sigmaz)**2)
+
+    @property
+    def z_scalelength(self):
+        return self.sigmaz
+
 
 
 # ****** Kinematic Options Class **********
@@ -5132,9 +5197,7 @@ class KinematicOptions:
             dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
 
             vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
-
-            #raise ValueError
-            #FLAG42
+            
 
         return vel_asymm_drift
 
