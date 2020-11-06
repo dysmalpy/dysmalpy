@@ -101,6 +101,7 @@ def read_fitting_params(fname=None):
               'do_plotting': True,
               'oversample': 1,
               'fitdispersion': True,
+              'fitflux': False,
               'include_halo': False,
               'halo_profile_type': 'NFW',
               'blob_name': None,
@@ -656,12 +657,7 @@ def make_catalog_row_entry(ascii_data=None, galID=None):
         data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
 
 
-
-
     return data
-
-
-
 
 
 def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir=None):
@@ -709,6 +705,8 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
         if params['symmetrize_data']:
             gal_r_new, gal_vel, err_vel = dysmalpy_utils.symmetrize_1D_profile(gal_r, gal_vel, err_vel, sym=1)
             gal_r, gal_disp, err_disp = dysmalpy_utils.symmetrize_1D_profile(gal_r, gal_disp, err_disp, sym=2)
+            if gal_flux is not None:
+                gal_r, gal_flux, err_flux = dysmalpy_utils.symmetrize_1D_profile(gal_r, gal_flux, err_flux, sym=2)
     except:
         pass
 
@@ -730,6 +728,7 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
 
     data1d = data_classes.Data1D(r=gal_r, velocity=gal_vel,vel_disp=gal_disp,
                                 vel_err=err_vel, vel_disp_err=err_disp,
+                                flux=gal_flux, flux_err=err_flux,
                                 weight=gal_weight,
                                 mask_velocity=msk_vel, mask_vel_disp=msk_disp,
                                 slit_width=params['slit_width'],
@@ -738,7 +737,7 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
 
     return data1d
 
-def load_single_object_2D_data(params=None, adjust_error=True,
+def load_single_object_2D_data(params=None, adjust_error=False,
             automask=True, vmax=500., dispmax=600.,
             skip_crop=False, datadir=None):
 
@@ -758,8 +757,13 @@ def load_single_object_2D_data(params=None, adjust_error=True,
 
     gal_vel = fits.getdata(datadir+params['fdata_vel'])
     err_vel = fits.getdata(datadir+params['fdata_verr'])
-    gal_disp = fits.getdata(datadir+params['fdata_disp'])
-    err_disp = fits.getdata(datadir+params['fdata_derr'])
+    if params['fitdispersion']:
+        gal_disp = fits.getdata(datadir+params['fdata_disp'])
+        err_disp = fits.getdata(datadir+params['fdata_derr'])
+    if params['fitflux']:
+        gal_flux = fits.getdata(datadir+params['fdata_flux'])
+        err_flux = fits.getdata(datadir+params['fdata_ferr'])
+
     mask = fits.getdata(datadir+params['fdata_mask'])
 
 
@@ -770,12 +774,18 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     mask[~np.isfinite(err_vel)] = 0
     err_vel[~np.isfinite(err_vel)] = 0.
 
-    mask[~np.isfinite(gal_disp)] = 0
-    gal_disp[~np.isfinite(gal_disp)] = 0.
+    if params['fitdispersion']:
+        mask[~np.isfinite(gal_disp)] = 0
+        gal_disp[~np.isfinite(gal_disp)] = 0.
 
-    mask[~np.isfinite(err_disp)] = 0
-    err_disp[~np.isfinite(err_disp)] = 0.
+        mask[~np.isfinite(err_disp)] = 0
+        err_disp[~np.isfinite(err_disp)] = 0.
+    if params['fitflux']:
+        mask[~np.isfinite(gal_flux)] = 0
+        gal_flux[~np.isfinite(gal_flux)] = 0.
 
+        mask[~np.isfinite(err_disp)] = 0
+        err_flux[~np.isfinite(err_flux)] = 0.
 
     # Crop, if desired
     if not skip_crop:
@@ -784,8 +794,13 @@ def load_single_object_2D_data(params=None, adjust_error=True,
             crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
             gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
             err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            if params['fitdispersion']:
+                gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+                err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            if params['fitflux']:
+                gal_flux = gal_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+                err_flux = err_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+
             mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
 
     # Auto mask som bad data
@@ -798,20 +813,24 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     if adjust_error:
         # Mask > 1sig lower error outliers:
         errv_l68 = np.percentile(err_vel, 15.865)
-        errd_l68 = np.percentile(err_disp, 15.865)
-
         indv = (err_vel < errv_l68)
         err_vel[indv] = errv_l68
-
-        indd = (err_disp < errd_l68)
-        err_disp[indd] = errd_l68
-
+        if params['fitdispersion']:
+            errd_l68 = np.percentile(err_disp, 15.865)
+            indd = (err_disp < errd_l68)
+            err_disp[indd] = errd_l68
+        if params['fitflux']:
+            errf_l68 = np.percentile(err_flux, 15.865)
+            indf = (err_flux < errf_l68)
+            err_flux[indf] = errf_l68
 
 
     # Mask pixels with zero error for vel/disp:
     mask[(err_vel == 0)] = 0
-    mask[(err_disp == 0)] = 0
-
+    if params['fitdispersion']:
+        mask[(err_disp == 0)] = 0
+    if params['fitflux']:
+        mask[(err_flux == 0)] = 0
 
     #####
     # Apply symmetrization if wanted:
@@ -837,19 +856,32 @@ def load_single_object_2D_data(params=None, adjust_error=True,
                                 gal_vel_flat_in, err_vel_flat_in,
                                 sym=1, pa=params['pa'])
 
-            gal_disp_flat_in = gal_disp.flatten()
-            err_disp_flat_in = err_disp.flatten()
-            gal_disp_flat_in[~bool_mask_flat] = np.NaN
-            err_disp_flat_in[~bool_mask_flat] = np.NaN
-            gal_disp_flat, err_disp_flat = dysmalpy_utils.symmetrize_velfield(xbin, ybin,
-                                gal_disp_flat_in, err_disp_flat_in,
-                                sym=2, pa=params['pa'])
-
-            #
             gal_vel[bool_mask] = gal_vel_flat[bool_mask_flat]
             err_vel[bool_mask] = err_vel_flat[bool_mask_flat]
-            gal_disp[bool_mask] = gal_disp_flat[bool_mask_flat]
-            err_disp[bool_mask] = err_disp_flat[bool_mask_flat]
+
+            if params['fitdispersion']:
+                gal_disp_flat_in = gal_disp.flatten()
+                err_disp_flat_in = err_disp.flatten()
+                gal_disp_flat_in[~bool_mask_flat] = np.NaN
+                err_disp_flat_in[~bool_mask_flat] = np.NaN
+                gal_disp_flat, err_disp_flat = dysmalpy_utils.symmetrize_velfield(xbin, ybin,
+                                    gal_disp_flat_in, err_disp_flat_in,
+                                    sym=2, pa=params['pa'])
+
+                gal_disp[bool_mask] = gal_disp_flat[bool_mask_flat]
+                err_disp[bool_mask] = err_disp_flat[bool_mask_flat]
+            if params['fitflux']:
+                gal_flus_flat_in = gal_flux.flatten()
+                err_flux_flat_in = err_flux.flatten()
+                gal_flux_flat_in[~bool_mask_flat] = np.NaN
+                err_flux_flat_in[~bool_mask_flat] = np.NaN
+                gal_flux_flat, err_flux_flat = dysmalpy_utils.symmetrize_velfield(xbin, ybin,
+                                    gal_flux_flat_in, err_flux_flat_in,
+                                    sym=2, pa=params['pa'])
+
+                gal_flux[bool_mask] = gal_flux_flat[bool_mask_flat]
+                err_flux[bool_mask] = err_flux_flat[bool_mask_flat]
+
     except:
         pass
 
@@ -873,12 +905,30 @@ def load_single_object_2D_data(params=None, adjust_error=True,
     else:
         ycenter = None
 
+    if params['fitdispersion']:
+        file_disp = datadir+params['fdata_disp']
+    else:
+        file_disp = None
+        gal_disp = None
+        err_disp = None
+    if params['fitflux']:
+        try:
+            file_flux = datadir+params['fdata_flux']
+        except:
+            file_flux = None
+    else:
+        file_flux = None
+        gal_flux = None
+        err_flux = None
     data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
-                                      vel_disp_err=err_disp, mask=mask,
+                                      vel_disp_err=err_disp,
+                                      flux=gal_flux, flux_err=err_flux,
+                                      mask=mask,
                                       weight=gal_weight,
                                       filename_velocity=datadir+params['fdata_vel'],
-                                      filename_dispersion=datadir+params['fdata_disp'],
+                                      filename_dispersion=file_disp,
+                                      filename_flux=file_disp,
                                       smoothing_type=params['smoothing_type'],
                                       smoothing_npix=params['smoothing_npix'],
                                       inst_corr=params['data_inst_corr'],

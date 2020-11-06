@@ -26,6 +26,7 @@ import dill as _pickle
 # Package imports
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
+from dysmalpy.instrument import Instrument
 from dysmalpy.utils import apply_smoothing_3D, rebin
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
@@ -86,17 +87,21 @@ class Galaxy:
             self.model = ModelSet()
         else:
             self.model = model
-        self.data = data
 
-        self.data1d = data1d
-        self.data2d = data2d
-        self.data3d = data3d
+        self._data = data
 
-        self.instrument = instrument
+        self._data1d = data1d
+        self._data2d = data2d
+        self._data3d = data3d
+        self._instrument = instrument
+
         self._cosmo = cosmo
-        self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+
+        #self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+        self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self.model_data = None
         self.model_cube = None
+
 
     @property
     def z(self):
@@ -108,18 +113,110 @@ class Galaxy:
             raise ValueError("Redshift can't be negative!")
         self._z = value
 
+        # Reset dscale:
+        self._set_dscale()
+
     @property
     def cosmo(self):
         return self._cosmo
 
     @cosmo.setter
     def cosmo(self, new_cosmo):
-        if isinstance(apy_cosmo.FLRW, new_cosmo):
+        if not isinstance(new_cosmo, apy_cosmo.FLRW):
             raise TypeError("Cosmology must be an astropy.cosmology.FLRW "
                             "instance.")
         if new_cosmo is None:
             self._cosmo = _default_cosmo
         self._cosmo = new_cosmo
+
+        # Reset dscale:
+        self._set_dscale()
+
+    @property
+    def dscale(self):
+        return self._dscale
+
+    def _set_dscale(self):
+        self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, new_data):
+        if not np.any(isinstance(new_data, Data1D) | isinstance(new_data, Data2D) | \
+            isinstance(new_data, Data3D) | isinstance(new_data, Data0D)):
+            raise TypeError("Data must be one of the following instances: "
+                            "   dysmalpy.Data0D, dysmalpy.Data1D, "
+                            "   dysmalpy.Data2D, dysmalpy.Data3D")
+        self._data = new_data
+        self._setup_checks()
+
+    @property
+    def data1d(self):
+        return self._data1d
+
+    @data1d.setter
+    def data1d(self, new_data1d):
+        if not (isinstance(new_data1d, Data1D)):
+            raise TypeError("Data1D must be an instance of dysmalpy.Data1D")
+        self._data1d = new_data1d
+
+    @property
+    def data2d(self):
+        return self._data2d
+
+    @data2d.setter
+    def data2d(self, new_data2d):
+        if not (isinstance(new_data2d, Data2D)):
+            raise TypeError("Data2D must be an instance of dysmalpy.Data2D")
+        self._data2d = new_data2d
+
+    @property
+    def data3d(self):
+        return self._data3d
+
+    @data3d.setter
+    def data3d(self, new_data3d):
+        if not (isinstance(new_data3d, Data3D)):
+            raise TypeError("Data3D must be an instance of dysmalpy.Data3D")
+        self._data3d = new_data3d
+
+
+    @property
+    def instrument(self):
+        return self._instrument
+
+    @instrument.setter
+    def instrument(self, new_instrument):
+        if not (isinstance(new_instrument, Instrument)):
+            raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
+        self._instrument = new_instrument
+        self._setup_checks()
+
+    def _setup_checks(self):
+        self._check_1d_datasize()
+
+    def _check_1d_datasize(self):
+        if (self.data is not None) & (self.instrument is not None):
+            if (isinstance(self.data, Data1D)):
+                # --------------------------------------------------
+                # Check FOV and issue warning if too small:
+                maxr = np.max(np.abs(self.data.rarr))
+                rstep = self.instrument.pixscale.value
+                if ((self.instrument.fov[0] < maxr/rstep) | (self.instrument.fov[1] < maxr/rstep)):
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** WARNING ***\n"
+                    wmsg += "instrument.fov[0,1]="
+                    wmsg += "({},{}) is too small".format(self.instrument.fov[0], self.instrument.fov[1])
+                    wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
+                    wmsg += "********************************************************************\n"
+                    logger.warning(wmsg)
+                    raise ValueError(wmsg)
+                # --------------------------------------------------
+
 
 
     # def create_model_data(self, **kwargs):
@@ -348,12 +445,27 @@ class Galaxy:
 
                     maxr = 1.5*np.max(np.abs(self.data.rarr))
                     if rstep is None:
-                        rstep = np.mean(self.data.rarr[1:] -
-                                        self.data.rarr[0:-1])/3.
+                        # Rough subsampling of ~3 as a "pixel size" = rstep
+                        rstep = np.mean(self.data.rarr[1:] - self.data.rarr[0:-1])/3.
                     if nx_sky is None:
                         nx_sky = int(np.ceil(maxr/rstep))
                     if ny_sky is None:
                         ny_sky = int(np.ceil(maxr/rstep))
+
+                    # --------------------------------------------------
+                    # Check FOV and issue warning if too small:
+                    maxr = np.max(np.abs(self.data.rarr))
+                    if ((nx_sky < maxr/rstep) | (ny_sky < maxr/rstep)):
+                        wmsg =  "dysmalpy.Galaxy:\n"
+                        wmsg += "****************************************************************\n"
+                        wmsg += "*** WARNING ***\n"
+                        wmsg += "FOV (nx_sky,ny_sky)="
+                        wmsg += "({},{}) is too small".format(nx_sky, ny_sky)
+                        wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
+                        wmsg += "****************************************************************\n"
+                        logger.warning(wmsg)
+                        raise ValueError(wmsg)
+                    # --------------------------------------------------
 
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
@@ -598,6 +710,21 @@ class Galaxy:
                 raise ValueError("spec_type can only be 'velocity' or "
                                  "'wavelength.'")
 
+
+            # Normalize flux:
+            if from_data:
+                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
+                    num = np.sum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
+                    den = np.sum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
+
+                    scale = num / den
+                    flux *= scale
+                elif (self.data.data['flux'] is not None):
+                    num = np.sum(self.data.mask*(self.data.data['flux']*flux))
+                    den = np.sum(self.data.mask*(flux**2))
+                    scale = num / den
+                    flux *= scale
+
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
                                      vel_disp=disp, flux=flux)
 
@@ -705,6 +832,22 @@ class Galaxy:
                             cube=cube_data, center_pixel = center_pixel,
                             pixscale=rstep)
 
+
+            # Normalize flux:
+            if from_data:
+                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
+                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
+                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d)/(self.data.error['flux']**2))
+                        den = np.sum(self.data.mask*(flux1d**2)/(self.data.error['flux']**2))
+
+                        scale = num / den
+                        flux1d *= scale
+                elif (self.data.data['flux'] is not None):
+                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
+                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d))
+                        den = np.sum(self.data.mask*(flux1d**2))
+                        scale = num / den
+                        flux1d *= scale
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,

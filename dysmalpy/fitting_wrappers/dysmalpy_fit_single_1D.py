@@ -129,6 +129,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                   red_chisq=fit_dict['red_chisq'],
                                   oversampled_chisq = fit_dict['oversampled_chisq'],
                                   fitdispersion=fit_dict['fitdispersion'],
+                                  fitflux=fit_dict['fitflux'],
                                   linked_posterior_names=fit_dict['linked_posterior_names'],
                                   blob_name=fit_dict['blob_name'],
                                   outdir=fit_dict['outdir'],
@@ -151,8 +152,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                                   **kwargs_galmodel)
 
         elif fit_dict['fit_method'] == 'mpfit':
-
             results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
+                                        fitflux=fit_dict['fitflux'],
                                         maxiter=fit_dict['maxiter'],
                                         do_plotting=fit_dict['do_plotting'],
                                         outdir=fit_dict['outdir'],
@@ -253,6 +254,7 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
                       model_key_re=fit_dict['model_key_re'],
                       model_key_halo=fit_dict['model_key_halo'],
                       fitdispersion=fit_dict['fitdispersion'],
+                      fitflux=fit_dict['fitflux'],
                       f_model=fit_dict['f_model'],
                       f_model_bestfit=fit_dict['f_model_bestfit'],
                       f_vel_ascii = fit_dict['f_vel_ascii'],
@@ -326,7 +328,6 @@ def setup_single_object_1D(params=None, data=None):
         if datadir is None:
             datadir = ''
 
-
         if 'fdata_mask' in params.keys():
             fdata_mask = params['fdata_mask']
         else:
@@ -343,6 +344,15 @@ def setup_single_object_1D(params=None, data=None):
 
     #
     gal.data.profile1d_type = params['profile1d_type']
+
+    # --------------------------------------------------
+    # Check FOV and issue warning if too small:
+    maxr = np.max(np.abs(gal.data.rarr))
+    if (params['fov_npix'] < maxr/params['pixscale']):
+        wmsg = "Input FOV 'fov_npix'={}".format(params['fov_npix'])
+        wmsg += " is too small for max data extent ({} pix)".format(maxr/params['pixscale'])
+        print("WARNING: dysmalpy_fit_single_1D: {}".format(wmsg))
+    # --------------------------------------------------
 
     # ------------------------------------------------------------
     # Setup fitting dict:

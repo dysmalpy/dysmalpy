@@ -336,6 +336,8 @@ def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=N
     oversize = 1.5  # Padding factor for x trimming
 
     thick = model.zprofile.z_scalelength.value
+    if not np.isfinite(thick):
+        thick = 0.
 
     # # maxr, maxr_y are already in pixel units
     xsize = np.int(np.floor(2.*(maxr * oversize) +0.5))
@@ -1428,16 +1430,12 @@ class ModelSet:
 
                     whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
                     if len(whfin) < len(r):
-                        # FLAG42
                         raise ValueError
 
                     rhotot = rhotot + cmpnt_rho
                     drho_dr = drho_dr + cmpnt_drhodr
 
         dlnrhotot_dlnr = r / rhotot * (drho_dr)
-
-        ## FLAG42
-        #raise ValueError
 
         return dlnrhotot_dlnr
 
@@ -5199,9 +5197,7 @@ class KinematicOptions:
             dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
 
             vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
-
-            #raise ValueError
-            #FLAG42
+            
 
         return vel_asymm_drift
 
