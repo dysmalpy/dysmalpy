@@ -20,10 +20,13 @@ import scipy.ndimage as sp_ndi
 from scipy import interpolate
 from scipy.optimize import minimize
 from scipy.stats import norm
+from astropy.convolution import Gaussian2DKernel
+#from astropy.convolution import convolve as apy_convolve
+from astropy.convolution import convolve_fft as apy_convolve_fft
 
-from .data_classes import Data1D, Data2D
 from spectral_cube import SpectralCube, BooleanArrayMask
 
+std2fwhm = (2. *np.sqrt(2.*np.log(2.)))
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
@@ -332,25 +335,75 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
         return vel, disp
 
 
-def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
+# def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
+#     if smoothing_type is None:
+#         return cube
+#     else:
+#         if (smoothing_type.lower() == 'median'):
+#             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
+#             cb = cube.filled_data[:].value
+#             if (smoothing_npix % 2) == 1:
+#                 cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
+#             else:
+#                 cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
+#
+#             cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
+#                                               mask=cube.mask, meta=cube.meta,
+#                                               fill_value=cube.fill_value)
+#             #cube = cube.spatial_smooth_median(smoothing_npix)
+#
+#         else:
+#             print("Smoothing type={} not supported".format(smoothing_type))
+#
+#         return cube
+
+def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
     if smoothing_type is None:
         return cube
     else:
-        if (smoothing_type.lower() == 'median'):
-            #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
-            cb = cube.filled_data[:].value
-            if (smoothing_npix % 2) == 1:
-                cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
-            else:
-                cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
-
-            cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
-                                              mask=cube.mask, meta=cube.meta,
-                                              fill_value=cube.fill_value)
-            #cube = cube.spatial_smooth_median(smoothing_npix)
-
+        # Parse smoothing type / npix: could be single values, or arrays:
+        #       move them into arrays first
+        l_st = len(np.shape(smoothing_type))
+        l_sp = len(np.shape(smoothing_npix))
+        if ((l_st == 0) & (l_sp == 0)):
+            # Both single:
+            sm_type_arr = [smoothing_type]
+            sm_npix_arr = [smoothing_npix]
+        elif (l_st == 0):
+            # One type, multiple smooth steps:
+            sm_npix_arr = smoothing_npix
+            sm_type_arr = np.repeat(smoothing_type, len(smoothing_npix))
+        elif (l_sp == 0):
+            # Mult type, same smooth size for multiple steps:
+            sm_type_arr = smoothing_type
+            sm_npix_arr = np.repeat(smoothing_npix, len(smoothing_type))
         else:
-            print("Smoothing type={} not supported".format(smoothing_type))
+            if (len(smoothing_type) != len(smoothing_npix)):
+                raise ValueError("'smoothing_type' and 'smoothing_npix' are not the same length!")
+            sm_type_arr = smoothing_type
+            sm_npix_arr = smoothing_npix
+
+        for sm_type, sm_npix in zip(sm_type_arr, sm_npix_arr):
+            cb = cube.filled_data[:].value
+            if not quiet:
+                print("Applying smoothing: {}, {}".format(sm_type, sm_npix))
+            if (sm_type.lower() == 'median'):
+                if (sm_npix % 2) == 1:
+                    cb = sp_sig.medfilt(cb, kernel_size=(1, sm_npix, sm_npix))
+                else:
+                    cb = sp_ndi.median_filter(cb, size=(1,sm_npix, sm_npix), mode='constant', cval=0.)
+
+            elif (sm_type.lower() == 'gaussian'):
+                kernel2d = Gaussian2DKernel(x_stddev=sm_npix / std2fwhm)._array
+                kernel3d = kernel2d.reshape((1,kernel2d.shape[0],kernel2d.shape[1]))
+
+                cb = apy_convolve_fft(cb, kernel3d)
+            else:
+                print("Smoothing type={} not supported".format(sm_type))
+
+            # Make new cube:
+            cube = cube._new_cube_with(data=cb, wcs=cube.wcs, mask=cube.mask, meta=cube.meta,
+                                                              fill_value=cube.fill_value)
 
         return cube
 
