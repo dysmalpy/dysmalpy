@@ -1076,11 +1076,22 @@ def load_single_object_3D_data(params=None, datadir=None):
     err_cube[mask == 0] = 99.
 
     ####################################
+    if 'smoothing_type' in params.keys():
+        smoothing_type=params['smoothing_type']
+    else:
+        smoothing_type = None
+    if 'smoothing_npix' in params.keys():
+        smoothing_npix=params['smoothing_npix']
+    else:
+        smoothing_npix = 1
+
     data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', spec_arr=spec_arr,
                                       err_cube=err_cube, mask_cube=mask,
                                       mask_sky=mask_sky, mask_spec=mask_spec,
                                       spec_unit=u.km/u.s,
-                                      weight=gal_weight)
+                                      weight=gal_weight,
+                                      smoothing_type=smoothing_type,
+                                      smoothing_npix=smoothing_npix)
 
     return data3d
 

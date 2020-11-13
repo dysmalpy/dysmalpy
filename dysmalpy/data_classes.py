@@ -344,6 +344,8 @@ class Data3D(Data):
                  mask_sky=None, mask_spec=None,
                  estimate_err=False, error_frac=0.2, ra=None, dec=None,
                  ref_pixel=None, spec_unit=None, flux_map=None,
+                 smoothing_type=None,
+                 smoothing_npix=1,
                  xcenter=None, ycenter=None):
 
         if mask_sky is not None:
@@ -433,7 +435,9 @@ class Data3D(Data):
         self.flux_map = flux_map
 
         super(Data3D, self).__init__(data=data, error=error, weight=weight, ndim=3,
-                                     shape=shape, mask=mask, xcenter=xcenter, ycenter=ycenter)
+                                     shape=shape, mask=mask, xcenter=xcenter, ycenter=ycenter,
+                                     smoothing_type=smoothing_type,
+                                     smoothing_npix=smoothing_npix)
 
 
 class Data0D(Data):
