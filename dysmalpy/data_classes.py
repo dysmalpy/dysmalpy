@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Standard imports
 import logging
+import copy
 
 # Third party imports
 import numpy as np
@@ -52,6 +53,12 @@ class Data(object):
 
         self.xcenter = xcenter
         self.ycenter = ycenter
+
+    def copy(self):
+        return copy.deepcopy(self)
+    def deepcopy(self):
+        return copy.deepcopy(self)
+
 
 class Data1D(Data):
     """

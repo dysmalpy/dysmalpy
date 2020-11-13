@@ -1075,8 +1075,9 @@ def plot_model_2D(gal,
     cmap =  cm.Spectral_r  #cm.nipy_spectral
     cmap.set_bad(color='k')
 
-    vel_vmin = gal.model_data.data['velocity'].min()
-    vel_vmax = gal.model_data.data['velocity'].max()
+    msk = np.isfinite(gal.model_data.data['velocity'])
+    vel_vmin = gal.model_data.data['velocity'][msk].min()
+    vel_vmax = gal.model_data.data['velocity'][msk].max()
     if np.abs(vel_vmax) > 400.:
         vel_vmax = 400.
     if np.abs(vel_vmin) > 400.:
@@ -1109,9 +1110,9 @@ def plot_model_2D(gal,
         cbar.ax.tick_params(labelsize=8)
 
     if fitdispersion:
-
-        disp_vmin = gal.model_data.data['dispersion'].min()
-        disp_vmax = gal.model_data.data['dispersion'].max()
+        msk = np.isfinite(gal.model_data.data['dispersion'])
+        disp_vmin = gal.model_data.data['dispersion'][msk].min()
+        disp_vmax = gal.model_data.data['dispersion'][msk].max()
 
         if np.abs(disp_vmax) > 500:
             disp_vmax = 500.
