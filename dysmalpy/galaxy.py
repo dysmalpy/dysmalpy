@@ -631,9 +631,13 @@ class Galaxy:
                     scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
                     scale3D[0, :, :] = scale
                     sim_cube_final_scale *= scale3D
+                mask_cube = self.data.mask.copy()
+            else:
+                sim_cube_final_scale = self.model_cube.data._data.copy()
+                mask_cube = None
 
             self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=rstep,
-                                     mask_cube=self.data.mask.copy(),
+                                     mask_cube=mask_cube,
                                      spec_type=spec_type,
                                      spec_arr=spec,
                                      spec_unit=spec_unit)
