@@ -861,7 +861,11 @@ def _fit_emcee_3(gal, nWalkers=10,
 
     # --------------------------------
     # Start pool, moves, backend:
-    pool = Pool(nCPUs)
+    if (nCPUs > 1):
+        pool = Pool(nCPUs)
+    else:
+        pool = None
+
     moves = emcee.moves.StretchMove(a=scale_param_a)
 
     backend_burn = emcee.backends.HDFBackend(f_sampler, name="burnin_mcmc")
@@ -3033,6 +3037,11 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
 
     acor_time = sampler.get_autocorr_time(tol=10, quiet=True)
 
+    try:
+        nCPUs = sampler.pool._processes   # sampler.threads
+    except:
+        nCPUs = 1
+
     # Make a dictionary:
     sampler_dict = { 'chain':               sampler.chain[:, nBurn:, :],
                      'lnprobability':       sampler.lnprobability[:, nBurn:],
@@ -3040,7 +3049,7 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
                     'flatlnprobability':    probs,
                     'nIter':                sampler.iteration,
                     'nParam':               sampler.ndim,
-                    'nCPU':                 sampler.pool._processes,   # sampler.threads,
+                    'nCPU':                 nCPUs,
                     'nWalkers':             sampler.nwalkers,
                     'acceptance_fraction':  sampler.acceptance_fraction,
                     'acor_time':            acor_time }

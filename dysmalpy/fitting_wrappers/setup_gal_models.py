@@ -313,15 +313,29 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         if params['mvirial_tied']:
             halo.mvirial.tied = tied_mvirial_func_SMHM
 
+        if 'fdm_tied' in params.keys():
+            if params['fdm_tied']:
+                # Tie fDM to the virial mass
+                halo.fdm.tied = tied_fdm_func
+                halo.fdm.fixed = False
+        else:
+            params['fdm_tied'] = False
+
+        #if (params['fdm_fixed'] is False) & (not params['fdm_tied']):
+        if 'alpha_tied' in params.keys():
+            if params['alpha_tied']:
+                # Tie the alpha mass to fDM
+                halo.alpha.tied = tied_alpha_TPH_func
+                halo.alpha.fixed = False
+
+
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='halo_conc', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='alpha', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='beta', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
-        if params['fdm_fixed'] is False:
-            # Tie the virial mass to fDM
-            halo.alpha.tied = tied_alpha_TPH_func
-            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
 
     elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
         # Burkert halo profile:
@@ -352,13 +366,16 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         if params['mvirial_tied']:
             halo.mvirial.tied = tied_mvirial_func_SMHM
 
+
+        #if params['fdm_fixed'] is False:
+        if 'rB_tied' in params.keys():
+            if params['rB_tied']:
+                # Tie the rB to fDM
+                halo.rB.tied = tied_rB_Burk_func
+
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='rB', params=params)
-
-        if params['fdm_fixed'] is False:
-            # Tie the virial mass to fDM
-            halo.rB.tied = tied_rB_Burk_func
-            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
     elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
         # Einastro halo profile:
@@ -399,16 +416,20 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         if params['mvirial_tied']:
             halo.mvirial.tied = tied_mvirial_func_SMHM
 
+
+        #if params['fdm_fixed'] is False:
+        if 'alphaEinasto_tied' in params.keys():
+            if params['alphaEinasto_tied']:
+                # Tie the Einasto param to fDM
+                halo.alphaEinasto.tied = tied_alpha_Ein_func
+        if 'nEinasto_tied' in params.keys():
+            if params['nEinasto_tied']:
+                # Tie the Einasto param to fDM
+                halo.nEinasto.tied = tied_n_Ein_func
+
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='rB', params=params)
-
-        if params['fdm_fixed'] is False:
-            # Tie the Einasto param to fDM
-            if 'alphaEinasto' in params.keys():
-                halo.alphaEinasto.tied = tied_alpha_Ein_func
-            elif 'nEinasto' in params.keys():
-                halo.nEinasto.tied = tied_n_Ein_func
-            halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
     else:
         raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))

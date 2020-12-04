@@ -1,0 +1,340 @@
+# Example parameters file for fitting a single object with 1D data
+# Note: DO NOT CHANGE THE NAMES IN THE 1ST COLUMN AND KEEP THE COMMAS!!
+# See README for a description of each parameter and its available options.
+
+# ******************************* OBJECT INFO **********************************
+galID,    GS4_43501    # Name of your object
+z,        1.613        # Redshift
+
+# ****************************** DATA INFO *************************************
+
+
+datadir,          None                       # Optional: Full path to data directory.
+
+fdata_cube,           gs4-43501_h250_21h30.fits.gz   # Full path to vel map. Alternatively, just the filename if 'datadir' is set.
+fdata_err,            noise_gs4-43501_h250_21h30.fits.gz    # Full path to vel. err map. Alternatively, just the filename if 'datadir' is set.
+# fdata_mask,           MASK.fits   # Full path to mask
+#                                                          #   -- strongly recommended to have a mask
+                                                           # Alternatively, just the filename if 'datadir' is set.
+
+
+### FOR 3D, MUST SET CUBE, ETC by ** HAND **.
+
+
+
+spec_orig_type,       wave
+spec_line_rest,       6564.
+spec_line_rest_unit,  angstrom
+spec_vel_trim,        -800   600. #-500.   500.
+
+# l r b t
+spatial_crop_trim,     37  68   34  65
+
+
+# smoothing_type,       median                             # Is the data median smoothed
+#                                                          #   before extracting maps?
+# smoothing_npix,       3                                  # Number of pixels for smoothing aperture
+
+data_inst_corr,   False
+
+auto_gen_3D_mask,               True
+auto_gen_mask_snr_thresh,       3. #4.
+auto_gen_mask_snr_thresh_1,     2. #4. #3. #2.5
+auto_gen_mask_sig_thresh,       2. #1.5 #2. #1.5
+auto_gen_mask_npix_min,         5
+
+
+
+# ***************************** OUTPUT *****************************************
+outdir,           GS4_43501_3D_out/         # Full path for output directory
+
+
+# ***************************** OBSERVATION SETUP ******************************
+
+# Instrument Setup
+# ------------------
+pixscale,         0.125        # Pixel scale in arcsec/pixel
+fov_npix,         37           # Number of pixels on a side of model cube
+spec_type,   velocity          # DON'T CHANGE!
+spec_start,     -1000.         # Starting value for spectral axis
+spec_step,         10.         # Step size for spectral axis in km/s
+nspec,            201          # Number of spectral steps
+
+# LSF Setup
+# ---------
+use_lsf,          True         # True/False if using an LSF
+sig_inst_res,     51.0         # Instrumental dispersion in km/s
+
+
+# PSF Setup
+# ---------
+psf_type,         Gaussian     # Gaussian or Moffat
+psf_fwhm,         0.55         # PSF FWHM in arcsecs
+psf_beta,         -99.         # Beta parameter for a Moffat PSF
+
+# DoubleGaussian:
+psf_fwhm1,        0.16         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.16
+psf_fwhm2,        0.48         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.48
+psf_scale1,       0.368        # Flux scaling (*not* peak heigh) of component 1. SINFONI AO: 0.368
+psf_scale2,       0.632        # Flux scaling (*not* peak heigh) of component 2. SINFONI AO: 0.632
+
+
+# **************************** SETUP MODEL *************************************
+
+# Model Settings
+# -------------
+# List of components to use:  SEPARATE WITH SPACES
+components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
+
+# List of components that emit light. SEPARATE WITH SPACES
+##   Current options: disk+bulge / bulge / disk
+light_components_list,   disk
+
+adiabatic_contract,  False     # Apply adiabatic contraction?
+pressure_support,    True      # Apply assymmetric drift correction?
+noord_flat,          True      # Apply Noordermeer flattenning?
+oversample,          3         # Spatial oversample factor
+oversize,            1         # Oversize factor
+
+
+# DISK + BULGE
+# ------------
+
+# Initial Values
+total_mass,           11.0     # Total mass of disk and bulge log(Msun)
+bt,                   0.3     # Bulge-to-Total Ratio
+r_eff_disk,           5.0     # Effective radius of disk in kpc
+n_disk,               1.0      # Sersic index for disk
+invq_disk,            5.0      # disk scale length to zheight ratio for disk
+
+n_bulge,              4.0      # Sersic index for bulge
+invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
+r_eff_bulge,          1.0      # Effective radius of bulge in kpc
+
+# Fixed? True if its a fixed parameter, False otherwise
+total_mass_fixed,     False
+bt_fixed,             False
+r_eff_disk_fixed,     False
+
+n_disk_fixed,         True
+r_eff_bulge_fixed,    True
+n_bulge_fixed,        True
+
+# Parameter bounds. Lower and upper bounds
+total_mass_bounds,   10.0  13.0
+bt_bounds,           0.0  1.0
+r_eff_disk_bounds,   0.1  30.0
+n_disk_bounds,       1.0  8.0
+r_eff_bulge_bounds,  1.0  5.0
+n_bulge_bounds,      1.0  8.0
+
+
+
+
+# DARK MATTER HALO
+# ----------------
+
+# Halo type: options: NFW / twopowerhalo / burkert / einasto
+halo_profile_type,   NFW
+
+
+# ********************************************************************************
+#    NFW halo
+
+# Initial Values
+mvirial,             11.5       # Halo virial mass in log(Msun)
+halo_conc,           5.0        # Halo concentration parameter
+fdm,                 0.5        # Dark matter fraction at r_eff_disk
+
+# Fixed? True if its a fixed parameter, False otherwise. Also set False if it will be tied (below)
+mvirial_fixed,       False
+halo_conc_fixed,     True
+fdm_fixed,           False
+
+# Parameter bounds. Lower and upper bounds
+mvirial_bounds,      10.0 13.0
+halo_conc_bounds,    1.0 20.0
+fdm_bounds,          0.0 1.0
+
+# Tie the parameters?
+fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvirial (+baryons)
+mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial from fDM (+baryons)
+
+# # ********************************************************************************
+# #    Two-power halo
+#
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# alpha,               1.         # TPH: inner slope. NFW has alpha=1
+# beta,                3.         # TPH: outer slope. NFW has beta=3
+#
+# # Fixed? True if its a fixed parameter, False otherwise. Also set False if it will be tied (below)
+# mvirial_fixed,       False
+# halo_conc_fixed,     True
+# fdm_fixed,           False
+# alpha_fixed,         False
+# beta_fixed,          True
+#
+# # Parameter bounds. Lower and upper bounds
+# mvirial_bounds,      10.0 13.0
+# halo_conc_bounds,    1.0 20.0
+# fdm_bounds,          0.0 1.0
+# alpha_bounds,        0.0  3.0
+# beta_bounds,         1.0  4.0
+#
+# # Tie the parameters?
+# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+# mvirial_tied,   True      # for non-NFW, mvirial_tied=True determines Mvirial from SMHM+fgas + baryon total_mass
+# alpha_tied,     False     # for TPH, alpha_tied=True determines alpha from free fDM + other parameters.
+#
+# ### OTHER SETTINGS:
+# mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
+#
+# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# lmstar,              -99.       # Currently code uses fgas to infer lmstar
+#                                 # from fitting baryon total_mass for SMHM relation
+# # ********************************************************************************
+
+# # ********************************************************************************
+# #    Burkert halo
+#
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# rB,                  10.        # Burkert: Halo core radius, in kpc
+#
+# # Fixed? True if its a fixed parameter, False otherwise. Also set False if it will be tied (below)
+# mvirial_fixed,       False
+# halo_conc_fixed,     True
+# fdm_fixed,           False
+# rB_fixed,            False
+#
+# # Parameter bounds. Lower and upper bounds
+# mvirial_bounds,      10.0 13.0
+# halo_conc_bounds,    1.0 20.0
+# fdm_bounds,          0.0 1.0
+# rB_bounds,           1.0  20.0
+#
+# # Tie the parameters?
+# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+# mvirial_tied,   True      # for non-NFW, mvirial_tied=True determines Mvirial from SMHM+fgas + baryon total_mass
+# rB_tied,        False     # for Burkert, rB_tied=True determines rB from free fDM + other parameters.
+#
+# ### OTHER SETTINGS:
+# mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
+#
+# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# lmstar,              -99.       # Currently code uses fgas to infer lmstar
+#                                 # from fitting baryon total_mass for SMHM relation
+# # ********************************************************************************
+
+# # ********************************************************************************
+# #    Einasto halo
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# alphaEinasto,        1.         # Einasto: Halo profile index
+#
+# # Fixed? True if its a fixed parameter, False otherwise. Also set False if it will be tied (below)
+# mvirial_fixed,       False
+# halo_conc_fixed,     True
+# fdm_fixed,           False
+# alphaEinasto_fixed,  False
+#
+# # Parameter bounds. Lower and upper bounds
+# mvirial_bounds,      10.0 13.0
+# halo_conc_bounds,    1.0 20.0
+# fdm_bounds,          0.0 1.0
+# alphaEinasto_bounds, 0.0  2.0
+#
+# # Tie the parameters?
+# fdm_tied,           True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+# mvirial_tied,       True      # for non-NFW, mvirial_tied=True determines Mvirial from SMHM+fgas + baryon total_mass
+# alphaEinasto_tied,  False     # for Einasto, alphaEinasto_tied=True determines alphaEinasto from free fDM + other params.
+#
+# ### OTHER SETTINGS:
+# mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
+#
+# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# lmstar,              -99.       # Currently code uses fgas to infer lmstar
+#                                 # from fitting baryon total_mass for SMHM relation
+# # ********************************************************************************
+
+
+
+
+# INTRINSIC DISPERSION PROFILE
+# ------------------
+
+# Initial Values
+sigma0,              39.0      # Constant intrinsic dispersion value
+
+# Fixed? True if its a fixed parameter, False otherwise
+sigma0_fixed,        False
+
+# Parameter bounds. Lower and upper bounds
+sigma0_bounds,       5.0 300.0
+
+
+
+# ZHEIGHT PROFILE
+# ---------------
+
+# Initial Values
+sigmaz,              0.9      # Gaussian width of the galaxy in z
+
+# Fixed? True if its a fixed parameter, False otherwise
+sigmaz_fixed,        False
+
+# Parameter bounds. Lower and upper bounds
+sigmaz_bounds,       0.1 1.0
+
+
+# Tie the zheight to the effective radius of the disk?
+# If set to True, make sure sigmaz_fixed is False
+zheight_tied,        True
+
+
+# GEOMETRY
+# --------
+
+# Initial Values
+inc,                 62.   # Inclination of galaxy, 0=face-on, 90=edge-on
+pa,                  142.
+xshift,              0.        # pixels
+yshift,              0.        # pixels
+vel_shift,           0.      # km/s
+
+# Fixed? True if its a fixed parameter, False otherwise
+inc_fixed,           False
+pa_fixed,            False
+xshift_fixed,        False
+yshift_fixed,        False
+vel_shift_fixed,     False
+
+# Parameter bounds. Lower and upper bounds
+inc_bounds,          42.   82.
+pa_bounds,           132.  152.
+xshift_bounds,       -1.5  1.5        # pixels
+yshift_bounds,       -1.5  1.5        # pixels
+vel_shift_bounds,    -100.  100.        # km/s
+
+
+
+# **************************** Fitting Settings ********************************
+
+fit_method,      mpfit     # mcmc or mpfit
+do_plotting,     True      # Produce all output plots?
+
+# *** Note ***: fitflux and fitdispersion are not supported for 3D,
+#               because these are implicitly included in the cube!
+
+
+
+# MPFIT Settings
+#----------------
+maxiter,         200       # Maximum number of iterations before mpfit quits
