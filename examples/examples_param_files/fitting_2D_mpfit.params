@@ -112,13 +112,13 @@ r_eff_bulge_bounds,  1.0  5.0
 n_bulge_bounds,      1.0  8.0
 
 
-
 # DARK MATTER HALO
 # ----------------
 
 # Halo type: options: NFW / twopowerhalo / burkert / einasto
 halo_profile_type,   NFW
 
+# ** NOTE **: Uncomment the section below corresponding to the selected halo type.
 
 # ********************************************************************************
 #    NFW halo
