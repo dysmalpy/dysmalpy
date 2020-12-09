@@ -40,9 +40,9 @@ outdir,           GS4_43501_2D_out/         # Full path for output directory
 pixscale,         0.125        # Pixel scale in arcsec/pixel
 fov_npix,         37           # Number of pixels on a side of model cube
 spec_type,   velocity          # DON'T CHANGE!
-spec_start,     -1000.         # Starting value for spectral axis
-spec_step,         10.         # Step size for spectral axis in km/s
-nspec,            201          # Number of spectral steps
+spec_start,     -1000.         # Starting value for spectral axis       // generally don't change
+spec_step,         10.         # Step size for spectral axis in km/s    // generally don't change
+nspec,            201          # Number of spectral steps               // generally don't change
 
 # LSF Setup
 # ---------
@@ -52,11 +52,11 @@ sig_inst_res,     51.0         # Instrumental dispersion in km/s
 
 # PSF Setup
 # ---------
-psf_type,         Gaussian     # Gaussian or Moffat
+psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
 psf_fwhm,         0.55         # PSF FWHM in arcsecs
 psf_beta,         -99.         # Beta parameter for a Moffat PSF
 
-# DoubleGaussian:
+# DoubleGaussian:  settings instead of psf_fwhm
 psf_fwhm1,        0.16         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.16
 psf_fwhm2,        0.48         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.48
 psf_scale1,       0.368        # Flux scaling (*not* peak heigh) of component 1. SINFONI AO: 0.368
@@ -68,6 +68,7 @@ psf_scale2,       0.632        # Flux scaling (*not* peak heigh) of component 2.
 # Model Settings
 # -------------
 # List of components to use:  SEPARATE WITH SPACES
+## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof   geometry   zheight_gaus
 components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
 
 # List of components that emit light. SEPARATE WITH SPACES
