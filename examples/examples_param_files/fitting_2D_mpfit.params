@@ -59,8 +59,8 @@ psf_beta,         -99.         # Beta parameter for a Moffat PSF
 # DoubleGaussian:  settings instead of psf_fwhm
 psf_fwhm1,        0.16         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.16
 psf_fwhm2,        0.48         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.48
-psf_scale1,       0.368        # Flux scaling (*not* peak heigh) of component 1. SINFONI AO: 0.368
-psf_scale2,       0.632        # Flux scaling (*not* peak heigh) of component 2. SINFONI AO: 0.632
+psf_scale1,       0.368        # Flux scaling (*not* peak height) of component 1. SINFONI AO: 0.368
+psf_scale2,       0.632        # Flux scaling (*not* peak height) of component 2. SINFONI AO: 0.632
 
 
 # **************************** SETUP MODEL *************************************
