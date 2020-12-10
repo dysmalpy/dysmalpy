@@ -53,6 +53,7 @@ def setup_gal_model_base(params=None,
     # ------------------------------------------------------------
     # Baryonic Component: Combined Disk+Bulge
     if 'disk+bulge' in components_list:
+        comp_bary = 'disk+bulge'
         mod_set = add_disk_bulge_comp(gal=gal, mod_set=mod_set, params=params,
                             light_components_list=light_components_list)
 
@@ -67,7 +68,8 @@ def setup_gal_model_base(params=None,
                     tied_alpha_TPH_func=tied_alpha_TPH_func,
                     tied_rB_Burk_func=tied_rB_Burk_func,
                     tied_alpha_Ein_func=tied_alpha_Ein_func,
-                    tied_n_Ein_func=tied_n_Ein_func)
+                    tied_n_Ein_func=tied_n_Ein_func,
+                    comp_bary=comp_bary)
 
     # ------------------------------------------------------------
     # Dispersion profile
@@ -182,7 +184,8 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_alpha_TPH_func=None,
         tied_rB_Burk_func=None,
         tied_alpha_Ein_func=None,
-        tied_n_Ein_func=None):
+        tied_n_Ein_func=None,
+        comp_bary='disk+bulge'):
 
     if tied_fdm_func is None:
         tied_fdm_func = tied_functions.tie_fdm
@@ -281,10 +284,10 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         # Two-power halo fit:
 
         # Add values needed:
-        bary.lmstar = params['lmstar']
-        bary.fgas =  params['fgas']
-        bary.mhalo_relation = params['mhalo_relation']
-        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+        mod_set.components[comp_bary].lmstar = params['lmstar']
+        mod_set.components[comp_bary].fgas =  params['fgas']
+        mod_set.components[comp_bary].mhalo_relation = params['mhalo_relation']
+        mod_set.components[comp_bary].truncate_lmstar_halo = params['truncate_lmstar_halo']
 
         # Setup parameters:
         mvirial =  params['mvirial']
@@ -341,10 +344,10 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         # Burkert halo profile:
 
         # Add values needed:
-        bary.lmstar = params['lmstar']
-        bary.fgas =  params['fgas']
-        bary.mhalo_relation = params['mhalo_relation']
-        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+        mod_set.components[comp_bary].lmstar = params['lmstar']
+        mod_set.components[comp_bary].fgas =  params['fgas']
+        mod_set.components[comp_bary].mhalo_relation = params['mhalo_relation']
+        mod_set.components[comp_bary].truncate_lmstar_halo = params['truncate_lmstar_halo']
 
         # Setup parameters:
         mvirial =  params['mvirial']
@@ -380,15 +383,15 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
     elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
         # Einastro halo profile:
         # Add values needed:
-        bary.lmstar = params['lmstar']
-        bary.fgas =  params['fgas']
-        bary.mhalo_relation = params['mhalo_relation']
-        bary.truncate_lmstar_halo = params['truncate_lmstar_halo']
+        mod_set.components[comp_bary].lmstar = params['lmstar']
+        mod_set.components[comp_bary].fgas =  params['fgas']
+        mod_set.components[comp_bary].mhalo_relation = params['mhalo_relation']
+        mod_set.components[comp_bary].truncate_lmstar_halo = params['truncate_lmstar_halo']
 
         # Setup parameters:
         mvirial =           params['mvirial']
         fdm =               params['fdm']
-        conc =              params['conc']
+        conc =              params['halo_conc']
 
         halo_fixed = {'mvirial':        params['mvirial_fixed'],
                       'conc':           params['halo_conc_fixed'],
@@ -405,12 +408,16 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
                                              params['alphaEinasto_bounds'][1])
             halo = models.Einasto(mvirial=mvirial, alphaEinasto=alphaEinasto, conc=conc, fdm=fdm, z=gal.z,
                           fixed=halo_fixed, bounds=halo_bounds, name='halo')
+            halo = set_comp_param_prior(comp=halo, param_name='alphaEinasto', params=params)
+
         elif 'nEinasto' in params.keys():
             nEinasto =                  params['nEinasto']
             halo_fixed['nEinasto'] =    params['nEinasto_fixed']
             halo_bounds['nEinasto'] =   (params['nEinasto_bounds'][0], params['nEinasto_bounds'][1])
             halo = models.Einasto(mvirial=mvirial, nEinasto=nEinasto, conc=conc, fdm=fdm, z=gal.z,
                           fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+            halo = set_comp_param_prior(comp=halo, param_name='nEinasto', params=params)
 
         # Tie the virial mass to Mstar
         if params['mvirial_tied']:
@@ -428,7 +435,6 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
                 halo.nEinasto.tied = tied_n_Ein_func
 
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
-        halo = set_comp_param_prior(comp=halo, param_name='rB', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
     else:

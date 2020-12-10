@@ -137,6 +137,7 @@ fdm_bounds,          0.0 1.0
 # Tie the parameters?
 fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvirial (+baryons)
 mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial from fDM (+baryons)
+# ********************************************************************************
 
 # # ********************************************************************************
 # #    Two-power halo
@@ -170,7 +171,7 @@ mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial f
 # ### OTHER SETTINGS:
 # mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
 #
-# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# fgas,                0.442768   # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
 # lmstar,              -99.       # Currently code uses fgas to infer lmstar
 #                                 # from fitting baryon total_mass for SMHM relation
 # # ********************************************************************************
@@ -204,7 +205,7 @@ mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial f
 # ### OTHER SETTINGS:
 # mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
 #
-# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# fgas,                0.442768   # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
 # lmstar,              -99.       # Currently code uses fgas to infer lmstar
 #                                 # from fitting baryon total_mass for SMHM relation
 # # ********************************************************************************
@@ -237,7 +238,7 @@ mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial f
 # ### OTHER SETTINGS:
 # mhalo_relation,    Moster18     ## SMHM relation to use for tying Mvir to Mbar. options: Moster18 / Behroozi13
 #
-# fgas,                0.5        # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
+# fgas,                0.442768   # Gas fraction for SMHM inference of Mvir if 'mvirial_tied=True'
 # lmstar,              -99.       # Currently code uses fgas to infer lmstar
 #                                 # from fitting baryon total_mass for SMHM relation
 # # ********************************************************************************
