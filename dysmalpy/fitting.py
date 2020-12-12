@@ -475,7 +475,7 @@ def _fit_emcee_221(gal, nWalkers=10,
 
 
         try:
-            acor_time = sampler.get_autocorr_time(self, low=5, c=10)
+            acor_time = sampler.get_autocorr_time(low=5, c=10)
         except:
             acor_time = "Undefined, chain did not converge"
 
@@ -586,7 +586,7 @@ def _fit_emcee_221(gal, nWalkers=10,
         logger.info( stepinfomsg+timemsg )
 
         try:
-            acor_time = sampler.get_autocorr_time(self, low=5, c=10)
+            acor_time = sampler.get_autocorr_time(low=5, c=10)
             logger.info( "{}: acor_time ={}".format(ii, np.array(acor_time) ) )
         except:
             acor_time = "Undefined, chain did not converge"
@@ -632,7 +632,7 @@ def _fit_emcee_221(gal, nWalkers=10,
     logger.info("Finished {} steps".format(finishedSteps)+"\n")
 
     try:
-        acor_time = sampler.get_autocorr_time(self, low=5, c=10)
+        acor_time = sampler.get_autocorr_time(low=5, c=10)
     except:
         acor_time = "Undefined, chain did not converge"
 
@@ -2994,7 +2994,7 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
     flatprobs = probs.reshape((-1))
 
     try:
-        acor_time = sampler.get_autocorr_time(self, low=5, c=10)
+        acor_time = sampler.get_autocorr_time(low=5, c=10)
     except:
         acor_time = None
 
