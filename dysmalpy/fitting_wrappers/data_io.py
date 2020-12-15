@@ -4,6 +4,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os, sys
+import platform
+import shutil
 
 import datetime
 
@@ -697,3 +699,85 @@ def ensure_path_trailing_slash(path):
     if (path[-1] != '/'):
         path += '/'
     return path
+
+####
+def check_datadir_specified(params, datadir, ndim=None):
+    if ndim is None:
+        raise ValueError("Must specify 'ndim'!")
+    if ndim == 1:
+        fdata = params['fdata']
+    elif ndim == 2:
+        fdata = params['fdata_vel']
+    elif ndim == 3:
+        fdata = params['fdata_cube']
+
+    if datadir is not None:
+        fdata = "{}{}".format(datadir, fdata)
+
+    if not os.path.isfile(fdata):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                from os.path import expanduser
+                homedir = expanduser("~")
+            except:
+                homedir = None
+            datadir = filedialog.askdirectory(parent=root,
+                        title="Select data directory", initialdir=homedir,
+                        message="Data directory missing/incorrect. Select the data directory")
+            root.destroy()
+            datadir = ensure_path_trailing_slash(datadir)
+            params['datadir'] = datadir
+        except:
+            raise ValueError("Data file {} not found! Couldn't get datadir from dialog window.")
+    return datadir, params
+
+
+def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
+    # Copy paramfile that is OS independent
+    if platform.system() == 'Windows':
+        param_filename_nopath = param_filename.split('\\')[-1]
+    else:
+        param_filename_nopath = param_filename.split('/')[-1]
+    galID_strp = "".join(params['galID'].strip().split("_"))
+    galID_strp = "".join(galID_strp.split("-"))
+    galID_strp = "".join(galID_strp.split(" "))
+    paramfile_strp = "".join(param_filename_nopath.strip().split("_"))
+    paramfile_strp = "".join(paramfile_strp.split("-"))
+    paramfile_strp = "".join(paramfile_strp.split(" "))
+
+    # if galID_strp.strip().lower() in paramfile_strp.strip().lower():
+    #     # Already has galID in param filename:
+    #     shutil.copy(param_filename, outdir)
+    # else:
+    #     # Copy, prepending galID
+    #     shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
+
+    if galID_strp.strip().lower() in paramfile_strp.strip().lower():
+        # Already has galID in param filename:
+        fout_name = outdir+param_filename_nopath
+    else:
+        # Copy, prepending galID
+        fout_name = outdir+"{}_{}".format(params['galID'], param_filename_nopath)
+
+    # Replace datadir, outdir:
+    with open(param_filename, 'r') as f:
+        lines = f.readlines()
+
+    for i,l in enumerate(lines):
+        #if 'datadir' in l:
+        ll = l.split('#')[0]
+        if 'datadir' in ll:
+            larr = ll.split(',')
+            #lines[i] = l.replace(larr[1], "   {}".format(datadir))
+            lines[i] = l.replace(larr[1].strip(), "{}".format(datadir))
+        if 'outdir' in ll:
+            larr = ll.split(',')
+            #lines[i] = l.replace(larr[1], "   {}".format(outdir))
+            lines[i] = l.replace(larr[1].strip(), "{}".format(outdir))
+
+    with open(fout_name, 'w') as fnew:
+        fnew.writelines(lines)

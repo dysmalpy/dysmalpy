@@ -60,6 +60,11 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
 
     fitting.ensure_dir(params['outdir'])
 
+    if 'datadir' in params.keys():
+        if params['datadir'] is not None:
+            datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
+            params['datadir'] = datadir
+
     if 'plot_type' not in params.keys():
         params['plot_type'] = plot_type
     else:
@@ -88,23 +93,15 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
         print('------------------------------------------------------------------')
         print(" ")
     else:
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+
+        # Check if you can find filename; if not open datadir interface:
+        datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=2)
+
         # Copy paramfile that is OS independent
-        if platform.system() == 'Windows':
-            param_filename_nopath = param_filename.split('\\')[-1]
-        else:
-            param_filename_nopath = param_filename.split('/')[-1]
-        galID_strp = "".join(params['galID'].strip().split("_"))
-        galID_strp = "".join(galID_strp.split("-"))
-        galID_strp = "".join(galID_strp.split(" "))
-        paramfile_strp = "".join(param_filename_nopath.strip().split("_"))
-        paramfile_strp = "".join(paramfile_strp.split("-"))
-        paramfile_strp = "".join(paramfile_strp.split(" "))
-        if galID_strp.strip().lower() in paramfile_strp.strip().lower():
-            # Already has galID in param filename:
-            shutil.copy(param_filename, outdir)
-        else:
-            # Copy, prepending galID
-            shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
+        utils_io.preserve_param_file(param_filename, params=params,
+                    datadir=datadir, outdir=params['outdir'])
 
         #######################
         # Setup
@@ -324,6 +321,14 @@ if __name__ == "__main__":
     param_filename = sys.argv[1]
 
     try:
+        if sys.argv[2].strip().lower() != 'reanalyze':
+            datadir = sys.argv[2]
+        else:
+            datadir = None
+    except:
+        datadir = None
+
+    try:
         if sys.argv[2].strip().lower() == 'reanalyze':
             reanalyze = True
         else:
@@ -332,6 +337,6 @@ if __name__ == "__main__":
         reanalyze = False
 
     if reanalyze:
-        dysmalpy_reanalyze_single_2D(param_filename=param_filename)
+        dysmalpy_reanalyze_single_2D(param_filename=param_filename, datadir=datadir)
     else:
-        dysmalpy_fit_single_2D(param_filename=param_filename)
+        dysmalpy_fit_single_2D(param_filename=param_filename, datadir=datadir)
