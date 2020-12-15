@@ -30,7 +30,7 @@ except:
     from . import utils_io
 
 
-def user_specific_load_3D_data(param_filename=None):
+def user_specific_load_3D_data(param_filename=None, datadir=None):
     # EDIT THIS FILE TO HAVE SPECIFIC LOADING OF DATA!
 
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -78,18 +78,18 @@ def user_specific_load_3D_data(param_filename=None):
 
     return data3d
 
-def default_load_3D_data(param_filename=None):
+def default_load_3D_data(param_filename=None, datadir=None):
     params = utils_io.read_fitting_params(fname=param_filename)
 
-    data3d = utils_io.load_single_object_3D_data(params=params)
+    data3d = utils_io.load_single_object_3D_data(params=params, datadir=datadir)
     return data3d
 #
-def dysmalpy_fit_single_3D_wrapper(param_filename=None, default_load_data=True, overwrite=False):
+def dysmalpy_fit_single_3D_wrapper(param_filename=None, datadir=None, default_load_data=True, overwrite=False):
 
     if default_load_data:
-        data3d = default_load_3D_data(param_filename=param_filename)
+        data3d = default_load_3D_data(param_filename=param_filename, datadir=datadir)
     else:
-        data3d = user_specific_load_3D_data(param_filename=param_filename)
+        data3d = user_specific_load_3D_data(param_filename=param_filename, datadir=datadir)
 
     dysmalpy_fit_single_3D(param_filename=param_filename, data=data3d, overwrite=overwrite)
 
@@ -121,6 +121,11 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
 
     fitting.ensure_dir(params['outdir'])
 
+    if 'datadir' in params.keys():
+        if params['datadir'] is not None:
+            datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
+            params['datadir'] = datadir
+
     if 'plot_type' not in params.keys():
         params['plot_type'] = plot_type
     else:
@@ -149,24 +154,15 @@ def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
         print('------------------------------------------------------------------')
         print(" ")
     else:
-        # Copy paramfile that is OS independent
-        if platform.system() == 'Windows':
-            param_filename_nopath = param_filename.split('\\')[-1]
-        else:
-            param_filename_nopath = param_filename.split('/')[-1]
-        galID_strp = "".join(params['galID'].strip().split("_"))
-        galID_strp = "".join(galID_strp.split("-"))
-        galID_strp = "".join(galID_strp.split(" "))
-        paramfile_strp = "".join(param_filename_nopath.strip().split("_"))
-        paramfile_strp = "".join(paramfile_strp.split("-"))
-        paramfile_strp = "".join(paramfile_strp.split(" "))
-        if galID_strp.strip().lower() in paramfile_strp.strip().lower():
-            # Already has galID in param filename:
-            shutil.copy(param_filename, outdir)
-        else:
-            # Copy, prepending galID
-            shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
 
+        # Check if you can find filename; if not open datadir interface:
+        datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=3)
+
+        # Copy paramfile that is OS independent
+        utils_io.preserve_param_file(param_filename, params=params,
+                    datadir=datadir, outdir=params['outdir'])
 
         #######################
         # Setup
@@ -281,4 +277,13 @@ if __name__ == "__main__":
 
     param_filename = sys.argv[1]
 
-    dysmalpy_fit_single_3D_wrapper(param_filename=param_filename)
+    try:
+        if sys.argv[2].strip().lower() != 'reanalyze':
+            datadir = sys.argv[2]
+        else:
+            datadir = None
+    except:
+        datadir = None
+
+
+    dysmalpy_fit_single_3D_wrapper(param_filename=param_filename, datadir=datadir)
