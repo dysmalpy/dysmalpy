@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
+import platform
 from contextlib import contextmanager
 import sys
 import shutil
@@ -85,7 +86,10 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
         print(' ')
     else:
         # Copy paramfile that is OS independent
-        param_filename_nopath = param_filename.split('/')[-1]
+        if platform.system == 'Windows':
+            param_filename_nopath = param_filename.split('\\')[-1]
+        else:
+            param_filename_nopath = param_filename.split('/')[-1]
         galID_strp = "".join(params['galID'].strip().split("_"))
         galID_strp = "".join(galID_strp.split("-"))
         galID_strp = "".join(galID_strp.split(" "))
