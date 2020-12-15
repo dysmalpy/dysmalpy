@@ -86,7 +86,7 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
         print(' ')
     else:
         # Copy paramfile that is OS independent
-        if platform.system == 'Windows':
+        if platform.system() == 'Windows':
             param_filename_nopath = param_filename.split('\\')[-1]
         else:
             param_filename_nopath = param_filename.split('/')[-1]
