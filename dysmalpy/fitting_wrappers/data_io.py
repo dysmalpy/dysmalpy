@@ -126,9 +126,9 @@ def read_fitting_params(fname=None):
                 params['halo_profile_type'] = 'TwoPowerHalo'
 
     # Catch other cases:
-    if 'halo' in params['components_list']:
-        params['include_halo'] = True
-
+    if 'components_list' in params.keys():
+        if 'halo' in params['components_list']:
+            params['include_halo'] = True
 
     if params['include_halo']:
         if params['blob_name'] is None:
