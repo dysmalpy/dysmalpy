@@ -32,18 +32,66 @@ from astropy.table import Table
 
 import astropy.io.fits as fits
 
-try:
-    import utils_io
-    import dysmalpy_fit_single_1D
-    import dysmalpy_fit_single_2D
-except:
-    from . import utils_io
-    from . import dysmalpy_fit_single_1D
-    from . import dysmalpy_fit_single_2D
-
+from dysmalpy.fitting_wrappers import utils_io
 
 
 #
+# ----------------------------------------------------------------------
+def plot_bundle_1D(params=None, param_filename=None, fit_dict=None,
+        plot_type='pdf', overwrite=None,
+        **kwargs_galmodel):
+    if overwrite is None:
+        if 'overwrite' in params.keys():
+            overwrite = params['overwrite']
+        else:
+            overwrite = False
+
+    if 'aperture_radius' not in params.keys():
+        params['aperture_radius'] = -99.
+    # Reload bestfit case
+    gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
+
+    if ('partial_weight' in params.keys()):
+        partial_weight = params['partial_weight']
+    else:
+        # # Preserve previous default behavior
+        # partial_weight = False
+
+        ## NEW default behavior: always use partial_weight:
+        partial_weight = True
+
+    kwargs_galmodel['aperture_radius'] = params['aperture_radius']
+    plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
+            plot_type=plot_type,
+            partial_weight=partial_weight,
+            overwrite=overwrite, overwrite_curve_files=overwrite,
+            **kwargs_galmodel)
+
+
+
+    # Plot multid, if enabled:
+    if 'fdata_vel' in params.keys():
+        plot_results_multid(param_filename=param_filename, fit_ndim=ndim, show_1d_apers=True,
+                    plot_type=plot_type)
+
+    return None
+
+
+# ----------------------------------------------------------------------
+
+def plot_bundle_2D(params=None, param_filename=None, plot_type='pdf', overwrite=None):
+
+    # Plot multid, if enabled:
+    if 'fdata_1d' in params.keys():
+        plot_results_multid(param_filename=param_filename,
+                fit_ndim=2, show_1d_apers=True, remove_shift=True,
+                        plot_type=plot_type)
+
+    return None
+
+
+# ----------------------------------------------------------------------
+
 def plot_curve_components_overview(fname_gal=None, fname_results=None, param_filename=None,
         overwrite = False,
         overwrite_curve_files=False,
@@ -107,9 +155,9 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         params['plot_type'] = plot_type
 
     if fit_ndim == 2:
-        gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)
+        gal, fit_dict = utils_io.setup_single_object_2D(params=params, data=data)
     elif fit_ndim == 1:
-        gal, fit_dict = dysmalpy_fit_single_1D.setup_single_object_1D(params=params, data=data)
+        gal, fit_dict = utils_io.setup_single_object_1D(params=params, data=data)
 
 
     # Reload the best-fit:
@@ -166,12 +214,9 @@ def plot_results_multid_general(param_filename=None,
 
     return None
 
-#
 
 
-#
 ############################################################################
-
 
 def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=None):
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -208,9 +253,9 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
 
 
     if fit_ndim == 2:
-        gal, fit_dict = dysmalpy_fit_single_2D.setup_single_object_2D(params=params, data=data)
+        gal, fit_dict = utils_io.setup_single_object_2D(params=params, data=data)
     elif fit_ndim == 1:
-        gal, fit_dict = dysmalpy_fit_single_1D.setup_single_object_1D(params=params, data=data)
+        gal, fit_dict = utils_io.setup_single_object_1D(params=params, data=data)
 
 
     # Reload the best-fit:
