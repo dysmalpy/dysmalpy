@@ -7,12 +7,20 @@ import os, sys
 import platform
 import shutil
 
+# import tkinter as tk
+# from tkinter import filedialog
+
 import datetime
 
 import numpy as np
 import pandas as pd
 import astropy.units as u
 import astropy.constants as apy_con
+
+try:
+    import tkinter_io
+except ImportError:
+    from . import tkinter_io
 
 from dysmalpy import data_classes
 from dysmalpy import utils as dysmalpy_utils
@@ -701,47 +709,117 @@ def ensure_path_trailing_slash(path):
     return path
 
 ####
-def check_datadir_specified(params, datadir, ndim=None):
+def get_ndim_fit_from_paramfile(param_filename=None):
+    params = read_fitting_params(fname=param_filename)
+
+    ndim_fit = None
+
+    if 'fdata' in params.keys():
+        ndim_fit = 1
+    elif 'fdata_vel' in params.keys():
+        ndim_fit = 2
+    elif 'fdata_cube' in params.keys():
+        ndim_fit = 3
+
+    if ndim_fit is None:
+        # Try a final thing:
+        if 'ndim' in params.keys():
+            ndim_fit = params['ndim']
+
+    if ndim_fit is None:
+        msg = "Could not determine fit dimension from data filenames!\n"
+        msg += "  1D: params['fdata']\n"
+        msg += "  2D: params['fdata_vel']\n"
+        msg += "  1D: params['fdata_cube']\n"
+        msg += "   OR SET params['ndim']"
+        raise ValueError(msg)
+
+    return ndim_fit
+
+def stub_paramfile_dir(param_filename):
+    try:
+        delim = '/'
+        # Strip dir from param_filename
+        pf_arr = param_filename.split(delim)
+        if len(pf_arr) > 1:
+            param_dir = delim.join(pf_arr[:-1]) + delim
+        else:
+            param_dir = os.getcwd() + delim
+    except:
+        raise ValueError("Problem getting directory of paramfile={}".format(param_filename))
+
+    return param_dir
+
+def check_outdir_specified(params, outdir, param_filename=None):
+    try:
+        try:
+            if os.path.isabs(outdir):
+                stub_paramfilepath = False
+            else:
+                stub_paramfilepath = True
+        except:
+            print("Performing string splitting")
+            delim = '/'
+            od_arr = outdir.split(delim)
+            od_arr_nonempt = []
+            for od_d in od_arr:
+                if len(od_d) > 0:
+                    od_arr_nonempt.append(od_d)
+
+            # If only a SINGLE relative path specified, prepend the param directory
+            if len(od_arr_nonempt) == 1:
+                stub_paramfilepath = True
+            else:
+                stub_paramfilepath = False
+
+        if stub_paramfilepath:
+            # Strip dir from param_filename
+            param_dir = stub_paramfile_dir(param_filename)
+            outdir = param_dir+outdir
+            params['outdir'] = outdir
+    except:
+        raise ValueError("Directory {} not found! Couldn't get outdir.".format(outdir))
+
+    return outdir, params
+
+def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
     if ndim is None:
         raise ValueError("Must specify 'ndim'!")
     if ndim == 1:
-        fdata = params['fdata']
+        fdata_orig = params['fdata']
     elif ndim == 2:
-        fdata = params['fdata_vel']
+        fdata_orig = params['fdata_vel']
     elif ndim == 3:
-        fdata = params['fdata_cube']
+        fdata_orig = params['fdata_cube']
 
     if datadir is not None:
-        fdata = "{}{}".format(datadir, fdata)
+        fdata = "{}{}".format(datadir, fdata_orig)
+    else:
+        delim = '/'
+        datadir = os.getcwd() + delim
+        fdata = "{}{}".format(datadir, fdata_orig)
 
     if not os.path.isfile(fdata):
-        try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            try:
-                from os.path import expanduser
-                homedir = expanduser("~")
-            except:
-                homedir = None
-            datadir = filedialog.askdirectory(parent=root,
-                        title="Select data directory", initialdir=homedir,
-                        message="Data directory missing/incorrect. Select the data directory")
-            root.destroy()
-            datadir = ensure_path_trailing_slash(datadir)
+        # Strip dir from param_filename
+        datadir = stub_paramfile_dir(param_filename)
+        fdata = "{}{}".format(datadir, fdata_orig)
+
+        if os.path.isfile(fdata):
             params['datadir'] = datadir
-        except:
-            raise ValueError("Data file {} not found! Couldn't get datadir from dialog window.")
+        else:
+            try:
+                datadir = tkinter_io.get_datadir_tkinter(ndim=ndim)
+                params['datadir'] = datadir
+            except:
+                raise ValueError("Data file {} not found! Couldn't get datadir from dialog window.".format(fdata))
+
     return datadir, params
 
 
 def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
     # Copy paramfile that is OS independent
-    if platform.system() == 'Windows':
-        param_filename_nopath = param_filename.split('\\')[-1]
-    else:
-        param_filename_nopath = param_filename.split('/')[-1]
+    delim = '/'
+    param_filename_nopath = param_filename.split(delim)[-1]
     galID_strp = "".join(params['galID'].strip().split("_"))
     galID_strp = "".join(galID_strp.split("-"))
     galID_strp = "".join(galID_strp.split(" "))
@@ -749,12 +827,6 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
     paramfile_strp = "".join(paramfile_strp.split("-"))
     paramfile_strp = "".join(paramfile_strp.split(" "))
 
-    # if galID_strp.strip().lower() in paramfile_strp.strip().lower():
-    #     # Already has galID in param filename:
-    #     shutil.copy(param_filename, outdir)
-    # else:
-    #     # Copy, prepending galID
-    #     shutil.copy(param_filename, outdir+"{}_{}".format(params['galID'], param_filename_nopath))
 
     if galID_strp.strip().lower() in paramfile_strp.strip().lower():
         # Already has galID in param filename:
@@ -772,11 +844,9 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
         ll = l.split('#')[0]
         if 'datadir' in ll:
             larr = ll.split(',')
-            #lines[i] = l.replace(larr[1], "   {}".format(datadir))
             lines[i] = l.replace(larr[1].strip(), "{}".format(datadir))
         if 'outdir' in ll:
             larr = ll.split(',')
-            #lines[i] = l.replace(larr[1], "   {}".format(outdir))
             lines[i] = l.replace(larr[1].strip(), "{}".format(outdir))
 
     with open(fout_name, 'w') as fnew:

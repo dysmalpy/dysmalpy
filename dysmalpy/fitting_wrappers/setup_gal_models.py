@@ -15,12 +15,111 @@ from dysmalpy import galaxy, instrument, models
 from dysmalpy import aperture_classes
 
 try:
-    import tied_functions
+    import tied_functions, data_io
 except:
-    from . import tied_functions
+    from . import tied_functions, data_io
 
 import emcee
 
+
+# ------------------------------------------------------------
+def setup_single_object_1D(params=None, data=None):
+    # ------------------------------------------------------------
+    # Setup galaxy, instrument, model:
+    gal = setup_gal_model_base(params=params)
+
+    # ------------------------------------------------------------
+    # Load data:
+    if data is None:
+        # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
+        if 'datadir' in params.keys():
+            datadir = params['datadir']
+        else:
+            datadir = None
+        if datadir is None:
+            datadir = ''
+
+        if 'fdata_mask' in params.keys():
+            fdata_mask = params['fdata_mask']
+        else:
+            fdata_mask = None
+        gal.data = data_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params, datadir=datadir)
+        gal.data.filename_velocity = datadir+params['fdata']
+
+        if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
+            gal.data.apertures = setup_basic_aperture_types(gal=gal, params=params)
+    else:
+        gal.data = data
+        if gal.data.apertures is None:
+            gal.data.apertures = setup_basic_aperture_types(gal=gal, params=params)
+
+    #
+    gal.data.profile1d_type = params['profile1d_type']
+
+    # --------------------------------------------------
+    # Check FOV and issue warning if too small:
+    maxr = np.max(np.abs(gal.data.rarr))
+    if (params['fov_npix'] < maxr/params['pixscale']):
+        wmsg = "Input FOV 'fov_npix'={}".format(params['fov_npix'])
+        wmsg += " is too small for max data extent ({} pix)".format(maxr/params['pixscale'])
+        print("WARNING: dysmalpy_fit_single_1D: {}".format(wmsg))
+    # --------------------------------------------------
+
+    # ------------------------------------------------------------
+    # Setup fitting dict:
+    fit_dict = setup_fit_dict(params=params, ndim_data=1)
+
+    return gal, fit_dict
+
+
+# ------------------------------------------------------------
+def setup_single_object_2D(params=None, data=None):
+    # ------------------------------------------------------------
+    # Setup galaxy, instrument, model:
+
+    gal = setup_gal_model_base(params=params)
+
+    # ------------------------------------------------------------
+    # Load data:
+    if data is None:
+        gal.data = data_io.load_single_object_2D_data(params=params)
+    else:
+        gal.data = data
+
+    # ------------------------------------------------------------
+    # Setup fitting dict:
+    fit_dict = setup_fit_dict(params=params, ndim_data=2)
+
+    return gal, fit_dict
+
+
+# ------------------------------------------------------------
+def setup_single_object_3D(params=None, data=None):
+    # ------------------------------------------------------------
+    # Load data:
+    if data is None:
+        data = data_io.load_single_object_3D_data(params=params)
+
+
+    # ------------------------------------------------------------
+    # Setup galaxy, instrument, model:
+
+    gal = setup_gal_model_base(params=params)
+
+    # Override FOV from the cube shape:
+    gal.instrument.fov = [data.shape[2], data.shape[1]]
+
+    # ------------------------------------------------------------
+
+    gal.data = data
+
+    # ------------------------------------------------------------
+    # Setup fitting dict:
+    fit_dict = setup_fit_dict(params=params, ndim_data=3)
+
+    return gal, fit_dict
+
+# ------------------------------------------------------------
 def setup_gal_model_base(params=None,
         tied_fdm_func=None,
         tied_mvirial_func_NFW=None,
