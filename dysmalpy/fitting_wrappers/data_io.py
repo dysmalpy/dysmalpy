@@ -795,6 +795,12 @@ def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
     if datadir is not None:
         fdata = "{}{}".format(datadir, fdata_orig)
     else:
+        # Try case of absolute path for filenames
+        fdata = fdata_orig
+        datadir = None
+
+    if not os.path.isfile(fdata):
+        # Try relative WRT current dir
         delim = '/'
         datadir = os.getcwd() + delim
         fdata = "{}{}".format(datadir, fdata_orig)
