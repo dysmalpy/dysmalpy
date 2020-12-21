@@ -188,8 +188,7 @@ def plot_results_multid_general(param_filename=None,
     remove_shift=True,
     show_1d_apers=False,
     theta = None,
-    fileout=None,
-    **kwargs_galmodel):
+    fileout=None):
 
 
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
@@ -207,7 +206,9 @@ def plot_results_multid_general(param_filename=None,
 
     # Plot:
     plotting.plot_model_multid(gal, theta=theta,
-            fitdispersion=fit_dict['fitdispersion'],fileout=fileout,
+            fitdispersion=fit_dict['fitdispersion'],
+            fitflux=fit_dict['fitflux'],
+            fileout=fileout,
             show_1d_apers=show_1d_apers, remove_shift=remove_shift,
             **kwargs_galmodel)
 
