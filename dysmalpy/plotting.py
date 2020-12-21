@@ -1412,9 +1412,12 @@ def plot_model_multid_base(gal,
             if disp_vmax > vcrop_value:
                 disp_vmax = vcrop_value
 
-        flux_vmin = gal.data.data['flux'][gal.data.mask].min()
-        flux_vmax = gal.data.data['flux'][gal.data.mask].max()
-
+        if (self.data.data['flux'] is not None):
+            flux_vmin = gal.data.data['flux'][gal.data.mask].min()
+            flux_vmax = gal.data.data['flux'][gal.data.mask].max()
+        else:
+            flux_vmin = None
+            flux_vmax = None
 
         alpha_unmasked = 1. #0.7 #0.6
         alpha_masked = 0.5   # 0.
