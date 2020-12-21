@@ -1362,31 +1362,35 @@ def plot_model_multid_base(gal,
 
 
         keyxarr = ['data', 'model', 'residual']
-        keyyarr = ['velocity', 'dispersion', 'flux']
         keyxtitlearr = ['Data', 'Model', 'Residual']
-        keyytitlearr = [r'$V$', r'$\sigma$', 'Flux']
+        # keyyarr = ['velocity', 'dispersion', 'flux']
+        # keyytitlearr = [r'$V$', r'$\sigma$', 'Flux']
+        keyyarr = ['velocity']
+        keyytitlearr = [r'$V$']
+        if fitdispersion:
+            keyyarr.append('dispersion')
+            keyytitlearr.append(r'$\sigma$')
+        if fitflux:
+            keyyarr.append('flux')
+            keyytitlearr.append('Flux')
 
         int_mode = "nearest"
         origin = 'lower'
         cmap =  cm.Spectral_r
         cmap.set_bad(color='k')
 
-
         gamma = 1.5
         cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
                     gamma_lower=gamma, gamma_upper=gamma,
                     name_new='RdBu_r_stretch')
 
-
         cmap.set_bad(color='k')
 
         color_annotate = 'white'
 
-
         # -----------------------
         vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
         vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
-
 
         # Check for not too crazy:
         if vcrop:
@@ -1395,30 +1399,43 @@ def plot_model_multid_base(gal,
             if vel_vmax > vcrop_value:
                 vel_vmax = vcrop_value
 
-
         vel_shift = gal.model.geometry.vel_shift.value
 
-        #
         vel_vmin -= vel_shift
         vel_vmax -= vel_shift
 
-        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        # ++++++++++++++
+        if fitdispersion:
+            if (gal.data.data['dispersion'] is not None):
+                disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+                disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
 
-        # Check for not too crazy:
-        if vcrop:
-            if disp_vmin < 0:
-                disp_vmin = 0
-            if disp_vmax > vcrop_value:
-                disp_vmax = vcrop_value
+                # Check for not too crazy:
+                if vcrop:
+                    if disp_vmin < 0:
+                        disp_vmin = 0
+                    if disp_vmax > vcrop_value:
+                        disp_vmax = vcrop_value
+            else:
+                disp_vmin = None
+                disp_vmax = None
+        else:
+            disp_vmin = None
+            disp_vmax = None
 
-        if (gal.data.data['flux'] is not None):
-            flux_vmin = gal.data.data['flux'][gal.data.mask].min()
-            flux_vmax = gal.data.data['flux'][gal.data.mask].max()
+        # ++++++++++++++
+        if fitflux:
+            if (gal.data.data['flux'] is not None):
+                flux_vmin = gal.data.data['flux'][gal.data.mask].min()
+                flux_vmax = gal.data.data['flux'][gal.data.mask].max()
+            else:
+                flux_vmin = None
+                flux_vmax = None
         else:
             flux_vmin = None
             flux_vmax = None
 
+        # ++++++++++++++
         alpha_unmasked = 1. #0.7 #0.6
         alpha_masked = 0.5   # 0.
         alpha_bkgd = 1. #0.5 #1. #0.5
