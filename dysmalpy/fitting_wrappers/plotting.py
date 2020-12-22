@@ -283,7 +283,8 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
         test_keys = ['data_inst_corr', 'pixscale', 'psf_type', 'psf_fwhm',
                     'psf_fwhm1', 'psf_fwhm2', 'psf_beta', 'psf_scale1', 'psf_scale2',
                     'use_lsf', 'sig_inst_res',
-                    'fov', 'spec_type', 'spec_step', 'spec_start', 'nspec']
+                    'fov', 'spec_type', 'spec_step', 'spec_start', 'nspec',
+                    'smoothing_type', 'smoothing_npix']
         for tkey in test_keys:
             if '{}_1d'.format(tkey) in params1d.keys():
                 params1d['{}'.format(tkey)] = params1d['{}_1d'.format(tkey)]
@@ -346,7 +347,6 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
 
         ####
         # Setup data1d
-
         data1d = utils_io.load_single_object_1D_data(fdata=params1d['fdata_1d'], fdata_mask=fdata_mask, params=params1d, datadir=datadir1d)
         data1d.filename_velocity = datadir1d+params1d['fdata_1d']
 
@@ -365,10 +365,6 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
 
 
     elif fit_ndim == 1:
-        data2d = utils_io.load_single_object_2D_data(params=params, skip_crop=True, datadir=datadir2d)
-        gal.data2d = data2d
-
-
         ####
         # Setup params2d
         params2d = copy.deepcopy(params)
@@ -376,11 +372,16 @@ def load_setup_multid_multifit_data(param_filename=None, data=None, fit_ndim=Non
         test_keys = ['data_inst_corr', 'pixscale', 'psf_type', 'psf_fwhm',
                     'psf_fwhm1', 'psf_fwhm2', 'psf_beta', 'psf_scale1', 'psf_scale2',
                     'use_lsf', 'sig_inst_res',
-                    'fov', 'spec_type', 'spec_step', 'spec_start', 'nspec']
+                    'fov', 'spec_type', 'spec_step', 'spec_start', 'nspec',
+                    'smoothing_type', 'smoothing_npix']
         for tkey in test_keys:
             if '{}_2d'.format(tkey) in params2d.keys():
                 params2d['{}'.format(tkey)] = params2d['{}_2d'.format(tkey)]
 
+        ####
+        # Setup data2d
+        data2d = utils_io.load_single_object_2D_data(params=params2d, skip_crop=True, datadir=datadir2d)
+        gal.data2d = data2d
 
         #####
         # Setup instrument:
