@@ -231,6 +231,7 @@ class Galaxy:
                           pix_length=None,
                           skip_downsample=False, partial_aperture_weight=False,
                           xcenter=None, ycenter=None,
+                          transform_method='direct',
                           zcalc_truncate=True):
         """
         Function to simulate data for the galaxy
@@ -373,12 +374,18 @@ class Galaxy:
                   y pixel coordinate of the center of the cube if it should be different than
                   ny_sky/2
 
+        transform_method: str
+            Method for transforming from galaxy to sky coordinates.
+            Options are:
+                'direct' (calculate (xyz)sky before evaluating) or
+                'rotate' (calculate in (xyz)gal, then rotate when creating the final cube).
+            Default: 'direct'.
+
         zcalc_truncate: bool
                 If True, the cube is only filled with flux to within
                 +- 2 * scale length thickness above and below the galaxy midplane
                 (minimum: 3 whole pixels; to speed up the calculation).
                 Default: True
-
         """
         if line_center is None:
             line_center = self.model.line_center
@@ -560,6 +567,7 @@ class Galaxy:
                                                   oversize=oversize,
                                                   xcenter=xcenter,
                                                   ycenter=ycenter,
+                                                  transform_method=transform_method,
                                                   zcalc_truncate=zcalc_truncate)
 
         # Correct for any oversampling

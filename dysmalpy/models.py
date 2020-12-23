@@ -367,6 +367,20 @@ def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=N
 
     return ai
 
+def _grid_interp_ai_data(cube, ai_old, ai_new, xold, yold, zold,
+                    xnew, ynew, znew):
+    cube_out =  np.zeros(cube.shape)
+    cube_out[ai_new[0,:], ai_new[1,:], ai_new[2,:]] = \
+        scp_interp.griddata((xold[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
+                             yold[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
+                             zold[ai_old[0,:], ai_old[1,:], ai_old[2,:]]),
+                cube[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
+                (xnew[ai_new[0,:], ai_new[1,:], ai_new[2,:]],
+                 ynew[ai_new[0,:], ai_new[1,:], ai_new[2,:]],
+                 znew[ai_new[0,:], ai_new[1,:], ai_new[2,:]]),
+                 fill_value=0.)
+
+    return cube_out
 
 
 def apply_noord_flat(r, r_eff, mass, n, invq):
@@ -1689,8 +1703,8 @@ class ModelSet:
                       spec_type, spec_step, spec_start, nspec,
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
                       xcenter=None, ycenter=None,
+                      transform_method='direct',
                       zcalc_truncate=True):
-                      #debug=False):
         """
         Simulate a line emission cube of this model set
 
@@ -1740,6 +1754,13 @@ class ModelSet:
             The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
             center of the cube will be used.
 
+        transform_method: str
+            Method for transforming from galaxy to sky coordinates.
+            Options are:
+                'direct' (calculate (xyz)sky before evaluating) or
+                'rotate' (calculate in (xyz)gal, then rotate when creating final cube).
+            Default: 'direct'.
+
         zcalc_truncate: bool
             Setting the default behavior of filling the model cube. If True,
             then the cube is only filled with flux
@@ -1759,16 +1780,16 @@ class ModelSet:
             Values of the spectral channels as determined by `spec_type`, `spec_start`,
             `spec_step`, `nspec`, and `spec_unit`
         """
+
+        if transform_method.lower().strip() not in ['direct', 'rotate']:
+            raise ValueError("Transform method {} unknown! "
+                    "Must be 'direct' or 'rotate'!".format(transform_method))
+
+
         # Start with a 3D array in the sky coordinate system
         # x and y sizes are user provided so we just need
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
-
-        ### Don't need, just do later for {x/y}center_samp
-        # if xcenter is None:
-        #     xcenter = (nx_sky - 1) / 2.
-        # if ycenter is None:
-        #     ycenter = (nx_sky - 1) / 2.
 
         # Backwards compatibility:
         if 'outflow' not in self.__dict__.keys():
@@ -1801,7 +1822,6 @@ class ModelSet:
         else:
             ycenter_samp = (ycenter + 0.5)*oversample - 0.5
 
-        #nz_sky_samp = np.max([nx_sky_samp, ny_sky_samp])
 
         # Setup the final IFU cube
         spec = np.arange(nspec) * spec_step + spec_start
@@ -1821,27 +1841,49 @@ class ModelSet:
         # First construct the cube based on mass components
         if sum(self.mass_components.values()) > 0:
 
-            # Create 3D arrays of the sky pixel coordinates
-            cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+            # Create 3D arrays of the sky / galaxy pixel coordinates
+
             maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
-            maxr_y = np.max(np.array([maxr*1.5, np.min(
-                np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+            if transform_method.lower().strip() == 'direct':
+                cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+                maxr_y = np.max(np.array([maxr*1.5, np.min(
+                    np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+            else:
+                maxr_y = maxr * 5. #1.5
+
             #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
             nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
             if np.mod(nz_sky_samp, 2) < 0.5:
                 nz_sky_samp += 1
 
-            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-            zsky, ysky, xsky = np.indices(sh)
-            zsky = zsky - (nz_sky_samp - 1) / 2.
-            ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
-            xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
+            # Regularly gridded in galaxy space
+            #   -- just use the number values from sky space for simplicity
+            if transform_method.lower().strip() == 'direct':
+                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+                zsky, ysky, xsky = np.indices(sh)
+                zsky = zsky - (nz_sky_samp - 1) / 2.
+                ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
+                xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
 
-            # Apply the geometric transformation to get galactic coordinates
-            # Need to account for oversampling in the x and y shift parameters
-            self.geometry.xshift = self.geometry.xshift.value * oversample
-            self.geometry.yshift = self.geometry.yshift.value * oversample
-            xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
+                # Apply the geometric transformation to get galactic coordinates
+                # Need to account for oversampling in the x and y shift parameters
+                self.geometry.xshift = self.geometry.xshift.value * oversample
+                self.geometry.yshift = self.geometry.yshift.value * oversample
+                xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
+
+            elif transform_method.lower().strip() == 'rotate':
+                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
+                zgal, ygal, xgal = np.indices(sh)
+                zgal = zgal - (nz_sky_samp - 1) / 2.
+                ygal = ygal - ycenter_samp
+                xgal = xgal - xcenter_samp
+
+                # Apply the geometric transformation to get galactic coordinates
+                # Need to account for oversampling in the x and y shift parameters
+                self.geometry.xshift = self.geometry.xshift.value * oversample
+                self.geometry.yshift = self.geometry.yshift.value * oversample
+
+                xsky, ysky, zsky = self.geometry.inverse_coord_transform(xgal, ygal, zgal)
 
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
@@ -1874,7 +1916,6 @@ class ModelSet:
             #######
 
             # Calculate "flux" for each position
-
             flux_mass = np.zeros(vobs_mass.shape)
 
             for cmp in self.light_components:
@@ -1884,25 +1925,74 @@ class ModelSet:
 
             # Apply extinction if a component exists
             if self.extinction is not None:
-
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
             # The final spectrum will be a flux weighted sum of Gaussians at each
             # velocity along the line of sight.
             sigmar = self.dispersion_profile(rgal)
 
-            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            if zcalc_truncate:
-                ##print("    models.py: TRUE: zcalc_truncate={}".format(zcalc_truncate))
-                # Truncate in the z direction by flagging what pixels to include in propogation
-                ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
-                    dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
-                cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
-            else:
-                ##print("    models.py: FALSE: zcalc_truncate={}".format(zcalc_truncate))
-                # Do complete cube propogation calculation
-                cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
-            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            if transform_method.lower().strip() == 'direct':
+                # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                if zcalc_truncate:
+                    # Truncate in the z direction by flagging what pixels to include in propogation
+                    ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
+                        dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
+                    cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
+                else:
+                    # Do complete cube propogation calculation
+                    cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+                # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+            elif transform_method.lower().strip() == 'rotate':
+                # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                if zcalc_truncate:
+                    cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+                    maxr_y_final = np.max(np.array([maxr*1.5, np.min(
+                        np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+
+                    xsky_final, ysky_final, zsky_final = np.indices(sh)
+                    zsky_final = zsky_final - (nz_sky_samp - 1) / 2.
+                    ysky_final = ysky_final - ycenter_samp
+                    xsky_final = xsky_final - xcenter_samp
+
+                    xgal_final, ygal_final, zgal_final = self.geometry(xsky_final, ysky_final, zsky_final)
+
+                    # ---------------------
+                    # GET TRIMMING FOR TRANSFORM:
+                    thick = self.zprofile.z_scalelength.value
+                    if not np.isfinite(thick):
+                        thick = 0.
+                    # Sample += 2 * scale length thickness
+                    # Modify: make sure there are at least 3 *whole* pixels sampled:
+                    zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep_samp*dscale + 0.5 )) ])
+                    if ( (zsize%2) < 0.5 ): zsize += 1
+                    zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
+                    origpos_z = zarr - np.mean(zarr) + zsize/2.
+                    validz = np.where((origpos_z >= -0.5) & (origpos_z < zsize-0.5) )[0]
+                    # ---------------------
+
+                    # Rotate + transform cube from inclined to sky coordinates
+                    outsh = flux_mass.shape
+                    # Cube: z, y, x -- this is in GALAXY coords, so z trim is just in z coord.
+                    flux_mass_transf = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
+                    vobs_mass_transf = self.geometry.transform_cube_affine(vobs_mass[validz,:,:], output_shape=outsh)
+                    sigmar_transf =    self.geometry.transform_cube_affine(sigmar[validz,:,:], output_shape=outsh)
+
+                    # Truncate in the z direction by flagging what pixels to include in propogation
+                    ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
+                            rstep=rstep_samp, oversample=oversample,
+                            dscale=dscale, maxr=maxr/2., maxr_y=maxr_y_final/2.)
+                    cube_final += cutils.populate_cube_ais(flux_mass_transf, vobs_mass_transf,
+                                sigmar_transf, vx, ai_sky)
+                else:
+                    # Rotate + transform cube from inclined to sky coordinates
+                    flux_mass = self.geometry.transform_cube_affine(flux_mass)
+                    vobs_mass = self.geometry.transform_cube_affine(vobs_mass)
+                    sigmar =    self.geometry.transform_cube_affine(sigmar)
+                    # Do complete cube propogation calculation
+                    cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+                # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
@@ -4741,6 +4831,14 @@ class Geometry(_DysmalFittable3DModel):
     vel_shift : float
         Systemic velocity shift that will be applied to the whole cube in km/s
 
+    Methods
+    -------
+    coord_transform:
+        Transform from sky to galaxy coordinates.
+
+    inverse_coord_transform:
+        Transform from galaxy to sky coordinates.
+
     Notes
     -----
     This model component takes as input sky coordinates and converts them
@@ -4779,6 +4877,103 @@ class Geometry(_DysmalFittable3DModel):
 
         return xgal, ygal, zgal
 
+    def coord_transform(self, x, y, z, inc=None, pa=None, xshift=None, yshift=None):
+        """Transform sky coordinates to galaxy/model reference frame"""
+        if inc is None:     inc = self.inc
+        if pa is None:      pa = self.pa
+        if xshift is None:  xshift = self.xshift
+        if yshift is None:  yshift = self.yshift
+
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        # Apply the shifts in the sky system
+        xsky = x - xshift
+        ysky = y - yshift
+        zsky = z
+
+        xtmp = xsky * np.cos(pa) + ysky * np.sin(pa)
+        ytmp = -xsky * np.sin(pa) + ysky * np.cos(pa)
+        ztmp = zsky
+
+        xgal = xtmp
+        ygal = ytmp * np.cos(inc) - ztmp * np.sin(inc)
+        zgal = ytmp * np.sin(inc) + ztmp * np.cos(inc)
+
+        return xgal, ygal, zgal
+
+    def inverse_coord_transform(self, xgal, ygal, zgal,
+            inc=None, pa=None, xshift=None, yshift=None):
+        """Transform galaxy/model reference frame to sky coordinates"""
+        if inc is None:     inc = self.inc
+        if pa is None:      pa = self.pa
+        if xshift is None:  xshift = self.xshift
+        if yshift is None:  yshift = self.yshift
+
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        # Apply inlincation:
+        xtmp =  xgal
+        ytmp =  ygal * np.cos(inc) + zgal * np.sin(inc)
+        ztmp = -ygal * np.sin(inc) + zgal * np.cos(inc)
+
+        # Apply PA + shifts in sky system:
+        xsky = xtmp * np.cos(pa) - ytmp * np.sin(pa) + xshift
+        ysky = xtmp * np.sin(pa) + ytmp * np.cos(pa) + yshift
+        zsky = ztmp
+
+        return xsky, ysky, zsky
+
+    def transform_cube_affine(self, cube, inc=None, pa=None, xshift=None, yshift=None,
+                output_shape=None):
+        """Incline and transform a cube from galaxy/model reference frame to sky frame.
+            Use scipy.ndimage.affine_transform"""
+        if inc is None:     inc = self.inc
+        if pa is None:      pa = self.pa
+        if xshift is None:  xshift = self.xshift
+        if yshift is None:  yshift = self.yshift
+
+        inc = np.pi / 180. * inc
+        pa = np.pi / 180. * (pa - 90.)
+
+        c_in = 0.5*(np.array(cube.shape)-1)
+        if output_shape is not None:
+            c_out = 0.5*(np.array(output_shape)-1)
+        else:
+            c_out = 0.5*(np.array(cube.shape)-1)
+
+        # # CUBE: z, y, x
+        minc = np.array([[np.cos(inc), np.sin(inc),  0.],
+                         [-np.sin(inc), np.cos(inc), 0.],
+                         [0., 0., 1.]])
+
+        mpa = np.array([[1., 0., 0.],
+                        [0., np.cos(pa), -np.sin(pa)],
+                        [0., np.sin(pa), np.cos(pa)]])
+
+        transf_matrix = np.matmul(minc, mpa)
+        offset_arr = np.array([0., yshift.value, xshift.value])
+        offset_transf = -np.matmul(transf_matrix,c_in+offset_arr)+c_out
+        cube_sky = scp_ndi.interpolation.affine_transform(cube, transf_matrix,
+                    output_shape=output_shape, offset=offset_transf, order=3)
+
+        return cube_sky
+
+    # def transform_cube_rotate_shift(self, cube, inc=None, pa=None, xshift=None, yshift=None):
+    #     """Incline and transform a cube from galaxy/model reference frame to sky frame.
+    #         Use scipy.ndimage.rotate and scipy.ndimage.shift"""
+    #     if inc is None:     inc = self.inc
+    #     if pa is None:      pa = self.pa
+    #     if xshift is None:  xshift = self.xshift
+    #     if yshift is None:  yshift = self.yshift
+    #
+    #     offset_arr = np.array([0., yshift, xshift])
+    #     cube_inc = scp_ndi.rotate(cube, -inc, axes=(1,0), order=3, reshape=False)
+    #     cube_PA  = scp_ndi.rotate(cube_inc, pa, axes=(2,1), order=3, reshape=False)
+    #     cube_sky = scp_ndi.shift(cube_PA, offset_arr, order=3)
+    #
+    #     return cube_sky
 
 # ******* Dispersion Profiles **************
 class DispersionProfile(_DysmalFittable1DModel):
@@ -5197,7 +5392,7 @@ class KinematicOptions:
             dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
 
             vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
-            
+
 
         return vel_asymm_drift
 
