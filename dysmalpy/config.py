@@ -22,7 +22,6 @@ class ConfigBase:
     def __init__(self, **kwargs):
         self.set_defaults()
         self.fill_values(**kwargs)
-        self._dict = self.to_dict()
 
     def set_defaults(self):
         raise ValueError("Must be set for each inheriting class!")
@@ -34,7 +33,7 @@ class ConfigBase:
 
     @property
     def dict(self):
-        return self._dict
+        return self.to_dict()
 
     def to_dict(self):
         kwarg_dict = {}
@@ -88,6 +87,7 @@ class Config_simulate_cube(ConfigBase):
         self.ycenter = None
         self.oversample = 1
         self.oversize = 1
+        self.transform_method = 'direct'
         self.zcalc_truncate = True
 
 
