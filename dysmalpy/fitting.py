@@ -2227,9 +2227,6 @@ def log_like(gal, red_chisq=False,
                                np.log( (2.*np.pi*vel_err**2) / wgt ))
 
         #####
-        if oversampled_chisq:
-            invnu = 1. / gal.data.oversample_factor_chisq
-
         # Data includes velocity
         fac_mask = 1
         chisq_arr_sum = chisq_arr_raw_vel.sum()
@@ -2247,16 +2244,22 @@ def log_like(gal, red_chisq=False,
             chisq_arr_sum += chisq_arr_raw_flux.sum()
 
         ####
-        if ((not oversampled_chisq) and (red_chisq)):
+
+        if oversampled_chisq:
+            invnu = 1. / gal.data.oversample_factor_chisq
+        elif red_chisq:
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
         else:
             invnu = 1.
 
+
         ####
         llike = -0.5*(chisq_arr_sum) * invnu
-
+        print("invnu={}".format(invnu))
+        print("chisq_arr_sum={}".format(chisq_arr_sum))
+        print("llike={}".format(llike))
 
 
     elif gal.data.ndim == 0:
