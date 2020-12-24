@@ -372,22 +372,6 @@ def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=N
 
     return ai
 
-def _grid_interp_ai_data(cube, ai_old, ai_new, xold, yold, zold,
-                    xnew, ynew, znew):
-    cube_out =  np.zeros(cube.shape)
-    cube_out[ai_new[0,:], ai_new[1,:], ai_new[2,:]] = \
-        scp_interp.griddata((xold[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
-                             yold[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
-                             zold[ai_old[0,:], ai_old[1,:], ai_old[2,:]]),
-                cube[ai_old[0,:], ai_old[1,:], ai_old[2,:]],
-                (xnew[ai_new[0,:], ai_new[1,:], ai_new[2,:]],
-                 ynew[ai_new[0,:], ai_new[1,:], ai_new[2,:]],
-                 znew[ai_new[0,:], ai_new[1,:], ai_new[2,:]]),
-                 fill_value=0.)
-
-    return cube_out
-
-
 def apply_noord_flat(r, r_eff, mass, n, invq):
     """
     Calculate circular velocity for a thick Sersic component
@@ -1997,7 +1981,7 @@ class ModelSet:
                     # Rotate + transform cube from inclined to sky coordinates
                     outsh = flux_mass.shape
                     # Cube: z, y, x -- this is in GALAXY coords, so z trim is just in z coord.
-                    flux_mass_transf =  self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
+                    flux_mass_transf  = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
                     vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass[validz,:,:], output_shape=outsh)
 
                     vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
