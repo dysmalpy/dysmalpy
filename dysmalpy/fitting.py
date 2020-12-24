@@ -2257,9 +2257,6 @@ def log_like(gal, red_chisq=False,
 
         ####
         llike = -0.5*(chisq_arr_sum) * invnu
-        print("invnu={}".format(invnu))
-        print("chisq_arr_sum={}".format(chisq_arr_sum))
-        print("llike={}".format(llike))
 
 
     elif gal.data.ndim == 0:
