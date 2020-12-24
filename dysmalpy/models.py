@@ -28,6 +28,11 @@ import astropy.cosmology as apy_cosmo
 import pyximport; pyximport.install()
 from . import cutils
 
+try:
+    from dysmalpy.utils import get_cin_cout
+except:
+    from .utils import get_cin_cout
+
 from astropy.table import Table
 
 # Local imports
@@ -1885,6 +1890,7 @@ class ModelSet:
 
                 xsky, ysky, zsky = self.geometry.inverse_coord_transform(xgal, ygal, zgal)
 
+
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
@@ -1964,11 +1970,15 @@ class ModelSet:
                         thick = 0.
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
-                    zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep_samp*dscale + 0.5 )) ])
+                    # NEED THICKER FOR THIS INTERPOLATION:
+                    zsize = np.max([ 10.*oversample, np.int(np.floor(10.*thick/rstep_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
                     origpos_z = zarr - np.mean(zarr) + zsize/2.
+                    print(zsize)
                     validz = np.where((origpos_z >= -0.5) & (origpos_z < zsize-0.5) )[0]
+                    print(validz)
+                    print(flux_mass.shape)
                     # ---------------------
 
                     # Rotate + transform cube from inclined to sky coordinates
@@ -1977,6 +1987,11 @@ class ModelSet:
                     flux_mass_transf = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
                     vobs_mass_transf = self.geometry.transform_cube_affine(vobs_mass[validz,:,:], output_shape=outsh)
                     sigmar_transf =    self.geometry.transform_cube_affine(sigmar[validz,:,:], output_shape=outsh)
+                    # Garbage collect: missing values:
+                    whmiss = np.where((sigmar_transf == 0.) & (flux_mass_transf==0.) & \
+                        (vobs_mass_transf==0.))
+                    # Set sigma to a finite value that position doesn't give NaNs
+                    sigmar_transf[whmiss] = 99.
 
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
@@ -1986,11 +2001,17 @@ class ModelSet:
                                 sigmar_transf, vx, ai_sky)
                 else:
                     # Rotate + transform cube from inclined to sky coordinates
-                    flux_mass = self.geometry.transform_cube_affine(flux_mass)
-                    vobs_mass = self.geometry.transform_cube_affine(vobs_mass)
-                    sigmar =    self.geometry.transform_cube_affine(sigmar)
+                    flux_mass_transf = self.geometry.transform_cube_affine(flux_mass)
+                    vobs_mass_transf = self.geometry.transform_cube_affine(vobs_mass)
+                    sigmar_transf =    self.geometry.transform_cube_affine(sigmar)
+                    # Garbage collect: missing values:
+                    whmiss = np.where((sigmar_transf == 0.) & (flux_mass_transf==0.) & \
+                        (vobs_mass_transf==0.))
+                    # Set sigma to a finite value that position doesn't give NaNs
+                    sigmar_transf[whmiss] = 99.
+
                     # Do complete cube propogation calculation
-                    cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
+                    cube_final += cutils.populate_cube(flux_mass_transf, vobs_mass_transf, sigmar_transf, vx)
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -4925,6 +4946,7 @@ class Geometry(_DysmalFittable3DModel):
 
         return xsky, ysky, zsky
 
+
     def transform_cube_affine(self, cube, inc=None, pa=None, xshift=None, yshift=None,
                 output_shape=None):
         """Incline and transform a cube from galaxy/model reference frame to sky frame.
@@ -4937,11 +4959,11 @@ class Geometry(_DysmalFittable3DModel):
         inc = np.pi / 180. * inc
         pa = np.pi / 180. * (pa - 90.)
 
-        c_in = 0.5*(np.array(cube.shape)-1)
+        c_in =  get_cin_cout(cube.shape)
         if output_shape is not None:
-            c_out = 0.5*(np.array(output_shape)-1)
+            c_out = get_cin_cout(output_shape)
         else:
-            c_out = 0.5*(np.array(cube.shape)-1)
+            c_out = get_cin_cout(cube.shape)
 
         # # CUBE: z, y, x
         minc = np.array([[np.cos(inc), np.sin(inc),  0.],
@@ -4954,9 +4976,9 @@ class Geometry(_DysmalFittable3DModel):
 
         transf_matrix = np.matmul(minc, mpa)
         offset_arr = np.array([0., yshift.value, xshift.value])
-        offset_transf = -np.matmul(transf_matrix,c_in+offset_arr)+c_out
+        offset_transf = c_in-np.matmul(transf_matrix,c_out+offset_arr)
         cube_sky = scp_ndi.interpolation.affine_transform(cube, transf_matrix,
-                    output_shape=output_shape, offset=offset_transf, order=3)
+                    offset=offset_transf, order=3, output_shape=output_shape)
 
         return cube_sky
 
