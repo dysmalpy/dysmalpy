@@ -1891,6 +1891,7 @@ class ModelSet:
                 xsky, ysky, zsky = self.geometry.inverse_coord_transform(xgal, ygal, zgal)
 
 
+
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
@@ -1899,30 +1900,34 @@ class ModelSet:
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
             v_sys = self.geometry.vel_shift.value  # systemic velocity
-            vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
-                    xgal / (rgal / rstep_samp * dscale))
+            if transform_method.lower().strip() == 'direct':
+                vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
+                        xgal / (rgal / rstep_samp * dscale))
 
-            vobs_mass[rgal == 0] = 0.
+                vobs_mass[rgal == 0] = 0.
+                #######
+                if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                    rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
+                    # 3D radius, converted to kpc
+                    rgal3D_kpc = rgal3D * rstep_samp / dscale
+                    xgal_kpc = xgal * rstep_samp / dscale
+                    ygal_kpc = ygal * rstep_samp / dscale
+                    zgal_kpc = ygal * rstep_samp / dscale
+                    vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
 
-            #######
-            if ((self.inflow is not None) & (self.inflow_geometry is None)):
-                rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
-                # 3D radius, converted to kpc
-                rgal3D_kpc = rgal3D * rstep_samp / dscale
-                xgal_kpc = xgal * rstep_samp / dscale
-                ygal_kpc = ygal * rstep_samp / dscale
-                zgal_kpc = ygal * rstep_samp / dscale
-                vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                    # Negative of inflow is already included in the definition of the inflow
+                    #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
+                    vin_obs = - vin * zsky/rgal3D
+                    vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                    vobs_mass += vin_obs
+                #######
+            elif transform_method.lower().strip() == 'rotate':
+                vcirc_mass = vrot
+                vcirc_mass[rgal == 0] = 0.
 
-                # Negative of inflow is already included in the definition of the inflow
-                #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                vin_obs = - vin * zsky/rgal3D
-                vin_obs[rgal3D == 0] = vin[rgal3D == 0]
-                vobs_mass += vin_obs
-            #######
 
             # Calculate "flux" for each position
-            flux_mass = np.zeros(vobs_mass.shape)
+            flux_mass = np.zeros(rgal.shape)
 
             for cmp in self.light_components:
                 if self.light_components[cmp]:
@@ -1933,9 +1938,10 @@ class ModelSet:
             if self.extinction is not None:
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
-            # The final spectrum will be a flux weighted sum of Gaussians at each
-            # velocity along the line of sight.
-            sigmar = self.dispersion_profile(rgal)
+            if transform_method.lower().strip() == 'direct':
+                # The final spectrum will be a flux weighted sum of Gaussians at each
+                # velocity along the line of sight.
+                sigmar = self.dispersion_profile(rgal)
 
             if transform_method.lower().strip() == 'direct':
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1949,19 +1955,27 @@ class ModelSet:
                     cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
             elif transform_method.lower().strip() == 'rotate':
+                zsky_final, ysky_final, xsky_final = np.indices(sh)
+                zsky_final = zsky_final - (nz_sky_samp - 1) / 2.
+                ysky_final = ysky_final - ycenter_samp
+                xsky_final = xsky_final - xcenter_samp
+
+                xgal_final, ygal_final, zgal_final = self.geometry(xsky_final, ysky_final, zsky_final)
+
+                rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+
+
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
+                sigmar_transf = self.dispersion_profile(rgal_final)
+
                 if zcalc_truncate:
                     cos_inc = np.cos(self.geometry.inc*np.pi/180.)
                     maxr_y_final = np.max(np.array([maxr*1.5, np.min(
                         np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
-
-                    xsky_final, ysky_final, zsky_final = np.indices(sh)
-                    zsky_final = zsky_final - (nz_sky_samp - 1) / 2.
-                    ysky_final = ysky_final - ycenter_samp
-                    xsky_final = xsky_final - xcenter_samp
-
-                    xgal_final, ygal_final, zgal_final = self.geometry(xsky_final, ysky_final, zsky_final)
 
                     # ---------------------
                     # GET TRIMMING FOR TRANSFORM:
@@ -1971,27 +1985,48 @@ class ModelSet:
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
                     # NEED THICKER FOR THIS INTERPOLATION:
-                    zsize = np.max([ 10.*oversample, np.int(np.floor(10.*thick/rstep_samp*dscale + 0.5 )) ])
+                    #zsize = np.max([ 10.*oversample, np.int(np.floor(10.*thick/rstep_samp*dscale + 0.5 )) ])
+                    # TEST
+                    zsize = np.max([  3.*oversample, np.int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
                     origpos_z = zarr - np.mean(zarr) + zsize/2.
-                    print(zsize)
                     validz = np.where((origpos_z >= -0.5) & (origpos_z < zsize-0.5) )[0]
-                    print(validz)
-                    print(flux_mass.shape)
                     # ---------------------
 
                     # Rotate + transform cube from inclined to sky coordinates
                     outsh = flux_mass.shape
                     # Cube: z, y, x -- this is in GALAXY coords, so z trim is just in z coord.
-                    flux_mass_transf = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
-                    vobs_mass_transf = self.geometry.transform_cube_affine(vobs_mass[validz,:,:], output_shape=outsh)
-                    sigmar_transf =    self.geometry.transform_cube_affine(sigmar[validz,:,:], output_shape=outsh)
-                    # Garbage collect: missing values:
-                    whmiss = np.where((sigmar_transf == 0.) & (flux_mass_transf==0.) & \
-                        (vobs_mass_transf==0.))
-                    # Set sigma to a finite value that position doesn't give NaNs
-                    sigmar_transf[whmiss] = 99.
+                    flux_mass_transf =  self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
+                    vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass[validz,:,:], output_shape=outsh)
+
+                    vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
+                            xgal_final / (rgal_final / rstep_samp * dscale))
+                    vobs_mass_transf[rgal_final == 0] = 0.
+
+                    # sigmar_transf =     self.geometry.transform_cube_affine(sigmar[validz,:,:], output_shape=outsh)
+                    # # Garbage collect: missing values:
+                    # whmiss = np.where((sigmar_transf == 0.))
+                    # # Set sigma to a finite value that position doesn't give NaNs
+                    # sigmar_transf[whmiss] = 99.
+
+                    #######
+                    if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                        rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
+                        # 3D radius, converted to kpc
+                        rgal3D_kpc = rgal3D * rstep_samp / dscale
+                        xgal_kpc = xgal_final * rstep_samp / dscale
+                        ygal_kpc = ygal_final * rstep_samp / dscale
+                        zgal_kpc = zgal_final * rstep_samp / dscale
+                        vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+
+                        # Negative of inflow is already included in the definition of the inflow
+                        #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
+                        vin_obs = - vin * zsky_final/rgal3D
+                        vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                        vobs_mass += vin_obs
+                    #######
+
 
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
@@ -1999,16 +2034,31 @@ class ModelSet:
                             dscale=dscale, maxr=maxr/2., maxr_y=maxr_y_final/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass_transf, vobs_mass_transf,
                                 sigmar_transf, vx, ai_sky)
+
                 else:
                     # Rotate + transform cube from inclined to sky coordinates
-                    flux_mass_transf = self.geometry.transform_cube_affine(flux_mass)
-                    vobs_mass_transf = self.geometry.transform_cube_affine(vobs_mass)
-                    sigmar_transf =    self.geometry.transform_cube_affine(sigmar)
-                    # Garbage collect: missing values:
-                    whmiss = np.where((sigmar_transf == 0.) & (flux_mass_transf==0.) & \
-                        (vobs_mass_transf==0.))
-                    # Set sigma to a finite value that position doesn't give NaNs
-                    sigmar_transf[whmiss] = 99.
+                    flux_mass_transf =  self.geometry.transform_cube_affine(flux_mass)
+                    vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass)
+                    vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
+                            xgal_final / (rgal_final / rstep_samp * dscale))
+                    vobs_mass_transf[rgal_final == 0] = 0.
+
+                    #######
+                    if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                        rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
+                        # 3D radius, converted to kpc
+                        rgal3D_kpc = rgal3D * rstep_samp / dscale
+                        xgal_kpc = xgal_final * rstep_samp / dscale
+                        ygal_kpc = ygal_final * rstep_samp / dscale
+                        zgal_kpc = zgal_final * rstep_samp / dscale
+                        vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+
+                        # Negative of inflow is already included in the definition of the inflow
+                        #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
+                        vin_obs = - vin * zsky_final/rgal3D
+                        vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                        vobs_mass += vin_obs
+                    #######
 
                     # Do complete cube propogation calculation
                     cube_final += cutils.populate_cube(flux_mass_transf, vobs_mass_transf, sigmar_transf, vx)
@@ -2033,8 +2083,6 @@ class ModelSet:
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
-                #ysky = ysky - (ny_sky_samp - 1) / 2.
-                #xsky = xsky - (nx_sky_samp - 1) / 2.
                 ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
                 xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
 
@@ -4977,6 +5025,7 @@ class Geometry(_DysmalFittable3DModel):
         transf_matrix = np.matmul(minc, mpa)
         offset_arr = np.array([0., yshift.value, xshift.value])
         offset_transf = c_in-np.matmul(transf_matrix,c_out+offset_arr)
+
         cube_sky = scp_ndi.interpolation.affine_transform(cube, transf_matrix,
                     offset=offset_transf, order=3, output_shape=output_shape)
 
