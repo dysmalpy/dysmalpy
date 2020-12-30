@@ -127,6 +127,10 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
         config_sim_cube = config.Config_simulate_cube(**fit_dict)
         kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
+        fit_dict['overwrite'] = overwrite
+        fit_dict['plot_type'] = plot_type
+
+        kwargs_all = {**kwargs_galmodel, **fit_dict}
 
         # Clean up existing log file:
         if os.path.isfile(fit_dict['f_log']):
@@ -134,54 +138,10 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
 
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
-            results = fitting.fit_mcmc(gal, nWalkers=fit_dict['nWalkers'], nCPUs=fit_dict['nCPUs'],
-                                  scale_param_a=fit_dict['scale_param_a'], nBurn=fit_dict['nBurn'],
-                                  nSteps=fit_dict['nSteps'], minAF=fit_dict['minAF'], maxAF=fit_dict['maxAF'],
-                                  nEff=fit_dict['nEff'], do_plotting=fit_dict['do_plotting'],
-                                  red_chisq=fit_dict['red_chisq'],
-                                  oversampled_chisq = fit_dict['oversampled_chisq'],
-                                  fitdispersion=fit_dict['fitdispersion'],
-                                  fitflux=fit_dict['fitflux'],
-                                  linked_posterior_names=fit_dict['linked_posterior_names'],
-                                  blob_name=fit_dict['blob_name'],
-                                  outdir=fit_dict['outdir'],
-                                  f_plot_trace_burnin=fit_dict['f_plot_trace_burnin'],
-                                  f_plot_trace=fit_dict['f_plot_trace'],
-                                  f_model=fit_dict['f_model'],
-                                  f_model_bestfit=fit_dict['f_model_bestfit'],
-                                  f_cube=fit_dict['f_cube'],
-                                  f_sampler=fit_dict['f_sampler'],
-                                  f_burn_sampler=fit_dict['f_burn_sampler'],
-                                  f_plot_param_corner=fit_dict['f_plot_param_corner'],
-                                  f_plot_bestfit=fit_dict['f_plot_bestfit'],
-                                  f_mcmc_results=fit_dict['f_mcmc_results'],
-                                  f_chain_ascii=fit_dict['f_chain_ascii'],
-                                  f_vel_ascii=fit_dict['f_vel_ascii'],
-                                  f_log=fit_dict['f_log'],
-                                  model_key_re=fit_dict['model_key_re'],
-                                  model_key_halo=fit_dict['model_key_halo'],
-                                  continue_steps=fit_dict['continue_steps'],
-                                  overwrite=overwrite,
-                                  plot_type=plot_type,
-                                  **kwargs_galmodel)
+            results = fitting.fit_mcmc(gal, **kwargs_all)
 
         elif fit_dict['fit_method'] == 'mpfit':
-            results = fitting.fit_mpfit(gal, fitdispersion=fit_dict['fitdispersion'],
-                                        fitflux=fit_dict['fitflux'],
-                                        maxiter=fit_dict['maxiter'],
-                                        do_plotting=fit_dict['do_plotting'],
-                                        outdir=fit_dict['outdir'],
-                                        f_model=fit_dict['f_model'],
-                                        f_model_bestfit=fit_dict['f_model_bestfit'],
-                                        f_cube=fit_dict['f_cube'],
-                                        f_plot_bestfit=fit_dict['f_plot_bestfit'],
-                                        f_results=fit_dict['f_results'],
-                                        f_vel_ascii=fit_dict['f_vel_ascii'],
-                                        f_log=fit_dict['f_log'],
-                                        blob_name=fit_dict['blob_name'],
-                                        overwrite=overwrite,
-                                        plot_type=plot_type,
-                                        **kwargs_galmodel)
+            results = fitting.fit_mpfit(gal, **kwargs_all)
 
         # Save results
         utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,

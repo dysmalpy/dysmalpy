@@ -232,7 +232,8 @@ class Galaxy:
                           skip_downsample=False, partial_aperture_weight=False,
                           xcenter=None, ycenter=None,
                           transform_method='direct',
-                          zcalc_truncate=True):
+                          zcalc_truncate=True,
+                          **kwargs):
         """
         Function to simulate data for the galaxy
 
