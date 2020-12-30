@@ -70,51 +70,7 @@ def fit(*args, **kwargs):
     return None
 
 
-def fit_mcmc(gal, nWalkers=10,
-           cpuFrac=None,
-           nCPUs = 1,
-           scale_param_a = 3.,
-           nBurn = 2,
-           nSteps = 10,
-           minAF = 0.2,
-           maxAF = 0.5,
-           nEff = 10,
-           oversampled_chisq = True,
-           red_chisq = False,
-           fitdispersion = True,
-           fitflux = False,
-           blob_name=None,
-           model_key_re = ['disk+bulge','r_eff_disk'],
-           model_key_halo=['halo'],
-           do_plotting = True,
-           save_burn = False,
-           save_model = True,
-           save_bestfit_cube=True,
-           save_data = True,
-           outdir = 'mcmc_fit_results/',
-           linked_posterior_names= None,
-           nPostBins = 50,
-           continue_steps = False,
-           save_intermediate_sampler_chain = True,
-           nStep_intermediate_save = 5,
-           input_sampler = None,
-           f_plot_trace_burnin = None,
-           f_plot_trace = None,
-           f_model = None,
-           f_model_bestfit = None,
-           f_cube = None,
-           f_sampler = None,
-           f_sampler_tmp = None,
-           f_burn_sampler = None,
-           f_plot_param_corner = None,
-           f_plot_bestfit = None,
-           f_mcmc_results = None,
-           f_chain_ascii = None,
-           f_vel_ascii = None,
-           f_log = None,
-           plot_type = 'pdf',
-           overwrite = False,
-           **kwargs ):
+def fit_mcmc(gal, **kwargs):
     """
     Fit observed kinematics using MCMC and a DYSMALPY model set.
 
@@ -130,22 +86,23 @@ def fit_mcmc(gal, nWalkers=10,
     Output:
             MCMCResults class instance containing the bestfit parameters, sampler information, etc.
     """
-
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
+    config_fit = config.Config_fit_mcmc(**kwargs)
+    kwargs_fit = config_fit.dict
 
     # --------------------------------
     # Check option validity:
-    if blob_name is not None:
+    if kwargs_fit['blob_name'] is not None:
         valid_blobnames = ['fdm', 'mvirial', 'alpha', 'rb']
-        if isinstance(blob_name, str):
+        if isinstance(kwargs_fit['blob_name'], str):
             # Single blob
-            blob_arr = [blob_name]
+            blob_arr = [kwargs_fit['blob_name']]
         else:
             # Array of blobs
-            blob_arr = blob_name[:]
+            blob_arr = kwargs_fit['blob_name'][:]
 
         for blobn in blob_arr:
             if blobn.lower().strip() not in valid_blobnames:
@@ -153,7 +110,7 @@ def fit_mcmc(gal, nWalkers=10,
 
 
     # Temporary: testing:
-    if red_chisq:
+    if kwargs_fit['red_chisq']:
         raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
 
     # Check the FOV is large enough to cover the data output:
@@ -167,41 +124,24 @@ def fit_mcmc(gal, nWalkers=10,
     gal.model = mod_in
 
     #if nCPUs is None:
-    if cpuFrac is not None:
-        nCPUs = np.int(np.floor(cpu_count()*cpuFrac))
+    if kwargs_fit['cpuFrac'] is not None:
+        kwargs_fit['nCPUs'] = np.int(np.floor(cpu_count()*kwargs_fit['cpuFrac']))
 
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
-    if oversampled_chisq:
+    if kwargs_fit['oversampled_chisq']:
         gal = setup_oversampled_chisq(gal)
     # +++++++++++++++++++++++
 
     # Output filenames
-    if (len(outdir) > 0):
-        if (outdir[-1] != '/'): outdir += '/'
-    ensure_dir(outdir)
+    if (len(kwargs_fit['outdir']) > 0):
+        if (kwargs_fit['outdir'][-1] != '/'): kwargs_fit['outdir'] += '/'
+    ensure_dir(kwargs_fit['outdir'])
 
     # --------------------------------
     # Setup fit_kwargs dict:
-    fit_kwargs = kwargs_galmodel
 
-    local_vars = locals()
-    fit_inkeys = ['nWalkers', 'cpuFrac', 'nCPUs', 'scale_param_a', 'nBurn', 'nSteps',
-                  'minAF', 'maxAF', 'nEff', 'oversampled_chisq', 'red_chisq',
-                  'fitdispersion', 'fitflux',
-                  'blob_name', 'model_key_re', 'model_key_halo',
-                  'do_plotting', 'save_burn', 'save_model', 'save_bestfit_cube', 'save_data',
-                  'outdir', 'linked_posterior_names', 'nPostBins',
-                  'continue_steps', 'save_intermediate_sampler_chain',
-                  'nStep_intermediate_save', 'input_sampler',
-                  'f_plot_trace_burnin', 'f_plot_trace',
-                  'f_model', 'f_model_bestfit',
-                  'f_cube', 'f_sampler', 'f_sampler_tmp', 'f_burn_sampler',
-                  'f_plot_param_corner', 'f_plot_bestfit', 'f_mcmc_results', 'f_chain_ascii',
-                  'f_vel_ascii', 'f_log', 'plot_type', 'overwrite']
-    for key in fit_inkeys:
-        fit_kwargs[key] = local_vars[key]
-
+    fit_kwargs = {**kwargs_galmodel, **kwargs_fit}
 
     # --------------------------------
     # Split by emcee version:
@@ -218,110 +158,84 @@ def fit_mcmc(gal, nWalkers=10,
 
 
 
-def _fit_emcee_221(gal, nWalkers=10,
-           cpuFrac=None,
-           nCPUs = 1,
-           scale_param_a = 3.,
-           nBurn = 2,
-           nSteps = 10,
-           minAF = 0.2,
-           maxAF = 0.5,
-           nEff = 10,
-           oversampled_chisq = True,
-           red_chisq = False,
-           fitdispersion = True,
-           fitflux = False,
-           blob_name=None,
-           model_key_re = ['disk+bulge','r_eff_disk'],
-           model_key_halo=['halo'],
-           do_plotting = True,
-           save_burn = True,
-           save_model = True,
-           save_bestfit_cube=True,
-           save_data = True,
-           outdir = 'mcmc_fit_results/',
-           linked_posterior_names= None,
-           nPostBins = 50,
-           continue_steps = False,
-           save_intermediate_sampler_chain = True,
-           nStep_intermediate_save = 5,
-           input_sampler = None,
-           f_plot_trace_burnin = None,
-           f_plot_trace = None,
-           f_model = None,
-           f_model_bestfit = None,
-           f_cube = None,
-           f_sampler = None,
-           f_sampler_tmp = None,
-           f_burn_sampler = None,
-           f_plot_param_corner = None,
-           f_plot_bestfit = None,
-           f_mcmc_results = None,
-           f_chain_ascii = None,
-           f_vel_ascii = None,
-           f_log = None,
-           plot_type = 'pdf',
-           overwrite = False,
-           **kwargs ):
+def _fit_emcee_221(gal, **kwargs ):
 
     # OLD version
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
+    config_fit = config.Config_fit_mcmc(**kwargs)
+    kwargs_fit = config_fit.dict
+
     # Check to make sure previous sampler won't be overwritten: custom if continue_steps:
-    if continue_steps and (f_sampler is None):  f_sampler = outdir+'mcmc_sampler_continue.pickle'
-    if (f_sampler_tmp is None): f_sampler_tmp = outdir+'mcmc_sampler_INPROGRESS.pickle'
+    if kwargs_fit['continue_steps'] and (kwargs_fit['f_sampler'] is None):
+        kwargs_fit['f_sampler'] = kwargs_fit['outdir']+'mcmc_sampler_continue.pickle'
+    if (kwargs_fit['f_sampler_tmp'] is None):
+        kwargs_fit['f_sampler_tmp'] = kwargs_fit['outdir']+'mcmc_sampler_INPROGRESS.pickle'
 
     # If the output filenames aren't defined: use default output filenames
-    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
-    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
-    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
-    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mcmc_bestfit_cube.fits'
-    if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.pickle'
-    if save_burn and (f_burn_sampler is None):  f_burn_sampler = outdir+'mcmc_burn_sampler.pickle'
-    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.{}'.format(plot_type)
-    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.{}'.format(plot_type)
-    if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
-    if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
-    if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+    if kwargs_fit['f_plot_trace_burnin'] is None:
+        kwargs_fit['f_plot_trace_burnin'] = kwargs_fit['outdir']+'mcmc_burnin_trace.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_plot_trace'] is None:
+        kwargs_fit['f_plot_trace'] = kwargs_fit['outdir']+'mcmc_trace.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['save_model'] and (kwargs_fit['f_model'] is None):
+        kwargs_fit['f_model'] = kwargs_fit['outdir']+'galaxy_model.pickle'
+    if kwargs_fit['save_bestfit_cube'] and (kwargs_fit['f_cube'] is None):
+        kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mcmc_bestfit_cube.fits'
+    if kwargs_fit['f_sampler'] is None:
+        kwargs_fit['f_sampler'] = kwargs_fit['outdir']+'mcmc_sampler.pickle'
+    if kwargs_fit['save_burn'] and (kwargs_fit['f_burn_sampler'] is None):
+        kwargs_fit['f_burn_sampler'] = kwargs_fit['outdir']+'mcmc_burn_sampler.pickle'
+    if kwargs_fit['f_plot_param_corner'] is None:
+        kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_plot_bestfit'] is None:
+        kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_mcmc_results'] is None:
+        kwargs_fit['f_mcmc_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
+    if kwargs_fit['f_chain_ascii'] is None:
+        kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
+    if kwargs_fit['f_vel_ascii'] is None:
+        kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
 
 
-    if f_model_bestfit is None:
+    if kwargs_fit['f_model_bestfit'] is None:
         if gal.data.ndim == 1:
-            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
-            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-velmaps.fits'
         elif gal.data.ndim == 3:
-            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-cube.fits'
         elif gal.data.ndim == 0:
-            f_model_bestfit = outdir+'galaxy_out-0d.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
-    if (not overwrite):
-        fnames = [f_plot_trace_burnin, f_plot_trace, f_sampler, f_plot_param_corner,
-                    f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
-        fnames_opt = [f_model, f_cube, f_burn_sampler]
+    if (not kwargs_fit['overwrite']):
+        fnames = [kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'],
+                    kwargs_fit['f_sampler'], kwargs_fit['f_plot_param_corner'],
+                    kwargs_fit['f_plot_bestfit'], kwargs_fit['f_mcmc_results'],
+                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'] ]
+        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube'], kwargs_fit['f_burn_sampler']]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
 
         for fname in fnames:
             if os.path.isfile(fname):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
-        if os.path.isfile(f_sampler) or os.path.isfile(f_mcmc_results):
-            msg = "overwrite={}, and one of 'f_sampler' or 'f_mcmc_results' won't be saved,".format(overwrite)
+        if os.path.isfile(kwargs_fit['f_sampler']) or os.path.isfile(kwargs_fit['f_mcmc_results']):
+            msg = "overwrite={}, and one of 'f_sampler' or 'f_mcmc_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
     # ---------------------------------------------------
 
     # Setup file redirect logging:
-    if f_log is not None:
-        loggerfile = logging.FileHandler(f_log)
+    if kwargs_fit['f_log'] is not None:
+        loggerfile = logging.FileHandler(kwargs_fit['f_log'])
         loggerfile.setLevel(logging.INFO)
         logger.addHandler(loggerfile)
 
@@ -329,68 +243,71 @@ def _fit_emcee_221(gal, nWalkers=10,
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict_mcmc = {'fitdispersion':fitdispersion,
-                    'fitflux':fitflux,
-                    'blob_name': blob_name,
-                    'model_key_re':model_key_re,
-                    'model_key_halo': model_key_halo,
-                    'red_chisq': red_chisq,
-                    'oversampled_chisq': oversampled_chisq}
+    kwargs_dict_mcmc = {'fitdispersion':kwargs_fit['fitdispersion'],
+                    'fitflux':kwargs_fit['fitflux'],
+                    'blob_name': kwargs_fit['blob_name'],
+                    'model_key_re':kwargs_fit['model_key_re'],
+                    'model_key_halo': kwargs_fit['model_key_halo'],
+                    'red_chisq': kwargs_fit['red_chisq'],
+                    'oversampled_chisq': kwargs_fit['oversampled_chisq']}
 
     kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
 
-    nBurn_orig = nBurn
+    # kwargs_dict = {**kwargs_fit, **kwargs_galmodel}
+
+    nBurn_orig = kwargs_fit['nBurn']
 
     nDim = gal.model.nparams_free
 
-    if (not continue_steps) & ((not save_intermediate_sampler_chain) | (not os.path.isfile(f_sampler_tmp))):
-        sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+    if (not kwargs_fit['continue_steps']) & ((not kwargs_fit['save_intermediate_sampler_chain']) \
+        | (not os.path.isfile(kwargs_fit['f_sampler_tmp']))):
+        sampler = emcee.EnsembleSampler(kwargs_fit['nWalkers'], nDim, log_prob,
                     args=[gal], kwargs=kwargs_dict,
-                    a = scale_param_a, threads = nCPUs)
+                    a = kwargs_fit['scale_param_a'], threads = kwargs_fit['nCPUs'])
 
         # --------------------------------
         # Initialize walker starting positions
-        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+        initial_pos = initialize_walkers(gal.model, nWalkers=kwargs_fit['nWalkers'])
     #
-    elif continue_steps:
-        nBurn = 0
+    elif kwargs_fit['continue_steps']:
+        kwargs_fit['nBurn'] = 0
         if input_sampler is None:
             try:
-                input_sampler = load_pickle(f_sampler)
+                input_sampler = load_pickle(kwargs_fit['f_sampler'])
             except:
-                message = "Couldn't find existing sampler in {}.".format(f_sampler)
+                message = "Couldn't find existing sampler in {}.".format(kwargs_fit['f_sampler'])
                 message += '\n'
                 message += "Must set input_sampler if you will restart the sampler."
                 raise ValueError(message)
 
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal,
                             kwargs_dict=kwargs_dict,
-                            scale_param_a=scale_param_a)
+                            scale_param_a=kwargs_fit['scale_param_a'])
 
         initial_pos = input_sampler['chain'][:,-1,:]
-        if blob_name is not None:
+        if kwargs_fit['blob_name'] is not None:
             blob = input_sampler['blobs']
 
         # Close things
         input_sampler = None
 
-    elif save_intermediate_sampler_chain & (os.path.isfile(f_sampler_tmp)):
-        input_sampler = load_pickle(f_sampler_tmp)
+    elif kwargs_fit['save_intermediate_sampler_chain'] & (os.path.isfile(kwargs_fit['f_sampler_tmp'])):
+        input_sampler = load_pickle(kwargs_fit['f_sampler_tmp'])
 
         sampler = reinitialize_emcee_sampler(input_sampler, gal=gal,
                             kwargs_dict=kwargs_dict,
-                            scale_param_a=scale_param_a)
-        nBurn = nBurn_orig - (input_sampler['burn_step_cur'] + 1)
+                            scale_param_a=kwargs_fit['scale_param_a'])
+        kwargs_fit['nBurn'] = nBurn_orig - (input_sampler['burn_step_cur'] + 1)
 
         initial_pos = input_sampler['chain'][:,-1,:]
-        if blob_name is not None:
+        if kwargs_fit['blob_name'] is not None:
             blob = input_sampler['blobs']
 
         # If it saved after burn finished, but hasn't saved any of the normal steps: reset sampler
-        if ((nBurn == 0) & (input_sampler['step_cur'] < 0)):
+        if ((kwargs_fit['nBurn'] == 0) & (input_sampler['step_cur'] < 0)):
             blob = None
             sampler.reset()
-            if blob_name is not None:
+            if kwargs_fit['blob_name'] is not None:
                  sampler.clear_blobs()
 
         # Close things
@@ -407,13 +324,13 @@ def _fit_emcee_221(gal, nWalkers=10,
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
 
     #logger.info('\n')
-    logger.info('\n'+'nCPUs: {}'.format(nCPUs))
-    logger.info('nWalkers: {}'.format(nWalkers))
-    logger.info('lnlike: red_chisq={}'.format(red_chisq))
-    logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
+    logger.info('\n'+'nCPUs: {}'.format(kwargs_fit['nCPUs']))
+    logger.info('nWalkers: {}'.format(kwargs_fit['nWalkers']))
+    logger.info('lnlike: red_chisq={}'.format(kwargs_fit['red_chisq']))
+    logger.info('lnlike: oversampled_chisq={}'.format(kwargs_fit['oversampled_chisq']))
 
     #logger.info('\n')
-    logger.info('\n'+'blobs: {}'.format(blob_name))
+    logger.info('\n'+'blobs: {}'.format(kwargs_fit['blob_name']))
 
 
     #logger.info('\n')
@@ -427,7 +344,7 @@ def _fit_emcee_221(gal, nWalkers=10,
     ################################################################
     # --------------------------------
     # Run burn-in
-    if nBurn > 0:
+    if kwargs_fit['nBurn'] > 0:
         logger.info('\nBurn-in:'+'\n'
                     'Start: {}\n'.format(datetime.datetime.now()))
         start = time.time()
@@ -440,7 +357,7 @@ def _fit_emcee_221(gal, nWalkers=10,
         for k in six.moves.xrange(nBurn_orig):
             # --------------------------------
             # If recovering intermediate save, only start past existing chain length:
-            if save_intermediate_sampler_chain:
+            if kwargs_fit['save_intermediate_sampler_chain']:
                 if k < sampler.chain.shape[1]:
                     continue
 
@@ -450,7 +367,7 @@ def _fit_emcee_221(gal, nWalkers=10,
             pos_cur = pos.copy()    # copy just in case things are set strangely
 
             # Run one sample step:
-            if blob_name is not None:
+            if kwargs_fit['blob_name'] is not None:
                 pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob,
                         rstate0=state, blobs0 = blob)
             else:
@@ -459,14 +376,14 @@ def _fit_emcee_221(gal, nWalkers=10,
 
             # --------------------------------
             # Save intermediate steps if set:
-            if save_intermediate_sampler_chain:
-                if ((k+1) % nStep_intermediate_save == 0):
+            if kwargs_fit['save_intermediate_sampler_chain']:
+                if ((k+1) % kwargs_fit['nStep_intermediate_save'] == 0):
                     sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
                     sampler_dict_tmp['burn_step_cur'] = k
                     sampler_dict_tmp['step_cur'] = -99
-                    if f_sampler_tmp is not None:
+                    if kwargs_fit['f_sampler_tmp'] is not None:
                         # Save stuff to file, for future use:
-                        dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
+                        dump_pickle(sampler_dict_tmp, filename=kwargs_fit['f_sampler_tmp'], overwrite=True)
             # --------------------------------
 
         #####
@@ -483,9 +400,9 @@ def _fit_emcee_221(gal, nWalkers=10,
         # Return Burn-in info
         # ****
         endtime = str(datetime.datetime.now())
-        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(nCPUs,
-            nDim, nWalkers, nBurn)
-        scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(kwargs_fit['nCPUs'],
+            nDim, kwargs_fit['nWalkers'], kwargs_fit['nBurn'])
+        scaleparammsg = 'Scale param a= {}'.format(kwargs_fit['scale_param_a'])
         timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
                 (elapsed/60.-np.floor(elapsed/60.))*60. )
         macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
@@ -515,22 +432,23 @@ def _fit_emcee_221(gal, nWalkers=10,
 
         # --------------------------------
         # Save burn-in sampler, if desired
-        if (save_burn) & (f_burn_sampler is not None):
+        if (kwargs_fit['save_burn']) & (kwargs_fit['f_burn_sampler'] is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
             # Save stuff to file, for future use:
-            dump_pickle(sampler_burn, filename=f_burn_sampler, overwrite=overwrite)
+            dump_pickle(sampler_burn, filename=kwargs_fit['f_burn_sampler'], overwrite=kwargs_fit['overwrite'])
 
 
         # --------------------------------
         # Plot burn-in trace, if output file set
-        if (do_plotting) & (f_plot_trace_burnin is not None):
+        if (kwargs_fit['do_plotting']) & (kwargs_fit['f_plot_trace_burnin'] is not None):
             sampler_burn = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
             mcmcResultsburn = MCMCResults(model=gal.model, sampler=sampler_burn)
-            plotting.plot_trace(mcmcResultsburn, fileout=f_plot_trace_burnin, overwrite=overwrite)
+            plotting.plot_trace(mcmcResultsburn, fileout=kwargs_fit['f_plot_trace_burnin'],
+                        overwrite=kwargs_fit['overwrite'])
 
         # Reset sampler after burn-in:
         sampler.reset()
-        if blob_name is not None:
+        if kwargs_fit['blob_name'] is not None:
              sampler.clear_blobs()
 
     else:
@@ -543,7 +461,7 @@ def _fit_emcee_221(gal, nWalkers=10,
         prob = None
         state = None
 
-        if (not continue_steps) | (not save_intermediate_sampler_chain):
+        if (not kwargs_fit['continue_steps']) | (not kwargs_fit['save_intermediate_sampler_chain']):
             blob = None
 
     #######################################################################################
@@ -559,11 +477,11 @@ def _fit_emcee_221(gal, nWalkers=10,
 
     # --------------------------------
     # Run sampler: output info at each step
-    for ii in six.moves.xrange(nSteps):
+    for ii in six.moves.xrange(kwargs_fit['nSteps']):
 
         # --------------------------------
         # If continuing chain, only start past existing chain length:
-        if continue_steps | save_intermediate_sampler_chain:
+        if kwargs_fit['continue_steps'] | kwargs_fit['save_intermediate_sampler_chain']:
             if ii < sampler.chain.shape[1]:
                 continue
 
@@ -571,7 +489,7 @@ def _fit_emcee_221(gal, nWalkers=10,
 
         # --------------------------------
         # Only do one step at a time:
-        if blob_name is not None:
+        if kwargs_fit['blob_name'] is not None:
             pos, prob, state, blob = sampler.run_mcmc(pos_cur, 1, lnprob0=prob,
                     rstate0=state, blobs0 = blob)
         else:
@@ -597,10 +515,10 @@ def _fit_emcee_221(gal, nWalkers=10,
         # Criteria checked: whether acceptance fraction within (minAF, maxAF),
         #                   and whether total number of steps > nEff * average autocorrelation time:
         #                   to make sure the paramter space is well explored.
-        if ((minAF is not None) & (maxAF is not None) & \
-                (nEff is not None) & (acor_time is not None)):
-            if ((minAF < np.mean(sampler.acceptance_fraction) < maxAF) & \
-                ( ii > np.max(acor_time) * nEff )):
+        if ((kwargs_fit['minAF'] is not None) & (kwargs_fit['maxAF'] is not None) & \
+                (kwargs_fit['nEff'] is not None) & (acor_time is not None)):
+            if ((kwargs_fit['minAF'] < np.mean(sampler.acceptance_fraction) < kwargs_fit['maxAF']) & \
+                ( ii > np.max(acor_time) * kwargs_fit['nEff'] )):
                     if ii == acor_force_min:
                         logger.info(" Enforced min step limit: {}.".format(ii+1))
                     if ii >= acor_force_min:
@@ -609,21 +527,22 @@ def _fit_emcee_221(gal, nWalkers=10,
 
         # --------------------------------
         # Save intermediate steps if set:
-        if save_intermediate_sampler_chain:
-            if ((ii+1) % nStep_intermediate_save == 0):
+        if kwargs_fit['save_intermediate_sampler_chain']:
+            if ((ii+1) % kwargs_fit['nStep_intermediate_save'] == 0):
                 sampler_dict_tmp = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
                 sampler_dict_tmp['burn_step_cur'] = nBurn_orig - 1
                 sampler_dict_tmp['step_cur'] = ii
-                if f_sampler_tmp is not None:
+                if kwargs_fit['f_sampler_tmp'] is not None:
                     # Save stuff to file, for future use:
-                    dump_pickle(sampler_dict_tmp, filename=f_sampler_tmp, overwrite=True)
+                    dump_pickle(sampler_dict_tmp, filename=kwargs_fit['f_sampler_tmp'], overwrite=True)
         # --------------------------------
 
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
     finishedSteps= ii+1
-    if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        logger.info(" Caution: no convergence within nSteps={}.".format(nSteps))
+    if (finishedSteps  == kwargs_fit['nSteps']) & ((kwargs_fit['minAF'] is not None) & \
+            (kwargs_fit['maxAF'] is not None) & (kwargs_fit['nEff'] is not None)):
+        logger.info(" Caution: no convergence within nSteps={}.".format(kwargs_fit['nSteps']))
 
     # --------------------------------
     # Finishing info for fitting:
@@ -640,9 +559,9 @@ def _fit_emcee_221(gal, nWalkers=10,
     # ***********
     # Consider overall acceptance fraction
     endtime = str(datetime.datetime.now())
-    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(nCPUs,
-        nDim, nWalkers, nSteps)
-    scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(kwargs_fit['nCPUs'],
+        nDim, kwargs_fit['nWalkers'], kwargs_fit['nSteps'])
+    scaleparammsg = 'Scale param a= {}'.format(kwargs_fit['scale_param_a'])
     timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
             (elapsed/60.-np.floor(elapsed/60.))*60. )
     macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
@@ -664,20 +583,20 @@ def _fit_emcee_221(gal, nWalkers=10,
     sampler_dict = make_emcee_sampler_dict(sampler, nBurn=0, emcee_vers=2)
 
 
-    if f_sampler is not None:
+    if kwargs_fit['f_sampler'] is not None:
         # Save stuff to file, for future use:
-        dump_pickle(sampler_dict, filename=f_sampler, overwrite=overwrite)
+        dump_pickle(sampler_dict, filename=kwargs_fit['f_sampler'], overwrite=kwargs_fit['overwrite'])
 
 
     # --------------------------------
     # Cleanup intermediate saves:
-    if save_intermediate_sampler_chain:
-        if f_sampler_tmp is not None:
-            if os.path.isfile(f_sampler_tmp):
-                os.remove(f_sampler_tmp)
+    if kwargs_fit['save_intermediate_sampler_chain']:
+        if kwargs_fit['f_sampler_tmp'] is not None:
+            if os.path.isfile(kwargs_fit['f_sampler_tmp']):
+                os.remove(kwargs_fit['f_sampler_tmp'])
     # --------------------------------
 
-    if nCPUs > 1:
+    if kwargs_fit['nCPUs'] > 1:
         sampler.pool.close()
 
     ##########################################
@@ -686,140 +605,93 @@ def _fit_emcee_221(gal, nWalkers=10,
 
     # --------------------------------
     # Bundle the results up into a results class:
-    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
-                              f_plot_trace_burnin = f_plot_trace_burnin,
-                              f_plot_trace = f_plot_trace,
-                              f_sampler = f_sampler,
-                              f_plot_param_corner = f_plot_param_corner,
-                              f_plot_bestfit = f_plot_bestfit,
-                              f_results= f_mcmc_results,
-                              f_chain_ascii = f_chain_ascii,
-                              blob_name=blob_name)
-    if oversampled_chisq:
+    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict, **kwargs_fit)
+
+    if kwargs_fit['oversampled_chisq']:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
 
     # Do all analysis, plotting, saving:
-    mcmcResults.analyze_plot_save_results(gal,
-                  linked_posterior_names=linked_posterior_names,
-                  nPostBins=nPostBins,
-                  model_key_re=model_key_re,
-                  model_key_halo=model_key_halo,
-                  fitdispersion=fitdispersion,
-                  fitflux=fitflux,
-                  save_data=save_data,
-                  save_bestfit_cube=save_bestfit_cube,
-                  f_cube=f_cube,
-                  f_model=f_model,
-                  f_model_bestfit = f_model_bestfit,
-                  f_vel_ascii = f_vel_ascii,
-                  do_plotting = do_plotting,
-                  overwrite=overwrite,
-                  **kwargs_galmodel)
+    kwargs_all = {**kwargs_galmodel, **kwargs_fit}
+    mcmcResults.analyze_plot_save_results(gal, **kwargs_all)
 
     # Clean up logger:
-    if f_log is not None:
+    if kwargs_fit['f_log'] is not None:
         logger.removeHandler(loggerfile)
 
     return mcmcResults
 
-def _fit_emcee_3(gal, nWalkers=10,
-       cpuFrac=None,
-       nCPUs = 1,
-       scale_param_a = 3.,
-       nBurn = 2,
-       nSteps = 10,
-       minAF = 0.2,
-       maxAF = 0.5,
-       nEff = 10,
-       oversampled_chisq = True,
-       red_chisq = False,
-       fitdispersion = True,
-       fitflux = False,
-       blob_name=None,
-       model_key_re = ['disk+bulge','r_eff_disk'],
-       model_key_halo=['halo'],
-       do_plotting = True,
-       save_model = True,
-       save_bestfit_cube=True,
-       save_data = True,
-       outdir = 'mcmc_fit_results/',
-       linked_posterior_names= None,
-       nPostBins = 50,
-       continue_steps = False,
-       input_sampler = None,
-       f_plot_trace_burnin = None,
-       f_plot_trace = None,
-       f_model = None,
-       f_model_bestfit = None,
-       f_cube = None,
-       f_sampler = None,
-       f_plot_param_corner = None,
-       f_plot_bestfit = None,
-       f_mcmc_results = None,
-       f_chain_ascii = None,
-       f_vel_ascii = None,
-       f_log = None,
-       plot_type = 'pdf',
-       overwrite = False,
-       **kwargs ):
-    # new version
+def _fit_emcee_3(gal, **kwargs ):
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+    config_fit = config.Config_fit_mcmc(**kwargs)
+    kwargs_fit = config_fit.dict
 
     # filetype for saving sampler: HDF5
     ftype_sampler = 'h5'
 
     # If the output filenames aren't defined: use default output filenames
-    if f_plot_trace_burnin is None:  f_plot_trace_burnin = outdir+'mcmc_burnin_trace.{}'.format(plot_type)
-    if f_plot_trace is None:         f_plot_trace = outdir+'mcmc_trace.{}'.format(plot_type)
-    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
-    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mcmc_bestfit_cube.fits'
-    if f_sampler is None:            f_sampler = outdir+'mcmc_sampler.{}'.format(ftype_sampler)
-    if f_plot_param_corner is None:  f_plot_param_corner = outdir+'mcmc_param_corner.{}'.format(plot_type)
-    if f_plot_bestfit is None:       f_plot_bestfit = outdir+'mcmc_best_fit.{}'.format(plot_type)
-    if f_mcmc_results is None:       f_mcmc_results = outdir+'mcmc_results.pickle'
-    if f_chain_ascii is None:        f_chain_ascii = outdir+'mcmc_chain_blobs.dat'
-    if f_vel_ascii is None:          f_vel_ascii = outdir+'galaxy_bestfit_vel_profile.dat'
+    if kwargs_fit['f_plot_trace_burnin'] is None:
+        kwargs_fit['f_plot_trace_burnin'] = kwargs_fit['outdir']+'mcmc_burnin_trace.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_plot_trace'] is None:
+        kwargs_fit['f_plot_trace'] = kwargs_fit['outdir']+'mcmc_trace.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['save_model'] and (kwargs_fit['f_model'] is None):
+        kwargs_fit['f_model'] = kwargs_fit['outdir']+'galaxy_model.pickle'
+    if kwargs_fit['save_bestfit_cube'] and (kwargs_fit['f_cube'] is None):
+        kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mcmc_bestfit_cube.fits'
+    if kwargs_fit['f_sampler'] is None:
+        kwargs_fit['f_sampler'] = kwargs_fit['outdir']+'mcmc_sampler.{}'.format(ftype_sampler)
+    if kwargs_fit['f_plot_param_corner'] is None:
+        kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_plot_bestfit'] is None:
+        kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_plot_param_corner'] is None:
+        kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_results.pickle'
+    if kwargs_fit['f_chain_ascii'] is None:
+        kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
+    if kwargs_fit['f_vel_ascii'] is None:
+        kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
 
-    if f_model_bestfit is None:
+    if kwargs_fit['f_model_bestfit'] is None:
         if gal.data.ndim == 1:
-            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
-            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-velmaps.fits'
         elif gal.data.ndim == 3:
-            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-cube.fits'
         elif gal.data.ndim == 0:
-            f_model_bestfit = outdir+'galaxy_out-0d.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
-    if (not overwrite):
-        fnames = [f_plot_trace_burnin, f_plot_trace, f_plot_param_corner,
-                    f_plot_bestfit, f_mcmc_results, f_chain_ascii, f_vel_ascii ]
-        fnames_opt = [f_model, f_cube]
+    if (not kwargs_fit['overwrite']):
+        fnames = [kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'], kwargs_fit['f_plot_param_corner'],
+                    kwargs_fit['f_plot_bestfit'], kwargs_fit['f_plot_param_corner'],
+                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'] ]
+        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube']]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
 
         for fname in fnames:
             if os.path.isfile(fname):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
-        if os.path.isfile(f_mcmc_results):
-            msg = "overwrite={}, and 'f_mcmc_results' won't be saved,".format(overwrite)
+        if os.path.isfile(kwargs_fit['f_plot_param_corner']):
+            msg = "overwrite={}, and 'f_mcmc_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
 
         # Check length of sampler:
-        if os.path.isfile(f_sampler):
-            backend = emcee.backends.HDFBackend(f_sampler, name='mcmc')
+        if os.path.isfile(kwargs_fit['f_sampler']):
+            backend = emcee.backends.HDFBackend(kwargs_fit['f_sampler'], name='mcmc')
 
             try:
-                if backend.get_chain().shape[0] >= nSteps:
-                    msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(overwrite, backend.get_chain().shape[0])
+                if backend.get_chain().shape[0] >= kwargs_fit['nSteps']:
+                    msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(kwargs_fit['overwrite'], backend.get_chain().shape[0])
                     msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
                     logger.warning(msg)
                     return None
@@ -829,62 +701,63 @@ def _fit_emcee_3(gal, nWalkers=10,
                 pass
     else:
         # Overwrite: remove old file versions
-        if os.path.isfile(f_sampler): os.remove(f_sampler)
-        if os.path.isfile(f_mcmc_results): os.remove(f_mcmc_results)
+        if os.path.isfile(kwargs_fit['f_sampler']): os.remove(kwargs_fit['f_sampler'])
+        if os.path.isfile(kwargs_fit['f_plot_param_corner']): os.remove(kwargs_fit['f_plot_param_corner'])
 
     # ---------------------------------------------------
 
     # Setup file redirect logging:
-    if f_log is not None:
-        loggerfile = logging.FileHandler(f_log)
+    if kwargs_fit['f_log'] is not None:
+        loggerfile = logging.FileHandler(kwargs_fit['f_log'])
         loggerfile.setLevel(logging.INFO)
         logger.addHandler(loggerfile)
 
     # ++++++++++++++++++++++++++++++
 
-
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict_mcmc = {'fitdispersion':fitdispersion,
-                    'fitflux':fitflux,
-                    'blob_name': blob_name,
-                    'model_key_re':model_key_re,
-                    'model_key_halo': model_key_halo,
-                    'red_chisq': red_chisq,
-                    'oversampled_chisq': oversampled_chisq}
+    kwargs_dict_mcmc = {'fitdispersion':kwargs_fit['fitdispersion'],
+                    'fitflux':kwargs_fit['fitflux'],
+                    'blob_name': kwargs_fit['blob_name'],
+                    'model_key_re':kwargs_fit['model_key_re'],
+                    'model_key_halo': kwargs_fit['model_key_halo'],
+                    'red_chisq': kwargs_fit['red_chisq'],
+                    'oversampled_chisq': kwargs_fit['oversampled_chisq']}
 
     kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
 
-    nBurn_orig = nBurn
+    # kwargs_dict = {**kwargs_fit, **kwargs_galmodel}
+
+    nBurn_orig = kwargs_fit['nBurn']
 
     nDim = gal.model.nparams_free
 
     # --------------------------------
     # Start pool, moves, backend:
-    if (nCPUs > 1):
-        pool = Pool(nCPUs)
+    if (kwargs_fit['nCPUs'] > 1):
+        pool = Pool(kwargs_fit['nCPUs'])
     else:
         pool = None
 
-    moves = emcee.moves.StretchMove(a=scale_param_a)
+    moves = emcee.moves.StretchMove(a=kwargs_fit['scale_param_a'])
 
-    backend_burn = emcee.backends.HDFBackend(f_sampler, name="burnin_mcmc")
+    backend_burn = emcee.backends.HDFBackend(kwargs_fit['f_sampler'], name="burnin_mcmc")
 
-    if overwrite:
-        backend_burn.reset(nWalkers, nDim)
+    if kwargs_fit['overwrite']:
+        backend_burn.reset(kwargs_fit['nWalkers'], nDim)
 
-    sampler_burn = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+    sampler_burn = emcee.EnsembleSampler(kwargs_fit['nWalkers'], nDim, log_prob,
                 backend=backend_burn, pool=pool, moves=moves,
                 args=[gal], kwargs=kwargs_dict)
 
     nBurnCur = sampler_burn.iteration
 
-    nBurn = nBurn_orig - nBurnCur
+    kwargs_fit['nBurn'] = nBurn_orig - nBurnCur
 
     # --------------------------------
     # Initialize walker starting positions
     if sampler_burn.iteration == 0:
-        initial_pos = initialize_walkers(gal.model, nWalkers=nWalkers)
+        initial_pos = initialize_walkers(gal.model, nWalkers=kwargs_fit['nWalkers'])
     else:
         initial_pos = sampler_burn.get_last_sample()
 
@@ -898,12 +771,12 @@ def _fit_emcee_3(gal, nWalkers=10,
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
 
-    logger.info('\n'+'nCPUs: {}'.format(nCPUs))
-    logger.info('nWalkers: {}'.format(nWalkers))
-    logger.info('lnlike: red_chisq={}'.format(red_chisq))
-    logger.info('lnlike: oversampled_chisq={}'.format(oversampled_chisq))
+    logger.info('\n'+'nCPUs: {}'.format(kwargs_fit['nCPUs']))
+    logger.info('nWalkers: {}'.format(kwargs_fit['nWalkers']))
+    logger.info('lnlike: red_chisq={}'.format(kwargs_fit['red_chisq']))
+    logger.info('lnlike: oversampled_chisq={}'.format(kwargs_fit['oversampled_chisq']))
 
-    logger.info('\n'+'blobs: {}'.format(blob_name))
+    logger.info('\n'+'blobs: {}'.format(kwargs_fit['blob_name']))
 
 
     logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
@@ -917,7 +790,7 @@ def _fit_emcee_3(gal, nWalkers=10,
     ################################################################
     # --------------------------------
     # Run burn-in
-    if nBurn > 0:
+    if kwargs_fit['nBurn'] > 0:
         logger.info('\nBurn-in:'+'\n'
                     'Start: {}\n'.format(datetime.datetime.now()))
         start = time.time()
@@ -950,9 +823,9 @@ def _fit_emcee_3(gal, nWalkers=10,
         # Return Burn-in info
         # ****
         endtime = str(datetime.datetime.now())
-        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(nCPUs,
-            nDim, nWalkers, nBurn)
-        scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+        nthingsmsg = 'nCPU, nParam, nWalker, nBurn = {}, {}, {}, {}'.format(kwargs_fit['nCPUs'],
+            nDim, kwargs_fit['nWalkers'], kwargs_fit['nBurn'])
+        scaleparammsg = 'Scale param a= {}'.format(kwargs_fit['scale_param_a'])
         timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format( elapsed, np.floor(elapsed/60.),
                 (elapsed/60.-np.floor(elapsed/60.))*60. )
         macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler_burn.acceptance_fraction))
@@ -969,7 +842,7 @@ def _fit_emcee_3(gal, nWalkers=10,
 
         nBurn_nEff = 2
         try:
-            if nBurn < np.max(acor_time) * nBurn_nEff:
+            if kwargs_fit['nBurn'] < np.max(acor_time) * nBurn_nEff:
                 nburntimemsg = 'nBurn is less than {}*acorr time'.format(nBurn_nEff)
                 logger.info('\n#################\n'
                             ''+nburntimemsg+'\n'
@@ -982,10 +855,10 @@ def _fit_emcee_3(gal, nWalkers=10,
 
         # --------------------------------
         # Plot burn-in trace, if output file set
-        if (do_plotting) & (f_plot_trace_burnin is not None):
+        if (kwargs_fit['do_plotting']) & (kwargs_fit['f_plot_trace_burnin'] is not None):
             sampler_burn_dict = make_emcee_sampler_dict(sampler_burn, nBurn=0)
             mcmcResults_burn = MCMCResults(model=gal.model, sampler=sampler_burn_dict)
-            plotting.plot_trace(mcmcResults_burn, fileout=f_plot_trace_burnin, overwrite=overwrite)
+            plotting.plot_trace(mcmcResults_burn, fileout=kwargs_fit['f_plot_trace_burnin'], overwrite=kwargs_fit['overwrite'])
 
 
     else:
@@ -1001,12 +874,12 @@ def _fit_emcee_3(gal, nWalkers=10,
     # Setup sampler:
     # --------------------------------
     # Start backend:
-    backend = emcee.backends.HDFBackend(f_sampler, name="mcmc")
+    backend = emcee.backends.HDFBackend(kwargs_fit['f_sampler'], name="mcmc")
 
-    if overwrite:
-        backend.reset(nWalkers, nDim)
+    if kwargs_fit['overwrite']:
+        backend.reset(kwargs_fit['nWalkers'], nDim)
 
-    sampler = emcee.EnsembleSampler(nWalkers, nDim, log_prob,
+    sampler = emcee.EnsembleSampler(kwargs_fit['nWalkers'], nDim, log_prob,
                 backend=backend, pool=pool, moves=moves,
                 args=[gal], kwargs=kwargs_dict)
 
@@ -1023,7 +896,7 @@ def _fit_emcee_3(gal, nWalkers=10,
 
     # --------------------------------
     # Run sampler: output info at each step
-    for ii in six.moves.xrange(nSteps):
+    for ii in six.moves.xrange(kwargs_fit['nSteps']):
 
         # --------------------------------
         # If continuing chain, only start past existing chain length:
@@ -1053,10 +926,10 @@ def _fit_emcee_3(gal, nWalkers=10,
         # Criteria checked: whether acceptance fraction within (minAF, maxAF),
         #                   and whether total number of steps > nEff * average autocorrelation time:
         #                   to make sure the paramter space is well explored.
-        if ((minAF is not None) & (maxAF is not None) & \
-                (nEff is not None) & (acor_time is not None)):
-            if ((minAF < np.mean(sampler.acceptance_fraction) < maxAF) & \
-                ( ii > np.max(acor_time) * nEff )):
+        if ((kwargs_fit['minAF'] is not None) & (kwargs_fit['maxAF'] is not None) & \
+                (kwargs_fit['nEff'] is not None) & (acor_time is not None)):
+            if ((kwargs_fit['minAF'] < np.mean(sampler.acceptance_fraction) < kwargs_fit['maxAF']) & \
+                ( ii > np.max(acor_time) * kwargs_fit['nEff'] )):
                     if ii == acor_force_min:
                         logger.info(" Enforced min step limit: {}.".format(ii+1))
                     if ii >= acor_force_min:
@@ -1067,8 +940,9 @@ def _fit_emcee_3(gal, nWalkers=10,
     # --------------------------------
     # Check if it failed to converge before the max number of steps, if doing convergence testing
     finishedSteps= ii+1
-    if (finishedSteps  == nSteps) & ((minAF is not None) & (maxAF is not None) & (nEff is not None)):
-        logger.info(" Caution: no convergence within nSteps={}.".format(nSteps))
+    if (finishedSteps  == kwargs_fit['nSteps']) & ((kwargs_fit['minAF'] is not None) & \
+                (kwargs_fit['maxAF'] is not None) & (kwargs_fit['nEff'] is not None)):
+        logger.info(" Caution: no convergence within nSteps={}.".format(kwargs_fit['nSteps']))
 
     # --------------------------------
     # Finishing info for fitting:
@@ -1082,9 +956,9 @@ def _fit_emcee_3(gal, nWalkers=10,
     # ***********
     # Consider overall acceptance fraction
     endtime = str(datetime.datetime.now())
-    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(nCPUs,
-        nDim, nWalkers, nSteps)
-    scaleparammsg = 'Scale param a= {}'.format(scale_param_a)
+    nthingsmsg = 'nCPU, nParam, nWalker, nSteps = {}, {}, {}, {}'.format(kwargs_fit['nCPUs'],
+        nDim, kwargs_fit['nWalkers'], kwargs_fit['nSteps'])
+    scaleparammsg = 'Scale param a= {}'.format(kwargs_fit['scale_param_a'])
     timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed/60.),
             (elapsed/60.-np.floor(elapsed/60.))*60. )
     macfracmsg = "Mean acceptance fraction: {:0.3f}".format(np.mean(sampler.acceptance_fraction))
@@ -1100,7 +974,7 @@ def _fit_emcee_3(gal, nWalkers=10,
                 '******************')
 
 
-    if nCPUs > 1:
+    if kwargs_fit['nCPUs'] > 1:
         pool.close()
         sampler.pool.close()
         sampler_burn.pool.close()
@@ -1115,123 +989,90 @@ def _fit_emcee_3(gal, nWalkers=10,
 
     # --------------------------------
     # Bundle the results up into a results class:
-    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict,
-                              f_plot_trace_burnin = f_plot_trace_burnin,
-                              f_plot_trace = f_plot_trace,
-                              f_sampler = f_sampler,
-                              f_plot_param_corner = f_plot_param_corner,
-                              f_plot_bestfit = f_plot_bestfit,
-                              f_results= f_mcmc_results,
-                              f_chain_ascii = f_chain_ascii,
-                              blob_name=blob_name)
-    if oversampled_chisq:
+    mcmcResults = MCMCResults(model=gal.model, sampler=sampler_dict, **kwargs_fit)
+
+    if kwargs_fit['oversampled_chisq']:
         mcmcResults.oversample_factor_chisq = gal.data.oversample_factor_chisq
 
     # Do all analysis, plotting, saving:
-    mcmcResults.analyze_plot_save_results(gal,
-                  linked_posterior_names=linked_posterior_names,
-                  nPostBins=nPostBins,
-                  model_key_re=model_key_re,
-                  model_key_halo=model_key_halo,
-                  fitdispersion=fitdispersion,
-                  fitflux=fitflux,
-                  save_data=save_data,
-                  save_bestfit_cube=save_bestfit_cube,
-                  f_cube=f_cube,
-                  f_model=f_model,
-                  f_model_bestfit = f_model_bestfit,
-                  f_vel_ascii = f_vel_ascii,
-                  do_plotting = do_plotting,
-                  overwrite=overwrite,
-                  **kwargs_galmodel)
+    kwargs_all = {**kwargs_galmodel, **kwargs_fit}
+    mcmcResults.analyze_plot_save_results(gal, **kwargs_all)
 
 
     # Clean up logger:
-    if f_log is not None:
+    if kwargs_fit['f_log'] is not None:
         logger.removeHandler(loggerfile)
 
     return mcmcResults
 
 
-def fit_mpfit(gal,
-              fitdispersion=True,
-              fitflux=False,
-              use_weights=False,
-              model_key_re = ['disk+bulge','r_eff_disk'],
-              model_key_halo = ['halo'],
-              maxiter=200,
-              do_plotting=True,
-              save_model=True,
-              save_bestfit_cube=True,
-              save_data=True,
-              outdir='mpfit_fit_results/',
-              f_model = None,
-              f_model_bestfit = None,
-              f_cube=None,
-              f_plot_bestfit = None,
-              f_results = None,
-              f_vel_ascii = None,
-              f_log = None,
-              blob_name=None,
-              plot_type='pdf',
-              overwrite=False,
-              **kwargs):
+def fit_mpfit(gal, **kwargs):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
+    
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+    config_fit = config.Config_fit_mpfit(**kwargs)
+    kwargs_fit = config_fit.dict
 
     # Check the FOV is large enough to cover the data output:
     dpy_utils_io._check_data_inst_FOV_compatibility(gal)
 
     # Create output directory
-    if len(outdir) > 0:
-        if outdir[-1] != '/': outdir += '/'
-    ensure_dir(outdir)
+    if len(kwargs_fit['outdir']) > 0:
+        if kwargs_fit['outdir'][-1] != '/': kwargs_fit['outdir'] += '/'
+    ensure_dir(kwargs_fit['outdir'])
 
     # If the output filenames aren't defined: use default output filenames
-    if save_model and (f_model is None): f_model = outdir+'galaxy_model.pickle'
-    if save_bestfit_cube and (f_cube is None): f_cube = outdir+'mpfit_bestfit_cube.fits'
-    if f_plot_bestfit is None:           f_plot_bestfit = outdir + 'mpfit_best_fit.{}'.format(plot_type)
-    if f_results is None:                f_results = outdir + 'mpfit_results.pickle'
-    if f_vel_ascii is None:              f_vel_ascii = outdir + 'galaxy_bestfit_vel_profile.dat'
 
-    if f_model_bestfit is None:
+    if kwargs_fit['save_model'] and (kwargs_fit['f_model'] is None):
+        kwargs_fit['f_model'] = kwargs_fit['outdir']+'galaxy_model.pickle'
+    if kwargs_fit['save_bestfit_cube'] and (kwargs_fit['f_cube'] is None):
+        kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mpfit_bestfit_cube.fits'
+    if kwargs_fit['f_plot_bestfit'] is None:
+        kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir'] + 'mpfit_best_fit.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_results'] is None:
+        kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
+    if kwargs_fit['f_vel_ascii'] is None:
+        kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir'] + 'galaxy_bestfit_vel_profile.dat'
+
+    if kwargs_fit['f_model_bestfit'] is None:
         if gal.data.ndim == 1:
-            f_model_bestfit = outdir+'galaxy_out-1dplots.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
-            f_model_bestfit = outdir+'galaxy_out-velmaps.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-velmaps.fits'
         elif gal.data.ndim == 3:
-            f_model_bestfit = outdir+'galaxy_out-cube.fits'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-cube.fits'
         elif gal.data.ndim == 0:
-            f_model_bestfit = outdir+'galaxy_out-0d.txt'
+            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
-    if (not overwrite):
-        fnames = [ f_plot_bestfit, f_results, f_vel_ascii ]
-        fnames_opt = [f_model, f_cube]
+    if (not kwargs_fit['overwrite']):
+        fnames = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'], kwargs_fit['f_vel_ascii'] ]
+        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube']]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
 
         for fname in fnames:
             if os.path.isfile(fname):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
-        if os.path.isfile(f_results):
-            msg = "overwrite={}, and 'f_results' won't be saved,".format(overwrite)
+        if os.path.isfile(kwargs_fit['f_results']):
+            msg = "overwrite={}, and 'f_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
     # ---------------------------------------------------
 
     # Setup file redirect logging:
-    if f_log is not None:
-        loggerfile = logging.FileHandler(f_log)
+    if kwargs_fit['f_log'] is not None:
+        loggerfile = logging.FileHandler(kwargs_fit['f_log'])
         loggerfile.setLevel(logging.INFO)
         logger.addHandler(loggerfile)
 
@@ -1255,7 +1096,9 @@ def fit_mpfit(gal,
                 parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
 
     # Setup dictionary of arguments that mpfit_chisq needs
-    fa_init = {'gal':gal, 'fitdispersion':fitdispersion, 'fitflux':fitflux, 'use_weights': use_weights}
+
+    fa_init = {'gal':gal, 'fitdispersion':kwargs_fit['fitdispersion'],
+                'fitflux':kwargs_fit['fitflux'], 'use_weights': kwargs_fit['use_weights']}
     fa = {**fa_init, **kwargs_galmodel}
 
     # Run mpfit
@@ -1279,7 +1122,7 @@ def fit_mpfit(gal,
                 'Start: {}\n'.format(datetime.datetime.now()))
     start = time.time()
 
-    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=maxiter,
+    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=kwargs_fit['maxiter'],
               iterfunct=mpfit_printer, iterkw={'logger': logger})
 
     end = time.time()
@@ -1305,12 +1148,12 @@ def fit_mpfit(gal,
 
     # Save all of the fitting results in an MPFITResults object
     mpfitResults = MPFITResults(model=gal.model,
-                                f_plot_bestfit=f_plot_bestfit,
-                                f_results=f_results,
-                                blob_name=blob_name)
+                                f_plot_bestfit=kwargs_fit['f_plot_bestfit'],
+                                f_results=kwargs_fit['f_results'],
+                                blob_name=kwargs_fit['blob_name'])
 
-    mpfitResults.input_results(m, gal=gal,
-                model_key_re=model_key_re, model_key_halo=model_key_halo)
+    mpfitResults.input_results(m, gal=gal, model_key_re=kwargs_fit['model_key_re'],
+                    model_key_halo=kwargs_fit['model_key_halo'])
 
     # Update theta to best-fit:
     gal.model.update_parameters(mpfitResults.bestfit_parameters)
@@ -1318,43 +1161,48 @@ def fit_mpfit(gal,
     gal.create_model_data(**kwargs_galmodel)
 
     ###
-    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                    model_key_re=model_key_re)
-    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                            model_key_re=model_key_re)
+    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=kwargs_fit['fitdispersion'],
+                    fitflux=kwargs_fit['fitflux'],
+                    model_key_re=kwargs_fit['model_key_re'])
+    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=kwargs_fit['fitdispersion'],
+                    fitflux=kwargs_fit['fitflux'],
+                    model_key_re=kwargs_fit['model_key_re'])
 
     # Get vmax and vrot
-    if model_key_re is not None:
-        comp = gal.model.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
+    if kwargs_fit['model_key_re'] is not None:
+        comp = gal.model.components.__getitem__(kwargs_fit['model_key_re'][0])
+        param_i = comp.param_names.index(kwargs_fit['model_key_re'][1])
         r_eff = comp.parameters[param_i]
         mpfitResults.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
 
     mpfitResults.vmax_bestfit = gal.model.get_vmax()
 
-    if f_results is not None:
-        mpfitResults.save_results(filename=f_results, overwrite=overwrite)
+    if kwargs_fit['f_results'] is not None:
+        mpfitResults.save_results(filename=kwargs_fit['f_results'], overwrite=kwargs_fit['overwrite'])
 
-    if f_model is not None:
+    if kwargs_fit['f_model'] is not None:
         # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
+        gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
+                    overwrite=kwargs_fit['overwrite'])
 
-    if f_model_bestfit is not None:
-        gal.save_model_data(filename=f_model_bestfit, overwrite=overwrite)
+    if kwargs_fit['f_model_bestfit'] is not None:
+        gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
 
-    if save_bestfit_cube:
-        gal.model_cube.data.write(f_cube, overwrite=overwrite)
+    if kwargs_fit['save_bestfit_cube']:
+        gal.model_cube.data.write(kwargs_fit['f_cube'], overwrite=kwargs_fit['overwrite'])
 
-    if do_plotting & (f_plot_bestfit is not None):
-        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                              fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
+    if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
+        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=kwargs_fit['fitdispersion'],
+                        fitflux=kwargs_fit['fitflux'], fileout=kwargs_fit['f_plot_bestfit'],
+                        overwrite=kwargs_fit['overwrite'], **kwargs_galmodel)
 
     # Save velocity / other profiles to ascii file:
-    if f_vel_ascii is not None:
-        mpfitResults.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
+    if kwargs_fit['f_vel_ascii'] is not None:
+        mpfitResults.save_bestfit_vel_ascii(gal, filename=kwargs_fit['f_vel_ascii'],
+                model_key_re=kwargs_fit['model_key_re'], overwrite=kwargs_fit['overwrite'])
 
         # Clean up logger:
-    if f_log is not None:
+    if kwargs_fit['f_log'] is not None:
         logger.removeHandler(loggerfile)
 
 
@@ -1533,7 +1381,8 @@ class MCMCResults(FitResults):
                  f_results=None,
                  f_chain_ascii=None,
                  linked_posterior_names=None,
-                 blob_name=None):
+                 blob_name=None,
+                 **kwargs):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
@@ -1996,7 +1845,7 @@ class MPFITResults(FitResults):
     """
     Class to hold results of using MPFIT to fit to DYSMALPY models.
     """
-    def __init__(self, model=None, f_plot_bestfit=None, f_results=None, blob_name=None):
+    def __init__(self, model=None, f_plot_bestfit=None, f_results=None, blob_name=None, **kwargs):
 
         self._mpfit_object = None
 
@@ -2771,25 +2620,28 @@ def create_default_mcmc_options():
     This dictionary is provides the full set of keywords that fit() can take,
         and some potentially useful values for these parameters.
 
+    Now superceded by the functionality of `config.Config_fit_mcmc().dict`
     """
-    mcmc_options = dict(nWalkers=10,
-       cpuFrac=None,
-       nCPUs = 1,
-       scale_param_a = 3.,
-       nBurn = 2,
-       nSteps = 10,
-       minAF = 0.2,
-       maxAF = 0.5,
-       nEff = 10,
-       do_plotting = True,
-       outdir = 'mcmc_fit_results/',
-       f_plot_trace_burnin = None,
-       f_plot_trace = None,
-       f_sampler = None,
-       f_burn_sampler = None,
-       f_plot_param_corner = None,
-       f_plot_bestfit = None,
-       f_mcmc_results = None)
+    config_fit = config.Config_fit_mcmc()
+    mcmc_options = config_fit.dict
+    # mcmc_options = dict(nWalkers=10,
+    #    cpuFrac=None,
+    #    nCPUs = 1,
+    #    scale_param_a = 3.,
+    #    nBurn = 2,
+    #    nSteps = 10,
+    #    minAF = 0.2,
+    #    maxAF = 0.5,
+    #    nEff = 10,
+    #    do_plotting = True,
+    #    outdir = 'mcmc_fit_results/',
+    #    f_plot_trace_burnin = None,
+    #    f_plot_trace = None,
+    #    f_sampler = None,
+    #    f_burn_sampler = None,
+    #    f_plot_param_corner = None,
+    #    f_plot_bestfit = None,
+    #    f_mcmc_results = None)
 
 
     return mcmc_options
@@ -3133,7 +2985,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
     if emcee.__version__ == '2.2.1':
 
         sampler = emcee.EnsembleSampler(sampler_dict['nWalkers'], sampler_dict['nParam'],
-                    log_prob, args=[gal], kwargs=kwargs_dict, a=scale_param_a,
+                    log_prob, args=[gal], kwargs=kwargs_dict, a=kwargs_fit['scale_param_a'],
                     threads=sampler_dict['nCPU'])
 
         sampler._chain = copy.deepcopy(sampler_dict['chain'])
@@ -3167,7 +3019,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
                         log_prob,
                         args=[gal], kwargs=kwargs_dict,
                         backend=backend,
-                        a=scale_param_a,
+                        a=kwargs_fit['scale_param_a'],
                         threads=sampler_dict['nCPU'])
 
         except:

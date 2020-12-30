@@ -98,9 +98,35 @@ class ConfigFitBase(ConfigBase):
     """
     def __init__(self, **kwargs):
         super(ConfigFitBase, self).__init__(**kwargs)
+
     def set_defaults(self):
         # Fitting defaults that are shared between all fitting methods
-        raise NotImplementedError
+
+        self.fitdispersion = True
+        self.fitflux = False
+
+        self.blob_name = None
+
+        self.model_key_re = ['disk+bulge','r_eff_disk']
+        self.model_key_halo=['halo']
+
+        self.save_model = True
+        self.save_bestfit_cube=True
+        self.save_data = True
+
+        self.overwrite = False
+
+        self.f_model = None
+        self.f_model_bestfit = None
+        self.f_cube = None
+        self.f_plot_bestfit = None
+
+        self.f_vel_ascii = None
+        self.f_log = None
+
+        self.do_plotting = True
+        self.plot_type = 'pdf'
+
 
 class Config_fit_mcmc(ConfigFitBase):
     """
@@ -112,7 +138,39 @@ class Config_fit_mcmc(ConfigFitBase):
 
     def set_mcmc_defaults(self):
         # MCMC specific defaults
-        raise NotImplementedError
+        self.nWalkers = 10
+        self.nCPUs = 1
+        self.cpuFrac = None
+        self.scale_param_a = 3.
+        self.nBurn = 2.
+        self.nSteps = 10.
+        self.minAF = 0.2
+        self.maxAF = 0.5
+        self.nEff = 10
+        self.oversampled_chisq = True
+        self.red_chisq = False
+
+        self.save_burn = False
+
+        self.outdir = 'mcmc_fit_results/'
+        self.save_intermediate_sampler_chain = True
+        self.nStep_intermediate_save = 5
+        self.continue_steps = False
+
+        self.nPostBins = 50
+        self.linked_posterior_names = None
+
+        self.input_sampler = None
+
+        self.f_sampler = None
+        self.f_sampler_tmp = None
+        self.f_burn_sampler = None
+        self.f_mcmc_results = None
+        self.f_chain_ascii = None
+
+        self.f_plot_trace_burnin = None
+        self.f_plot_trace = None
+        self.f_plot_param_corner = None
 
 class Config_fit_mpfit(ConfigFitBase):
     """
@@ -124,54 +182,9 @@ class Config_fit_mpfit(ConfigFitBase):
 
     def set_mpfit_defaults(self):
         # MPFIT specific defaults
-        raise NotImplementedError
 
+        self.use_weights=False
+        self.maxiter=200
 
-
-# def default_create_gal_model_kwargs():
-#     create_gal_model_kwargs = {'ndim_final':      3,
-#                        'line_center':             None,
-#                        'aper_centers':            None,
-#                        'slit_width':              None,
-#                        'slit_pa':                 None,
-#                        'profile1d_type':          None,
-#                        'from_instrument':         True,
-#                        'from_data':               True,
-#                        'aperture_radius':         None,
-#                        'pix_perp':                None,
-#                        'pix_parallel':            None,
-#                        'pix_length':              None,
-#                        'skip_downsample':         False,
-#                        'partial_aperture_weight': False }
-#
-#     return create_gal_model_kwargs
-#
-# def default_sim_cube_kwargs():
-#     sim_cube_kwargs = {'nx_sky':         None,
-#                        'ny_sky':         None,
-#                        'rstep':          None,
-#                        'spec_type':     'velocity',
-#                        'spec_step':      10.,
-#                        'spec_start':     -1000.,
-#                        'nspec':          201,
-#                        'spec_unit':      (u.km/u.s),
-#                        'xcenter':        None,
-#                        'ycenter':        None,
-#                        'oversample':     1,
-#                        'oversize':       1,
-#                        'zcalc_truncate': True }
-#
-#     return sim_cube_kwargs
-#
-#
-# def config_create_model_data(**kwargs_in):
-#     create_gal_model_kwargs = default_create_gal_model_kwargs()
-#     sim_cube_kwargs = default_sim_cube_kwargs()
-#
-#     for key in kwargs_in.keys():
-#         if key in create_gal_model_kwargs.keys():
-#             create_gal_model_kwargs[key] = kwargs_in[key]
-#         if key in sim_cube_kwargs.keys():
-#             create_gal_model_kwargs[key] = kwargs_in[key]
-#
-#     return create_gal_model_kwargs, sim_cube_kwargs
+        self.outdir='mpfit_fit_results/'
+        self.f_results = None
