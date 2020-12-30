@@ -42,7 +42,8 @@ def dysmalpy_fit_single_2D(param_filename=None, data=None, datadir=None,
                 outdir=outdir, plot_type=plot_type, overwrite=overwrite)
 
 
-def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
+def dysmalpy_reanalyze_single_2D(param_filename=None, data=None, datadir=None,
+            outdir=None, plot_type='pdf', overwrite=True):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
