@@ -689,7 +689,7 @@ def _fit_emcee_3(gal, **kwargs ):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
-        if os.path.isfile(kwargs_fit['f_plot_param_corner']):
+        if os.path.isfile(kwargs_fit['f_results']):
             msg = "overwrite={}, and 'f_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
@@ -701,10 +701,11 @@ def _fit_emcee_3(gal, **kwargs ):
 
             try:
                 if backend.get_chain().shape[0] >= kwargs_fit['nSteps']:
-                    msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(kwargs_fit['overwrite'], backend.get_chain().shape[0])
-                    msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
-                    logger.warning(msg)
-                    return None
+                    if os.path.isfile(kwargs_fit['f_results']):
+                        msg = "overwrite={}, and 'f_sampler' already contains {} steps,".format(kwargs_fit['overwrite'], backend.get_chain().shape[0])
+                        msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+                        logger.warning(msg)
+                        return None
                 else:
                     pass
             except:
