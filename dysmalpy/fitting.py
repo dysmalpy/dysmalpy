@@ -191,8 +191,12 @@ def _fit_emcee_221(gal, **kwargs ):
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
-    if kwargs_fit['f_mcmc_results'] is None:
-        kwargs_fit['f_mcmc_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
+    if kwargs_fit['f_results'] is None:
+        # LEGACY SUPPORT: WILL BE DEPRECIATED:
+        if kwargs_fit['f_mcmc_results'] is not None:
+            kwargs_fit['f_results'] = kwargs_fit['f_mcmc_results']
+        else:
+            kwargs_fit['f_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_chain_ascii'] is None:
         kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
     if kwargs_fit['f_vel_ascii'] is None:
@@ -214,7 +218,7 @@ def _fit_emcee_221(gal, **kwargs ):
     if (not kwargs_fit['overwrite']):
         fnames = [kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'],
                     kwargs_fit['f_sampler'], kwargs_fit['f_plot_param_corner'],
-                    kwargs_fit['f_plot_bestfit'], kwargs_fit['f_mcmc_results'],
+                    kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'],
                     kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'] ]
         fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube'], kwargs_fit['f_burn_sampler']]
         for fname in fnames_opt:
@@ -226,8 +230,8 @@ def _fit_emcee_221(gal, **kwargs ):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
-        if os.path.isfile(kwargs_fit['f_sampler']) or os.path.isfile(kwargs_fit['f_mcmc_results']):
-            msg = "overwrite={}, and one of 'f_sampler' or 'f_mcmc_results' won't be saved,".format(kwargs_fit['overwrite'])
+        if os.path.isfile(kwargs_fit['f_sampler']) or os.path.isfile(kwargs_fit['f_results']):
+            msg = "overwrite={}, and one of 'f_sampler' or 'f_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
@@ -644,6 +648,12 @@ def _fit_emcee_3(gal, **kwargs ):
         kwargs_fit['f_sampler'] = kwargs_fit['outdir']+'mcmc_sampler.{}'.format(ftype_sampler)
     if kwargs_fit['f_plot_param_corner'] is None:
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
+    if kwargs_fit['f_results'] is None:
+        # LEGACY SUPPORT: WILL BE DEPRECIATED:
+        if kwargs_fit['f_mcmc_results'] is not None:
+            kwargs_fit['f_results'] = kwargs_fit['f_mcmc_results']
+        else:
+            kwargs_fit['f_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_plot_param_corner'] is None:
@@ -680,7 +690,7 @@ def _fit_emcee_3(gal, **kwargs ):
 
         # Return early if it won't save the results, sampler:
         if os.path.isfile(kwargs_fit['f_plot_param_corner']):
-            msg = "overwrite={}, and 'f_mcmc_results' won't be saved,".format(kwargs_fit['overwrite'])
+            msg = "overwrite={}, and 'f_results' won't be saved,".format(kwargs_fit['overwrite'])
             msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
             logger.warning(msg)
             return None
@@ -1010,7 +1020,7 @@ def fit_mpfit(gal, **kwargs):
     """
     Fit observed kinematics using MPFIT and a DYSMALPY model set.
     """
-    
+
     config_c_m_data = config.Config_create_model_data(**kwargs)
     config_sim_cube = config.Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
@@ -1374,7 +1384,6 @@ class MCMCResults(FitResults):
                  f_plot_trace_burnin=None,
                  f_plot_trace=None,
                  f_burn_sampler=None,
-                 f_mcmc_results=None,
                  f_sampler=None,
                  f_plot_param_corner=None,
                  f_plot_bestfit=None,

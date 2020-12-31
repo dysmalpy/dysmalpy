@@ -120,6 +120,7 @@ class ConfigFitBase(ConfigBase):
         self.f_model_bestfit = None
         self.f_cube = None
         self.f_plot_bestfit = None
+        self.f_results = None
 
         self.f_vel_ascii = None
         self.f_log = None
@@ -165,7 +166,6 @@ class Config_fit_mcmc(ConfigFitBase):
         self.f_sampler = None
         self.f_sampler_tmp = None
         self.f_burn_sampler = None
-        self.f_mcmc_results = None
         self.f_chain_ascii = None
 
         self.f_plot_trace_burnin = None
@@ -187,4 +187,3 @@ class Config_fit_mpfit(ConfigFitBase):
         self.maxiter=200
 
         self.outdir='mpfit_fit_results/'
-        self.f_results = None
