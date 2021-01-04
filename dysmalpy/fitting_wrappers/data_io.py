@@ -24,6 +24,7 @@ except ImportError:
 
 from dysmalpy import data_classes
 from dysmalpy import utils as dysmalpy_utils
+from dysmalpy import config
 
 import astropy.io.fits as fits
 
@@ -100,25 +101,12 @@ def read_fitting_params(fname=None):
     param_input = read_fitting_params_input(fname=fname)
 
     # Set some defaults if not otherwise specified
-    params = {'nWalkers': 20,
-              'nCPUs': 4,
-              'scale_param_a': 2,
-              'nBurn': 10,
-              'nSteps': 10,
-              'minAF': None,
-              'maxAF': None,
-              'nEff': 10,
-              'do_plotting': True,
-              'oversample': 1,
-              'fitdispersion': True,
-              'fitflux': False,
-              'include_halo': False,
-              'halo_profile_type': 'NFW',
-              'blob_name': None,
-              'red_chisq': False,
-              'oversampled_chisq': True,
-              'linked_posteriors': None,
-              'weighting_method': None}
+    params_wrapper_specific = {'oversample': 1,
+                               'include_halo': False,
+                               'halo_profile_type': 'NFW',
+                               'weighting_method': None}
+    params = config.Config_fit_mcmc().dict
+    params.update(params_wrapper_specific)
 
     # param_filename
     fname_split = fname.split('/')

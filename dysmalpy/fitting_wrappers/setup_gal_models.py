@@ -763,7 +763,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     f_plot_param_corner = outdir+'{}_mcmc_param_corner.{}'.format(galID, plot_type)
     f_plot_bestfit = outdir+'{}_mcmc_best_fit.{}'.format(galID, plot_type)
     f_plot_bestfit_multid = outdir+'{}_mcmc_best_fit_multid.{}'.format(galID, plot_type)
-    f_mcmc_results = outdir+'{}_mcmc_results.pickle'.format(galID)
+    f_results = outdir+'{}_mcmc_results.pickle'.format(galID)
     f_chain_ascii = outdir+'{}_mcmc_chain_blobs.dat'.format(galID)
     f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
     f_log = outdir+'{}_info.log'.format(galID)
@@ -779,15 +779,17 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_plot_param_corner':  f_plot_param_corner,
                 'f_plot_bestfit':  f_plot_bestfit,
                 'f_plot_bestfit_multid': f_plot_bestfit_multid,
-                'f_mcmc_results':  f_mcmc_results,
+                'f_results':  f_results,
+                'f_mcmc_results': f_results, 
                 'f_chain_ascii': f_chain_ascii,
                 'f_vel_ascii': f_vel_ascii,
                 'f_log': f_log,
                 'do_plotting': True}
 
     for key in params.keys():
-        # Copy over all various fitting options
-        mcmc_dict[key] = params[key]
+        if key not in mcmc_dict.keys():
+            # Copy over all various fitting options
+            mcmc_dict[key] = params[key]
 
     # #
     if 'linked_posteriors' in mcmc_dict.keys():
@@ -884,8 +886,9 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'do_plotting': True}
 
     for key in params.keys():
-        # Copy over all various fitting options
-        mpfit_dict[key] = params[key]
+        if key not in mpfit_dict.keys():
+            # Copy over all various fitting options
+            mpfit_dict[key] = params[key]
 
     return mpfit_dict
 
