@@ -601,3 +601,23 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
     #     PA += 180.
 
     return PA, stddev_x, stddev_y
+
+
+def get_cin_cout(shape, asint=False):
+
+    if asint:
+        carr = np.zeros(len(shape), dtype=np.int)
+    else:
+        carr = np.zeros(len(shape))
+
+    for j,sh in enumerate(shape):
+        if sh % 2 == 1:
+            ca = 0.5*(sh-1)
+        else:
+            ca = 0.5*sh
+        if asint:
+            carr[j] = np.int(np.round(ca))
+        else:
+            carr[j] = ca
+
+    return tuple(carr)

@@ -24,10 +24,6 @@ import copy
 import numpy as np
 import astropy.units as u
 
-# from dysmalpy.fitting_wrappers import utils_io
-# from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D
-# from dysmalpy.fitting_wrappers.dysmalpy_fit_single import dysmalpy_fit_single
-
 try:
     import utils_io
     from plotting import plot_bundle_1D
@@ -45,7 +41,8 @@ def dysmalpy_fit_single_1D(param_filename=None, data=None, datadir=None,
                  outdir=outdir, plot_type=plot_type, overwrite=overwrite)
 
 
-def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, outdir=None, plot_type='pdf'):
+def dysmalpy_reanalyze_single_1D(param_filename=None, data=None,
+            datadir=None, outdir=None, plot_type='pdf', overwrite=True):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -87,22 +84,12 @@ def dysmalpy_reanalyze_single_1D(param_filename=None, data=None, datadir=None, o
                                     fit_method=params['fit_method'])
 
         # Do all analysis, plotting, saving:
-        results.analyze_plot_save_results(gal,
-                      blob_name=fit_dict['blob_name'],
-                      linked_posterior_names=fit_dict['linked_posterior_names'],
-                      model_key_re=fit_dict['model_key_re'],
-                      model_key_halo=fit_dict['model_key_halo'],
-                      fitdispersion=fit_dict['fitdispersion'],
-                      fitflux=fit_dict['fitflux'],
-                      f_model=fit_dict['f_model'],
-                      f_model_bestfit=fit_dict['f_model_bestfit'],
-                      f_vel_ascii = fit_dict['f_vel_ascii'],
-                      save_data=True,
-                      save_bestfit_cube=True,
-                      f_cube=fit_dict['f_cube'],
-                      do_plotting = fit_dict['do_plotting'],
-                      plot_type=plot_type,
-                      **kwargs_galmodel)
+
+        fit_dict['overwrite'] = overwrite
+        fit_dict['plot_type'] = plot_type
+
+        kwargs_all = {**kwargs_galmodel, **fit_dict}
+        results.analyze_plot_save_results(gal, **kwargs_all)
 
         # Reload fitting stuff to get the updated gal object
         gal, results = fitting.reload_all_fitting(filename_galmodel=fit_dict['f_model'],
