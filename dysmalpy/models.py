@@ -1875,7 +1875,6 @@ class ModelSet:
                 xsky, ysky, zsky = self.geometry.inverse_coord_transform(xgal, ygal, zgal)
 
 
-
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
             rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
@@ -1923,11 +1922,10 @@ class ModelSet:
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
             if transform_method.lower().strip() == 'direct':
-                # The final spectrum will be a flux weighted sum of Gaussians at each
-                # velocity along the line of sight.
                 sigmar = self.dispersion_profile(rgal)
 
-            if transform_method.lower().strip() == 'direct':
+                # The final spectrum will be a flux weighted sum of Gaussians at each
+                # velocity along the line of sight.
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 if zcalc_truncate:
                     # Truncate in the z direction by flagging what pixels to include in propogation
@@ -1950,9 +1948,7 @@ class ModelSet:
 
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
 
-
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
                 sigmar_transf = self.dispersion_profile(rgal_final)
 
@@ -1968,9 +1964,6 @@ class ModelSet:
                         thick = 0.
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
-                    # NEED THICKER FOR THIS INTERPOLATION:
-                    #zsize = np.max([ 10.*oversample, np.int(np.floor(10.*thick/rstep_samp*dscale + 0.5 )) ])
-                    # TEST
                     zsize = np.max([  3.*oversample, np.int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
@@ -1988,12 +1981,6 @@ class ModelSet:
                             xgal_final / (rgal_final / rstep_samp * dscale))
                     vobs_mass_transf[rgal_final == 0] = 0.
 
-                    # sigmar_transf =     self.geometry.transform_cube_affine(sigmar[validz,:,:], output_shape=outsh)
-                    # # Garbage collect: missing values:
-                    # whmiss = np.where((sigmar_transf == 0.))
-                    # # Set sigma to a finite value that position doesn't give NaNs
-                    # sigmar_transf[whmiss] = 99.
-
                     #######
                     if ((self.inflow is not None) & (self.inflow_geometry is None)):
                         rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
@@ -2010,8 +1997,6 @@ class ModelSet:
                         vin_obs[rgal3D == 0] = vin[rgal3D == 0]
                         vobs_mass += vin_obs
                     #######
-
-
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
                             rstep=rstep_samp, oversample=oversample,
@@ -2067,8 +2052,8 @@ class ModelSet:
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
-                xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
+                ysky = ysky - ycenter_samp
+                xsky = xsky - xcenter_samp
 
                 # Apply the geometric transformation to get outflow coordinates
                 # Account for oversampling
@@ -2096,15 +2081,7 @@ class ModelSet:
                 vobs[rout == 0] = vout[rout == 0]
 
                 sigma_out = self.outflow_dispersion(rout)
-                #for zz in range(nz_sky_samp):
-                #    f_cube = np.tile(fout[zz, :, :], (nspec, 1, 1))
-                #    vobs_cube = np.tile(vobs[zz, :, :], (nspec, 1, 1))
-                #    sig_cube = np.tile(sigma_out[zz, :, :], (nspec, 1, 1))
-                #    tmp_cube = np.exp(
-                #        -0.5 * ((velcube - vobs_cube) / sig_cube) ** 2)
-                #    cube_sum = np.nansum(tmp_cube, 0)
-                #    cube_sum[cube_sum == 0] = 1
-                #    cube_final += tmp_cube / cube_sum * f_cube
+
                 cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
 
                 self.outflow_geometry.xshift = self.outflow_geometry.xshift.value / oversample
@@ -2118,9 +2095,6 @@ class ModelSet:
 
                 # The coordinates where the unresolved outflow is placed needs to be
                 # an integer pixel so for now we round to nearest integer.
-                # xpix = np.int(np.round(xshift)) + nx_sky_samp/2
-                # ypix = np.int(np.round(yshift)) + ny_sky_samp/2
-
                 xpix = np.int(np.round(xshift)) + np.int(np.round(xcenter_samp))
                 ypix = np.int(np.round(yshift)) + np.int(np.round(ycenter_samp))
 
@@ -2139,7 +2113,6 @@ class ModelSet:
             # CALCULATED EARLIER
 
             if self.inflow._spatial_type == 'resolved':
-
                 # Create 3D arrays of the sky pixel coordinates
                 sin_inc = np.sin(self.inflow_geometry.inc * np.pi / 180.)
 
@@ -2188,8 +2161,6 @@ class ModelSet:
                 self.inflow_geometry.yshift = self.inflow_geometry.yshift.value / oversample
 
 
-        #if debug:
-        #    return cube_final, spec, flux_mass, vobs_mass
 
         return cube_final, spec
 
@@ -2202,6 +2173,46 @@ class _DysmalModel(Model):
     """
 
     parameter_constraints = DysmalParameter.constraints
+
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the changed galaxy structure
+        #    (properties, not attributes for data[*], instrument)
+
+        self.__dict__ = state
+
+        # Compatibility hack, to handle the changes in astropy.modeling from v3 to v4
+        if not self.param_names:
+            pass
+        else:
+            if self.param_names[0] not in self.__dict__.keys():
+                # If self.__dict__ doesn't contain param names,
+                #       need to do v3 to v4 migration
+                for pname in self.param_names:
+                    # Fill param with correct values:
+                    param = self.__getattribute__(pname)
+                    start = self._param_metrics[pname]['slice'].start
+                    stop = self._param_metrics[pname]['slice'].stop
+                    param._value = self._parameters[start:stop]
+
+                    keys_migrate = ['fixed', 'bounds', 'tied', 'prior']
+                    for km in keys_migrate:
+                        param.__dict__['_'+km] = self._constraints[km][pname]
+
+                    # Set size:
+                    self._param_metrics[pname]['size'] = np.size(param._value)
+
+                    # Set param as part of model dict (v4 "standard")
+                    self.__dict__[pname] = param
+
+                if '_model' in param.__dict__.keys():
+                    if param._model is None:
+                        # If param._model exists and is missing,
+                        # Back-set the model for all parameters, after model complete.
+                        for pname in self.param_names:
+                            param = self.__getattribute__(pname)
+                            param._model = self
+                            self.__setattr__(pname, param)
+
 
 
 class _DysmalFittable1DModel(_DysmalModel):
@@ -2395,7 +2406,6 @@ class ExpDisk(MassModel):
 
         """
         # Shortcut for the exponential disk asymmetric drift term, from Burkert+10 eq 11:
-
         return -2. * (r / self.rd)
 
     def drho_dr(self, r):
@@ -4016,9 +4026,6 @@ class Burkert(DarkMatterHalo):
             rBtest = np.arange(0., 250., 5.0)
             vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
 
-            # a = rBtest[vtest < 0][-1]
-            # b = rBtest[vtest > 0][0]
-
             try:
                 a = rBtest[vtest < 0][-1]
                 try:
@@ -4615,9 +4622,6 @@ class NFW(DarkMatterHalo):
                     raise ValueError
 
                 if adiabatic_contract:
-                    # # TEST
-                    # print("mtest={}".format(mtest))
-                    # print("vtest={}".format(vtest))
                     mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
 
                     # TEST
@@ -4641,8 +4645,7 @@ class NFW(DarkMatterHalo):
         modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
 
         vc, vc_dm = modtmp.circular_velocity(r_eff, compute_dm=True)
-        #print("mass={}, barymass={}, vc={}, vcdm={}, vcdm_noAC={}, vtarget={}".format(mass, bary.total_mass.value, vc,
-        #            vc_dm, halo.circular_velocity(r_eff), np.sqrt(vtarget)))
+
         return vc_dm **2 - vtarget
 
     def rho(self, r):
@@ -5018,6 +5021,7 @@ class Geometry(_DysmalFittable3DModel):
     # def transform_cube_rotate_shift(self, cube, inc=None, pa=None, xshift=None, yshift=None):
     #     """Incline and transform a cube from galaxy/model reference frame to sky frame.
     #         Use scipy.ndimage.rotate and scipy.ndimage.shift"""
+    #     # NOTE: SLOWER THAN AFFINE TRANSFORM
     #     if inc is None:     inc = self.inc
     #     if pa is None:      pa = self.pa
     #     if xshift is None:  xshift = self.xshift
@@ -5057,7 +5061,6 @@ class DispersionConst(DispersionProfile):
 class ZHeightProfile(_DysmalFittable1DModel):
     """Base object for flux profiles in the z-direction"""
     _type = 'zheight'
-
 
     # Must set property z_scalelength for each subclass,
     #   for use with getting indices ai for filling simulated cube
@@ -5181,6 +5184,7 @@ class KinematicOptions:
         self.pressure_support_n = pressure_support_n
         self.pressure_support_type = pressure_support_type
 
+
     def apply_adiabatic_contract(self, model, r, vbaryon, vhalo,
                                  compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
                                  step1d = 0.2):
@@ -5300,10 +5304,6 @@ class KinematicOptions:
 
 
             vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
-            ####vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, kind='linear')   # linear interpolation
-
-            #print("r1d={}".format(r1d))
-            #print("rprime_all_1d={}".format(rprime_all_1d))
 
             # Just calculations:
             if converged.sum() < len(r1d):
@@ -5312,7 +5312,7 @@ class KinematicOptions:
                     r1d = r1d[converged]
 
             vhalo_adi_1d = vhalo_adi_interp_1d(rprime_all_1d)
-            ####print("vhalo_adi_1d={}".format(vhalo_adi_1d))
+
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
 
             vhalo_adi = vhalo_adi_interp_map_3d(r)
@@ -5419,6 +5419,15 @@ class KinematicOptions:
         vel_asymm_drift : float or array
             Velocity correction in km/s associated with asymmetric drift
         """
+        # Compatibility hack, to handle the changed galaxy structure
+        #    (properties, not attributes for data[*], instrument
+        if 'pressure_support_type' not in self.__dict__.keys():
+            # Set to default if missing
+            self.pressure_support_type = 1
+        if 'pressure_support_n' not in self.__dict__.keys():
+            # Set to default if missing:
+            self.pressure_support_n = None
+
         pre = self.get_pressure_support_param(model, param='re')
 
         if model.dispersion_profile is None:
@@ -5428,19 +5437,16 @@ class KinematicOptions:
         sigma = model.dispersion_profile(r)
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
-            # vel_squared = (vel ** 2 - 3.36 * (r / pre) * sigma ** 2)
             vel_asymm_drift = np.sqrt( 3.36 * (r / pre) * sigma ** 2 )
         elif self.pressure_support_type == 2:
             # Modified derivation that takes into account n_disk / n
             pn = self.get_pressure_support_param(model, param='n')
-
             bn = scp_spec.gammaincinv(2. * pn, 0.5)
-            #vel_squared = (vel ** 2 - 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
+
             vel_asymm_drift = np.sqrt( 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
 
         elif self.pressure_support_type == 3:
             # Direct calculation from sig0^2 dlnrho/dlnr:
-
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
@@ -5806,7 +5812,5 @@ def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
                                         fill_value="extrapolate")
     result = (r_adi + r_adi * ((r_adi*adia_v_disk**2) /
                                (rprime*(rprime_interp(rprime))**2)) - rprime)
-    # #
-    # print("adia_x_dm={}, adia_v_dm={}, r_adi={}, rprime={}, rprime_interp(rprime)={}, result={}".format(adia_x_dm, adia_v_dm, r_adi, rprime,
-    #             rprime_interp(rprime), result))
+
     return result

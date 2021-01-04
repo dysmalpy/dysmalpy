@@ -20,7 +20,8 @@ from astropy.units import Quantity
 import six
 
 __all__ = ['DysmalParameter', 'Prior', 'UniformPrior', 'GaussianPrior',
-           'BoundedGaussianPrior']
+           'BoundedGaussianPrior', 'BoundedGaussianLinearPrior',
+           'BoundedSineGaussianPrior', 'UniformLinearPrior']
 
 
 def _binary_comparison_operation(op):
@@ -491,9 +492,12 @@ class DysmalParameter(Parameter):
                                               max=max,
                                               bounds=bounds)
 
-        # Set prior:
-        self.prior = prior
-
+        try:
+            # Set prior:
+            self.prior = prior
+        except:
+            # Quick backwards compatibility for AstroPy v3:
+            self._prior = prior
 
 
     __eq__ = _binary_comparison_operation(operator.eq)

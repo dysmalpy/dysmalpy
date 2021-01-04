@@ -204,6 +204,14 @@ class Data1D(Data):
         else:
             self.mask_vel_disp = None
 
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the changed galaxy structure
+        #    (properties, not attributes for data[*], instrument
+        self.__dict__ = state
+
+        # Set to default if missing:
+        if 'flux' not in self.data.keys(): self.data['flux'] = None
+        if 'flux' not in self.error.keys(): self.error['flux'] = None
 
 class Data2D(Data):
 
@@ -292,7 +300,7 @@ class Data2D(Data):
 
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
-            #
+            
             if mask_vel_disp is not None:
                 if mask_vel_disp.shape != velocity.shape:
                     raise ValueError("mask_vel_disp and velocity are not the same size.")
@@ -328,7 +336,7 @@ class Data2D(Data):
                                      smoothing_npix=smoothing_npix,
                                      xcenter=xcenter,
                                      ycenter=ycenter)
-        #
+
         if mask_velocity is not None:
             self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
         else:
@@ -342,6 +350,15 @@ class Data2D(Data):
         self.moment = moment
 
         self.filename_flux = filename_flux
+
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the changed galaxy structure
+        #    (properties, not attributes for data[*], instrument
+        self.__dict__ = state
+
+        # Set to default if missing:
+        if 'flux' not in self.data.keys(): self.data['flux'] = None
+        if 'flux' not in self.error.keys(): self.error['flux'] = None
 
 class Data3D(Data):
 

@@ -103,6 +103,21 @@ class Galaxy:
         self.model_cube = None
 
 
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the changed galaxy structure
+        #    (properties, not attributes for data[*], instrument)
+        
+        self.__dict__ = state
+        # quick test if necessary to migrate:
+        if '_data' in state.keys():
+            pass
+        else:
+            migrate_keys = ['data', 'data1d', 'data2d', 'data3d', 'instrument', 'dscale']
+            for mkey in migrate_keys:
+                if (mkey in state.keys()) and ('_{}'.format(mkey) not in state.keys()):
+                    self.__dict__['_{}'.format(mkey)] = state[mkey]
+                    del self.__dict__[mkey]
+
     @property
     def z(self):
         return self._z
