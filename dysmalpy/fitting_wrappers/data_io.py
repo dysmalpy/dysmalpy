@@ -380,22 +380,6 @@ def load_single_object_2D_data(params=None, adjust_error=False,
         mask[~np.isfinite(err_disp)] = 0
         err_flux[~np.isfinite(err_flux)] = 0.
 
-    # Crop, if desired
-    if not skip_crop:
-        if params['fov_npix'] < min(gal_vel.shape):
-            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
-            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
-            gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            if params['fitdispersion']:
-                gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-                err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            if params['fitflux']:
-                gal_flux = gal_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-                err_flux = err_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-
-            mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-
     # Auto mask som bad data
     if automask:
         indtmp = (gal_disp > dispmax) | (np.abs(gal_vel) > vmax)
@@ -513,6 +497,45 @@ def load_single_object_2D_data(params=None, adjust_error=False,
         file_flux = None
         gal_flux = None
         err_flux = None
+
+
+    # Crop, if desired
+    if not skip_crop:
+        if 'cropbox' in params.keys():
+            if params['cropbox'] is not None:
+                crp = params['cropbox']
+                # cropbox: l r b t
+                mask = mask[crp[2]:crp[3], crp[0]:crp[1]]
+                gal_vel = gal_vel[crp[2]:crp[3], crp[0]:crp[1]]
+                err_vel = err_vel[crp[2]:crp[3], crp[0]:crp[1]]
+                if params['fitdispersion']:
+                    gal_disp = gal_disp[crp[2]:crp[3], crp[0]:crp[1]]
+                    err_disp = err_disp[crp[2]:crp[3], crp[0]:crp[1]]
+                if params['fitflux']:
+                    gal_flux = gal_flux[crp[2]:crp[3], crp[0]:crp[1]]
+                    err_flux = err_flux[crp[2]:crp[3], crp[0]:crp[1]]
+                if gal_weight is not None:
+                    gal_weight = gal_weight[crp[2]:crp[3], crp[0]:crp[1]]
+                if xcenter is not None:
+                    xcenter -= crp[0]
+                    ycenter -= crp[2]
+        elif params['fov_npix'] < min(gal_vel.shape):
+            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
+            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
+            gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            if params['fitdispersion']:
+                gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+                err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            if params['fitflux']:
+                gal_flux = gal_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+                err_flux = err_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+
+            mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            if gal_weight is not None:
+                gal_weight = gal_weight[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+
+
     data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp,
@@ -521,7 +544,7 @@ def load_single_object_2D_data(params=None, adjust_error=False,
                                       weight=gal_weight,
                                       filename_velocity=datadir+params['fdata_vel'],
                                       filename_dispersion=file_disp,
-                                      filename_flux=file_disp,
+                                      filename_flux=file_flux,
                                       smoothing_type=params['smoothing_type'],
                                       smoothing_npix=params['smoothing_npix'],
                                       inst_corr=params['data_inst_corr'],
