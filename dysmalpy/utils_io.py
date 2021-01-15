@@ -710,72 +710,127 @@ def _check_data_inst_FOV_compatibility(gal):
 
 
 #########################
+## OLD METHOD: NOT AS GOOD, LOOKS AT NON-MAJOR AXIS
+# def _calc_Rout_max_2D(gal=None, results=None):
+#     gal.model.update_parameters(results.bestfit_parameters)
+#     inc_gal = gal.model.geometry.inc.value
+#
+#     ###############
+#     # Get grid of data coords:
+#     nx_sky = gal.data.data['velocity'].shape[1]
+#     ny_sky = gal.data.data['velocity'].shape[0]
+#     nz_sky = 1 #np.int(np.max([nx_sky, ny_sky]))
+#     rstep = gal.data.pixscale
+#
+#     xcenter = gal.data.xcenter
+#     ycenter = gal.data.ycenter
+#
+#     if xcenter is None:
+#         xcenter = (nx_sky - 1) / 2.
+#     if ycenter is None:
+#         ycenter = (ny_sky - 1) / 2.
+#
+#
+#     sh = (nz_sky, ny_sky, nx_sky)
+#     zsky, ysky, xsky = np.indices(sh)
+#     zsky = zsky - (nz_sky - 1) / 2.
+#     ysky = ysky - ycenter
+#     xsky = xsky - xcenter
+#
+#     # Apply the geometric transformation to get galactic coordinates
+#     xgal, ygal, zgal = gal.model.geometry(xsky, ysky, zsky)
+#
+#     # Get the 4 corners sets:
+#     gal.model.geometry.inc = 0
+#     xskyp_ur, yskyp_ur, zskyp_ur = gal.model.geometry(xsky+0.5, ysky+0.5, zsky)
+#     xskyp_ll, yskyp_ll, zskyp_ll = gal.model.geometry(xsky-0.5, ysky-0.5, zsky)
+#     xskyp_lr, yskyp_lr, zskyp_lr = gal.model.geometry(xsky+0.5, ysky-0.5, zsky)
+#     xskyp_ul, yskyp_ul, zskyp_ul = gal.model.geometry(xsky-0.5, ysky+0.5, zsky)
+#
+#     #Reset:
+#     gal.model.geometry.inc = inc_gal
+#
+#     yskyp_ur_flat = yskyp_ur[0,:,:]
+#     yskyp_ll_flat = yskyp_ll[0,:,:]
+#     yskyp_lr_flat = yskyp_lr[0,:,:]
+#     yskyp_ul_flat = yskyp_ul[0,:,:]
+#
+#     val_sgns = np.zeros(yskyp_ur_flat.shape)
+#     val_sgns += np.sign(yskyp_ur_flat)
+#     val_sgns += np.sign(yskyp_ll_flat)
+#     val_sgns += np.sign(yskyp_lr_flat)
+#     val_sgns += np.sign(yskyp_ul_flat)
+#
+#     whgood = np.where( ( np.abs(val_sgns) < 4. ) & (gal.data.mask) )
+#
+#     xgal_flat = xgal[0,:,:]
+#     ygal_flat = ygal[0,:,:]
+#     xgal_list = xgal_flat[whgood]
+#     ygal_list = ygal_flat[whgood]
+#
+#     # The circular velocity at each position only depends on the radius
+#     # Convert to kpc
+#     rgal = np.sqrt(xgal_list ** 2 + ygal_list ** 2) * rstep / gal.dscale
+#
+#     Routmax2D = np.max(rgal.flatten())
+#
+#     return Routmax2D
 
+# BETTER METHOD: ALONG MAJOR AXIS:
 def _calc_Rout_max_2D(gal=None, results=None):
     gal.model.update_parameters(results.bestfit_parameters)
-    inc_gal = gal.model.geometry.inc.value
-
-    ###############
-    # Get grid of data coords:
     nx_sky = gal.data.data['velocity'].shape[1]
     ny_sky = gal.data.data['velocity'].shape[0]
-    nz_sky = 1 #np.int(np.max([nx_sky, ny_sky]))
-    rstep = gal.data.pixscale
 
-    xcenter = gal.data.xcenter
-    ycenter = gal.data.ycenter
+    try:
+        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                            gal.data.ycenter + gal.model.geometry.yshift.value)
+    except:
+        center_pixel_kin = (np.int(nx_sky/ 2.) + gal.model.geometry.xshift.value,
+                            np.int(ny_sky/ 2.) + gal.model.geometry.yshift.value)
 
-    if xcenter is None:
-        xcenter = (nx_sky - 1) / 2.
-    if ycenter is None:
-        ycenter = (ny_sky - 1) / 2.
+    # Start going to neg, pos of center, at PA, and check if mask True/not
+    #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
+    cPA = np.cos(gal.model.components['geom'].pa.value * np.pi/180.)
+    sPA = np.sin(gal.model.components['geom'].pa.value * np.pi/180.)
 
+    ## but just considering +- MA -> all in y.
+    ## xnew = -rMA * sPA
+    ## ynew = rMA * cPA
+    ## then for MINA -> all in x
+    ## xnew2 = rMINA * cPA
+    ## ynew2 = rMINA * sPA
+    
+    rstep_A = 1.
+    rMA_tmp = 0
+    rMA_arr = []
+    for fac in [-1.,1.]:
+        ended_MA = False
+        while not ended_MA:
+            rMA_tmp += fac * rstep_A
+            xtmp = rMA_tmp * -sPA + center_pixel_kin[0]
+            ytmp = rMA_tmp * cPA  + center_pixel_kin[1]
+            if (xtmp < 0) | (xtmp >nx_sky-1) | (ytmp < 0) | (ytmp >ny_sky-1):
+                rMA_arr.append(rMA_tmp - fac*rstep_A)
+                rMA_tmp = 0
+                ended_MA = True
+            elif not mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+                rMA_arr.append(rMA_tmp)
+                rMA_tmp = 0
+                ended_MA = True
 
-    sh = (nz_sky, ny_sky, nx_sky)
-    zsky, ysky, xsky = np.indices(sh)
-    zsky = zsky - (nz_sky - 1) / 2.
-    ysky = ysky - ycenter
-    xsky = xsky - xcenter
-
-    # Apply the geometric transformation to get galactic coordinates
-    xgal, ygal, zgal = gal.model.geometry(xsky, ysky, zsky)
-
-    # Get the 4 corners sets:
-    gal.model.geometry.inc = 0
-    xskyp_ur, yskyp_ur, zskyp_ur = gal.model.geometry(xsky+0.5, ysky+0.5, zsky)
-    xskyp_ll, yskyp_ll, zskyp_ll = gal.model.geometry(xsky-0.5, ysky-0.5, zsky)
-    xskyp_lr, yskyp_lr, zskyp_lr = gal.model.geometry(xsky+0.5, ysky-0.5, zsky)
-    xskyp_ul, yskyp_ul, zskyp_ul = gal.model.geometry(xsky-0.5, ysky+0.5, zsky)
-
-    #Reset:
-    gal.model.geometry.inc = inc_gal
-
-    yskyp_ur_flat = yskyp_ur[0,:,:]
-    yskyp_ll_flat = yskyp_ll[0,:,:]
-    yskyp_lr_flat = yskyp_lr[0,:,:]
-    yskyp_ul_flat = yskyp_ul[0,:,:]
-
-    val_sgns = np.zeros(yskyp_ur_flat.shape)
-    val_sgns += np.sign(yskyp_ur_flat)
-    val_sgns += np.sign(yskyp_ll_flat)
-    val_sgns += np.sign(yskyp_lr_flat)
-    val_sgns += np.sign(yskyp_ul_flat)
-
-    whgood = np.where( ( np.abs(val_sgns) < 4. ) & (gal.data.mask) )
-
-    xgal_flat = xgal[0,:,:]
-    ygal_flat = ygal[0,:,:]
-    xgal_list = xgal_flat[whgood]
-    ygal_list = ygal_flat[whgood]
-
-    # The circular velocity at each position only depends on the radius
-    # Convert to kpc
-    rgal = np.sqrt(xgal_list ** 2 + ygal_list ** 2) * rstep / gal.dscale
-
-    Routmax2D = np.max(rgal.flatten())
+    Routmax2D = np.max(np.abs(np.array(rMA_tmp)))
 
     return Routmax2D
 
+def plot_major_minor_axes_2D(ax, gal, im, mask, return_rMA=False):
+    ####################################
+    # Show MAJOR AXIS line, center:
+
+    if return_rMA:
+        return ax, rMA_arr
+    else:
+        return ax
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
