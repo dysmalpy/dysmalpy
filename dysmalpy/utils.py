@@ -388,10 +388,13 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
             if not quiet:
                 print("Applying smoothing: {}, {}".format(sm_type, sm_npix))
             if (sm_type.lower() == 'median'):
-                if (sm_npix % 2) == 1:
-                    cb = sp_sig.medfilt(cb, kernel_size=(1, sm_npix, sm_npix))
-                else:
-                    cb = sp_ndi.median_filter(cb, size=(1,sm_npix, sm_npix), mode='constant', cval=0.)
+                # General for both even and odd:
+                cb = sp_ndi.median_filter(cb, size=(1,sm_npix, sm_npix), mode='constant', cval=0.)
+                ####
+                # if (sm_npix % 2) == 1:
+                #     cb = sp_sig.medfilt(cb, kernel_size=(1, sm_npix, sm_npix))
+                # else:
+                #     cb = sp_ndi.median_filter(cb, size=(1,sm_npix, sm_npix), mode='constant', cval=0.)
 
             elif (sm_type.lower() == 'gaussian'):
                 kernel2d = Gaussian2DKernel(x_stddev=sm_npix / std2fwhm)._array

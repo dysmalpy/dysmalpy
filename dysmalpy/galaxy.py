@@ -106,7 +106,7 @@ class Galaxy:
     def __setstate__(self, state):
         # Compatibility hack, to handle the changed galaxy structure
         #    (properties, not attributes for data[*], instrument)
-        
+
         self.__dict__ = state
         # quick test if necessary to migrate:
         if '_data' in state.keys():
@@ -533,6 +533,21 @@ class Galaxy:
                 slit_width = self.data.slit_width
                 slit_pa = self.data.slit_pa
                 xarr = self.data.x
+
+
+            if (ndim_final == 2) | (ndim_final==3):
+                # Apply an artificial xycenter / xyshift of -0.5 if ndim = 2,3,
+                #   and median smoothing with an EVEN npix is applied
+                if self.data.smoothing_type is not None:
+                    if self.data.smoothing_type.lower().strip() == 'median':
+                        if (self.data.smoothing_npix % 2) == 0:
+                            if xcenter is None:
+                                xcenter = (nx_sky-1)/2.
+                            if ycenter is None:
+                                ycenter = (ny_sky-1)/2.
+                            xcenter -= 0.5
+                            ycenter -= 0.5
+
 
         # Pull parameters from the instrument
         elif from_instrument:

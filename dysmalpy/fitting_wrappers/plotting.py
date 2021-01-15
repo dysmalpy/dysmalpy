@@ -79,13 +79,13 @@ def plot_bundle_1D(params=None, param_filename=None, fit_dict=None,
 
 # ----------------------------------------------------------------------
 
-def plot_bundle_2D(params=None, param_filename=None, plot_type='pdf', overwrite=None):
+def plot_bundle_2D(params=None, param_filename=None, plot_type='pdf', overwrite=False):
 
     # Plot multid, if enabled:
     if 'fdata_1d' in params.keys():
         plot_results_multid(param_filename=param_filename,
                 fit_ndim=2, show_1d_apers=True, remove_shift=True,
-                        plot_type=plot_type)
+                        plot_type=plot_type, overwrite=overwrite)
 
     return None
 
@@ -142,7 +142,8 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     remove_shift=True,
     show_1d_apers=False,
     plot_type='pdf',
-    zcalc_truncate=True):
+    zcalc_truncate=True,
+    overwrite=False):
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -177,7 +178,8 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
         remove_shift=remove_shift,
         show_1d_apers=show_1d_apers,
         theta = results.bestfit_parameters,
-        fileout=fit_dict['f_plot_bestfit_multid'])
+        fileout=fit_dict['f_plot_bestfit_multid'],
+        overwrite=overwrite)
 
     return None
 
@@ -188,7 +190,8 @@ def plot_results_multid_general(param_filename=None,
     remove_shift=True,
     show_1d_apers=False,
     theta = None,
-    fileout=None):
+    fileout=None,
+    overwrite=False):
 
 
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
@@ -210,6 +213,7 @@ def plot_results_multid_general(param_filename=None,
             fitflux=fit_dict['fitflux'],
             fileout=fileout,
             show_1d_apers=show_1d_apers, remove_shift=remove_shift,
+            overwrite=overwrite,
             **kwargs_galmodel)
 
 
