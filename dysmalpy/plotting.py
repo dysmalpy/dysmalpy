@@ -1459,301 +1459,89 @@ def plot_model_multid_base(gal,
                 yt = keyytitlearr[j]
 
                 # -----------------------------------
-                if keyyarr[j] == 'velocity':
-                    if k == 'data':
+
+                if k == 'data':
+                    if keyyarr[j] == 'velocity':
                         im = gal.data.data['velocity'].copy()
                         im -= vel_shift
                         #im[~gal.data.mask] = np.nan
-                        cmaptmp = cmap
+                        vmin = vel_vmin
+                        vmax = vel_vmax
+                    elif keyyarr[j] == 'dispersion':
+                        im = gal.data.data['dispersion'].copy()
+                        #im[~gal.data.mask] = np.nan
+                        vmin = disp_vmin
+                        vmax = disp_vmax
+                    elif keyyarr[j] == 'flux':
+                        im = gal.data.data['flux'].copy()
+                        #im[~gal.data.mask] = np.nan
+                        vmin = flux_vmin
+                        vmax = flux_vmax
 
-                        vmin_2d.append(vel_vmin)
-                        vmax_2d.append(vel_vmax)
-                    elif k == 'model':
+                    cmaptmp = cmap
+                    vmin_2d.append(vmin)
+                    vmax_2d.append(vmax)
+                elif k == 'model':
+                    if keyyarr[j] == 'velocity':
                         im = gal.model_data.data['velocity'].copy()
                         im -= vel_shift
                         #im[~gal.data.mask] = np.nan
-                        cmaptmp = cmap
-                    elif k == 'residual':
-                        im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-                        im[~gal.data.mask] = np.nan
-                        if symmetric_residuals:
-                            vel_vmin = -max_residual
-                            vel_vmax = max_residual
-
-                        cmaptmp = cmap_resid
-
-                        vmin_2d_resid.append(vel_vmin)
-                        vmax_2d_resid.append(vel_vmax)
-                    else:
-                        raise ValueError("key not supported.")
-
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=vel_vmin, vmax=vel_vmax, origin=origin)
-
-
-
-                    # ++++++++++++++++++++++++++
-                    imtmp = im.copy()
-                    imtmp[gal.data.mask] = vel_vmax
-                    imtmp[~gal.data.mask] = np.nan
-
-                    # Create an alpha channel of linearly increasing values moving to the right.
-                    alphas = np.ones(im.shape)
-                    alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
-                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(vel_vmin, vel_vmax, clip=True)(imtmp)
-                    imtmpalph = cm.Greys_r(imtmpalph)
-                    # Now set the alpha channel to the one we created above
-                    imtmpalph[..., -1] = alphas
-
-
-                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
-
-                    if (show_1d_apers) & (data1d is not None):
-
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
-                                        galorig=galorig, alpha_aper=alpha_aper,
-                                        remove_shift=remove_shift)
-
-
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
-
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
-
-                    #ax.set_ylabel(yt)
-                    if k == 'data':
-                        ax.set_ylabel(yt)
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-                        #
-                        #print("ytitle={}".format(yt))
-                    else:
-                        ##ax.set_axis_off()
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-                    ax.set_title(xt)
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
-                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
-
-
-                # -----------------------------------
-                if keyyarr[j] == 'dispersion':
-                    if k == 'data':
-                        im = gal.data.data['dispersion'].copy()
-                        #im[~gal.data.mask] = np.nan
-                        cmaptmp = cmap
-
-                        vmin_2d.append(disp_vmin)
-                        vmax_2d.append(disp_vmax)
-
-                    elif k == 'model':
+                    elif keyyarr[j] == 'dispersion':
                         im = gal.model_data.data['dispersion'].copy()
-                        cmaptmp = cmap
                         #im[~gal.data.mask] = np.nan
 
                         # Correct model for instrument dispersion
                         # if the data is instrument corrected:
                         if inst_corr_2d:
                             im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
+                    elif keyyarr[j] == 'flux':
+                        im = gal.model_data.data['flux'].copy()
 
+                    cmaptmp = cmap
+                elif k == 'residual':
+                    if keyyarr[j] == 'velocity':
+                        im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                        im[~gal.data.mask] = np.nan
 
-                    elif k == 'residual':
-
+                        if symmetric_residuals:
+                            vmin = -max_residual
+                            vmax = max_residual
+                    elif keyyarr[j] == 'dispersion':
                         im_model = gal.model_data.data['dispersion'].copy()
                         im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
-
 
                         im = gal.data.data['dispersion'] - im_model
                         im[~gal.data.mask] = np.nan
 
                         if symmetric_residuals:
-                            disp_vmin = -max_residual
-                            disp_vmax = max_residual
-                        cmaptmp = cmap_resid
+                            vmin = -max_residual
+                            vmax = max_residual
 
-                        vmin_2d_resid.append(disp_vmin)
-                        vmax_2d_resid.append(disp_vmax)
-
-                    else:
-                        raise ValueError("key not supported.")
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=disp_vmin, vmax=disp_vmax, origin=origin)
-
-
-                    # ++++++++++++++++++++++++++
-                    imtmp = im.copy()
-                    imtmp[gal.data.mask] = disp_vmax
-                    imtmp[~gal.data.mask] = np.nan
-
-                    # Create an alpha channel of linearly increasing values moving to the right.
-                    alphas = np.ones(im.shape)
-                    alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
-                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(disp_vmin, disp_vmax, clip=True)(imtmp)
-                    imtmpalph = cm.Greys_r(imtmpalph)
-                    # Now set the alpha channel to the one we created above
-                    imtmpalph[..., -1] = alphas
-
-
-                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
-
-                    # -------------------------------------------
-                    if (show_1d_apers) & (data1d is not None):
-
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
-                                    galorig=galorig, alpha_aper=alpha_aper,
-                                    remove_shift=remove_shift)
-
-                    # -------------------------------------------
-
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
-
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
-
-
-                    if k == 'data':
-                        ax.set_ylabel(yt)
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                    else:
-                        # #ax.set_axis_off()
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-                    #
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
-                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
-
-
-                # -----------------------------------
-                if keyyarr[j] == 'flux':
-                    if k == 'data':
-                        im = gal.data.data['flux'].copy()
-                        #im[~gal.data.mask] = np.nan
-                        cmaptmp = cmap
-
-                        vmin_2d.append(flux_vmin)
-                        vmax_2d.append(flux_vmax)
-
-                    elif k == 'model':
-                        im = gal.model_data.data['flux'].copy()
-                        cmaptmp = cmap
-
-
-                    elif k == 'residual':
+                    elif keyyarr[j] == 'flux':
                         im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
                         im[~gal.data.mask] = np.nan
 
                         if symmetric_residuals:
                             fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
-                            flux_vmin = -fabsmax
-                            flux_vmax = fabsmax
-                        cmaptmp = cmap_resid
+                            vmin = -fabsmax
+                            vmax = fabsmax
 
-                        vmin_2d_resid.append(flux_vmin)
-                        vmax_2d_resid.append(flux_vmax)
-
-                    else:
-                        raise ValueError("key not supported.")
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+                    cmaptmp = cmap_resid
+                    vmin_2d_resid.append(vmin)
+                    vmax_2d_resid.append(vmax)
+                else:
+                    raise ValueError("key not supported.")
 
 
-                    # ++++++++++++++++++++++++++
+                imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                                 vmin=vmin, vmax=vmax, origin=origin)
+
+
+                # ++++++++++++++++++++++++++
+                show_alpha_mask = True
+                if show_alpha_mask:
                     imtmp = im.copy()
-                    imtmp[gal.data.mask] = flux_vmax
+                    imtmp[gal.data.mask] = vmax
                     imtmp[~gal.data.mask] = np.nan
 
                     # Create an alpha channel of linearly increasing values moving to the right.
@@ -1761,82 +1549,85 @@ def plot_model_multid_base(gal,
                     alphas[~gal.data.mask] = alpha_masked
                     alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
                     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(flux_vmin, flux_vmax, clip=True)(imtmp)
+                    imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
                     imtmpalph = cm.Greys_r(imtmpalph)
                     # Now set the alpha channel to the one we created above
                     imtmpalph[..., -1] = alphas
 
-
                     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
+                # ++++++++++++++++++++++++++
 
-                    # -------------------------------------------
-                    if (show_1d_apers) & (data1d is not None):
-
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
+                if (show_1d_apers) & (data1d is not None):
+                    ax = show_1d_apers_plot(ax, gal, data1d, data2d,
                                     galorig=galorig, alpha_aper=alpha_aper,
                                     remove_shift=remove_shift)
 
-                    # -------------------------------------------
 
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
+                ####################################
+                # Show a 1arcsec line:
+                xlim = ax.get_xlim()
+                ylim = ax.get_ylim()
 
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
+                #
+                ybase_offset = 0.035 #0.065
+                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                len_line_angular = 1./(pixscale)
 
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
+                ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
+                            c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
+                string = '1"'
+                y_text = y_base
+                ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
+                                xycoords="data",
+                                xytext=(0,0),
+                                color=color_annotate,
+                                textcoords="offset points", ha="left", va="center",
+                                fontsize=8)
+                ####################################
+
+                if k == 'data':
+                    ax.set_ylabel(yt)
+
+                    for pos in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[pos].set_visible(False)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                else:
+                    for pos in ['top', 'bottom', 'left', 'right']:
+                        ax.spines[pos].set_visible(False)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+
+                if (j == 0):
+                    ax.set_title(xt)
+
+                #########
+                cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                        fraction=5./101., aspect=20.)
+                cbar = plt.colorbar(imax, cax=cax, **kw)
+                cbar.ax.tick_params(labelsize=8)
 
 
-                    if k == 'data':
-                        ax.set_ylabel(yt)
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                    else:
-                        # #ax.set_axis_off()
-
-                        for pos in ['top', 'bottom', 'left', 'right']:
-                            ax.spines[pos].set_visible(False)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-                    #
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
+                if k == 'residual':
+                    med = np.median(im[gal.data.mask])
+                    rms = np.std(im[gal.data.mask])
+                    if keyyarr[j] == 'velocity':
+                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                    elif keyyarr[j] == 'dispersion':
+                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                    elif keyyarr[j] == 'flux':
                         median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
                         scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
+                    ax.annotate(median_str, (0.01,-0.05), xycoords='axes fraction',
+                        ha='left', va='top', fontsize=8)
+                    ax.annotate(scatter_str, (0.99,-0.05), xycoords='axes fraction',
+                        ha='right', va='top', fontsize=8)
+
+
+            # -----------------------------------
 
     # ----------------------------------------------------------------------
     # 1D plotting
@@ -2218,109 +2009,16 @@ def plot_model_2D_residual(gal,
                 yt = keyytitlearr[mm]
 
                 print("plot_model_2D_residual: doing j={}: {} // mm={}: {}".format(j, keyxarr[j], mm, k))
-
                 # -----------------------------------
-                if keyxarr[j] == 'velocity':
-                    if k == 'residual':
+
+                if k == 'residual':
+                    if keyxarr[j] == 'velocity':
                         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
                         im[~gal.data.mask] = np.nan
                         if symmetric_residuals:
-                            vel_vmin = -max_residual
-                            vel_vmax = max_residual
-
-                        cmaptmp = cmap_resid
-
-                        vmin_2d_resid.append(vel_vmin)
-                        vmax_2d_resid.append(vel_vmax)
-                    else:
-                        raise ValueError("key not supported.")
-
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=vel_vmin, vmax=vel_vmax, origin=origin)
-
-                    # ++++++++++++++++++++++++++
-                    imtmp = im.copy()
-                    imtmp[gal.data.mask] = vel_vmax
-                    imtmp[~gal.data.mask] = np.nan
-
-                    # Create an alpha channel of linearly increasing values moving to the right.
-                    alphas = np.ones(im.shape)
-                    alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
-                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(vel_vmin, vel_vmax, clip=True)(imtmp)
-                    imtmpalph = cm.Greys_r(imtmpalph)
-                    # Now set the alpha channel to the one we created above
-                    imtmpalph[..., -1] = alphas
-
-
-                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
-
-                    if (show_1d_apers) & (data1d is not None):
-
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
-                                        galorig=galorig, alpha_aper=alpha_aper,
-                                        remove_shift=remove_shift)
-
-
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
-
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
-
-                    ax.set_ylabel(yt)
-
-                    for pos in ['top', 'bottom', 'left', 'right']:
-                        ax.spines[pos].set_visible(False)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-                    print("ytitle={}".format(yt))
-
-                    ax.set_title(xt)
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
-                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
-
-
-                # -----------------------------------
-                if keyxarr[j] == 'dispersion':
-                    if k == 'residual':
+                            vmin = -max_residual
+                            vmax = max_residual
+                    elif keyxarr[j] == 'dispersion':
                         im_model = gal.model_data.data['dispersion'].copy()
                         im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
 
@@ -2328,203 +2026,423 @@ def plot_model_2D_residual(gal,
                         im[~gal.data.mask] = np.nan
 
                         if symmetric_residuals:
-                            disp_vmin = -max_residual
-                            disp_vmax = max_residual
-                        cmaptmp = cmap_resid
-
-                        vmin_2d_resid.append(disp_vmin)
-                        vmax_2d_resid.append(disp_vmax)
-
-                    else:
-                        raise ValueError("key not supported.")
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=disp_vmin, vmax=disp_vmax, origin=origin)
-
-
-                    # ++++++++++++++++++++++++++
-                    imtmp = im.copy()
-                    imtmp[gal.data.mask] = disp_vmax
-                    imtmp[~gal.data.mask] = np.nan
-
-                    # Create an alpha channel of linearly increasing values moving to the right.
-                    alphas = np.ones(im.shape)
-                    alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
-                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(disp_vmin, disp_vmax, clip=True)(imtmp)
-                    imtmpalph = cm.Greys_r(imtmpalph)
-                    # Now set the alpha channel to the one we created above
-                    imtmpalph[..., -1] = alphas
-
-
-                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
-
-                    # -------------------------------------------
-                    if (show_1d_apers) & (data1d is not None):
-
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
-                                    galorig=galorig, alpha_aper=alpha_aper,
-                                    remove_shift=remove_shift)
-
-                    # -------------------------------------------
-
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
-
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
-
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
-
-                    for pos in ['top', 'bottom', 'left', 'right']:
-                        ax.spines[pos].set_visible(False)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-
-                    ax.set_title(xt)
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-                    #
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
-                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
-
-
-
-                # -----------------------------------
-                if keyxarr[j] == 'flux':
-                    if k == 'residual':
+                            vmin = -max_residual
+                            vmax = max_residual
+                    elif keyxarr[j] == 'flux':
                         im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
                         im[~gal.data.mask] = np.nan
 
                         if symmetric_residuals:
                             fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
-                            flux_vmin = -fabsmax
-                            flux_vmax = fabsmax
-                        cmaptmp = cmap_resid
+                            vmin = -fabsmax
+                            vmax = fabsmax
 
-                        vmin_2d_resid.append(flux_vmin)
-                        vmax_2d_resid.append(flux_vmax)
+                    cmaptmp = cmap_resid
+                    vmin_2d_resid.append(vmin)
+                    vmax_2d_resid.append(vmax)
 
-                    else:
-                        raise ValueError("key not supported.")
-
-                    imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                     vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+                else:
+                    raise ValueError("key not supported.")
 
 
-                    # ++++++++++++++++++++++++++
-                    imtmp = im.copy()
-                    imtmp[gal.data.mask] = flux_vmax
-                    imtmp[~gal.data.mask] = np.nan
+                imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                                 vmin=vmin, vmax=vmax, origin=origin)
 
-                    # Create an alpha channel of linearly increasing values moving to the right.
-                    alphas = np.ones(im.shape)
-                    alphas[~gal.data.mask] = alpha_masked
-                    alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
-                    # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                    imtmpalph = mplcolors.Normalize(flux_vmin, flux_vmax, clip=True)(imtmp)
-                    imtmpalph = cm.Greys_r(imtmpalph)
-                    # Now set the alpha channel to the one we created above
-                    imtmpalph[..., -1] = alphas
+                # ++++++++++++++++++++++++++
+                imtmp = im.copy()
+                imtmp[gal.data.mask] = vel_vmax
+                imtmp[~gal.data.mask] = np.nan
+
+                # Create an alpha channel of linearly increasing values moving to the right.
+                alphas = np.ones(im.shape)
+                alphas[~gal.data.mask] = alpha_masked
+                alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
+                imtmpalph = cm.Greys_r(imtmpalph)
+                # Now set the alpha channel to the one we created above
+                imtmpalph[..., -1] = alphas
 
 
-                    immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                    # ++++++++++++++++++++++++++
+                immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                # ++++++++++++++++++++++++++
 
-                    # -------------------------------------------
-                    if (show_1d_apers) & (data1d is not None):
+                if (show_1d_apers) & (data1d is not None):
 
-                        ax = show_1d_apers_plot(ax, gal, data1d, data2d,
+                    ax = show_1d_apers_plot(ax, gal, data1d, data2d,
                                     galorig=galorig, alpha_aper=alpha_aper,
                                     remove_shift=remove_shift)
 
-                    # -------------------------------------------
 
-                    ####################################
-                    # Show a 1arcsec line:
-                    xlim = ax.get_xlim()
-                    ylim = ax.get_ylim()
+                ####################################
+                # Show a 1arcsec line:
+                xlim = ax.get_xlim()
+                ylim = ax.get_ylim()
 
-                    #
-                    ybase_offset = 0.035 #0.065
-                    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
-                    len_line_angular = 1./(pixscale)
+                #
+                ybase_offset = 0.035 #0.065
+                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                len_line_angular = 1./(pixscale)
 
-                    ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                                c=color_annotate, ls='-',lw=2)
-                    string = '1"'
-                    y_text = y_base
-                    ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                    xycoords="data",
-                                    xytext=(0,0),
-                                    color=color_annotate,
-                                    textcoords="offset points", ha="left", va="center",
-                                    fontsize=8)
-                    ####################################
+                ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
+                            c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
+                string = '1"'
+                y_text = y_base
+                ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
+                                xycoords="data",
+                                xytext=(0,0),
+                                color=color_annotate,
+                                textcoords="offset points", ha="left", va="center",
+                                fontsize=8)
+                ####################################
 
-                    for pos in ['top', 'bottom', 'left', 'right']:
-                        ax.spines[pos].set_visible(False)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
+                if j == 0:
+                    ax.set_ylabel(yt)
 
-                    ax.set_title(xt)
-
-                    #########
-                    cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                            fraction=5./101., aspect=20.)
-                    cbar = plt.colorbar(imax, cax=cax, **kw)
-                    cbar.ax.tick_params(labelsize=8)
-
-                    #
-                    if k == 'residual':
-                        med = np.median(im[gal.data.mask])
-                        rms = np.std(im[gal.data.mask])
-                        median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                        ax.annotate(median_str,
-                            (0.01,-0.05), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                        ax.annotate(scatter_str,
-                            (0.99,-0.05), xycoords='axes fraction',
-                            ha='right', va='top', fontsize=8)
-
-                ####################
                 for pos in ['top', 'bottom', 'left', 'right']:
                     ax.spines[pos].set_visible(False)
                 ax.set_xticks([])
                 ax.set_yticks([])
+                print("ytitle={}".format(yt))
+
+                if mm == 0:
+                    ax.set_title(xt)
+
+                #########
+                cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                        fraction=5./101., aspect=20.)
+                cbar = plt.colorbar(imax, cax=cax, **kw)
+                cbar.ax.tick_params(labelsize=8)
+
+
+                if k == 'residual':
+                    med = np.median(im[gal.data.mask])
+                    rms = np.std(im[gal.data.mask])
+                    if keyxarr[j] == 'velocity':
+                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                    elif keyxarr[j] == 'dispersion':
+                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                    elif keyxarr[j] == 'flux':
+                        median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
+                        scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                    ax.annotate(median_str,
+                        (0.01,-0.05), xycoords='axes fraction',
+                        ha='left', va='top', fontsize=8)
+                    ax.annotate(scatter_str,
+                        (0.99,-0.05), xycoords='axes fraction',
+                        ha='right', va='top', fontsize=8)
+
+
+
+                # # -----------------------------------
+                # if keyxarr[j] == 'velocity':
+                #     if k == 'residual':
+                #         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+                #         im[~gal.data.mask] = np.nan
+                #         if symmetric_residuals:
+                #             vel_vmin = -max_residual
+                #             vel_vmax = max_residual
+                #
+                #         cmaptmp = cmap_resid
+                #
+                #         vmin_2d_resid.append(vel_vmin)
+                #         vmax_2d_resid.append(vel_vmax)
+                #     else:
+                #         raise ValueError("key not supported.")
+                #
+                #
+                #     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                #                      vmin=vel_vmin, vmax=vel_vmax, origin=origin)
+                #
+                #     # ++++++++++++++++++++++++++
+                #     imtmp = im.copy()
+                #     imtmp[gal.data.mask] = vel_vmax
+                #     imtmp[~gal.data.mask] = np.nan
+                #
+                #     # Create an alpha channel of linearly increasing values moving to the right.
+                #     alphas = np.ones(im.shape)
+                #     alphas[~gal.data.mask] = alpha_masked
+                #     alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                #     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                #     imtmpalph = mplcolors.Normalize(vel_vmin, vel_vmax, clip=True)(imtmp)
+                #     imtmpalph = cm.Greys_r(imtmpalph)
+                #     # Now set the alpha channel to the one we created above
+                #     imtmpalph[..., -1] = alphas
+                #
+                #
+                #     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                #     # ++++++++++++++++++++++++++
+                #
+                #     if (show_1d_apers) & (data1d is not None):
+                #
+                #         ax = show_1d_apers_plot(ax, gal, data1d, data2d,
+                #                         galorig=galorig, alpha_aper=alpha_aper,
+                #                         remove_shift=remove_shift)
+                #
+                #
+                #     ####################################
+                #     # Show a 1arcsec line:
+                #     xlim = ax.get_xlim()
+                #     ylim = ax.get_ylim()
+                #
+                #     #
+                #     ybase_offset = 0.035 #0.065
+                #     x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                #     y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                #     len_line_angular = 1./(pixscale)
+                #
+                #     ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
+                #                 c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
+                #     string = '1"'
+                #     y_text = y_base
+                #     ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
+                #                     xycoords="data",
+                #                     xytext=(0,0),
+                #                     color=color_annotate,
+                #                     textcoords="offset points", ha="left", va="center",
+                #                     fontsize=8)
+                #     ####################################
+                #
+                #     ax.set_ylabel(yt)
+                #
+                #     for pos in ['top', 'bottom', 'left', 'right']:
+                #         ax.spines[pos].set_visible(False)
+                #     ax.set_xticks([])
+                #     ax.set_yticks([])
+                #     print("ytitle={}".format(yt))
+                #
+                #     ax.set_title(xt)
+                #
+                #     #########
+                #     cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                #             fraction=5./101., aspect=20.)
+                #     cbar = plt.colorbar(imax, cax=cax, **kw)
+                #     cbar.ax.tick_params(labelsize=8)
+                #
+                #
+                #     if k == 'residual':
+                #         med = np.median(im[gal.data.mask])
+                #         rms = np.std(im[gal.data.mask])
+                #         median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+                #         scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                #         ax.annotate(median_str,
+                #             (0.01,-0.05), xycoords='axes fraction',
+                #             ha='left', va='top', fontsize=8)
+                #         ax.annotate(scatter_str,
+                #             (0.99,-0.05), xycoords='axes fraction',
+                #             ha='right', va='top', fontsize=8)
+                #
+                #
+                # # -----------------------------------
+                # if keyxarr[j] == 'dispersion':
+                #     if k == 'residual':
+                #         im_model = gal.model_data.data['dispersion'].copy()
+                #         im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
+                #
+                #         im = gal.data.data['dispersion'] - im_model
+                #         im[~gal.data.mask] = np.nan
+                #
+                #         if symmetric_residuals:
+                #             disp_vmin = -max_residual
+                #             disp_vmax = max_residual
+                #         cmaptmp = cmap_resid
+                #
+                #         vmin_2d_resid.append(disp_vmin)
+                #         vmax_2d_resid.append(disp_vmax)
+                #
+                #     else:
+                #         raise ValueError("key not supported.")
+                #
+                #     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                #                      vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+                #
+                #
+                #     # ++++++++++++++++++++++++++
+                #     imtmp = im.copy()
+                #     imtmp[gal.data.mask] = disp_vmax
+                #     imtmp[~gal.data.mask] = np.nan
+                #
+                #     # Create an alpha channel of linearly increasing values moving to the right.
+                #     alphas = np.ones(im.shape)
+                #     alphas[~gal.data.mask] = alpha_masked
+                #     alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                #     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                #     imtmpalph = mplcolors.Normalize(disp_vmin, disp_vmax, clip=True)(imtmp)
+                #     imtmpalph = cm.Greys_r(imtmpalph)
+                #     # Now set the alpha channel to the one we created above
+                #     imtmpalph[..., -1] = alphas
+                #
+                #
+                #     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                #     # ++++++++++++++++++++++++++
+                #
+                #     # -------------------------------------------
+                #     if (show_1d_apers) & (data1d is not None):
+                #
+                #         ax = show_1d_apers_plot(ax, gal, data1d, data2d,
+                #                     galorig=galorig, alpha_aper=alpha_aper,
+                #                     remove_shift=remove_shift)
+                #
+                #     # -------------------------------------------
+                #
+                #     ####################################
+                #     # Show a 1arcsec line:
+                #     xlim = ax.get_xlim()
+                #     ylim = ax.get_ylim()
+                #
+                #     #
+                #     ybase_offset = 0.035 #0.065
+                #     x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                #     y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                #     len_line_angular = 1./(pixscale)
+                #
+                #     ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
+                #                 c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
+                #     string = '1"'
+                #     y_text = y_base
+                #     ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
+                #                     xycoords="data",
+                #                     xytext=(0,0),
+                #                     color=color_annotate,
+                #                     textcoords="offset points", ha="left", va="center",
+                #                     fontsize=8)
+                #     ####################################
+                #
+                #     for pos in ['top', 'bottom', 'left', 'right']:
+                #         ax.spines[pos].set_visible(False)
+                #     ax.set_xticks([])
+                #     ax.set_yticks([])
+                #
+                #     ax.set_title(xt)
+                #
+                #     #########
+                #     cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                #             fraction=5./101., aspect=20.)
+                #     cbar = plt.colorbar(imax, cax=cax, **kw)
+                #     cbar.ax.tick_params(labelsize=8)
+                #
+                #     #
+                #     if k == 'residual':
+                #         med = np.median(im[gal.data.mask])
+                #         rms = np.std(im[gal.data.mask])
+                #         median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+                #         scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                #         ax.annotate(median_str,
+                #             (0.01,-0.05), xycoords='axes fraction',
+                #             ha='left', va='top', fontsize=8)
+                #         ax.annotate(scatter_str,
+                #             (0.99,-0.05), xycoords='axes fraction',
+                #             ha='right', va='top', fontsize=8)
+                #
+                #
+                #
+                # # -----------------------------------
+                # if keyxarr[j] == 'flux':
+                #     if k == 'residual':
+                #         im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
+                #         im[~gal.data.mask] = np.nan
+                #
+                #         if symmetric_residuals:
+                #             fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
+                #             flux_vmin = -fabsmax
+                #             flux_vmax = fabsmax
+                #         cmaptmp = cmap_resid
+                #
+                #         vmin_2d_resid.append(flux_vmin)
+                #         vmax_2d_resid.append(flux_vmax)
+                #
+                #     else:
+                #         raise ValueError("key not supported.")
+                #
+                #     imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                #                      vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+                #
+                #
+                #     # ++++++++++++++++++++++++++
+                #     imtmp = im.copy()
+                #     imtmp[gal.data.mask] = flux_vmax
+                #     imtmp[~gal.data.mask] = np.nan
+                #
+                #     # Create an alpha channel of linearly increasing values moving to the right.
+                #     alphas = np.ones(im.shape)
+                #     alphas[~gal.data.mask] = alpha_masked
+                #     alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                #     # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+                #     imtmpalph = mplcolors.Normalize(flux_vmin, flux_vmax, clip=True)(imtmp)
+                #     imtmpalph = cm.Greys_r(imtmpalph)
+                #     # Now set the alpha channel to the one we created above
+                #     imtmpalph[..., -1] = alphas
+                #
+                #
+                #     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+                #     # ++++++++++++++++++++++++++
+                #
+                #     # -------------------------------------------
+                #     if (show_1d_apers) & (data1d is not None):
+                #
+                #         ax = show_1d_apers_plot(ax, gal, data1d, data2d,
+                #                     galorig=galorig, alpha_aper=alpha_aper,
+                #                     remove_shift=remove_shift)
+                #
+                #     # -------------------------------------------
+                #
+                #     ####################################
+                #     # Show a 1arcsec line:
+                #     xlim = ax.get_xlim()
+                #     ylim = ax.get_ylim()
+                #
+                #     #
+                #     ybase_offset = 0.035 #0.065
+                #     x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+                #     y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                #     len_line_angular = 1./(pixscale)
+                #
+                #     ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
+                #                 c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
+                #     string = '1"'
+                #     y_text = y_base
+                #     ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
+                #                     xycoords="data",
+                #                     xytext=(0,0),
+                #                     color=color_annotate,
+                #                     textcoords="offset points", ha="left", va="center",
+                #                     fontsize=8)
+                #     ####################################
+                #
+                #     for pos in ['top', 'bottom', 'left', 'right']:
+                #         ax.spines[pos].set_visible(False)
+                #     ax.set_xticks([])
+                #     ax.set_yticks([])
+                #
+                #     ax.set_title(xt)
+                #
+                #     #########
+                #     cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                #             fraction=5./101., aspect=20.)
+                #     cbar = plt.colorbar(imax, cax=cax, **kw)
+                #     cbar.ax.tick_params(labelsize=8)
+                #
+                #     #
+                #     if k == 'residual':
+                #         med = np.median(im[gal.data.mask])
+                #         rms = np.std(im[gal.data.mask])
+                #         median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
+                #         scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
+                #         ax.annotate(median_str,
+                #             (0.01,-0.05), xycoords='axes fraction',
+                #             ha='left', va='top', fontsize=8)
+                #         ax.annotate(scatter_str,
+                #             (0.99,-0.05), xycoords='axes fraction',
+                #             ha='right', va='top', fontsize=8)
+                #
+                # ####################
+                # for pos in ['top', 'bottom', 'left', 'right']:
+                #     ax.spines[pos].set_visible(False)
+                # ax.set_xticks([])
+                # ax.set_yticks([])
     ################
 
     f.suptitle(suptitle, fontsize=16, y=0.95)
