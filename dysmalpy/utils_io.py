@@ -800,7 +800,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
     ## then for MINA -> all in x
     ## xnew2 = rMINA * cPA
     ## ynew2 = rMINA * sPA
-    
+
     rstep_A = 1.
     rMA_tmp = 0
     rMA_arr = []
@@ -820,8 +820,10 @@ def _calc_Rout_max_2D(gal=None, results=None):
                 ended_MA = True
 
     Routmax2D = np.max(np.abs(np.array(rMA_tmp)))
-
-    return Routmax2D
+    
+    # In pixels. Convert to arcsec then to kpc:
+    Routmax2D_kpc = Routmax2D * gal.instrument.pixscale.value / gal.dscale
+    return Routmax2D_kpc
 
 def plot_major_minor_axes_2D(ax, gal, im, mask, return_rMA=False):
     ####################################
