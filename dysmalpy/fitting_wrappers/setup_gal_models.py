@@ -157,6 +157,13 @@ def setup_gal_model_base(params=None,
                             light_components_list=light_components_list)
 
     # ------------------------------------------------------------
+    # Baryonic Component: Sersic
+    if 'sersic' in components_list:
+        comp_bary = 'sersic'
+        mod_set = add_sersic_comp(gal=gal, mod_set=mod_set, params=params,
+                            light_components_list=light_components_list)
+
+    # ------------------------------------------------------------
     # Halo Component: (if added)
     # ------------------------------------------------------------
     if 'halo' in components_list:
@@ -229,7 +236,8 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
                    'bt':         (params['bt_bounds'][0], params['bt_bounds'][1])}
 
 
-    no_baryons = False
+    light = True
+    # no_baryons = False
     if 'disk' in light_components_list:
         light_component_bary = 'disk'
     elif 'bulge' in light_components_list:
@@ -237,7 +245,8 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
     elif 'disk+bulge' in light_components_list:
         light_component_bary = 'total'
     else:
-        no_baryons = True
+        # no_baryons = True
+        light = False
 
     bary = models.DiskBulge(total_mass=total_mass, bt=bt,
                             r_eff_disk=r_eff_disk, n_disk=n_disk,
@@ -269,10 +278,46 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
 
     # --------------------------------------
     # Add the model component to the ModelSet
-    if no_baryons:
-        raise ValueError("You must include baryons, they are the light tracers.")
-    else:
-        mod_set.add_component(bary, light=True)
+    # if no_baryons:
+    #     raise ValueError("You must include baryons, they are the light tracers.")
+    # else:
+    #     mod_set.add_component(bary, light=True)
+
+    mod_set.add_component(bary, light=light)
+
+    return mod_set
+
+def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    total_mass =  params['total_mass']        # log M_sun
+    r_eff =       params['r_eff']             # kpc
+    n =           params['n']
+    invq =        params['invq']              # 1/q0 , for Noordermeer flattening
+    noord_flat =  params['noord_flat']        # Switch for applying Noordermeer flattening
+
+    # Fix components
+    sersic_fixed = {'total_mass': params['total_mass_fixed'],
+                    'r_eff': params['r_eff_fixed'],
+                    'n': params['n_fixed']}
+
+    # Set bounds
+    sersic_bounds = {'total_mass': (params['total_mass_bounds'][0], params['total_mass_bounds'][1]),
+                     'r_eff': (params['r_eff_bounds'][0], params['r_eff_bounds'][1]),
+                     'n':     (params['n_bounds'][0], params['n_bounds'][1])}
+
+    if 'sersic' in light_components_list:
+        light = True
+
+    sersic = models.Sersic(total_mass=total_mass,r_eff=r_eff, n=n,invq=invq,
+                            noord_flat=noord_flat,name='sersic',
+                            fixed=sersic_fixed, bounds=sersic_bounds)
+
+    sersic = set_comp_param_prior(comp=sersic, param_name='total_mass', params=params)
+    sersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params)
+    sersic = set_comp_param_prior(comp=sersic, param_name='n', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(sersic, light=light)
 
     return mod_set
 
@@ -780,7 +825,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_plot_bestfit':  f_plot_bestfit,
                 'f_plot_bestfit_multid': f_plot_bestfit_multid,
                 'f_results':  f_results,
-                'f_mcmc_results': f_results, 
+                'f_mcmc_results': f_results,
                 'f_chain_ascii': f_chain_ascii,
                 'f_vel_ascii': f_vel_ascii,
                 'f_log': f_log,
