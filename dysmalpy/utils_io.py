@@ -805,18 +805,20 @@ def _calc_Rout_max_2D(gal=None, results=None):
     rstep_A = 0.25
     rMA_tmp = 0
     rMA_arr = []
-    for fac in [-1.,1.]:
+    # PA is to Blue; rMA_arr is [Blue (neg), Red (pos)]
+    # but for PA definition blue will be pos step; invert at the end
+    for fac in [1.,-1.]:
         ended_MA = False
         while not ended_MA:
             rMA_tmp += fac * rstep_A
             xtmp = rMA_tmp * -sPA + center_pixel_kin[0]
             ytmp = rMA_tmp * cPA  + center_pixel_kin[1]
             if (xtmp < 0) | (xtmp >nx_sky-1) | (ytmp < 0) | (ytmp >ny_sky-1):
-                rMA_arr.append(rMA_tmp - fac*rstep_A)
+                rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
             elif not mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
-                rMA_arr.append(rMA_tmp)
+                rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
 
