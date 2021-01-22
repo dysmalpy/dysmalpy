@@ -1120,12 +1120,31 @@ class ModelSet:
                     self.set_parameter_value(cmp, pp, theta[ind])
 
         # Now update all of the tied parameters if there are any
+        self._update_tied_parameters()
+        # if self.nparams_tied > 0:
+        #     for cmp in self.tied:
+        #         for pp in self.tied[cmp]:
+        #             if self.tied[cmp][pp]:
+        #                 new_value = self.tied[cmp][pp](self)
+        #                 self.set_parameter_value(cmp, pp, new_value)
+
+    # Method to update tied parameters:
+    def _update_tied_parameters(self):
+        """
+        Update all tied parameters of the model
+
+        Notes
+        -----
+        Possibly this should just be invoked at the beginning of :meth:`ModelSet.simulate_cube`
+        to ensure the correct tied parameters are used if not set using :meth:`ModelSet.update_parameters`.
+        """
         if self.nparams_tied > 0:
             for cmp in self.tied:
                 for pp in self.tied[cmp]:
                     if self.tied[cmp][pp]:
                         new_value = self.tied[cmp][pp](self)
                         self.set_parameter_value(cmp, pp, new_value)
+
 
     # Methods to grab the free parameters and keys
     def _get_free_parameters(self):

@@ -118,6 +118,9 @@ class Galaxy:
                     self.__dict__['_{}'.format(mkey)] = state[mkey]
                     del self.__dict__[mkey]
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     @property
     def z(self):
         return self._z
