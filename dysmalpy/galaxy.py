@@ -802,7 +802,7 @@ class Galaxy:
                                               fill_value='extrapolate')
                 disp_interp = scp_interp.interp1d(r1d, disp1d,
                                                   fill_value='extrapolate')
-                vel1d = vinterp(per_centers)
+                vel1d = vinterp(aper_centers)
                 disp1d = disp_interp(aper_centers)
                 flux_interp = scp_interp.interp1d(r1d, flux1d,
                                                   fill_value='extrapolate')
