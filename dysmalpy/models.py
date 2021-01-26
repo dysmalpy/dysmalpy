@@ -335,7 +335,8 @@ def menc_from_vcirc(vcirc, r):
     return menc
 
 
-def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=None,
+def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
+            rstep=None, oversample=None, dscale=None,
             maxr=None, maxr_y=None):
 
     oversize = 1.5  # Padding factor for x trimming
@@ -350,7 +351,7 @@ def _make_cube_ai(model, xgal, ygal, zgal, rstep=None, oversample=None, dscale=N
 
     # Sample += 2 * scale length thickness
     # Modify: make sure there are at least 3 *whole* pixels sampled:
-    zsize = np.max([ 3*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+    zsize = np.max([ n_wholepix_z_min*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
 
     if ( (xsize%2) < 0.5 ): xsize += 1
     if ( (ysize%2) < 0.5 ): ysize += 1
@@ -1712,7 +1713,8 @@ class ModelSet:
                       spec_unit=u.km/u.s, oversample=1, oversize=1,
                       xcenter=None, ycenter=None,
                       transform_method='direct',
-                      zcalc_truncate=True):
+                      zcalc_truncate=True,
+                      n_wholepix_z_min=3):
         """
         Simulate a line emission cube of this model set
 
@@ -1773,10 +1775,13 @@ class ModelSet:
             Setting the default behavior of filling the model cube. If True,
             then the cube is only filled with flux
             to within +- 2 * scale length thickness above and below
-            the galaxy midplane (minimum: 3 whole pixels; to speed up the calculation).
-            If False, then no truncation is
-            applied and the cube is filled over the full range of zgal.
+            the galaxy midplane (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
+            If False, then no truncation is applied and the cube is filled over the full range of zgal.
             Default: True
+
+        n_wholepix_z_min: int
+            Minimum number of whole pixels to include in the z direction when trunctating.
+            Default: 3
 
         Returns
         -------
@@ -1948,7 +1953,8 @@ class ModelSet:
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 if zcalc_truncate:
                     # Truncate in the z direction by flagging what pixels to include in propogation
-                    ai = _make_cube_ai(self, xgal, ygal, zgal, rstep=rstep_samp, oversample=oversample,
+                    ai = _make_cube_ai(self, xgal, ygal, zgal, n_wholepix_z_min=n_wholepix_z_min,
+                        rstep=rstep_samp, oversample=oversample,
                         dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
                 else:
@@ -2018,6 +2024,7 @@ class ModelSet:
                     #######
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
+                            n_wholepix_z_min=n_wholepix_z_min,
                             rstep=rstep_samp, oversample=oversample,
                             dscale=dscale, maxr=maxr/2., maxr_y=maxr_y_final/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass_transf, vobs_mass_transf,

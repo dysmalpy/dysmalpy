@@ -89,6 +89,7 @@ class Config_simulate_cube(ConfigBase):
         self.oversize = 1
         self.transform_method = 'direct'
         self.zcalc_truncate = True
+        self.n_wholepix_z_min = 3
 
 
 
