@@ -251,6 +251,7 @@ class Galaxy:
                           xcenter=None, ycenter=None,
                           transform_method='direct',
                           zcalc_truncate=True,
+                          n_wholepix_z_min=3,
                           **kwargs):
         """
         Function to simulate data for the galaxy
@@ -403,8 +404,12 @@ class Galaxy:
         zcalc_truncate: bool
                 If True, the cube is only filled with flux to within
                 +- 2 * scale length thickness above and below the galaxy midplane
-                (minimum: 3 whole pixels; to speed up the calculation).
+                (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
                 Default: True
+
+        n_wholepix_z_min: int
+            Minimum number of whole pixels to include in the z direction when trunctating.
+            Default: 3
         """
         if line_center is None:
             line_center = self.model.line_center
@@ -602,7 +607,8 @@ class Galaxy:
                                                   xcenter=xcenter,
                                                   ycenter=ycenter,
                                                   transform_method=transform_method,
-                                                  zcalc_truncate=zcalc_truncate)
+                                                  zcalc_truncate=zcalc_truncate,
+                                                  n_wholepix_z_min=n_wholepix_z_min)
 
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample):
