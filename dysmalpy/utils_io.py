@@ -371,6 +371,7 @@ class Report(object):
 
         fitdispersion = fitflux = None
         weighting_method = moment_calc = partial_weight = zcalc_truncate = None
+        n_wholepix_z_min = None
         if params is not None:
             if 'fitdispersion' in params.keys():
                 fitdispersion = params['fitdispersion']
@@ -386,6 +387,9 @@ class Report(object):
             if 'zcalc_truncate' in params.keys():
                 zcalc_truncate = params['zcalc_truncate']
 
+            if 'n_wholepix_z_min' in params.keys():
+                n_wholepix_z_min = params['n_wholepix_z_min']
+
         if 'apertures' in gal.data.__dict__.keys():
             if gal.data.apertures is not None:
                 if moment_calc is None:
@@ -399,6 +403,13 @@ class Report(object):
             else:
                 config_sim_cube = Config_simulate_cube()
                 zcalc_truncate = "[Default: {}]".format(config_sim_cube.zcalc_truncate)
+
+            if n_wholepix_z_min is None:
+                if 'n_wholepix_z_min' in kwargs.keys():
+                    n_wholepix_z_min = kwargs['n_wholepix_z_min']
+                else:
+                    config_sim_cube = Config_simulate_cube()
+                    n_wholepix_z_min = "[Default: {}]".format(config_sim_cube.n_wholepix_z_min)
 
         # Save info on fitdispersion / fitflux
         if fitdispersion is not None:
@@ -417,7 +428,8 @@ class Report(object):
             self.add_line( 'partial_weight:        {}'.format(partial_weight))
         if zcalc_truncate is not None:
             self.add_line( 'zcalc_truncate:        {}'.format(zcalc_truncate))
-
+        if n_wholepix_z_min is not None:
+            self.add_line( 'n_wholepix_z_min:      {}'.format(n_wholepix_z_min))
         # INFO on pressure support type:
         self.add_line( 'pressure_support:      {}'.format(gal.model.kinematic_options.pressure_support))
         if gal.model.kinematic_options.pressure_support:
