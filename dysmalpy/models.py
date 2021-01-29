@@ -5473,6 +5473,7 @@ class KinematicOptions:
 
         elif self.pressure_support_type == 3:
             # Direct calculation from sig0^2 dlnrho/dlnr:
+            # Assumes constant sig0 -- eg Eq 3, Burkert+10
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
