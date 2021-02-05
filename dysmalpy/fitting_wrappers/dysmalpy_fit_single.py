@@ -16,6 +16,7 @@ except ImportError:
 
 def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
             outdir=None, plot_type='pdf', overwrite=None):
+            
     # Only load full imports later to speed up usage from command line.
     import matplotlib
     matplotlib.use('agg')
@@ -28,10 +29,6 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
 
     from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D, plot_bundle_2D
     from dysmalpy.fitting_wrappers import utils_io
-
-
-    #if param_filename is None:
-    #    param_filename = tkinter_io.get_paramfile_tkinter()
 
     # Get fitting dimension:
     ndim = utils_io.get_ndim_fit_from_paramfile(param_filename=param_filename)

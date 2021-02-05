@@ -651,7 +651,6 @@ class Report(object):
             self.add_line( datstr )
 
 
-        #
         # INFO on pressure support type:
         datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support', '-----',
                     '-----', str(gal.model.kinematic_options.pressure_support), -99, -99)
@@ -660,6 +659,16 @@ class Report(object):
             datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
                         '-----', str(gal.model.kinematic_options.pressure_support_type), -99, -99)
             self.add_line( datstr )
+
+
+        # If 2D data: Rmaxout2D:
+        if gal.data.ndim == 2:
+            Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
+            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
+                        '-----', str(Routmax2D), -99, -99)
+            self.add_line( datstr )
+
+        ########
 
     # Backwards compatibility:
     def create_results_report_short(self, gal, results, params=None):
