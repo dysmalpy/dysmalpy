@@ -518,14 +518,12 @@ class Report(object):
             datstr = 'Red. chisq: {}'.format(results.bestfit_redchisq)
         self.add_line( datstr )
 
-        try:
+        if gal.data.ndim == 2:
             Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
             self.add_line( '' )
             self.add_line( '-----------' )
             datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
             self.add_line( datstr )
-        except:
-            pass
 
         self.add_line( '' )
 
@@ -829,12 +827,12 @@ def _calc_Rout_max_2D(gal=None, results=None):
                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
-            elif not mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+            elif not gal.data.mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
 
-    Routmax2D = np.max(np.abs(np.array(rMA_tmp)))
+    Routmax2D = np.max(np.abs(np.array(rMA_arr)))
 
     # In pixels. Convert to arcsec then to kpc:
     Routmax2D_kpc = Routmax2D * gal.instrument.pixscale.value / gal.dscale
