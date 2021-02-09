@@ -10,4 +10,4 @@ import dysmalpy.parameters
 import dysmalpy.utils
 import dysmalpy.utils_io
 
-__version__ = "1.4"
+__version__ = "1.5"
