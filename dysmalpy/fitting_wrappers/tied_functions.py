@@ -118,7 +118,7 @@ def moster18_halo_mass(z=None, lmass=None):
     return lmhalo
 
 def tied_mhalo_mstar(model_set):
-    # Uses constant fgas to go from lMbar to the stellar mass for the moster calculation
+    # Uses constant fgas to go from lMbar to the stellar mass for the SMHM calculation
     z = model_set.components['halo'].z
 
     lmbar = model_set.components['disk+bulge'].total_mass.value
@@ -156,9 +156,57 @@ def tied_mhalo_mstar(model_set):
     ####
     return lmhalo
 
+
+def tied_mhalo_mstar_fixed_fgas(model_set):
+    # Alias to old method:
+    return tied_mhalo_mstar(model_set)
+
+def tied_mhalo_mstar_fixed_lmstar(model_set):
+    # Uses constant lMstar the SMHM calculation
+    z = model_set.components['halo'].z
+
+    Mstar = np.power(10., model_set.components['disk+bulge'].lmstar)
+
+    try:
+        mhalo_relation = model_set.components['disk+bulge'].mhalo_relation
+    except:
+        print("Missing mhalo_relation! setting mhalo_relation='Moster18' ! [options: 'Moster18', 'Behroozi13', 'Moster13']")
+        mhalo_relation = 'Moster18'
+
+    ########
+
+    if mhalo_relation.lower().strip() == 'behroozi13':
+        lmhalo = behroozi13_halo_mass(z=z, lmass=np.log10(Mstar))
+
+    elif mhalo_relation.lower().strip() == 'moster18':
+        lmhalo = moster18_halo_mass(z=z, lmass=np.log10(Mstar))
+
+    elif mhalo_relation.lower().strip() == 'moster13':
+        raise ValueError
+        ## OLD VERSION, NUMERICAL SOLUTION TO MOSTER13
+        try:
+            truncate_lmstar_halo = model_set.components['disk+bulge'].truncate_lmstar_halo
+        except:
+            print("Missing truncate_lmstar_halo! setting truncate_lmstar_halo=True")
+            truncate_lmstar_halo = True
+
+        lmhalo = moster13_halo_mass_num_solve(z=z, lmass=np.log10(Mstar),
+                                truncate_lmstar_halo=truncate_lmstar_halo)
+    ####
+    return lmhalo
+
 ############################################################################
 # Tied functions for halo fitting:
 def tie_lmvirial_NFW(model_set):
+    # comp_halo = model_set.components.__getitem__('halo')
+    # comp_baryons = model_set.components.__getitem__('disk+bulge')
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm,
+    #                 adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
+    # return mvirial
+    return tie_lmvirial_to_fdm(model_set)
+
+def tie_lmvirial_to_fdm(model_set):
     comp_halo = model_set.components.__getitem__('halo')
     comp_baryons = model_set.components.__getitem__('disk+bulge')
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value

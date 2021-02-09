@@ -2240,7 +2240,6 @@ class _DysmalModel(Model):
                             self.__setattr__(pname, param)
 
 
-
 class _DysmalFittable1DModel(_DysmalModel):
     """
     Base class for 1D model components
@@ -2324,9 +2323,9 @@ class ExpDisk(MassModel):
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     _subtype = 'baryonic'
 
-    def __init__(self, total_mass, r_eff, **kwargs):
+    def __init__(self, **kwargs):
 
-        super(ExpDisk, self).__init__(total_mass, r_eff)
+        super(ExpDisk, self).__init__(**kwargs)
 
     @staticmethod
     def evaluate(r, total_mass, r_eff):
@@ -2519,12 +2518,12 @@ class Sersic(MassModel):
 
     _subtype = 'baryonic'
 
-    def __init__(self, total_mass, r_eff, n, invq=1.0, noord_flat=False,
+    def __init__(self, invq=1.0, noord_flat=False,
                  **kwargs):
 
         self.invq = invq
         self.noord_flat = noord_flat
-        super(Sersic, self).__init__(total_mass, r_eff, n, **kwargs)
+        super(Sersic, self).__init__(**kwargs)
 
     @staticmethod
     def evaluate(r, total_mass, r_eff, n):
@@ -2716,8 +2715,7 @@ class DiskBulge(MassModel):
 
     _subtype = 'baryonic'
 
-    def __init__(self, total_mass, r_eff_disk, n_disk, r_eff_bulge,
-                 n_bulge, bt, invq_disk=5, invq_bulge=1, noord_flat=False,
+    def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', **kwargs):
 
         self.invq_disk = invq_disk
@@ -2725,8 +2723,7 @@ class DiskBulge(MassModel):
         self.noord_flat = noord_flat
         self.light_component = light_component
 
-        super(DiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
-                                        r_eff_bulge, n_bulge, bt, **kwargs)
+        super(DiskBulge, self).__init__(**kwargs)
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -3263,8 +3260,7 @@ class LinearDiskBulge(MassModel):
 
     _subtype = 'baryonic'
 
-    def __init__(self, total_mass, r_eff_disk, n_disk, r_eff_bulge,
-                 n_bulge, bt, invq_disk=5, invq_bulge=1, noord_flat=False,
+    def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', **kwargs):
 
         self.invq_disk = invq_disk
@@ -3272,8 +3268,7 @@ class LinearDiskBulge(MassModel):
         self.noord_flat = noord_flat
         self.light_component = light_component
 
-        super(LinearDiskBulge, self).__init__(total_mass, r_eff_disk, n_disk,
-                                        r_eff_bulge, n_bulge, bt, **kwargs)
+        super(LinearDiskBulge, self).__init__(**kwargs)
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -3641,6 +3636,96 @@ class DarkMatterHalo(MassModel):
         return drhodr
 
 
+
+    def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
+        """
+        Calculate virial mass given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        mvirial : float
+            Virial mass in logarithmic solar units
+
+        Notes
+        -----
+        This uses the current value of `fdm` together with
+        the input baryon distribution to calculate the inferred `mvirial`.
+        """
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
+            mvirial = np.NaN
+        elif (self.fdm.value == 1.):
+            mvirial = np.inf
+        elif (self.fdm.value == 0.):
+            mvirial = -np.inf #-5.  # as a small but finite value
+        elif (self.fdm.value < 1.e-10):
+            mvirial = -np.inf
+        elif (r_fdm < 0.):
+            mvirial = np.NaN
+        else:
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
+
+            if not np.isfinite(vsqr_dm_re_target):
+                mvirial = np.NaN
+            else:
+                mtest = np.arange(-5, 50, 1.0)
+                if adiabatic_contract:
+                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
+                    # TEST
+                    vtest_noAC = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
+                else:
+                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
+                try:
+                    a = mtest[vtest < 0][-1]
+                    b = mtest[vtest > 0][0]
+                    # TEST
+                    if adiabatic_contract:
+                        a_noAC = mtest[vtest_noAC < 0][-1]
+                        b_noAC = mtest[vtest_noAC > 0][0]
+                except:
+                    print("adiabatic_contract={}".format(adiabatic_contract))
+                    print("fdm={}".format(self.fdm.value))
+                    print("r_fdm={}".format(r_fdm))
+                    print(mtest, vtest)
+                    raise ValueError
+
+                if adiabatic_contract:
+                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
+
+                    # TEST
+                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, r_fdm))
+                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
+                else:
+                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a, b, args=(vsqr_dm_re_target, r_fdm))
+        return mvirial
+
+    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vtarget, r_fdm):
+        halotmp = self.copy()
+        halotmp.__setattr__('mvirial', mvirial)
+        return halotmp.circular_velocity(r_fdm) ** 2 - vtarget
+
+    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vtarget, r_fdm, bary):
+        halotmp = self.copy()
+        halotmp.__setattr__('mvirial', mvirial)
+        modtmp = ModelSet()
+        modtmp.add_component(bary, light=True)
+        modtmp.add_component(halotmp)
+        modtmp.kinematic_options.adiabatic_contract = True
+        modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
+
+        vc, vc_dm = modtmp.circular_velocity(r_fdm, compute_dm=True)
+
+        return vc_dm **2 - vtarget
+
 class TwoPowerHalo(DarkMatterHalo):
     r"""
     Two power law density model for a dark matter halo
@@ -3699,12 +3784,11 @@ class TwoPowerHalo(DarkMatterHalo):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alpha, beta, fdm = None,
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
 
         self.z = z
         self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(mvirial, conc, alpha, beta, fdm, **kwargs)
+        super(TwoPowerHalo, self).__init__(**kwargs)
 
     def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
         """ Mass density for the TwoPowerHalo"""
@@ -3784,6 +3868,7 @@ class TwoPowerHalo(DarkMatterHalo):
 
         return rvir
 
+
     def calc_alpha_from_fdm(self, baryons, r_fdm):
         """
         Calculate alpha given dark matter fraction and baryonic distribution
@@ -3814,7 +3899,7 @@ class TwoPowerHalo(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             alphtest = np.arange(-50, 50, 1.)
-            vtest = np.array([self._minfunc_vdm(alph, vsqr_dm_re_target, self.mvirial, self.conc,
+            vtest = np.array([self._minfunc_vdm_alpha_from_fdm(alph, vsqr_dm_re_target, self.mvirial, self.conc,
                                     self.beta, self.z, r_fdm) for alph in alphtest])
 
             try:
@@ -3828,12 +3913,12 @@ class TwoPowerHalo(DarkMatterHalo):
                 a = alphtest[0]    # Even if not perfect, force in case of no convergence...
                 b = alphtest[1]
 
-            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc,
+            alpha = scp_opt.brentq(self._minfunc_vdm_alpha_from_fdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc,
                                         self.beta, self.z, r_fdm))
 
         return alpha
 
-    def _minfunc_vdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
+    def _minfunc_vdm_alpha_from_fdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
         halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
@@ -3921,11 +4006,10 @@ class Burkert(DarkMatterHalo):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, rB, fdm=None,
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(Burkert, self).__init__(mvirial, rB, fdm, **kwargs)
+        super(Burkert, self).__init__(**kwargs)
 
     def evaluate(self, r, mvirial, rB, fdm):
         """Mass density as a function of radius"""
@@ -4050,7 +4134,7 @@ class Burkert(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             rBtest = np.arange(0., 250., 5.0)
-            vtest = np.array([self._minfunc_vdm(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
+            vtest = np.array([self._minfunc_vdm_rB_from_fDM(rBt, vsqr_dm_re_target, self.mvirial, self.z, r_fdm) for rBt in rBtest])
 
             try:
                 a = rBtest[vtest < 0][-1]
@@ -4064,14 +4148,14 @@ class Burkert(DarkMatterHalo):
                 b = rBtest[-1]
 
             try:
-                rB = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
+                rB = scp_opt.brentq(self._minfunc_vdm_rB_from_fDM, a, b, args=(vsqr_dm_re_target, self.mvirial, self.z, r_fdm))
             except:
                 # SOMETHING, if it's failing...
                 rB = np.average([a,b])
 
         return rB
 
-    def _minfunc_vdm(self, rB, vtarget, mass, z, r_eff):
+    def _minfunc_vdm_rB_from_fDM(self, rB, vtarget, mass, z, r_eff):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
@@ -4173,8 +4257,8 @@ class Einasto(DarkMatterHalo):
 
     _subtype = 'dark_matter'
 
-    def __init__(self, mvirial, conc, alphaEinasto=None, nEinasto=None, fdm=None,
-            z=0, cosmo=_default_cosmo, Einasto_param='None', **kwargs):
+    def __init__(self, z=0, cosmo=_default_cosmo,
+            Einasto_param='None', alphaEinasto=None, nEinasto=None, **kwargs):
         self.z = z
         self.cosmo = cosmo
 
@@ -4184,7 +4268,7 @@ class Einasto(DarkMatterHalo):
         if (alphaEinasto is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
             raise ValueError("If both 'alphaEinasto' and 'nEinasto' are set, must specify which is the fit variable with 'Einasto_param'")
 
-        super(Einasto, self).__init__(mvirial, conc, alphaEinasto, nEinasto, fdm, **kwargs)
+        super(Einasto, self).__init__(**kwargs)
 
         # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
         if (Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
@@ -4358,7 +4442,7 @@ class Einasto(DarkMatterHalo):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             nEinastotest = np.arange(-50, 50, 1.)
-            vtest = np.array([self._minfunc_vdm(nEinast, vsqr_dm_re_target, self.mvirial, self.conc,
+            vtest = np.array([self._minfunc_vdm_nEin_from_fdm(nEinast, vsqr_dm_re_target, self.mvirial, self.conc,
                                     self.alphaEinasto, self.z, r_fdm) for nEinast in nEinastotest])
 
             try:
@@ -4372,12 +4456,13 @@ class Einasto(DarkMatterHalo):
                 a = nEinastotest[0]    # Even if not perfect, force in case of no convergence...
                 b = nEinastotest[1]
 
-            alpha = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.mvirial, self.conc,
+            alpha = scp_opt.brentq(self._minfunc_vdm_nEin_from_fdm, a, b, args=(vsqr_dm_re_target,
+                                        self.mvirial, self.conc,
                                         self.alphaEinasto, self.z, r_fdm))
 
         return nEinasto
 
-    def _minfunc_vdm(self, nEinasto, vtarget, mass, conc, alphaEinasto, z, r_eff):
+    def _minfunc_vdm_nEin_from_fdm(self, nEinasto, vtarget, mass, conc, alphaEinasto, z, r_eff):
         halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
@@ -4501,12 +4586,11 @@ class NFW(DarkMatterHalo):
     .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
 
-    def __init__(self, mvirial, conc, fdm = None,
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
 
         self.z = z
         self.cosmo = cosmo
-        super(NFW, self).__init__(mvirial, conc, fdm, **kwargs)
+        super(NFW, self).__init__(**kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
         """Mass density as a function of radius"""
@@ -4584,95 +4668,6 @@ class NFW(DarkMatterHalo):
                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
-
-    def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
-        """
-        Calculate virial mass given dark matter fraction and baryonic distribution
-
-        Parameters
-        ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
-
-        r_fdm : float
-            Radius at which the dark matter fraction is determined
-
-        Returns
-        -------
-        mvirial : float
-            Virial mass in logarithmic solar units
-
-        Notes
-        -----
-        This uses the current value of `fdm` together with
-        the input baryon distribution to calculate the inferred `mvirial`.
-        """
-        if (self.fdm.value > self.bounds['fdm'][1]) | \
-                ((self.fdm.value < self.bounds['fdm'][0])):
-            mvirial = np.NaN
-        elif (self.fdm.value == 1.):
-            mvirial = np.inf
-        elif (self.fdm.value == 0.):
-            mvirial = -np.inf #-5.  # as a small but finite value
-        elif (self.fdm.value < 1.e-10):
-            mvirial = -np.inf
-        elif (r_fdm < 0.):
-            mvirial = np.NaN
-        else:
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
-            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-
-            if not np.isfinite(vsqr_dm_re_target):
-                mvirial = np.NaN
-            else:
-                mtest = np.arange(-5, 50, 1.0)
-                if adiabatic_contract:
-                    vtest = np.array([self._minfunc_vdm_AC(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons) for m in mtest])
-                    # TEST
-                    vtest_noAC = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
-                else:
-                    vtest = np.array([self._minfunc_vdm(m, vsqr_dm_re_target, self.conc.value, self.z, r_fdm) for m in mtest])
-
-                try:
-                    a = mtest[vtest < 0][-1]
-                    b = mtest[vtest > 0][0]
-                    # TEST
-                    if adiabatic_contract:
-                        a_noAC = mtest[vtest_noAC < 0][-1]
-                        b_noAC = mtest[vtest_noAC > 0][0]
-                except:
-                    print("adiabatic_contract={}".format(adiabatic_contract))
-                    print("fdm={}".format(self.fdm.value))
-                    print("r_fdm={}".format(r_fdm))
-                    print(mtest, vtest)
-                    raise ValueError
-
-                if adiabatic_contract:
-                    mvirial = scp_opt.brentq(self._minfunc_vdm_AC, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm, baryons))
-
-                    # TEST
-                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
-                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
-                else:
-                    mvirial = scp_opt.brentq(self._minfunc_vdm, a, b, args=(vsqr_dm_re_target, self.conc.value, self.z, r_fdm))
-
-        return mvirial
-
-    def _minfunc_vdm(self, mass, vtarget, conc, z, r_eff):
-        halo = NFW(mvirial=mass, conc=conc, z=z)
-        return halo.circular_velocity(r_eff) ** 2 - vtarget
-
-    def _minfunc_vdm_AC(self, mass, vtarget, conc, z, r_eff, bary):
-        halo = NFW(mvirial=mass, conc=conc, z=z, name='halotmp')
-        modtmp = ModelSet()
-        modtmp.add_component(bary, light=True)
-        modtmp.add_component(halo)
-        modtmp.kinematic_options.adiabatic_contract = True
-        modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
-
-        vc, vc_dm = modtmp.circular_velocity(r_eff, compute_dm=True)
-
-        return vc_dm **2 - vtarget
 
     def rho(self, r):
         r"""
@@ -4756,11 +4751,10 @@ class LinearNFW(DarkMatterHalo):
     .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
 
-    def __init__(self, mvirial, conc, fdm = None,
-            z=0, cosmo=_default_cosmo, **kwargs):
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
         self.cosmo = cosmo
-        super(LinearNFW, self).__init__(mvirial, conc, fdm, **kwargs)
+        super(LinearNFW, self).__init__(**kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
         """Mass density as a function of radius"""
@@ -5110,8 +5104,8 @@ class ZHeightGauss(ZHeightProfile):
     """
     sigmaz = DysmalParameter(default=1.0, fixed=True, bounds=(0, 10))
 
-    def __init__(self, sigmaz, **kwargs):
-        super(ZHeightGauss, self).__init__(sigmaz, **kwargs)
+    def __init__(self, **kwargs):
+        super(ZHeightGauss, self).__init__(**kwargs)
 
     @staticmethod
     def evaluate(z, sigmaz):
@@ -5633,8 +5627,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     _spatial_type = 'resolved'
     outputs = ('vout',)
 
-    def __init__(self, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux,
-                 profile_type='both', **kwargs):
+    def __init__(self, profile_type='both', **kwargs):
 
         valid_profiles = ['increase', 'decrease', 'both', 'constant']
 
@@ -5644,11 +5637,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
             logger.error("Invalid profile type. Must be one of 'increase',"
                          "'decrease', 'constant', or 'both.'")
 
-        #self.tau_flux = tau_flux
-        #self.norm_flux = norm_flux
-
-        super(BiconicalOutflow, self).__init__(n, vmax, rturn, thetain,
-                                               dtheta, rend, norm_flux, tau_flux, **kwargs)
+        super(BiconicalOutflow, self).__init__(**kwargs)
 
     def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
@@ -5757,9 +5746,9 @@ class UniformRadialInflow(_DysmalFittable3DModel):
     _spatial_type = 'resolved'
     outputs = ('vinfl',)
 
-    def __init__(self, vin, **kwargs):
+    def __init__(self, **kwargs):
 
-        super(UniformRadialInflow, self).__init__(vin, **kwargs)
+        super(UniformRadialInflow, self).__init__(**kwargs)
 
     def evaluate(self, x, y, z, vin):
         """Evaluate the inflow velocity as a function of position x, y, z"""
