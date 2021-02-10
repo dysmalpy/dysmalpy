@@ -18,7 +18,7 @@ import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam as _RBeam
 
-__all__ = ["Instrument", "GaussianBeam", "LSF", "DoubleBeam", "Moffat"]
+__all__ = ["Instrument", "GaussianBeam", "DoubleBeam", "Moffat", "LSF"]
 
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
@@ -340,16 +340,6 @@ class GaussianBeam(_RBeam):
     """
     Re-definition of radio_beam.Beam to allow it to work with copy.deepcopy and copy.copy.
 
-    Parameters
-    ----------
-    major : `~astropy.units.Quantity`
-             FWHM along the major axis of the Gaussian beam
-    minor : `~astropy.units.Quantity`
-             FWHM along the minor axis of the Gaussian beam
-    pa : `~astropy.units.Quantity`
-             Position angle of the first Gaussian beam.
-    default_unit: `~astropy.units.Unit`
-             Default unit for major, minor FWHM if set as floats (Default: `u.arcsec`)
     """
 
     def __deepcopy__(self, memo):
