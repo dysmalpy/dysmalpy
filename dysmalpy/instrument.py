@@ -355,16 +355,6 @@ class GaussianBeam(_RBeam):
         return self2
 
 
-class Beam(GaussianBeam):
-    """
-    Alias of GaussianBeam for users that use the ratio_beam syntax
-        (as directly using radio_beam.Beam fails with AstroPy models due to copying issues)
-    """
-    def __new__(cls, **kwargs):
-        logger.warning("The DysmalPy beam class `GaussianBeam` should be used instead of `Beam`.")
-        return super(Beam, cls).__new__(cls, **kwargs)
-
-
 class DoubleBeam:
     """
     Beam object that is the superposition of two Gaussian Beams
