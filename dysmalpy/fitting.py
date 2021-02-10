@@ -650,9 +650,11 @@ def _fit_emcee_3(gal, **kwargs ):
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_results'] is None:
         # LEGACY SUPPORT: WILL BE DEPRECIATED:
-        if kwargs_fit['f_mcmc_results'] is not None:
-            kwargs_fit['f_results'] = kwargs_fit['f_mcmc_results']
-        else:
+        if 'f_mcmc_results' in kwargs_fit.keys():
+            if kwargs_fit['f_mcmc_results'] is not None:
+                kwargs_fit['f_results'] = kwargs_fit['f_mcmc_results']
+        if kwargs_fit['f_results'] is None:
+            # Check if still None after checking for legacy 'f_mcmc_results'
             kwargs_fit['f_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
