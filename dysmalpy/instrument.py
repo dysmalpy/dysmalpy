@@ -16,7 +16,7 @@ import astropy.convolution as apy_conv
 from scipy.signal import fftconvolve
 import astropy.units as u
 import astropy.constants as c
-from radio_beam import Beam
+from radio_beam import Beam as _RBeam
 
 __all__ = ["Instrument", "GaussianBeam", "LSF", "DoubleBeam", "Moffat"]
 
@@ -200,8 +200,7 @@ class Instrument:
         """
         if (self.beam_type == 'analytic') | (self.beam_type == None):
 
-
-            if isinstance(self.beam, Beam):
+            if isinstance(self.beam, GaussianBeam):
                 kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
                 kern2D = kernel.array
             else:
@@ -280,13 +279,13 @@ class Instrument:
 
     @beam.setter
     def beam(self, new_beam):
-        if isinstance(new_beam, Beam) | isinstance(new_beam, Moffat) | isinstance(new_beam, DoubleBeam):
+        if isinstance(new_beam, GaussianBeam) | isinstance(new_beam, Moffat) | isinstance(new_beam, DoubleBeam):
             self._beam = new_beam
         elif new_beam is None:
             self._beam = None
         else:
             raise TypeError("Beam must be an instance of "
-                            "radio_beam.beam.Beam")
+                            "instrument.GaussianBeam, instrument.Moffat, or instrument.DoubleBeam")
 
     @property
     def lsf(self):
@@ -337,9 +336,20 @@ class Instrument:
             return (self.spec_start + np.round(self.nspec/2)*self.spec_step)
 
 
-class GaussianBeam(Beam):
+class GaussianBeam(_RBeam):
     """
-    Re-definition of Beam to allow it to work with copy.deepcopy and copy.copy
+    Re-definition of radio_beam.Beam to allow it to work with copy.deepcopy and copy.copy.
+
+    Parameters
+    ----------
+    major : `~astropy.units.Quantity`
+             FWHM along the major axis of the Gaussian beam
+    minor : `~astropy.units.Quantity`
+             FWHM along the minor axis of the Gaussian beam
+    pa : `~astropy.units.Quantity`
+             Position angle of the first Gaussian beam.
+    default_unit: `~astropy.units.Unit`
+             Default unit for major, minor FWHM if set as floats (Default: `u.arcsec`)
     """
 
     def __deepcopy__(self, memo):
@@ -355,132 +365,14 @@ class GaussianBeam(Beam):
         return self2
 
 
-class LSF(u.Quantity):
+class Beam(GaussianBeam):
     """
-    An object to handle line spread functions.
+    Alias of GaussianBeam for users that use the ratio_beam syntax
+        (as directly using radio_beam.Beam fails with AstroPy models due to copying issues)
     """
-
-    def __new__(cls, dispersion=None, default_unit=u.km/u.s, meta=None):
-        """
-        Create a new Gaussian Line Spread Function
-
-        Parameters
-        ----------
-        dispersion : :class:`~astropy.units.Quantity` with speed equivalency
-        default_unit : :class:`~astropy.units.Unit`
-            The unit to impose on dispersion if they are specified as floats
-        """
-
-        # TODO: Allow for wavelength dispersion to be specified
-
-        # error checking
-
-        # give specified values priority
-        if dispersion is not None:
-            if (u.km/u.s).is_equivalent(dispersion):
-                dispersion = dispersion
-            else:
-                logger.warning("Assuming dispersion has been specified in "
-                               "km/s.")
-                dispersion = dispersion * default_unit
-
-        self = super(LSF, cls).__new__(cls, dispersion.value, u.km/u.s)
-        self._dispersion = dispersion
-        self.default_unit = default_unit
-
-        if meta is None:
-            self.meta = {}
-        elif isinstance(meta, dict):
-            self.meta = meta
-        else:
-            raise TypeError("metadata must be a dictionary")
-
-        return self
-
-    def __repr__(self):
-        return "LSF: Vel. Disp. = {0}".format(
-            self.dispersion.to(self.default_unit))
-
-    def __str__(self):
-        return self.__repr__()
-
-    @property
-    def dispersion(self):
-        return self._dispersion
-
-    def vel_to_lambda(self, wave):
-        """
-        Convert from velocity dispersion to wavelength dispersion for
-        a given central wavelength.
-
-        Parameters
-        ----------
-        wave : `~astropy.units.Quantity`
-               Central wavelength to use in conversion from velocity to wavelength
-
-        Returns
-        -------
-        wdisp : `~astropy.units.Quantity`
-                Dispersion of LSF in wavelength units
-        """
-
-        if not isinstance(wave, u.Quantity):
-            raise TypeError("wave must be a Quantity object. "
-                            "Try 'wave*u.Angstrom' or another equivalent unit.")
-        return (self.dispersion/c.c.to(self.dispersion.unit))*wave
-
-    def as_velocity_kernel(self, velstep, **kwargs):
-        """
-        Return a Gaussian convolution kernel in velocity space
-
-        Parameters
-        ----------
-        velstep : `~astropy.units.Quantity`
-                  Step size in velocity of one spectral channel
-
-        Returns
-        -------
-        vel_kern : 1D array
-                   Convolution kernel for the LSF in velocity space
-        """
-
-        sigma_pixel = (self.dispersion.value /
-                       velstep.to(self.dispersion.unit).value)
-
-        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
-
-    def as_wave_kernel(self, wavestep, wavecenter, **kwargs):
-        """
-        Return a Gaussian convolution kernel in wavelength space
-
-        Parameters
-        ----------
-        wavestep : `~astropy.units.Quantity`
-                   Step size in wavelength of one spectral channel
-        wavecenter : `~astropy.units.Quantity`
-                     Central wavelength used to convert from velocity to wavelength
-
-        Returns
-        -------
-        wave_kern : 1D array
-                    Convolution kernal for the LSF in wavelength space
-        """
-
-        sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
-
-        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
-
-    def __deepcopy__(self, memo):
-        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
-                           meta=self.meta)
-        self2.__dict__.update(self.__dict__)
-        return self2
-
-    def __copy__(self):
-        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
-                           meta=self.meta)
-        self2.__dict__.update(self.__dict__)
-        return self2
+    def __new__(cls, **kwargs):
+        logger.warning("The DysmalPy beam class `GaussianBeam` should be used instead of `Beam`.")
+        return super(Beam, cls).__new__(cls, **kwargs)
 
 
 class DoubleBeam:
@@ -715,3 +607,130 @@ class Moffat(object):
         kernel = (self.beta-1.)/(np.pi * alpha**2) * np.power( (1. + (r/alpha)**2 ), -1.*self.beta )
 
         return kernel
+
+class LSF(u.Quantity):
+    """
+    An object to handle line spread functions.
+    """
+
+    def __new__(cls, dispersion=None, default_unit=u.km/u.s, meta=None):
+        """
+        Create a new Gaussian Line Spread Function
+
+        Parameters
+        ----------
+        dispersion : :class:`~astropy.units.Quantity` with speed equivalency
+        default_unit : :class:`~astropy.units.Unit`
+            The unit to impose on dispersion if they are specified as floats
+        """
+
+        # TODO: Allow for wavelength dispersion to be specified
+
+        # error checking
+
+        # give specified values priority
+        if dispersion is not None:
+            if (u.km/u.s).is_equivalent(dispersion):
+                dispersion = dispersion
+            else:
+                logger.warning("Assuming dispersion has been specified in "
+                               "km/s.")
+                dispersion = dispersion * default_unit
+
+        self = super(LSF, cls).__new__(cls, dispersion.value, u.km/u.s)
+        self._dispersion = dispersion
+        self.default_unit = default_unit
+
+        if meta is None:
+            self.meta = {}
+        elif isinstance(meta, dict):
+            self.meta = meta
+        else:
+            raise TypeError("metadata must be a dictionary")
+
+        return self
+
+    def __repr__(self):
+        return "LSF: Vel. Disp. = {0}".format(
+            self.dispersion.to(self.default_unit))
+
+    def __str__(self):
+        return self.__repr__()
+
+    @property
+    def dispersion(self):
+        return self._dispersion
+
+    def vel_to_lambda(self, wave):
+        """
+        Convert from velocity dispersion to wavelength dispersion for
+        a given central wavelength.
+
+        Parameters
+        ----------
+        wave : `~astropy.units.Quantity`
+               Central wavelength to use in conversion from velocity to wavelength
+
+        Returns
+        -------
+        wdisp : `~astropy.units.Quantity`
+                Dispersion of LSF in wavelength units
+        """
+
+        if not isinstance(wave, u.Quantity):
+            raise TypeError("wave must be a Quantity object. "
+                            "Try 'wave*u.Angstrom' or another equivalent unit.")
+        return (self.dispersion/c.c.to(self.dispersion.unit))*wave
+
+    def as_velocity_kernel(self, velstep, **kwargs):
+        """
+        Return a Gaussian convolution kernel in velocity space
+
+        Parameters
+        ----------
+        velstep : `~astropy.units.Quantity`
+                  Step size in velocity of one spectral channel
+
+        Returns
+        -------
+        vel_kern : 1D array
+                   Convolution kernel for the LSF in velocity space
+        """
+
+        sigma_pixel = (self.dispersion.value /
+                       velstep.to(self.dispersion.unit).value)
+
+        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+    def as_wave_kernel(self, wavestep, wavecenter, **kwargs):
+        """
+        Return a Gaussian convolution kernel in wavelength space
+
+        Parameters
+        ----------
+        wavestep : `~astropy.units.Quantity`
+                   Step size in wavelength of one spectral channel
+        wavecenter : `~astropy.units.Quantity`
+                     Central wavelength used to convert from velocity to wavelength
+
+        Returns
+        -------
+        wave_kern : 1D array
+                    Convolution kernal for the LSF in wavelength space
+        """
+
+        sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
+
+        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+    def __deepcopy__(self, memo):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,
+                           meta=self.meta)
+        self2.__dict__.update(self.__dict__)
+        return self2
