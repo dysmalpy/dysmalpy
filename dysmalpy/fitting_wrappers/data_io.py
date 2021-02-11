@@ -852,19 +852,22 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
         # Copy, prepending galID
         fout_name = outdir+"{}_{}".format(params['galID'], param_filename_nopath)
 
-    # Replace datadir, outdir:
-    with open(param_filename, 'r') as f:
-        lines = f.readlines()
 
-    for i,l in enumerate(lines):
-        #if 'datadir' in l:
-        ll = l.split('#')[0]
-        if 'datadir' in ll:
-            larr = ll.split(',')
-            lines[i] = l.replace(larr[1].strip(), "{}".format(datadir))
-        if 'outdir' in ll:
-            larr = ll.split(',')
-            lines[i] = l.replace(larr[1].strip(), "{}".format(outdir))
+    # Check if file already exists in output directory:
+    if not os.path.isfile(fout_name):
+        # Replace datadir, outdir:
+        with open(param_filename, 'r') as f:
+            lines = f.readlines()
 
-    with open(fout_name, 'w') as fnew:
-        fnew.writelines(lines)
+        for i,l in enumerate(lines):
+            #if 'datadir' in l:
+            ll = l.split('#')[0]
+            if 'datadir' in ll:
+                larr = ll.split(',')
+                lines[i] = l.replace(larr[1].strip(), "{}".format(datadir))
+            if 'outdir' in ll:
+                larr = ll.split(',')
+                lines[i] = l.replace(larr[1].strip(), "{}".format(outdir))
+
+        with open(fout_name, 'w') as fnew:
+            fnew.writelines(lines)
