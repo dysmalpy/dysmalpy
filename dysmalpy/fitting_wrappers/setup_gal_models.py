@@ -848,7 +848,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
         mcmc_dict['f_log'] = f_log
 
     # Force no log:
-    if mcmc_dict['f_log'].strip().lower() == 'null':
+    if mcmc_dict['f_log'].strip().lower() == 'skiplog':
         mcmc_dict['f_log'] = None
 
     # #
@@ -957,6 +957,15 @@ def setup_mpfit_dict(params=None, ndim_data=None):
         # if key not in mpfit_dict.keys():
         #     # Copy over all various fitting options
         #     mpfit_dict[key] = params[key]
+
+
+    # Force f_log:
+    if mpfit_dict['f_log'] is None:
+        mpfit_dict['f_log'] = f_log
+
+    # Force no log:
+    if mpfit_dict['f_log'].strip().lower() == 'skiplog':
+        mpfit_dict['f_log'] = None
 
     return mpfit_dict
 
