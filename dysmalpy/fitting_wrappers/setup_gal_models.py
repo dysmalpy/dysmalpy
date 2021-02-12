@@ -780,38 +780,43 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     else:
         plot_type = 'pdf'
 
+    filename_extra = ''
+    if 'filename_extra' in params.keys():
+        if params['filename_extra'] is not None:
+            filename_extra =  params['filename_extra']
+
     # All in one directory:
-    f_plot_trace_burnin = outdir+'{}_mcmc_burnin_trace.{}'.format(galID, plot_type)
-    f_plot_trace = outdir+'{}_mcmc_trace.{}'.format(galID, plot_type)
-    f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
+    f_plot_trace_burnin = outdir+'{}{}_mcmc_burnin_trace.{}'.format(galID, filename_extra, plot_type)
+    f_plot_trace = outdir+'{}{}_mcmc_trace.{}'.format(galID, filename_extra, plot_type)
+    f_model = outdir+'{}{}_galaxy_model.pickle'.format(galID, filename_extra)
 
     if ndim_data == 1:
-        f_model_bestfit = outdir+'{}_out-1dplots.txt'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-1dplots.txt'.format(galID, filename_extra)
     elif ndim_data == 2:
-        f_model_bestfit = outdir+'{}_out-velmaps.fits'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-velmaps.fits'.format(galID, filename_extra)
     elif ndim_data == 3:
-        f_model_bestfit = outdir+'{}_out-cube.fits'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-cube.fits'.format(galID, filename_extra)
     elif ndim_data == 0:
-        f_model_bestfit = outdir+'{}_out-0d.txt'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-0d.txt'.format(galID, filename_extra)
     else:
         f_model_bestfit = None
 
-    f_cube = outdir+'{}_mcmc_bestfit_model_cube.fits'.format(galID)
+    f_cube = outdir+'{}{}_mcmc_bestfit_model_cube.fits'.format(galID, filename_extra)
 
     if np.int(emcee.__version__[0]) >= 3:
         ftype_sampler = 'h5'
     else:
         ftype_sampler = 'pickle'
-    f_sampler = outdir+'{}_mcmc_sampler.{}'.format(galID, ftype_sampler)
-    f_burn_sampler = outdir+'{}_mcmc_burn_sampler.{}'.format(galID, ftype_sampler)
+    f_sampler = outdir+'{}{}_mcmc_sampler.{}'.format(galID, filename_extra, ftype_sampler)
+    f_burn_sampler = outdir+'{}{}_mcmc_burn_sampler.{}'.format(galID, filename_extra, ftype_sampler)
 
-    f_plot_param_corner = outdir+'{}_mcmc_param_corner.{}'.format(galID, plot_type)
-    f_plot_bestfit = outdir+'{}_mcmc_best_fit.{}'.format(galID, plot_type)
-    f_plot_bestfit_multid = outdir+'{}_mcmc_best_fit_multid.{}'.format(galID, plot_type)
-    f_results = outdir+'{}_mcmc_results.pickle'.format(galID)
-    f_chain_ascii = outdir+'{}_mcmc_chain_blobs.dat'.format(galID)
-    f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
-    f_log = outdir+'{}_info.log'.format(galID)
+    f_plot_param_corner = outdir+'{}{}_mcmc_param_corner.{}'.format(galID, filename_extra, plot_type)
+    f_plot_bestfit = outdir+'{}{}_mcmc_best_fit.{}'.format(galID, filename_extra, plot_type)
+    f_plot_bestfit_multid = outdir+'{}{}_mcmc_best_fit_multid.{}'.format(galID, filename_extra, plot_type)
+    f_results = outdir+'{}{}_mcmc_results.pickle'.format(galID, filename_extra)
+    f_chain_ascii = outdir+'{}{}_mcmc_chain_blobs.dat'.format(galID, filename_extra)
+    f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
     mcmc_dict = {'outdir': outdir,
                 'f_plot_trace_burnin':  f_plot_trace_burnin,
@@ -896,26 +901,32 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     else:
         plot_type = 'pdf'
 
+
+    filename_extra = ''
+    if 'filename_extra' in params.keys():
+        if params['filename_extra'] is not None:
+            filename_extra =  params['filename_extra']
+
     fitting.ensure_dir(params['outdir'])
     outdir = params['outdir']
     galID = params['galID']
-    f_model = outdir+'{}_galaxy_model.pickle'.format(galID)
-    f_cube = outdir+'{}_mpfit_bestfit_model_cube.fits'.format(galID)
-    f_plot_bestfit = outdir+'{}_mpfit_best_fit.{}'.format(galID, plot_type)
-    f_results = outdir+'{}_mpfit_results.pickle'.format(galID)
-    f_plot_bestfit_multid = outdir+'{}_mpfit_best_fit_multid.{}'.format(galID, plot_type)
-    f_vel_ascii = outdir+'{}_galaxy_bestfit_vel_profile.dat'.format(galID)
-    f_log = outdir+'{}_info.log'.format(galID)
+    f_model = outdir+'{}{}_galaxy_model.pickle'.format(galID, filename_extra)
+    f_cube = outdir+'{}{}_mpfit_bestfit_model_cube.fits'.format(galID, filename_extra)
+    f_plot_bestfit = outdir+'{}{}_mpfit_best_fit.{}'.format(galID, filename_extra, plot_type)
+    f_results = outdir+'{}{}_mpfit_results.pickle'.format(galID, filename_extra)
+    f_plot_bestfit_multid = outdir+'{}{}_mpfit_best_fit_multid.{}'.format(galID, filename_extra, plot_type)
+    f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
 
     if ndim_data == 1:
-        f_model_bestfit = outdir+'{}_out-1dplots.txt'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-1dplots.txt'.format(galID, filename_extra)
     elif ndim_data == 2:
-        f_model_bestfit = outdir+'{}_out-velmaps.fits'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-velmaps.fits'.format(galID, filename_extra)
     elif ndim_data == 3:
-        f_model_bestfit = outdir+'{}_out-cube.fits'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-cube.fits'.format(galID, filename_extra)
     elif ndim_data == 0:
-        f_model_bestfit = outdir+'{}_out-0d.txt'.format(galID)
+        f_model_bestfit = outdir+'{}{}_out-0d.txt'.format(galID, filename_extra)
     else:
         f_model_bestfit = None
 
