@@ -199,11 +199,11 @@ def _fit_emcee_221(gal, **kwargs ):
             kwargs_fit['f_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_chain_ascii'] is None:
         kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
-    if kwargs_fit['f_vel_ascii'] is None:
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
 
 
-    if kwargs_fit['f_model_bestfit'] is None:
+    if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
         if gal.data.ndim == 1:
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
@@ -662,10 +662,10 @@ def _fit_emcee_3(gal, **kwargs ):
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_chain_ascii'] is None:
         kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
-    if kwargs_fit['f_vel_ascii'] is None:
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
 
-    if kwargs_fit['f_model_bestfit'] is None:
+    if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
         if gal.data.ndim == 1:
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
@@ -1049,10 +1049,10 @@ def fit_mpfit(gal, **kwargs):
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir'] + 'mpfit_best_fit.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_results'] is None:
         kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
-    if kwargs_fit['f_vel_ascii'] is None:
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir'] + 'galaxy_bestfit_vel_profile.dat'
 
-    if kwargs_fit['f_model_bestfit'] is None:
+    if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
         if gal.data.ndim == 1:
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
         elif gal.data.ndim == 2:
@@ -1198,7 +1198,7 @@ def fit_mpfit(gal, **kwargs):
         gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
                     overwrite=kwargs_fit['overwrite'])
 
-    if kwargs_fit['f_model_bestfit'] is not None:
+    if (kwargs_fit['f_model_bestfit'] is not None:)
         gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
 
     if kwargs_fit['save_bestfit_cube']:
