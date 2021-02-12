@@ -837,19 +837,18 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'do_plotting': True}
 
     for key in params.keys():
-        # Copy over all various fitting options
-        mcmc_dict[key] = params[key]
-        # if key not in mcmc_dict.keys():
-        #     # Copy over all various fitting options
-        #     mcmc_dict[key] = params[key]
+        # # Copy over all various fitting options
+        # mcmc_dict[key] = params[key]
+        if key not in mcmc_dict.keys():
+            # Copy over all various fitting options
+            mcmc_dict[key] = params[key]
 
-    # Force f_log:
-    if mcmc_dict['f_log'] is None:
-        mcmc_dict['f_log'] = f_log
-
-    # Force no log:
-    if mcmc_dict['f_log'].strip().lower() == 'skiplog':
-        mcmc_dict['f_log'] = None
+    # Check for overriden filenames:
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+                'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
+    for key in fname_overridable:
+        if params[key].strip().lower() == 'nosave':
+            mcmc_dict[key] = None
 
     # #
     if 'linked_posteriors' in mcmc_dict.keys():
@@ -952,20 +951,20 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'do_plotting': True}
 
     for key in params.keys():
-        # Copy over all various fitting options
-        mpfit_dict[key] = params[key]
-        # if key not in mpfit_dict.keys():
-        #     # Copy over all various fitting options
-        #     mpfit_dict[key] = params[key]
+        # # Copy over all various fitting options
+        # mpfit_dict[key] = params[key]
+        if key not in mpfit_dict.keys():
+            # Copy over all various fitting options
+            mpfit_dict[key] = params[key]
 
 
-    # Force f_log:
-    if mpfit_dict['f_log'] is None:
-        mpfit_dict['f_log'] = f_log
+    # Check for overriden filenames:
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+                'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
+    for key in fname_overridable:
+        if mpfit_dict[key].strip().lower() == 'nosave':
+            mpfit_dict[key] = None
 
-    # Force no log:
-    if mpfit_dict['f_log'].strip().lower() == 'skiplog':
-        mpfit_dict['f_log'] = None
 
     return mpfit_dict
 
