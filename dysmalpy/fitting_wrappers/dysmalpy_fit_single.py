@@ -16,7 +16,7 @@ except ImportError:
 
 def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
             outdir=None, plot_type='pdf', overwrite=None):
-            
+
     # Only load full imports later to speed up usage from command line.
     import matplotlib
     matplotlib.use('agg')
@@ -130,8 +130,9 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
         kwargs_all = {**kwargs_galmodel, **fit_dict}
 
         # Clean up existing log file:
-        if os.path.isfile(fit_dict['f_log']):
-            os.remove(fit_dict['f_log'])
+        if fit_dict['f_log'] is not None:
+            if os.path.isfile(fit_dict['f_log']):
+                os.remove(fit_dict['f_log'])
 
         # Fit
         if fit_dict['fit_method'] == 'mcmc':
