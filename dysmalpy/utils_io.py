@@ -664,8 +664,8 @@ class Report(object):
         # If 2D data: Rmaxout2D:
         if gal.data.ndim == 2:
             Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
-                        '-----', str(Routmax2D), -99, -99)
+            datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
+                        '-----', Routmax2D, -99, -99)
             self.add_line( datstr )
 
         ########
