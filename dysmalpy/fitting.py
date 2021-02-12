@@ -1198,7 +1198,7 @@ def fit_mpfit(gal, **kwargs):
         gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
                     overwrite=kwargs_fit['overwrite'])
 
-    if (kwargs_fit['f_model_bestfit'] is not None:)
+    if kwargs_fit['f_model_bestfit'] is not None:
         gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
 
     if kwargs_fit['save_bestfit_cube']:
