@@ -843,6 +843,14 @@ def setup_mcmc_dict(params=None, ndim_data=None):
         #     # Copy over all various fitting options
         #     mcmc_dict[key] = params[key]
 
+    # Force f_log:
+    if mcmc_dict['f_log'] is None:
+        mcmc_dict['f_log'] = f_log
+
+    # Force no log:
+    if mcmc_dict['f_log'].strip().lower() == 'null':
+        mcmc_dict['f_log'] = None
+
     # #
     if 'linked_posteriors' in mcmc_dict.keys():
         if mcmc_dict['linked_posteriors'] is not None:
