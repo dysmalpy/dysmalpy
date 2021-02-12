@@ -214,6 +214,20 @@ def _fit_emcee_221(gal, **kwargs ):
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
+    # Null filenames if not saving:
+    save_keys = ['save_model', 'save_bestfit_cube', 'save_burn', 'save_results',
+                'save_vel_ascii', 'save_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_burn_sampler', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    for sk, fk in zip(save_keys, fname_keys):
+        if not kwargs_fit[sk]:
+            kwargs_fit[fk] = None
+
+    if not kwargs_fit['do_plotting']:
+        fname_keys = ['f_plot_trace', 'f_plot_trace_burnin', 'f_plot_param_corner', 'f_plot_bestfit']
+        for fk in fname_keys:
+            kwargs_fit[fk] = None
+
+    # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
         fnames = []
@@ -677,6 +691,20 @@ def _fit_emcee_3(gal, **kwargs ):
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
 
     # ---------------------------------------------------
+    # Null filenames if not saving:
+    save_keys = ['save_model', 'save_bestfit_cube',  'save_results',
+                'save_vel_ascii', 'save_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    for sk, fk in zip(save_keys, fname_keys):
+        if not kwargs_fit[sk]:
+            kwargs_fit[fk] = None
+
+    if not kwargs_fit['do_plotting']:
+        fname_keys = ['f_plot_trace', 'f_plot_trace_burnin', 'f_plot_param_corner', 'f_plot_bestfit']
+        for fk in fname_keys:
+            kwargs_fit[fk] = None
+
+    # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
         fnames = []
@@ -1065,6 +1093,20 @@ def fit_mpfit(gal, **kwargs):
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-cube.fits'
         elif gal.data.ndim == 0:
             kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
+
+    # ---------------------------------------------------
+    # Null filenames if not saving:
+    save_keys = ['save_model', 'save_bestfit_cube',  'save_results',
+                'save_vel_ascii', 'save_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    for sk, fk in zip(save_keys, fname_keys):
+        if not kwargs_fit[sk]:
+            kwargs_fit[fk] = None
+
+    if not kwargs_fit['do_plotting']:
+        fname_keys = ['f_plot_bestfit']
+        for fk in fname_keys:
+            kwargs_fit[fk] = None
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
