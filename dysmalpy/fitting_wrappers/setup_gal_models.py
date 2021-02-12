@@ -833,8 +833,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_mcmc_results': f_results,
                 'f_chain_ascii': f_chain_ascii,
                 'f_vel_ascii': f_vel_ascii,
-                'f_log': f_log,
-                'do_plotting': True}
+                'f_log': f_log}
 
     for key in params.keys():
         # # Copy over all various fitting options
@@ -849,6 +848,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     for key in fname_overridable:
         if params[key].strip().lower() == 'nosave':
             mcmc_dict[key] = None
+
 
     # #
     if 'linked_posteriors' in mcmc_dict.keys():
@@ -947,8 +947,7 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'f_plot_bestfit_multid': f_plot_bestfit_multid,
                   'f_results':  f_results,
                   'f_vel_ascii': f_vel_ascii,
-                  'f_log': f_log,
-                  'do_plotting': True}
+                  'f_log': f_log}
 
     for key in params.keys():
         # # Copy over all various fitting options
