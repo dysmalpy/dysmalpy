@@ -404,8 +404,8 @@ class DoubleBeam:
         if scale2 is None:
             scale2 = scale1
 
-        self.beam1 = Beam(major=major1, minor=minor1, pa=pa1)
-        self.beam2 = Beam(major=major2, minor=minor2, pa=pa2)
+        self.beam1 = GaussianBeam(major=major1, minor=minor1, pa=pa1)
+        self.beam2 = GaussianBeam(major=major2, minor=minor2, pa=pa2)
         self._scale1 = scale1
         self._scale2 = scale2
 
