@@ -216,18 +216,19 @@ def _fit_emcee_221(gal, **kwargs ):
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
-        fnames = [kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'],
+        fnames = []
+        fnames_opt = [ kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'],
                     kwargs_fit['f_sampler'], kwargs_fit['f_plot_param_corner'],
                     kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'],
-                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'] ]
-        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube'], kwargs_fit['f_burn_sampler']]
+                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'],
+                    kwargs_fit['f_model'], kwargs_fit['f_cube'], kwargs_fit['f_burn_sampler'] ]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
 
         for fname in fnames:
-            if os.path.isfile(fname):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
+                if os.path.isfile(fname):
+                    logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
         if os.path.isfile(kwargs_fit['f_sampler']) or os.path.isfile(kwargs_fit['f_results']):
@@ -678,10 +679,11 @@ def _fit_emcee_3(gal, **kwargs ):
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
-        fnames = [kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'], kwargs_fit['f_plot_param_corner'],
+        fnames = []
+        fnames_opt = [ kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'], kwargs_fit['f_plot_param_corner'],
                     kwargs_fit['f_plot_bestfit'], kwargs_fit['f_plot_param_corner'],
-                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'] ]
-        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube']]
+                    kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'],
+                    kwargs_fit['f_model'], kwargs_fit['f_cube'] ]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
@@ -1065,15 +1067,17 @@ def fit_mpfit(gal, **kwargs):
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
-        fnames = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'], kwargs_fit['f_vel_ascii'] ]
-        fnames_opt = [kwargs_fit['f_model'], kwargs_fit['f_cube']]
+        fnames = []
+        fnames_opt = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'], kwargs_fit['f_vel_ascii'],
+                        kwargs_fit['f_model'], kwargs_fit['f_cube'] ]
         for fname in fnames_opt:
             if fname is not None:
                 fnames.append(fname)
 
         for fname in fnames:
-            if os.path.isfile(fname):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
+            if fname is not None:
+                if os.path.isfile(fname):
+                    logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
 
         # Return early if it won't save the results, sampler:
         if os.path.isfile(kwargs_fit['f_results']):
