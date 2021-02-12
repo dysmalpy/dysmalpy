@@ -115,7 +115,8 @@ class ConfigFitBase(ConfigBase):
         self.save_model_bestfit = True
         self.save_bestfit_cube=True
         self.save_data = True
-        self.save_vel_ascii = True 
+        self.save_vel_ascii = True
+        self.save_results = True
 
         self.overwrite = False
 
