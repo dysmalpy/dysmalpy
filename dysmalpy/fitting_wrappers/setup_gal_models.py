@@ -837,9 +837,11 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'do_plotting': True}
 
     for key in params.keys():
-        if key not in mcmc_dict.keys():
-            # Copy over all various fitting options
-            mcmc_dict[key] = params[key]
+        # Copy over all various fitting options
+        mcmc_dict[key] = params[key]
+        # if key not in mcmc_dict.keys():
+        #     # Copy over all various fitting options
+        #     mcmc_dict[key] = params[key]
 
     # #
     if 'linked_posteriors' in mcmc_dict.keys():
@@ -942,9 +944,11 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'do_plotting': True}
 
     for key in params.keys():
-        if key not in mpfit_dict.keys():
-            # Copy over all various fitting options
-            mpfit_dict[key] = params[key]
+        # Copy over all various fitting options
+        mpfit_dict[key] = params[key]
+        # if key not in mpfit_dict.keys():
+        #     # Copy over all various fitting options
+        #     mpfit_dict[key] = params[key]
 
     return mpfit_dict
 
