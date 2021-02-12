@@ -112,8 +112,10 @@ class ConfigFitBase(ConfigBase):
         self.model_key_halo=['halo']
 
         self.save_model = True
+        self.save_model_bestfit = True
         self.save_bestfit_cube=True
         self.save_data = True
+        self.save_vel_ascii = True 
 
         self.overwrite = False
 
