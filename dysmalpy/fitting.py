@@ -191,7 +191,7 @@ def _fit_emcee_221(gal, **kwargs ):
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
-    if kwargs_fit['f_results'] is None:
+    if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
         # LEGACY SUPPORT: WILL BE DEPRECIATED:
         if kwargs_fit['f_mcmc_results'] is not None:
             kwargs_fit['f_results'] = kwargs_fit['f_mcmc_results']
@@ -648,7 +648,7 @@ def _fit_emcee_3(gal, **kwargs ):
         kwargs_fit['f_sampler'] = kwargs_fit['outdir']+'mcmc_sampler.{}'.format(ftype_sampler)
     if kwargs_fit['f_plot_param_corner'] is None:
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
-    if kwargs_fit['f_results'] is None:
+    if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
         # LEGACY SUPPORT: WILL BE DEPRECIATED:
         if 'f_mcmc_results' in kwargs_fit.keys():
             if kwargs_fit['f_mcmc_results'] is not None:
@@ -1047,7 +1047,7 @@ def fit_mpfit(gal, **kwargs):
         kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mpfit_bestfit_cube.fits'
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir'] + 'mpfit_best_fit.{}'.format(kwargs_fit['plot_type'])
-    if kwargs_fit['f_results'] is None:
+    if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
         kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
     if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir'] + 'galaxy_bestfit_vel_profile.dat'

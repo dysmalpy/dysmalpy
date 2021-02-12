@@ -184,8 +184,14 @@ def read_fitting_params(fname=None):
 
 
 def save_results_ascii_files(fit_results=None, gal=None, params=None, overwrite=False):
-    f_ascii_pretty = params['outdir']+'{}_{}_best_fit_results_report.info'.format(params['galID'], params['fit_method'])
-    f_ascii_machine = params['outdir']+'{}_{}_best_fit_results.dat'.format(params['galID'], params['fit_method'])
+    filename_extra = ''
+    if 'filename_extra' in params.keys():
+        if params['filename_extra'] is not None:
+            filename_extra =  params['filename_extra']
+    f_ascii_pretty = params['outdir']+'{}{}_{}_best_fit_results_report.info'.format(params['galID'],
+                            filename_extra, params['fit_method'])
+    f_ascii_machine = params['outdir']+'{}{}_{}_best_fit_results.dat'.format(params['galID'],
+                            filename_extra, params['fit_method'])
 
     fit_results.results_report(gal=gal, filename=f_ascii_pretty, params=params,
                     report_type='pretty', overwrite=overwrite)
