@@ -846,11 +846,12 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
-        if params[key] is not None:
-            if params[key].strip().lower() == 'nosave':
-                mcmc_dict[key] = None
-            else:
-                mcmc_dict[key] = params[key]
+        if key in params.keys():
+            if params[key] is not None:
+                if params[key].strip().lower() == 'nosave':
+                    mcmc_dict[key] = None
+                else:
+                    mcmc_dict[key] = params[key]
 
 
     # #
