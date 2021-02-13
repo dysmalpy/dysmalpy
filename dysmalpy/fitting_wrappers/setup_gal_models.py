@@ -842,12 +842,15 @@ def setup_mcmc_dict(params=None, ndim_data=None):
             # Copy over all various fitting options
             mcmc_dict[key] = params[key]
 
-    # Check for overriden filenames:
+    # Check for overridden filenames:
     fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
-        if params[key].strip().lower() == 'nosave':
-            mcmc_dict[key] = None
+        if params[key] is not None:
+            if params[key].strip().lower() == 'nosave':
+                mcmc_dict[key] = None
+            else:
+                mcmc_dict[key] = params[key]
 
 
     # #
@@ -961,8 +964,11 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
-        if mpfit_dict[key].strip().lower() == 'nosave':
-            mpfit_dict[key] = None
+        if params[key] is not None:
+            if params[key].strip().lower() == 'nosave':
+                mpfit_dict[key] = None
+            else:
+                mpfit_dict[key] = params[key]
 
 
     return mpfit_dict
