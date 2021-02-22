@@ -76,7 +76,7 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
     gs = gridspec.GridSpec(nRows, 1, hspace=0.2)
 
     axes = []
-    alpha = max(0.01, 1./nWalkers)
+    alpha = max(0.01, min(10./nWalkers, 1.))
 
     # Define random color inds for tracking some walkers:
     nTraceWalkers = 5
