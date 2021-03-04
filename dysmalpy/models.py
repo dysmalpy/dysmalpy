@@ -1419,9 +1419,54 @@ class ModelSet:
 
         return enc_mass, enc_bary, enc_dm
 
-    def get_dlnrhotot_dlnr(self, r):
+    # def get_dlnrhotot_dlnr(self, r):
+    #     """
+    #     Calculate the composite derivative dln(rho,tot) / dlnr
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrhotot_dlnr : float or array
+    #
+    #     """
+    #
+    #     # First check to make sure there is at least one mass component in the
+    #     # model set.
+    #     if len(self.mass_components) == 0:
+    #         raise AttributeError("There are no mass components so a dlnrho/dlnr "
+    #                              "can't be calculated.")
+    #     else:
+    #         rhotot = r*0.
+    #         drho_dr = r*0.
+    #
+    #         for cmp in self.mass_components:
+    #
+    #             if self.mass_components[cmp]:
+    #                 mcomp = self.components[cmp]
+    #
+    #                 cmpnt_rho = mcomp.rho(r)
+    #                 cmpnt_drhodr = mcomp.drho_dr(r)
+    #
+    #                 whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
+    #                 if len(whfin) < len(r):
+    #                     raise ValueError
+    #
+    #                 rhotot = rhotot + cmpnt_rho
+    #                 drho_dr = drho_dr + cmpnt_drhodr
+    #
+    #     dlnrhotot_dlnr = r / rhotot * (drho_dr)
+    #
+    #     return dlnrhotot_dlnr
+
+    def get_dlnrhogas_dlnr(self, r):
         """
-        Calculate the composite derivative dln(rho,tot) / dlnr
+        Calculate the composite derivative dln(rho,gas) / dlnr
+
+        ** TO FIX: NEED TO WORK OUT GAS FRACTION / OR TREAT ALL BARYON AS GAS??? **
 
         Parameters
         ----------
@@ -1430,7 +1475,7 @@ class ModelSet:
 
         Returns
         -------
-        dlnrhotot_dlnr : float or array
+        dlnrhogas_dlnr : float or array
 
         """
 
@@ -1440,27 +1485,31 @@ class ModelSet:
             raise AttributeError("There are no mass components so a dlnrho/dlnr "
                                  "can't be calculated.")
         else:
-            rhotot = r*0.
+            rhogas = r*0.
             drho_dr = r*0.
 
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
-                    mcomp = self.components[cmp]
+                    if mcomp._subtype == 'baryonic':
+                        raise ValueError("Gas fraction???")
 
-                    cmpnt_rho = mcomp.rho(r)
-                    cmpnt_drhodr = mcomp.drho_dr(r)
+                        mcomp = self.components[cmp]
 
-                    whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
-                    if len(whfin) < len(r):
-                        raise ValueError
+                        cmpnt_rho = mcomp.rho(r)
+                        cmpnt_drhodr = mcomp.drho_dr(r)
 
-                    rhotot = rhotot + cmpnt_rho
-                    drho_dr = drho_dr + cmpnt_drhodr
+                        whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
+                        if len(whfin) < len(r):
+                            raise ValueError
 
-        dlnrhotot_dlnr = r / rhotot * (drho_dr)
+                        rhogas = rhogas + cmpnt_rho
+                        drho_dr = drho_dr + cmpnt_drhodr
 
-        return dlnrhotot_dlnr
+        dlnrhogas_dlnr = r / rhogas * (drho_dr)
+
+        return dlnrhogas_dlnr
+
 
     def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
                           step1d=0.2):
@@ -3608,32 +3657,33 @@ class DarkMatterHalo(MassModel):
         else:
             return self.circular_velocity(r)
 
-    def drho_dr(self, r):
-        """
-        Surface density radial derivative
-
-        Parameters
-        ----------
-        r : float or array
-            Radius in kpc
-
-        Returns
-        -------
-        drhodr : float or array
-            Surface density radial derivative at `r`
-        """
-
-        drhodr = self.rho(r) / r * self.dlnrho_dlnr(r)
-        try:
-            if len(r) > 1:
-                drhodr[r == 0] = 0.
-            else:
-                if r[0] == 0.:
-                    drhodr[0] = 0.
-        except:
-            if r == 0:
-                drhodr = 0.
-        return drhodr
+    #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def drho_dr(self, r):
+    #     """
+    #     Surface density radial derivative
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius in kpc
+    #
+    #     Returns
+    #     -------
+    #     drhodr : float or array
+    #         Surface density radial derivative at `r`
+    #     """
+    #
+    #     drhodr = self.rho(r) / r * self.dlnrho_dlnr(r)
+    #     try:
+    #         if len(r) > 1:
+    #             drhodr[r == 0] = 0.
+    #         else:
+    #             if r[0] == 0.:
+    #                 drhodr[0] = 0.
+    #     except:
+    #         if r == 0:
+    #             drhodr = 0.
+    #     return drhodr
 
 
 
@@ -3922,43 +3972,46 @@ class TwoPowerHalo(DarkMatterHalo):
         halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
-    def rho(self, r):
-        r"""
-        Mass density as a function of radius
 
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        rho : float or array
-            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
-        """
-        rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
-        rs = rvirial / self.conc
-
-        return rho0 / ((r/rs)**self.alpha * (1. + r/rs)**(self.beta - self.alpha))
-
-    def dlnrho_dlnr(self, r):
-        """
-        Log gradient of rho as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrho_dlnr : float or array
-            Log gradient of rho at `r`
-        """
-        rvirial = self.calc_rvir()
-        rs = rvirial / self.conc
-        return -self.alpha - (self.beta-self.alpha)*(r/rs)/(1. + r/rs)
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def rho(self, r):
+    #     """
+    #     Mass density as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     rho : float or array
+    #         Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rho0 = self.calc_rho0()
+    #     rs = rvirial / self.conc
+    #
+    #     return rho0 / ((r/rs)**self.alpha * (1. + r/rs)**(self.beta - self.alpha))
+    #
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def dlnrho_dlnr(self, r):
+    #     """
+    #     Log gradient of rho as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrho_dlnr : float or array
+    #         Log gradient of rho at `r`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rs = rvirial / self.conc
+    #     return -self.alpha - (self.beta-self.alpha)*(r/rs)/(1. + r/rs)
 
 
 class Burkert(DarkMatterHalo):
@@ -4159,40 +4212,41 @@ class Burkert(DarkMatterHalo):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
         return halo.circular_velocity(r_eff) ** 2 - vtarget
 
-    ##########
-    def rho(self, r):
-        r"""
-        Mass density as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        rho : float or array
-            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
-        """
-        rho0 = self.calc_rho0()
-        return rho0 / ( (1 + r/self.rB) * ( 1 + (r/self.rB)**2 ) )
-
-
-    def dlnrho_dlnr(self, r):
-        """
-        Log gradient of rho as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrho_dlnr : float or array
-            Log gradient of rho at `r`
-        """
-        return -(r/self.rB) /(1.+r/self.rB) - 2.*(r/self.rB)**2/(1.+(r/self.rB)**2)
+    # ##########
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def rho(self, r):
+    #     r"""
+    #     Mass density as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     rho : float or array
+    #         Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+    #     """
+    #     rho0 = self.calc_rho0()
+    #     return rho0 / ( (1 + r/self.rB) * ( 1 + (r/self.rB)**2 ) )
+    #
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def dlnrho_dlnr(self, r):
+    #     """
+    #     Log gradient of rho as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrho_dlnr : float or array
+    #         Log gradient of rho at `r`
+    #     """
+    #     return -(r/self.rB) /(1.+r/self.rB) - 2.*(r/self.rB)**2/(1.+(r/self.rB)**2)
 
 
 class Einasto(DarkMatterHalo):
@@ -4502,46 +4556,48 @@ class Einasto(DarkMatterHalo):
         """
         return 1./self.nEinasto
 
-    def rho(self, r):
-        r"""
-        Mass density as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        rho : float or array
-            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
-        """
-        rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
-        rs = rvirial / self.conc
-        h = rs / np.power(2.*self.nEinasto, self.nEinasto)
-
-        # Return the density at a given radius:
-        return rho0 * np.exp(- np.power(r/h, 1./self.nEinasto))
-
-    def dlnrho_dlnr(self, r):
-        """
-        Log gradient of rho as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrho_dlnr : float or array
-            Log gradient of rho at `r`
-        """
-        rvirial = self.calc_rvir()
-        rs = rvirial / self.conc
-        # self.alphaEinasto = 1./self.nEinasto
-        return -2. * np.power(r/rs, self.alphaEinasto)
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def rho(self, r):
+    #     r"""
+    #     Mass density as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     rho : float or array
+    #         Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rho0 = self.calc_rho0()
+    #     rs = rvirial / self.conc
+    #     h = rs / np.power(2.*self.nEinasto, self.nEinasto)
+    #
+    #     # Return the density at a given radius:
+    #     return rho0 * np.exp(- np.power(r/h, 1./self.nEinasto))
+    #
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def dlnrho_dlnr(self, r):
+    #     """
+    #     Log gradient of rho as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrho_dlnr : float or array
+    #         Log gradient of rho at `r`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rs = rvirial / self.conc
+    #     # self.alphaEinasto = 1./self.nEinasto
+    #     return -2. * np.power(r/rs, self.alphaEinasto)
 
 
 class NFW(DarkMatterHalo):
@@ -4669,44 +4725,46 @@ class NFW(DarkMatterHalo):
 
         return rvir
 
-    def rho(self, r):
-        r"""
-        Mass density as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        rho : float or array
-            Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
-        """
-        rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
-        rs = rvirial / self.conc
-
-        return rho0 / ((r/rs) * (1. + r/rs)**2)
-
-    def dlnrho_dlnr(self, r):
-        """
-        Log gradient of rho as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrho_dlnr : float or array
-            Log gradient of rho at `r`
-        """
-
-        rvirial = self.calc_rvir()
-        rs = rvirial / self.conc
-        return -1. - 2.*(r/rs)/(1. + r/rs)
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def rho(self, r):
+    #     r"""
+    #     Mass density as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     rho : float or array
+    #         Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rho0 = self.calc_rho0()
+    #     rs = rvirial / self.conc
+    #
+    #     return rho0 / ((r/rs) * (1. + r/rs)**2)
+    #
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def dlnrho_dlnr(self, r):
+    #     """
+    #     Log gradient of rho as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrho_dlnr : float or array
+    #         Log gradient of rho at `r`
+    #     """
+    #
+    #     rvirial = self.calc_rvir()
+    #     rs = rvirial / self.conc
+    #     return -1. - 2.*(r/rs)/(1. + r/rs)
 
 
 class LinearNFW(DarkMatterHalo):
@@ -4833,43 +4891,45 @@ class LinearNFW(DarkMatterHalo):
 
         return rvir
 
-    def rho(self, r):
-        r"""
-         Mass density as a function of radius
-
-         Parameters
-         ----------
-         r : float or array
-             Radius or radii in kpc
-
-         Returns
-         -------
-         rho : float or array
-             Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
-         """
-        rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
-        rs = rvirial / self.conc
-
-        return rho0 / ((r/rs) * (1. + r/rs)**2)
-
-    def dlnrho_dlnr(self, r):
-        """
-        Log gradient of rho as a function of radius
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrho_dlnr : float or array
-            Log gradient of rho at `r`
-        """
-        rvirial = self.calc_rvir()
-        rs = rvirial / self.conc
-        return -1. - 2.*(r/rs)/(1. + r/rs)
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def rho(self, r):
+    #     r"""
+    #      Mass density as a function of radius
+    #
+    #      Parameters
+    #      ----------
+    #      r : float or array
+    #          Radius or radii in kpc
+    #
+    #      Returns
+    #      -------
+    #      rho : float or array
+    #          Mass density at `r` in :math:`M_{\odot}/\rm{kpc}^3`
+    #      """
+    #     rvirial = self.calc_rvir()
+    #     rho0 = self.calc_rho0()
+    #     rs = rvirial / self.conc
+    #
+    #     return rho0 / ((r/rs) * (1. + r/rs)**2)
+    #
+    # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
+    # def dlnrho_dlnr(self, r):
+    #     """
+    #     Log gradient of rho as a function of radius
+    #
+    #     Parameters
+    #     ----------
+    #     r : float or array
+    #         Radius or radii in kpc
+    #
+    #     Returns
+    #     -------
+    #     dlnrho_dlnr : float or array
+    #         Log gradient of rho at `r`
+    #     """
+    #     rvirial = self.calc_rvir()
+    #     rs = rvirial / self.conc
+    #     return -1. - 2.*(r/rs)/(1. + r/rs)
 
 
 # ****** Geometric Model ********
@@ -5471,9 +5531,13 @@ class KinematicOptions:
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
-            dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
+            # Incorrect: 
+            #dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
+            #vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
 
-            vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
+            # NEEDS TO BE JUST RHO FOR THE GAS:
+            dlnrhogas_dlnr = model.get_dlnrhogas_dlnr(r)
+            vel_asymm_drift = np.sqrt( - dlnrhogas_dlnr * sigma**2 )
 
 
         return vel_asymm_drift
