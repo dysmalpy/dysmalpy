@@ -891,7 +891,7 @@ def create_vel_profile_files(gal=None, outpath=None,
 
     # --------------------------------------------------------------------------
     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
-        write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata)
+        write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata, overwrite=overwrite)
 
 
     # Try finer scale:
