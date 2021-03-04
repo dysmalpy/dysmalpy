@@ -935,24 +935,20 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
 
         gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal,
                     profile1d_type=profile1d_type,
-                    aperture_radius=1.,
-                    slit_width=gal.data.slit_width,
                     aper_centers = aper_centers_interp,
-                    slit_pa = gal.data.slit_pa,
-                    partial_weight=partial_weight,
+                    aperture_radius=1.,
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
                     pix_length=None, from_data=False,
+                    partial_weight=partial_weight,
                     moment=moment)
     elif profile1d_type == 'circ_ap_cube':
         gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal,
                     profile1d_type=profile1d_type,
-                    aperture_radius=aperture_radius,
-                    slit_width=gal.data.slit_width,
                     aper_centers = aper_centers_interp,
-                    slit_pa = gal.data.slit_pa,
-                    partial_weight=partial_weight,
+                    aperture_radius=aperture_radius,
                     pix_perp=None, pix_parallel=None,
                     pix_length=None, from_data=False,
+                    partial_weight=partial_weight,
                     moment=moment)
 
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
