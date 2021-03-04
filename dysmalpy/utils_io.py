@@ -887,7 +887,7 @@ def create_vel_profile_files(gal=None, outpath=None,
 
     # -------------------
     # Save Bary/DM vcirc:
-    write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m)
+    write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m, overwrite=overwrite)
 
     # --------------------------------------------------------------------------
     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
@@ -914,9 +914,18 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     config_sim_cube = Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
+    
+    if kwargs_galmodel['profile1d_type'] is None:
+        kwargs_galmodel['profile1d_type'] = gal.data.profile1d_type
+    if kwargs_galmodel['aperture_radius'] is None:
+        try:
+            kwargs_galmodel['aperture_radius'] = gal.data.slit_width.value * 0.5
+        except:
+            kwargs_galmodel['aperture_radius'] = gal.data.slit_width * 0.5
+            
     profile1d_type = kwargs_galmodel['profile1d_type']
     aperture_radius = kwargs_galmodel['aperture_radius']
-
+    
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -978,7 +987,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
 
     return None
 
-def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None):
+def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None, overwrite=False):
     # -------------------
     # Save Bary/DM vcirc:
 
@@ -1011,29 +1020,41 @@ def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None):
     profiles_m[~np.isfinite(profiles_m)] = 0.
 
     save_vcirc_tot_bar_dm_files(gal=gal, fname=fname, fname_m=fname_m,
-                    profiles=profiles, profiles_m=profiles_m)
+                    profiles=profiles, profiles_m=profiles_m, overwrite=overwrite)
 
     return None
 
 
 #
-def save_vcirc_tot_bar_dm_files(gal=None, fname=None, fname_m=None, profiles=None, profiles_m=None):
-    with open(fname, 'w') as f:
-        namestr = '#   r   vcirc_tot vcirc_bar   vcirc_dm'
-        f.write(namestr+'\n')
-        unitstr = '#   [kpc]   [km/s]   [km/s]   [km/s]'
-        f.write(unitstr+'\n')
-        for i in range(profiles.shape[0]):
-            datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
-            f.write(datstr+'\n')
+def save_vcirc_tot_bar_dm_files(gal=None, fname=None, fname_m=None, profiles=None, profiles_m=None, overwrite=False):
+    save_fname = True
+    save_fname_m = True
+    if (not overwrite) and (fname is not None):
+        if os.path.isfile(fname):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
+            save_fname = False
+    if (not overwrite) and (fname_m is not None):
+        if os.path.isfile(fname):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname_m))
+            save_fname_m = False
+    if save_fname:
+        with open(fname, 'w') as f:
+            namestr = '#   r   vcirc_tot vcirc_bar   vcirc_dm'
+            f.write(namestr+'\n')
+            unitstr = '#   [kpc]   [km/s]   [km/s]   [km/s]'
+            f.write(unitstr+'\n')
+            for i in range(profiles.shape[0]):
+                datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
+                f.write(datstr+'\n')
 
-    with open(fname_m, 'w') as f:
-        namestr = '#   r   lmenc_tot   lmenc_bar   lmenc_dm'
-        f.write(namestr+'\n')
-        unitstr = '#   [kpc]   [log10Msun]   [log10Msun]   [log10Msun]'
-        f.write(unitstr+'\n')
-        for i in range(profiles.shape[0]):
-            datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles_m[i,:]])
-            f.write(datstr+'\n')
+    if save_fname_m:
+        with open(fname_m, 'w') as f:
+            namestr = '#   r   lmenc_tot   lmenc_bar   lmenc_dm'
+            f.write(namestr+'\n')
+            unitstr = '#   [kpc]   [log10Msun]   [log10Msun]   [log10Msun]'
+            f.write(unitstr+'\n')
+            for i in range(profiles.shape[0]):
+                datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles_m[i,:]])
+                f.write(datstr+'\n')
 
     return None
