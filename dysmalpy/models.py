@@ -2314,17 +2314,17 @@ class MassModel(_DysmalFittable1DModel):
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
 
-    @abc.abstractmethod
-    def rho(self, *args, **kwargs):
-        """Evaluate the density rho as a function of radius"""
-
-    @abc.abstractmethod
-    def dlnrho_dlnr(self, *args, **kwargs):
-        """Evaluate the derivative dlnRho / dlnr as a function of radius"""
-
-    @abc.abstractmethod
-    def drho_dr(self, *args, **kwargs):
-        """Evaluate the derivative dRho / dr as a function of radius"""
+    # @abc.abstractmethod
+    # def rho(self, *args, **kwargs):
+    #     """Evaluate the density rho as a function of radius"""
+    #
+    # @abc.abstractmethod
+    # def dlnrho_dlnr(self, *args, **kwargs):
+    #     """Evaluate the derivative dlnRho / dlnr as a function of radius"""
+    #
+    # @abc.abstractmethod
+    # def drho_dr(self, *args, **kwargs):
+    #     """Evaluate the derivative dRho / dr as a function of radius"""
 
     def circular_velocity(self, r):
         r"""
@@ -5531,7 +5531,7 @@ class KinematicOptions:
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
-            # Incorrect: 
+            # Incorrect:
             #dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
             #vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
 
