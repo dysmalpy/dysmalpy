@@ -30,9 +30,9 @@ except:
     from . import data_classes
 
 try:
-    from config import Config_simulate_cube
+    from config import Config_simulate_cube, Config_create_model_data
 except:
-    from .config import Config_simulate_cube
+    from .config import Config_simulate_cube, Config_create_model_data
 
 # try:
 #     from dysmalpy._version import __version__ as __dpy_version__
@@ -847,14 +847,6 @@ def _calc_Rout_max_2D(gal=None, results=None):
     Routmax2D_kpc = Routmax2D * gal.instrument.pixscale.value / gal.dscale
     return Routmax2D_kpc
 
-def plot_major_minor_axes_2D(ax, gal, im, mask, return_rMA=False):
-    ####################################
-    # Show MAJOR AXIS line, center:
-
-    if return_rMA:
-        return ax, rMA_arr
-    else:
-        return ax
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -866,8 +858,12 @@ def create_vel_profile_files(gal=None, outpath=None,
             fname_intrinsic=None,
             fname_intrinsic_m = None,
             overwrite=False,
-            **kwargs_galmodel):
+            **kwargs):
     #
+    config_c_m_data = Config_create_model_data(**kwargs)
+    config_sim_cube = Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
     if outpath is None:
         raise ValueError
 
@@ -913,7 +909,11 @@ def create_vel_profile_files(gal=None, outpath=None,
 def write_1d_obs_finer_scale(gal=None, fname=None,
             partial_weight=True,
             moment=False,
-            overwrite=False, **kwargs_galmodel):
+            overwrite=False, **kwargs):
+    config_c_m_data = Config_create_model_data(**kwargs)
+    config_sim_cube = Config_simulate_cube(**kwargs)
+    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
     profile1d_type = kwargs_galmodel['profile1d_type']
     aperture_radius = kwargs_galmodel['aperture_radius']
 
@@ -923,6 +923,12 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     if rmax_abs > 4.:
         r_step = 0.05
     aper_centers_interp = np.arange(0, rmax_abs+r_step, r_step)
+
+    if kwargs_galmodel['slit_pa'] is None:
+        try:
+            kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
+        except:
+            kwargs_galmodel['slit_pa'] = gal.data.slit_pa
 
     if profile1d_type == 'rect_ap_cube':
         f_par = interpolate.interp1d(gal.data.rarr, gal.data.apertures.pix_parallel,
@@ -939,6 +945,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     aperture_radius=1.,
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
                     pix_length=None, from_data=False,
+                    slit_pa=kwargs_galmodel['slit_pa'],
                     partial_weight=partial_weight,
                     moment=moment)
     elif profile1d_type == 'circ_ap_cube':
@@ -948,6 +955,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     aperture_radius=aperture_radius,
                     pix_perp=None, pix_parallel=None,
                     pix_length=None, from_data=False,
+                    slit_pa=kwargs_galmodel['slit_pa'],
                     partial_weight=partial_weight,
                     moment=moment)
 
