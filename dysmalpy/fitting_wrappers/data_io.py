@@ -105,7 +105,11 @@ def read_fitting_params(fname=None):
                                'include_halo': False,
                                'halo_profile_type': 'NFW',
                                'weighting_method': None}
-    params = config.Config_fit_mcmc().dict
+    if param_input['fit_method'].strip().lower() == 'mcmc':
+        params = config.Config_fit_mcmc().dict
+    elif param_input['fit_method'].strip().lower() == 'mpfit':
+        params = config.Config_fit_mpfit().dict
+
     params.update(params_wrapper_specific)
 
     # param_filename
