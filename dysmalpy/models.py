@@ -38,7 +38,7 @@ from astropy.table import Table
 # Local imports
 from .parameters import DysmalParameter
 
-__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk',
+__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto',
            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialInflow', 'DustExtinction',
@@ -1491,7 +1491,7 @@ class ModelSet:
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
-                    if mcomp._subtype == 'baryonic':
+                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
                         raise ValueError("Gas fraction???")
 
                         mcomp = self.components[cmp]
@@ -2353,6 +2353,89 @@ class MassModel(_DysmalFittable1DModel):
 
         return vcirc
 
+class BlackHole(MassModel):
+    """
+    Central black hole. Treated as a point source at r = 0.
+
+    Parameters
+    ----------
+    BH_mass : float
+        Log10 of the mass in solar units
+
+    """
+    BH_mass = DysmalParameter(default=1, bounds=(0., 12.))
+    _subtype = 'baryonic'
+
+    def __init__(self, **kwargs):
+        super(BlackHole, self).__init__(**kwargs)
+
+    def enclosed_mass(self, r):
+        """
+        Central black hole enclosed mass (treat as step function)
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile  (unit: Msun)
+        """
+
+        menc = r*0. + np.power(10.,self.BH_mass)
+        try:
+            if len(r) > 1:
+                menc[r==0] = 0.
+            else:
+                if r[0] == 0.:
+                    menc[0] = 0.
+        except:
+            if r == 0:
+                menc = 0.
+
+        return menc
+
+
+    def projected_enclosed_mass(self, r):
+        # Point source: 2D is same as 3D
+        return self.enclosed_mass(r)
+
+    def circular_velocity(self, r):
+        """
+        Circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
+        return super(BlackHole, self).circular_velocity(r)
+
+
+    def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+            Assuming NO LIGHT emitted by central BH (eg, ignoring any emission in surrounding medium, eg flares)
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        return r * 0.
+
 
 class ExpDisk(MassModel):
     """
@@ -2499,7 +2582,7 @@ class ExpDisk(MassModel):
         return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 class Sersic(MassModel):
-    r"""
+    """
     Mass distribution following a Sersic profile
 
     Parameters
