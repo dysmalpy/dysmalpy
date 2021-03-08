@@ -131,23 +131,39 @@ def setup_gal_model_base(params=None,
         tied_sigmaz_func=None):
 
     if 'components_list' in params.keys():
-        components_list = params['components_list']
+        components_list_orig = params['components_list']
     else:
-        components_list = ['disk+bulge', 'const_disp_prof', 'geometry', 'zheight_gaus']
+        components_list_orig = ['disk+bulge', 'const_disp_prof', 'geometry', 'zheight_gaus']
         if params['include_halo']:
-            components_list.append('halo')
+            components_list_orig.append('halo')
             # Or explicitly do NFW / TPH / etc?
 
+
     if 'light_components_list' in params.keys():
-        light_components_list = params['light_components_list']
+        light_components_list_orig = params['light_components_list']
     else:
-        light_components_list = ['disk']
+        light_components_list_orig = ['disk']
+
+    # Make sure all lower case:
+    components_list = []
+    light_components_list []
+    for cmp in components_list_orig:
+        components_list.append(cmp.lower())
+    for cmp in light_components_list_orig:
+        light_components_list.append(cmp.lower())
 
     # ------------------------------------------------------------
     # Initialize the Galaxy, Instrument, and Model Set
     gal = galaxy.Galaxy(z=params['z'], name=params['galID'])
     mod_set = models.ModelSet()
     inst = instrument.Instrument()
+
+    # ------------------------------------------------------------
+    # Baryonic Component: Sersic
+    if 'sersic' in components_list:
+        comp_bary = 'sersic'
+        mod_set = add_sersic_comp(gal=gal, mod_set=mod_set, params=params,
+                            light_components_list=light_components_list)
 
     # ------------------------------------------------------------
     # Baryonic Component: Combined Disk+Bulge
@@ -157,11 +173,9 @@ def setup_gal_model_base(params=None,
                             light_components_list=light_components_list)
 
     # ------------------------------------------------------------
-    # Baryonic Component: Sersic
-    if 'sersic' in components_list:
-        comp_bary = 'sersic'
-        mod_set = add_sersic_comp(gal=gal, mod_set=mod_set, params=params,
-                            light_components_list=light_components_list)
+    # Baryonic Component: Black Hole
+    if 'blackhole' in components_list:
+        mod_set = add_blackhole_comp(gal=gal, mod_set=mod_set, params=params)
 
     # ------------------------------------------------------------
     # Halo Component: (if added)
@@ -318,6 +332,25 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
     # --------------------------------------
     # Add the model component to the ModelSet
     mod_set.add_component(sersic, light=light)
+
+    return mod_set
+
+def add_blackhole_comp(gal=None, mod_set=None, params=None):
+    BH_mass =  params['BH_mass']        # log M_sun
+    
+    # Fix components
+    BH_fixed = {'BH_mass': params['BH_mass_fixed']}
+
+    # Set bounds
+    BH_bounds = {'BH_mass': (params['BH_mass_bounds'][0], params['BH_mass_bounds'][1])}
+
+    blackhole = models.BlackHole(BH_mass=BH_mass,name='BH', fixed=BH_fixed, bounds=BH_bounds)
+
+    blackhole = set_comp_param_prior(comp=blackhole, param_name='BH_mass', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(blackhole, light=False)
 
     return mod_set
 
