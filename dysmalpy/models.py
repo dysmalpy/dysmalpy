@@ -2314,17 +2314,6 @@ class MassModel(_DysmalFittable1DModel):
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
 
-    # @abc.abstractmethod
-    # def rho(self, *args, **kwargs):
-    #     """Evaluate the density rho as a function of radius"""
-    #
-    # @abc.abstractmethod
-    # def dlnrho_dlnr(self, *args, **kwargs):
-    #     """Evaluate the derivative dlnRho / dlnr as a function of radius"""
-    #
-    # @abc.abstractmethod
-    # def drho_dr(self, *args, **kwargs):
-    #     """Evaluate the derivative dRho / dr as a function of radius"""
 
     def circular_velocity(self, r):
         r"""
