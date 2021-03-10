@@ -571,11 +571,7 @@ class Moffat(object):
         xp = cost*x + sint*y
         yp = -sint*x + cost*y
 
-        # print("x={}, y={}".format(x,y))
-        # print("xp={}, yp={}".format(xp,yp))
-
         qtmp = minor_fwhm / major_fwhm
-
 
         r = np.sqrt(xp**2 + (yp/qtmp)**2)
 

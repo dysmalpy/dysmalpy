@@ -128,6 +128,9 @@ def setup_gal_model_base(params=None,
         tied_rB_Burk_func=None,
         tied_alpha_Ein_func=None,
         tied_n_Ein_func=None,
+        tied_mvirial_func_DZ=None,
+        tied_s1_func_DZ=None,
+        tied_c2_func_DZ=None,
         tied_sigmaz_func=None):
 
     if 'components_list' in params.keys():
@@ -189,6 +192,9 @@ def setup_gal_model_base(params=None,
                     tied_rB_Burk_func=tied_rB_Burk_func,
                     tied_alpha_Ein_func=tied_alpha_Ein_func,
                     tied_n_Ein_func=tied_n_Ein_func,
+                    tied_mvirial_func_DZ=tied_mvirial_func_DZ,
+                    tied_s1_func_DZ=tied_s1_func_DZ,
+                    tied_c2_func_DZ=tied_c2_func_DZ,
                     comp_bary=comp_bary)
 
     # ------------------------------------------------------------
@@ -362,6 +368,9 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_rB_Burk_func=None,
         tied_alpha_Ein_func=None,
         tied_n_Ein_func=None,
+        tied_mvirial_func_DZ=None,
+        tied_s1_func_DZ=None,
+        tied_c2_func_DZ=None,
         comp_bary='disk+bulge'):
 
     if tied_fdm_func is None:
@@ -378,6 +387,12 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_alpha_Ein_func = tied_functions.tie_alphaEinasto_Einasto
     if tied_n_Ein_func is None:
         tied_n_Ein_func = tied_functions.tie_nEinasto_Einasto
+    if tied_mvirial_func_DZ is None:
+        tied_mvirial_func_DZ = tied_functions.tie_lmvirial_to_fdm
+    if tied_s1_func_DZ is None:
+        tied_s1_func_DZ = tied_functions.tie_DZ_s1_MstarMhalo
+    if tied_c2_func_DZ is None:
+        tied_c2_func_DZ = tied_functions.tie_DZ_c2_MstarMhalo
 
     # Halo component
     if (params['halo_profile_type'].strip().upper() == 'NFW'):
@@ -612,6 +627,64 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
                 halo.nEinasto.tied = tied_n_Ein_func
 
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
+    elif (params['halo_profile_type'].strip().upper() == 'DEKELZHAO'):
+        # Dekel-Zhao halo fit:
+
+        # Add values needed:
+        try:
+            mod_set.components[comp_bary].lmstar = params['lmstar']
+        except:
+            if 'lmstar' not in mod_set.components[comp_bary].__dict__:
+                mod_set.components[comp_bary].lmstar = None
+
+
+        # Setup parameters:
+        mvirial =   params['mvirial']
+        s1 =        params['s1']
+        c2 =        params['c2']
+        fdm =       params['fdm']
+
+        halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                      's1':         params['s1_fixed'],
+                      'c2':         params['c2_fixed'],
+                      'fdm':        params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       's1':        (params['s1_bounds'][0], params['s1_bounds'][1]),
+                       'c2':        (params['c2_bounds'][0], params['c2_bounds'][1]),
+                       'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+
+        halo = models.DekelZhao(mvirial=mvirial, s1=s1, c2=c2, fdm=fdm, z=gal.z,
+                            fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        # Tie the virial mass to Mstar
+        if params['mvirial_tied']:
+            halo.mvirial.tied = tied_mvirial_func_DZ
+
+        if 'fdm_tied' in params.keys():
+            if params['fdm_tied']:
+                # Tie fDM to the virial mass
+                halo.fdm.tied = tied_fdm_func
+                halo.fdm.fixed = False
+        else:
+            params['fdm_tied'] = False
+
+        if 's1_tied' in params.keys():
+            if params['s1_tied']:
+                # Tie the s1 to M*, Mvir (or fDM implicitly through Mvir tied...)
+                halo.s1.tied = tied_s1_func_DZ
+                halo.s1.fixed = False
+        if 'c2_tied' in params.keys():
+            if params['c2_tied']:
+                # Tie the c2 to M*, Mvir (or fDM implicitly through Mvir tied...)
+                halo.c2.tied = tied_c2_func_DZ
+                halo.c2.fixed = False
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='s1', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='c2', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
     else:
