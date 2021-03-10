@@ -3686,7 +3686,7 @@ class LinearDiskBulge(MassModel):
 
 
 class DarkMatterHalo(MassModel):
-    """
+    r"""
     Base model for dark matter halos
 
     Parameters
@@ -3703,15 +3703,36 @@ class DarkMatterHalo(MassModel):
     """
     # Standard parameters for a dark matter halo profile
     mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
-    conc = DysmalParameter(default=5.0, bounds=(2, 20))
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
     _subtype = 'dark_matter'
 
-    @abc.abstractmethod
-    def calc_rvir(self, *args, **kwargs):
+    def calc_rvir(self):
+        r"""
+        Calculate the virial radius based on virial mass and redshift
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
-        Method to calculate the virial radius
-        """
+        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+        hz = self.cosmo.H(self.z).value
+        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
+                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
 
     @abc.abstractmethod
     def calc_rho0(self, *args, **kwargs):
@@ -3838,6 +3859,7 @@ class DarkMatterHalo(MassModel):
     def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vtarget, r_fdm, bary):
         halotmp = self.copy()
         halotmp.__setattr__('mvirial', mvirial)
+
         modtmp = ModelSet()
         modtmp.add_component(bary, light=True)
         modtmp.add_component(halotmp)
@@ -3961,34 +3983,6 @@ class TwoPowerHalo(DarkMatterHalo):
 
         return aa*bb
 
-    def calc_rvir(self):
-        r"""
-        Calculate the virial radius based on virial mass and redshift
-
-        Returns
-        -------
-        rvir : float
-            Virial radius
-
-        Notes
-        -----
-        Formula:
-
-        .. math::
-
-            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
-
-        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
-        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
-        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
-        """
-
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
-                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
 
 
     def calc_alpha_from_fdm(self, baryons, r_fdm):
@@ -4199,35 +4193,6 @@ class Burkert(DarkMatterHalo):
         conc = rvir/self.rB
         self.conc = conc
         return conc
-
-    def calc_rvir(self):
-        r"""
-        Calculate the virial radius based on virial mass and redshift
-
-        Returns
-        -------
-        rvir : float
-            Virial radius
-
-        Notes
-        -----
-        Formula:
-
-        .. math::
-
-            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
-
-        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
-        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
-        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
-        """
-
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
-                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
 
     def calc_rB_from_fdm(self, baryons, r_fdm):
         """
@@ -4475,36 +4440,6 @@ class Einasto(DarkMatterHalo):
 
         return rho0
 
-
-    def calc_rvir(self):
-        r"""
-        Calculate the virial radius based on virial mass and redshift
-
-        Returns
-        -------
-        rvir : float
-            Virial radius
-
-        Notes
-        -----
-        Formula:
-
-        .. math::
-
-            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
-
-        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
-        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
-        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
-        """
-
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
-                 (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
-
     def calc_alphaEinasto_from_fdm(self, baryons, r_fdm):
         """
         Calculate alpha given dark matter fraction and baryonic distribution
@@ -4672,6 +4607,245 @@ class Einasto(DarkMatterHalo):
     #     return -2. * np.power(r/rs, self.alphaEinasto)
 
 
+class DekelZhao(DarkMatterHalo):
+    r"""
+    Dekel-Zhao halo profile (Dekel et al. 2017, Freundlich et al. 2020)
+
+    Parameters
+    ----------
+    mvirial : float
+        Virial mass in logarithmic solar units
+
+    s1 : float
+        Inner logarithmic slope (at resolution r1=0.01*Rvir)
+
+    c2 : float
+        Concentration parameter (defined relative to c, a)
+
+    fdm : float
+        Dark matter fraction
+
+    z : float
+        Redshift
+
+    cosmo : `~astropy.cosmology` object
+        The cosmology to use for modelling.
+        If this model component will be attached to a `~dysmalpy.galaxy.Galaxy` make sure
+        the respective cosmologies are the same. Default is
+        `~astropy.cosmology.FlatLambdaCDM` with H0=70., and Om0=0.3.
+
+    Notes
+    -----
+    The formula for this implementation are given in Freundlich et al. 2020 [1]_
+    Specifically, we use the forms where b=2, gbar=3 (see Eqns 4, 5, 14, 15, )
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.2912F/abstract
+    """
+
+    # Powerlaw slopes for the density model
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    s1 = DysmalParameter(default=1.5, bounds=(0.0, 2.0))
+    c2 = DysmalParameter(default=25., bounds=(0.0, 40.0))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
+
+    _subtype = 'dark_matter'
+
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
+
+        self.z = z
+        self.cosmo = cosmo
+        super(DekelZhao, self).__init__(**kwargs)
+
+    def evaluate(self, r, mvirial, s1, c2, fdm):
+        """ Mass density for the DekelZhao halo profile"""
+
+        rvir = self.calc_rvir()
+        rhoc = self.calc_rho0()
+        a, c = self.calc_a_c()
+
+        rc = rvir / c
+        x = r / rc
+
+        return rhoc / (np.power(x, a) * np.power((1.+np.sqrt(x)), 2.*(3.5-a)))
+
+    def enclosed_mass(self, r):
+        """
+        Enclosed mass as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass in solar units
+        """
+        mvir = 10**self.mvirial
+        rvir = self.calc_rvir()
+        a, c = self.calc_a_c()
+
+        rc = rvir / c
+        x = r / rc
+        mu = self.calc_mu()
+
+        return mu * mvir / (np.power(x, a-3.)*np.power((1.+np.sqrt(x)), 2.*(3.-a)))
+
+    def calc_a_c(self):
+        r"""
+        Calculate a, c from s1, c2 for the Dekel-Zhao halo.
+
+        Returns
+        -------
+        a, c:   inner asymptotic slope, concentration parameter for DZ halo
+
+        """
+        #rvirial = self.calc_rvir()
+        #r12 = np.sqrt(0.01*rvirial/rvirial)
+        r12 = np.sqrt(0.01)
+        c12 = np.sqrt(self.c2)
+        a = (1.5*self.s1 - 2.*(3.5-self.s1)*r12*c12)/(1.5 - (3.5-self.s1)*r12*c12)
+        c = ((self.s1-2.)/((3.5-self.s1)*r12 - 1.5/c12))**2
+
+        return a, c
+
+    def calc_rho0(self):
+        r"""
+        Normalization of the density distribution, rho_c
+
+        Returns
+        -------
+        rhoc : float
+            Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
+        """
+        a, c = self.calc_a_c()
+
+        mu = self.calc_mu()
+        rhovirbar = self.calc_rhovirbar()
+        rhocbar = c**3 * mu * rhovirbar
+
+        return (1.-a/3.)*rhocbar
+
+    def calc_rhovirbar(self):
+        """
+        Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
+        """
+        mvir = 10**self.mvirial
+        rvir = self.calc_rvir()
+
+        rhovirbar = (3.*mvir)/(4.*np.pi*(rvir**3))
+        return rhovirbar
+
+    def calc_mu(self):
+        """
+        Subfunction for describing DZ profile
+        """
+        a, c = self.calc_a_c()
+
+        mu = np.power(c, a-3.) * np.power((1.+np.sqrt(c)), 2.*(3.-a))
+        return mu
+
+    def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
+        """
+        Calculate virial mass given dark matter fraction and baryonic distribution
+
+        Parameters
+        ----------
+        baryons : `~dysmalpy.models.MassModel`
+            Model component representing the baryons
+
+        r_fdm : float
+            Radius at which the dark matter fraction is determined
+
+        Returns
+        -------
+        mvirial : float
+            Virial mass in logarithmic solar units
+
+        Notes
+        -----
+        This uses the current value of `fdm` together with
+        the input baryon distribution to calculate the inferred `mvirial`.
+        """
+        if (self.fdm.value > self.bounds['fdm'][1]) | \
+                ((self.fdm.value < self.bounds['fdm'][0])):
+            mvirial = np.NaN
+        elif (self.fdm.value == 1.):
+            mvirial = np.inf
+        elif (self.fdm.value == 0.):
+            mvirial = -np.inf #-5.  # as a small but finite value
+        elif (self.fdm.value < 1.e-10):
+            mvirial = -np.inf
+        elif (r_fdm < 0.):
+            mvirial = np.NaN
+        else:
+            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
+
+            if not np.isfinite(vsqr_dm_re_target):
+                mvirial = np.NaN
+            else:
+                mtest = np.arange(-5, 50, 1.0)
+                if adiabatic_contract:
+                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
+                    # TEST
+                    vtest_noAC = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
+                else:
+                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
+                try:
+                    a = mtest[vtest < 0][-1]
+                    b = mtest[vtest > 0][0]
+                    # TEST
+                    if adiabatic_contract:
+                        a_noAC = mtest[vtest_noAC < 0][-1]
+                        b_noAC = mtest[vtest_noAC > 0][0]
+                except:
+                    print("adiabatic_contract={}".format(adiabatic_contract))
+                    print("fdm={}".format(self.fdm.value))
+                    print("r_fdm={}".format(r_fdm))
+                    print(mtest, vtest)
+                    raise ValueError
+
+                if adiabatic_contract:
+                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
+
+                    # TEST
+                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, r_fdm, baryons))
+                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
+                else:
+                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
+        return mvirial
+
+    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vtarget, r_fdm, bary):
+        halotmp = self.copy()
+        halotmp.__setattr__('mvirial', mvirial)
+
+        modtmp = ModelSet()
+        modtmp.add_component(bary, light=True)
+        modtmp.add_component(halotmp)
+        modtmp.kinematic_options.adiabatic_contract = False
+        modtmp._update_tied_parameters()
+
+        return modtmp.components['halo'].circular_velocity(r_fdm) ** 2 - vtarget
+
+    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vtarget, r_fdm, bary):
+        halotmp = self.copy()
+        halotmp.__setattr__('mvirial', mvirial)
+
+        modtmp = ModelSet()
+        modtmp.add_component(bary, light=True)
+        modtmp.add_component(halotmp)
+        modtmp.kinematic_options.adiabatic_contract = True
+        modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
+        modtmp._update_tied_parameters()
+
+        vc, vc_dm = modtmp.circular_velocity(r_fdm, compute_dm=True)
+
+        return vc_dm **2 - vtarget
+
 class NFW(DarkMatterHalo):
     r"""
     Dark matter halo following an NFW profile
@@ -4769,33 +4943,7 @@ class NFW(DarkMatterHalo):
 
         return aa * bb
 
-    def calc_rvir(self):
-        r"""
-        Calculate the virial radius based on virial mass and redshift
 
-        Returns
-        -------
-        rvir : float
-            Virial radius
-
-        Notes
-        -----
-        Formula:
-
-        .. math::
-
-            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
-
-        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
-        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
-        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
-        """
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
-                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
 
     # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
     # def rho(self, r):
@@ -4935,33 +5083,7 @@ class LinearNFW(DarkMatterHalo):
 
         return aa * bb
 
-    def calc_rvir(self):
-        r"""
-        Calculate the virial radius based on virial mass and redshift
 
-        Returns
-        -------
-        rvir : float
-            Virial radius
-
-        Notes
-        -----
-        Formula:
-
-        .. math::
-
-            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
-
-        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
-        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
-        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
-        """
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((self.mvirial * (g_new_unit * 1e-3) /
-                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
-
-        return rvir
 
     # #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
     # def rho(self, r):
