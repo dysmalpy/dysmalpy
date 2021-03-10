@@ -146,7 +146,7 @@ def setup_gal_model_base(params=None,
 
     # Make sure all lower case:
     components_list = []
-    light_components_list []
+    light_components_list = []
     for cmp in components_list_orig:
         components_list.append(cmp.lower())
     for cmp in light_components_list_orig:
@@ -337,7 +337,7 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
 
 def add_blackhole_comp(gal=None, mod_set=None, params=None):
     BH_mass =  params['BH_mass']        # log M_sun
-    
+
     # Fix components
     BH_fixed = {'BH_mass': params['BH_mass_fixed']}
 
@@ -740,18 +740,75 @@ def setup_instrument_params(inst=None, params=None):
 
 
     if params['psf_type'].lower().strip() == 'gaussian':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
-        beam = instrument.GaussianBeam(major=beamsize)
-    elif params['psf_type'].lower().strip() == 'moffat':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
-        beta = params['psf_beta']
-        beam = instrument.Moffat(major_fwhm=beamsize, beta=beta)
-    elif params['psf_type'].lower().strip() == 'doublegaussian':
-        # Kernel of both components multipled by: self._scaleN / np.sum(kernelN.array)
-        #    -- eg, scaleN controls the relative amount of flux in each component.
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm_major' in params.keys():
+            psf_fwhm_major = params['psf_fwhm_major']
+        else:
+            psf_fwhm_major = params['psf_fwhm']
+        if 'psf_fwhm_minor' in params.keys():
+            psf_fwhm_minor = params['psf_fwhm_minor']
+        else:
+            psf_fwhm_minor = params['psf_fwhm']
+        if 'psf_PA' in params.keys():
+            psf_PA = params['psf_PA']
+        else:
+            psf_PA = 0.
 
-        beamsize1 = params['psf_fwhm1']*u.arcsec              # FWHM of beam, Gaussian
-        beamsize2 = params['psf_fwhm2']*u.arcsec              # FWHM of beam, Gaussian
+        major = psf_fwhm_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor = psf_fwhm_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa = psf_PA * u.deg                          # PA of major axis
+        beam = instrument.GaussianBeam(major=major, minor=minor, pa=pa)
+
+    elif params['psf_type'].lower().strip() == 'moffat':
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm_major' in params.keys():
+            psf_fwhm_major = params['psf_fwhm_major']
+        else:
+            psf_fwhm_major = params['psf_fwhm']
+        if 'psf_fwhm_minor' in params.keys():
+            psf_fwhm_minor = params['psf_fwhm_minor']
+        else:
+            psf_fwhm_minor = params['psf_fwhm']
+        if 'psf_PA' in params.keys():
+            psf_PA = params['psf_PA']
+        else:
+            psf_PA = 0.
+
+        beta = params['psf_beta']
+
+        major = psf_fwhm_major*u.arcsec              # FWHM of beam major axis, Moffat
+        minor = psf_fwhm_minor*u.arcsec              # FWHM of beam minor axis, Moffat
+        pa = psf_PA * u.deg                          # PA of major axis
+
+        beam = instrument.Moffat(major_fwhm=major, minor_fwhm=minor, pa=pa, beta=beta)
+
+    elif params['psf_type'].lower().strip() == 'doublegaussian':
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm1_major' in params.keys():
+            psf_fwhm1_major = params['psf_fwhm1_major']
+        else:
+            psf_fwhm1_major = params['psf_fwhm1']
+        if 'psf_fwhm1_minor' in params.keys():
+            psf_fwhm1_minor = params['psf_fwhm1_minor']
+        else:
+            psf_fwhm1_minor = params['psf_fwhm']
+        if 'psf_PA1' in params.keys():
+            psf_PA1 = params['psf_PA1']
+        else:
+            psf_PA1 = 0.
+
+        if 'psf_fwhm2_major' in params.keys():
+            psf_fwhm2_major = params['psf_fwhm2_major']
+        else:
+            psf_fwhm2_major = params['psf_fwhm2']
+        if 'psf_fwhm2_minor' in params.keys():
+            psf_fwhm2_minor = params['psf_fwhm2_minor']
+        else:
+            psf_fwhm2_minor = params['psf_fwhm2']
+        if 'psf_PA2' in params.keys():
+            psf_PA2 = params['psf_PA2']
+        else:
+            psf_PA2 = 0.
 
         try:
             scale1 = params['psf_scale1']                     # Flux scaling of component 1
@@ -759,8 +816,16 @@ def setup_instrument_params(inst=None, params=None):
             scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
         scale2 = params['psf_scale2']                         # Flux scaling of component 2
 
-        beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2,
-                        scale1=scale1, scale2=scale2)
+        major1 = psf_fwhm1_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor1 = psf_fwhm1_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa1 = psf_PA1 * u.deg                          # PA of major axis
+
+        major2 = psf_fwhm2_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor2 = psf_fwhm2_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa2 = psf_PA2 * u.deg                          # PA of major axis
+
+        beam = instrument.DoubleBeam(major1=major1, minor1=minor1, pa1=pa1, scale1=scale1,
+                    major2=major2, minor2=minor2, pa2=pa2, scale2=scale2)
 
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
