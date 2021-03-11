@@ -1029,7 +1029,7 @@ class ModelSet:
                               - ntied)
         self.nparams_tied += ntied
 
-    def set_parameter_value(self, model_name, param_name, value):
+    def set_parameter_value(self, model_name, param_name, value, skip_updated_tied=False):
         """
         Change the value of a specific parameter
 
@@ -1057,6 +1057,10 @@ class ModelSet:
 
         self.components[model_name].__getattribute__(param_name).value = value
         self.parameters[self._param_keys[model_name][param_name]] = value
+
+        if not skip_updated_tied:
+            # Now update all of the tied parameters if there are any
+            self._update_tied_parameters()
 
     def set_parameter_fixed(self, model_name, param_name, fix):
         """
@@ -1118,16 +1122,10 @@ class ModelSet:
             for pp in pfree_keys[cmp]:
                 ind = pfree_keys[cmp][pp]
                 if ind != -99:
-                    self.set_parameter_value(cmp, pp, theta[ind])
+                    self.set_parameter_value(cmp, pp, theta[ind],skip_updated_tied=True)
 
         # Now update all of the tied parameters if there are any
         self._update_tied_parameters()
-        # if self.nparams_tied > 0:
-        #     for cmp in self.tied:
-        #         for pp in self.tied[cmp]:
-        #             if self.tied[cmp][pp]:
-        #                 new_value = self.tied[cmp][pp](self)
-        #                 self.set_parameter_value(cmp, pp, new_value)
 
     # Method to update tied parameters:
     def _update_tied_parameters(self):
