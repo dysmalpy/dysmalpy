@@ -16,9 +16,19 @@ import scipy.optimize as scp_opt
 
 
 def tie_sigz_reff(model_set):
+    #'sersic', 'disk+bulge', 'lsersic'
+    if model_set.light_components['disk+bulge']:
+        reff = model_set.components['disk+bulge'].r_eff_disk.value
+    elif model_set.light_components['sersic']:
+        reff = model_set.components['sersic'].r_eff.value
+    elif model_set.light_components['lsersic']:
+        reff = model_set.components['lsersic'].r_eff.value
 
-    reff = model_set.components['disk+bulge'].r_eff_disk.value
-    invq = model_set.components['disk+bulge'].invq_disk
+    if 'disk+bulge' in model_set.components.keys():
+        invq = model_set.components['disk+bulge'].invq_disk
+    else:
+        invq = 5.  # USE A DEFAULT of q=0.2
+
     sigz = 2.0*reff/invq/2.35482
 
     return sigz
@@ -268,7 +278,7 @@ def _DZ_c2_MstarMhalo(Mstar, Mvir):
     From Freundlich et al. 2020, Eqs 47, 49 + Table 1
     """
     cdmo = np.power(10., 1.025 - 0.097 * np.log10(Mvir * 0.671 / 1.e12))
-    
+
     x = Mstar/Mvir
     x0 = 2.43e-2
     cprime = 1.14
