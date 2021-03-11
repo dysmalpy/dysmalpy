@@ -41,7 +41,7 @@ from .parameters import DysmalParameter
 __all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto',
            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
-           'UniformRadialInflow', 'DustExtinction',
+           'UniformRadialFlow', 'DustExtinction',
            'KinematicOptions', 'ZHeightGauss',
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
            'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
@@ -211,6 +211,63 @@ def sersic_mr(r, mass, n, r_eff):
 
     return mr
 
+def truncate_sersic_mr(r, mass, n, r_eff, r_inner, r_outer):
+    """
+    Radial surface mass density function for a generic sersic model
+
+    Parameters
+    ----------
+    r : float or array
+        Radius or radii at which to calculate the surface mass density
+
+    mass : float
+        Total mass of the Sersic component
+
+    n : float
+        Sersic index
+
+    r_eff : float
+        Effective radius
+
+    r_inner: float
+        Inner truncation radius
+
+    r_outer: float
+        Outer truncation radius
+
+    Returns
+    -------
+    mr : float or array
+        Surface mass density as a function of `r`
+    """
+    # Ensure it's an array:
+    if isinstance(r*1., float):
+        rarr = np.array([r])
+    else:
+        rarr = np.array(r)
+    # Ensure all radii are 0. or positive:
+    rarr = np.abs(rarr)
+
+    mr = sersic_mr(rarr, mass, n, r_eff)
+
+    wh_out = np.where((rarr < r_inner) | (rarr > r_outer))
+    mr[wh_out] = 0.
+
+    if (len(rarr) > 1):
+        return mr
+    else:
+        if isinstance(r*1., float):
+            # Float input
+            return mr[0]
+        else:
+            # Length 1 array input
+            return mr
+
+def _I0_gaussring(r_peak, sigma_r, L_tot):
+    x = r_peak / (sigma_r * np.sqrt(2.))
+    Ih = np.sqrt(np.pi)*x*(1.+scp_spec.erf(x)) + np.exp(-x**2)
+    I0 = L_tot / (2.*np.pi*(sigma_r**2)*Ih)
+    return I0
 
 def sersic_menc_2D_proj(r, mass, n, r_eff):
     """
@@ -365,9 +422,10 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
                          zgal.flatten() - np.mean(zgal.flatten()) + zsize/2.])
 
 
-    validpts = np.where( (origpos[0,:] >= -0.5) & (origpos[0,:] < xsize-0.5) & \
-                         (origpos[1,:] >= -0.5) & (origpos[1,:] < ysize-0.5) & \
-                         (origpos[2,:] >= -0.5) & (origpos[2,:] < zsize-0.5) )[0]
+    validpts = np.where( (origpos[0,:] >= 0.) & (origpos[0,:] <= xsize) & \
+                         (origpos[1,:] >= 0.) & (origpos[1,:] <= ysize) & \
+                         (origpos[2,:] >= 0.) & (origpos[2,:] <= zsize) )[0]
+
 
     ai = full_ai[:,validpts]
 
@@ -840,10 +898,20 @@ class ModelSet:
         self.outflow_geometry = None
         self.outflow_dispersion = None
         self.outflow_flux = None
+
+        #########
+        # BACKWARDS COMPATIBILITY: remove next major version:
         self.inflow = None
         self.inflow_geometry = None
         self.inflow_dispersion = None
         self.inflow_flux = None
+
+        self.flow = None
+        self.flow_geometry = None
+        self.flow_dispersion = None
+        self.flow_flux = None
+        #########
+
         self.extinction = None
         self.parameters = None
         self.fixed = OrderedDict()
@@ -876,13 +944,13 @@ class ModelSet:
             If True, use the mass profile of the model component in the calculation of the
             flux of the line, i.e. setting the mass-to-light ratio equal to 1.
 
-        geom_type : {'galaxy', 'outflow', 'inflow'}
+        geom_type : {'galaxy', 'outflow', 'flow'}
             Specify which model components the geometry applies to.
             Only used if `model` is a `~Geometry`. If 'galaxy', then all included
-            components except outflows and inflows will follow this geometry.
+            components except outflows and flow will follow this geometry.
             Default is 'galaxy'.
 
-        disp_type : {'galaxy', 'outflow', 'inflow'}
+        disp_type : {'galaxy', 'outflow', 'flow'}
             Specify which model components the dispersion applies to.
             Only used if `model` is a `~DispersionProfile`. Default is 'galaxy'.
         """
@@ -917,13 +985,13 @@ class ModelSet:
 
                     self.outflow_geometry = model
 
-                elif geom_type == 'inflow':
+                elif geom_type == 'flow':
 
-                    self.inflow_geometry = model
+                    self.flow_geometry = model
 
                 else:
                     logger.error("geom_type can only be either 'galaxy', "
-                                 "'inflow', or 'outflow'.")
+                                 "'flow', or 'outflow'.")
 
                 self.mass_components[model.name] = False
 
@@ -939,9 +1007,9 @@ class ModelSet:
 
                     self.outflow_dispersion = model
 
-                elif disp_type == 'inflow':
+                elif disp_type == 'flow':
 
-                    self.inflow_dispersion = model
+                    self.flow_dispersion = model
 
                 self.mass_components[model.name] = False
 
@@ -959,11 +1027,11 @@ class ModelSet:
                 self.outflow = model
                 self.mass_components[model.name] = False
 
-            elif model._type == 'inflow':
-                if self.inflow is not None:
-                    logger.warning('Current inflow model is being '
+            elif model._type == 'flow':
+                if self.flow is not None:
+                    logger.warning('Current flow model is being '
                                    'overwritten!')
-                self.inflow = model
+                self.flow = model
                 self.mass_components[model.name] = False
 
             elif model._type == 'extinction':
@@ -972,10 +1040,13 @@ class ModelSet:
                 self.extinction = model
                 self.mass_components[model.name] = False
 
+            elif model._type == 'light':
+                if not light:
+                    light = True
             else:
                 raise TypeError("This model type is not known. Must be one of"
                                 "'mass', 'geometry', 'dispersion', 'zheight',"
-                                "'outflow', 'inflow', or 'extinction'.")
+                                "'outflow', 'flow', or 'extinction'.")
 
             if light:
                 self.light_components[model.name] = True
@@ -1857,11 +1928,11 @@ class ModelSet:
             self.outflow_geometry = None
             self.outflow_dispersion = None
             self.outflow_flux = None
-        if 'inflow' not in self.__dict__.keys():
-            self.inflow = None
-            self.inflow_geometry = None
-            self.inflow_dispersion = None
-            self.inflow_flux = None
+        if 'flow' not in self.__dict__.keys():
+            self.flow = None
+            self.flow_geometry = None
+            self.flow_dispersion = None
+            self.flow_flux = None
 
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
@@ -1960,19 +2031,18 @@ class ModelSet:
 
                 vobs_mass[rgal == 0] = 0.
                 #######
-                if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                if ((self.flow is not None) & (self.flow_geometry is None)):
                     rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
                     # 3D radius, converted to kpc
                     rgal3D_kpc = rgal3D * rstep_samp / dscale
                     xgal_kpc = xgal * rstep_samp / dscale
                     ygal_kpc = ygal * rstep_samp / dscale
                     zgal_kpc = ygal * rstep_samp / dscale
-                    vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                    vr = self.flow(xgal_kpc, ygal_kpc, zgal_kpc)
 
-                    # Negative of inflow is already included in the definition of the inflow
                     #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                    vin_obs = - vin * zsky/rgal3D
-                    vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                    vr_obs = - vr * zsky/rgal3D
+                    vr_obs[rgal3D == 0] = vr[rgal3D == 0]
                     vobs_mass += vin_obs
                 #######
             elif transform_method.lower().strip() == 'rotate':
@@ -2054,19 +2124,18 @@ class ModelSet:
                     vobs_mass_transf[rgal_final == 0] = 0.
 
                     #######
-                    if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                    if ((self.flow is not None) & (self.flow_geometry is None)):
                         rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
                         # 3D radius, converted to kpc
                         rgal3D_kpc = rgal3D * rstep_samp / dscale
                         xgal_kpc = xgal_final * rstep_samp / dscale
                         ygal_kpc = ygal_final * rstep_samp / dscale
                         zgal_kpc = zgal_final * rstep_samp / dscale
-                        vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                        vr = self.flow(xgal_kpc, ygal_kpc, zgal_kpc)
 
-                        # Negative of inflow is already included in the definition of the inflow
                         #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                        vin_obs = - vin * zsky_final/rgal3D
-                        vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                        vr_obs = - vr * zsky_final/rgal3D
+                        vr_obs[rgal3D == 0] = vr[rgal3D == 0]
                         vobs_mass += vin_obs
                     #######
                     # Truncate in the z direction by flagging what pixels to include in propogation
@@ -2086,19 +2155,18 @@ class ModelSet:
                     vobs_mass_transf[rgal_final == 0] = 0.
 
                     #######
-                    if ((self.inflow is not None) & (self.inflow_geometry is None)):
+                    if ((self.flow is not None) & (self.flow_geometry is None)):
                         rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
                         # 3D radius, converted to kpc
                         rgal3D_kpc = rgal3D * rstep_samp / dscale
                         xgal_kpc = xgal_final * rstep_samp / dscale
                         ygal_kpc = ygal_final * rstep_samp / dscale
                         zgal_kpc = zgal_final * rstep_samp / dscale
-                        vin = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                        vr = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
 
-                        # Negative of inflow is already included in the definition of the inflow
                         #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                        vin_obs = - vin * zsky_final/rgal3D
-                        vin_obs[rgal3D == 0] = vin[rgal3D == 0]
+                        vr_obs = - vr * zsky_final/rgal3D
+                        vr_obs[rgal3D == 0] = vr[rgal3D == 0]
                         vobs_mass += vin_obs
                     #######
 
@@ -2179,15 +2247,15 @@ class ModelSet:
 
 
         ####
-        if (self.inflow is not None) & (self.inflow_geometry is not None):
-            # If self.inflow_geometry is None:
+        if (self.flow is not None) & (self.flow_geometry is not None):
+            # If self.flow_geometry is None:
             #   Just us the galaxy geometry and light profile: is just a superimposed kinematic signature
             #       on the normal disk rotation:
             # CALCULATED EARLIER
 
-            if self.inflow._spatial_type == 'resolved':
+            if self.flow._spatial_type == 'resolved':
                 # Create 3D arrays of the sky pixel coordinates
-                sin_inc = np.sin(self.inflow_geometry.inc * np.pi / 180.)
+                sin_inc = np.sin(self.flow_geometry.inc * np.pi / 180.)
 
                 maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
                 maxr_y = np.max(np.array([maxr * 1.5, np.min(
@@ -2203,35 +2271,35 @@ class ModelSet:
                 ysky = ysky - ycenter_samp
                 xsky = xsky - xcenter_samp
 
-                # Apply the geometric transformation to get inflow coordinates
+                # Apply the geometric transformation to get flow coordinates
                 # Account for oversampling
-                self.inflow_geometry.xshift = self.inflow_geometry.xshift.value * oversample
-                self.inflow_geometry.yshift = self.inflow_geometry.yshift.value * oversample
-                xin, yin, zin = self.inflow_geometry(xsky, ysky, zsky)
+                self.flow_geometry.xshift = self.flow_geometry.xshift.value * oversample
+                self.flow_geometry.yshift = self.flow_geometry.yshift.value * oversample
+                xflow, yflow, zflow = self.flow_geometry(xsky, ysky, zsky)
 
                 # Convert to kpc
-                xin_kpc = xin * rstep_samp / dscale
-                yin_kpc = yin * rstep_samp / dscale
-                zin_kpc = zin * rstep_samp / dscale
+                xflow_kpc = xflow * rstep_samp / dscale
+                yflow_kpc = yflow * rstep_samp / dscale
+                zflow_kpc = zflow * rstep_samp / dscale
 
-                rin = np.sqrt(xin**2 + yin**2 + zin**2)
-                vin = self.inflow(xin_kpc, yin_kpc, zin_kpc)
-                fin = self.inflow.light_profile(xin_kpc, yin_kpc, zin_kpc)
+                rflow = np.sqrt(xflow**2 + yflow**2 + zflow**2)
+                vflow = self.flow(xflow_kpc, yflow_kpc, zflow_kpc)
+                fflow = self.flow.light_profile(xflow_kpc, yflow_kpc, zflow_kpc)
 
                 # Apply extinction if it exists
                 if self.extinction is not None:
-                    fin *= self.extinction(xsky, ysky, zsky)
+                    fflow *= self.extinction(xsky, ysky, zsky)
 
                 # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-                v_sys = self.inflow_geometry.vel_shift.value  # systemic velocity
-                vobs = v_sys - vin * zsky/rin
-                vobs[rin == 0] = vin[rin == 0]
+                v_sys = self.flow_geometry.vel_shift.value  # systemic velocity
+                vobs = v_sys - vflow * zsky/rflow
+                vobs[rflow == 0] = vflow[rflow == 0]
 
-                sigma_in = self.inflow_dispersion(rin)
-                cube_final += cutils.populate_cube(fin, vobs, sigma_in, vx)
+                sigma_flow = self.flow_dispersion(rflow)
+                cube_final += cutils.populate_cube(fflow, vobs, sigma_flow, vx)
 
-                self.inflow_geometry.xshift = self.inflow_geometry.xshift.value / oversample
-                self.inflow_geometry.yshift = self.inflow_geometry.yshift.value / oversample
+                self.flow_geometry.xshift = self.flow_geometry.xshift.value / oversample
+                self.flow_geometry.yshift = self.flow_geometry.yshift.value / oversample
 
 
 
@@ -2340,6 +2408,8 @@ class MassModel(_DysmalFittable1DModel):
 
         return vcirc
 
+
+
 class BlackHole(MassModel):
     """
     Central black hole. Treated as a point source at r = 0.
@@ -2355,6 +2425,34 @@ class BlackHole(MassModel):
 
     def __init__(self, **kwargs):
         super(BlackHole, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(r, BH_mass):
+        """
+        Mass surface density of a BH (treat like delta function)
+        """
+        # Ensure it's an array:
+        if isinstance(r*1., float):
+            rarr = np.array([r])
+        else:
+            rarr = np.array(r)
+        # Ensure all radii are 0. or positive:
+        rarr = np.abs(rarr)
+
+        mr = r * 0.
+
+        wh0 = np.where((rarr == 0.))[0]
+        mr[wh0] = BH_mass
+
+        if (len(rarr) > 1):
+            return mr
+        else:
+            if isinstance(r*1., float):
+                # Float input
+                return mr[0]
+            else:
+                # Length 1 array input
+                return mr
 
     def enclosed_mass(self, r):
         """
@@ -5982,34 +6080,34 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
         return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
 
 
-class UniformRadialInflow(_DysmalFittable3DModel):
+class UniformRadialFlow(_DysmalFittable3DModel):
     """
-    Model for a uniform radial inflow.
+    Model for a uniform radial flow.
 
     Parameters
     ----------
-    vin : float
-        Inflow velocity in km/s
+    vr : float
+        Radial velocity in km/s. vr > 0 for inflow, vr < 0 for outflow
 
     Notes
     -----
-    This model simply adds a constant inflowing radial velocity component
+    This model simply adds a constant radial velocity component
     to all of the positions in the galaxy.
     """
-    vin = DysmalParameter(default=30.)
+    vr = DysmalParameter(default=30.)
 
-    _type = 'inflow'
+    _type = 'flow'
     _spatial_type = 'resolved'
-    outputs = ('vinfl',)
+    outputs = ('vrad',)
 
     def __init__(self, **kwargs):
 
-        super(UniformRadialInflow, self).__init__(**kwargs)
+        super(UniformRadialFlow, self).__init__(**kwargs)
 
-    def evaluate(self, x, y, z, vin):
-        """Evaluate the inflow velocity as a function of position x, y, z"""
+    def evaluate(self, x, y, z, vr):
+        """Evaluate the radial velocity as a function of position x, y, z"""
 
-        vel = np.ones(x.shape) * (- vin)   # negative because of inflow
+        vel = np.ones(x.shape) * (- vr)
 
         return vel
 
@@ -6073,6 +6171,175 @@ class DustExtinction(_DysmalFittable3DModel):
         extinction[zsky <= zsky_dust] = amp_extinct
 
         return extinction
+
+
+class LightModel(_DysmalFittable1DModel):
+    """
+    Base model for components that emit light, but are treated separately from any gravitational influence
+    """
+
+    _type = 'light'
+
+    @abc.abstractmethod
+    def mass_to_light(self, *args, **kwargs):
+        """Evaluate the enclosed mass as a function of radius"""
+
+
+class LightTruncateSersic(LightModel):
+    """
+    Light distribution following a Sersic profile. Can be truncted.
+
+    Parameters
+    ----------
+    r_eff : float
+        Effective (half-light) radius in kpc
+
+    L_tot: float
+        Total luminsoity of untruncated Sersic profile. Arbitrary units.
+
+    n : float
+        Sersic index
+
+    r_inner : float
+        Inner truncation radius in kpc. Default: 0 kpc (untruncated)
+
+    r_outer : float
+        Outer truncation radius in kpc. Default: np.inf kpc (untruncated)
+
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        I(r)=I_e\exp\left\{-b_n\left[\left(\frac{r}{r_{eff}}\right)^{(1/n)}-1\right]\right\}
+
+    The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
+    light, and can be solved for numerically.
+
+    .. math::
+
+        \Gamma(2n) = 2\gamma (b_n,2n)
+
+    Examples
+    --------
+    .. plot::
+        :include-source:
+
+        import numpy as np
+        from dysmalpy.models import LightTruncateSersic
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.subplot(111, xscale='log', yscale='log')
+        l1 = LightTruncateSersic(r_eff=5, n=1, r_inner=3, r_outer=20, L_tot=1.e11)
+        r=np.arange(0, 100, .01)
+
+        for n in range(1, 10):
+             s1.n = n
+             plt.plot(r, l1(r), color=str(float(n) / 15))
+
+        plt.axis([1e-1, 30, 1e5, 1e11])
+        plt.xlabel('log Radius')
+        plt.ylabel('log Intensity Surface Density')
+        plt.text(.25, 10**7.5, 'n=1')
+        plt.text(.25, 1e11, 'n=10')
+        plt.show()
+    """
+
+    r_eff = DysmalParameter(default=1, bounds=(0, 50))
+    L_tot = DysmalParameter(default=1, bounds=(0, 50))
+    n = DysmalParameter(default=1, bounds=(0, 8))
+    r_inner = DysmalParameter(default=0., bounds=(0, 10))
+    r_outer = DysmalParameter(default=np.inf, bounds=(0, np.inf))
+
+    def __init__(self, **kwargs):
+        super(LightTruncateSersic, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(r, L_tot, r_eff, n, r_inner, r_outer):
+        """
+        Sersic light surface density. Same as self.mass_to_light
+        """
+        return truncate_sersic_mr(r, L_tot, n, r_eff, r_inner, r_outer)
+
+    def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        return truncate_sersic_mr(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
+
+
+
+class LightGaussianRing(LightModel):
+    """
+    Light distribution following a Gaussian ring profile.
+
+    Parameters
+    ----------
+    r_peak : float
+        Peak of gaussian (radius) in kpc
+
+    sigma_r: float
+        Standard deviation of gaussian, in kpc
+
+    L_tot: float
+        Total luminsoity of component. Arbitrary units
+
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_r^2}\right]
+
+
+    """
+    r_peak = DysmalParameter(default=1, bounds=(0, 50))
+    sigma_r = DysmalParameter(default=1, bounds=(0, 50))
+    L_tot = DysmalParameter(default=1, bounds=(0, 50))
+
+    def __init__(self, **kwargs):
+        super(LightGaussianRing, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(r, r_peak, sigma_r, L_tot):
+        """
+        Gaussian ring light surface density. Same as self.mass_to_light
+        """
+        I0 = _I0_gaussring(r_peak, sigma_r, L_tot)
+        return I0*np.exp(-(r-r_peak)**2/(2.*sigma_r**2))
+
+    def mass_to_light(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        I0 = _I0_gaussring(self.r_peak, self.sigma_r, self.L_tot)
+        return I0*np.exp(-(r-self.r_peak)**2/(2.*self.sigma_r**2))
+
 
 
 def _adiabatic(rprime, r_adi, adia_v_dm, adia_x_dm, adia_v_disk):
