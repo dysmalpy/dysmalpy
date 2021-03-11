@@ -1006,6 +1006,7 @@ def plot_model_1D(gal,
 
 def plot_model_2D(gal,
             fitdispersion=True,
+            fitflux=False,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
@@ -1017,21 +1018,29 @@ def plot_model_2D(gal,
     # Setup plot:
     f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
+    ncols = 1
     if fitdispersion:
-        grid_vel = ImageGrid(f, 121,
-                             nrows_ncols=(1, 1),
-                             direction="row",
-                             axes_pad=0.5,
-                             add_all=True,
-                             label_mode="1",
-                             share_all=True,
-                             cbar_location="right",
-                             cbar_mode="each",
-                             cbar_size="5%",
-                             cbar_pad="1%",
-                             )
+        ncols += 1
+    if fitflux:
+        ncols += 1
 
-        grid_disp = ImageGrid(f, 122,
+    #
+    cntr = 1
+    grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                         nrows_ncols=(1, 1),
+                         direction="row",
+                         axes_pad=0.5,
+                         add_all=True,
+                         label_mode="1",
+                         share_all=True,
+                         cbar_location="right",
+                         cbar_mode="each",
+                         cbar_size="5%",
+                         cbar_pad="1%",
+                         )
+    if fitdispersion:
+        cntr += 1
+        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,
@@ -1044,26 +1053,69 @@ def plot_model_2D(gal,
                               cbar_pad="1%",
                               )
 
-    else:
-        grid_vel = ImageGrid(f, 111,
-                             nrows_ncols=(1, 1),
-                             direction="row",
-                             axes_pad=0.5,
-                             add_all=True,
-                             label_mode="1",
-                             share_all=True,
-                             cbar_location="right",
-                             cbar_mode="each",
-                             cbar_size="5%",
-                             cbar_pad="1%",
-                             )
+    if fitflux:
+        cntr += 1
+        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+
+    # if fitdispersion:
+    #     grid_vel = ImageGrid(f, 121,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
+    #
+    #     grid_disp = ImageGrid(f, 122,
+    #                           nrows_ncols=(1, 1),
+    #                           direction="row",
+    #                           axes_pad=0.5,
+    #                           add_all=True,
+    #                           label_mode="1",
+    #                           share_all=True,
+    #                           cbar_location="right",
+    #                           cbar_mode="each",
+    #                           cbar_size="5%",
+    #                           cbar_pad="1%",
+    #                           )
+    #
+    # else:
+    #     grid_vel = ImageGrid(f, 111,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
 
 
     #
     keyxarr = ['model']
-    keyyarr = ['velocity', 'dispersion']
+    keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Model']
-    keyytitlearr = [r'$V$', r'$\sigma$']
+    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
 
     #f.set_size_inches(1.1*ncols*scale, nrows*scale)
     #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
@@ -1133,6 +1185,28 @@ def plot_model_2D(gal,
                              vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
             ax.set_ylabel(keyytitlearr[1])
+
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
+
+    if fitflux:
+        msk = np.isfinite(gal.model_data.data['flux'])
+        flux_vmin = gal.model_data.data['flux'][msk].min()
+        flux_vmax = gal.model_data.data['flux'][msk].max()
+
+
+        for ax, k in zip(grid_flux, keyxarr):
+            im = gal.model_data.data['flux'].copy()
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+
+            ax.set_ylabel(keyytitlearr[2])
 
             for pos in ['top', 'bottom', 'left', 'right']:
                 ax.spines[pos].set_visible(False)

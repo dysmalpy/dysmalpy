@@ -141,17 +141,25 @@ def setup_gal_model_base(params=None,
             components_list_orig.append('halo')
             # Or explicitly do NFW / TPH / etc?
 
+    # Make sure all lower case:
+    components_list = []
+    for cmp in components_list_orig:
+        components_list.append(cmp.lower())
 
     if 'light_components_list' in params.keys():
         light_components_list_orig = params['light_components_list']
     else:
-        light_components_list_orig = ['disk']
+        # If 'light_sersic' and/or 'light_ring' in components_list: use those.
+        light_components_list_orig = []
+        for lp in ['light_sersic', 'light_gaussian_ring']:
+            if lp in components.list():
+                light_components_list_orig.append(lp)
+        if len(light_components_list_orig) == 0:
+            # USE DEFAULT IF NOTHING ELSE!
+            light_components_list_orig.append('disk')
 
     # Make sure all lower case:
-    components_list = []
     light_components_list = []
-    for cmp in components_list_orig:
-        components_list.append(cmp.lower())
     for cmp in light_components_list_orig:
         light_components_list.append(cmp.lower())
 
@@ -212,6 +220,15 @@ def setup_gal_model_base(params=None,
     # Geometry
     if 'geometry' in components_list:
         mod_set = add_geometry_comp(gal=gal, mod_set=mod_set, params=params)
+
+    # --------------------------------------
+    # Additional / Separate light components
+    if 'light_sersic' in components_list:
+        mod_set = add_light_sersic_comp(gal=gal, mod_set=mod_set, params=params)
+
+    if 'light_gaussian_ring' in components_list:
+        mod_set = add_light_gaussian_ring_comp(gal=gal, mod_set=mod_set, params=params)
+
 
     # --------------------------------------
     # Set some kinematic options for calculating the velocity profile
@@ -310,22 +327,24 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
 def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
     total_mass =  params['total_mass']        # log M_sun
     r_eff =       params['r_eff']             # kpc
-    n =           params['n']
+    n =           params['sersic_n']
     invq =        params['invq']              # 1/q0 , for Noordermeer flattening
     noord_flat =  params['noord_flat']        # Switch for applying Noordermeer flattening
 
     # Fix components
     sersic_fixed = {'total_mass': params['total_mass_fixed'],
                     'r_eff': params['r_eff_fixed'],
-                    'n': params['n_fixed']}
+                    'n': params['sersic_n_fixed']}
 
     # Set bounds
     sersic_bounds = {'total_mass': (params['total_mass_bounds'][0], params['total_mass_bounds'][1]),
                      'r_eff': (params['r_eff_bounds'][0], params['r_eff_bounds'][1]),
-                     'n':     (params['n_bounds'][0], params['n_bounds'][1])}
+                     'n':     (params['sersic_n_bounds'][0], params['sersic_n_bounds'][1])}
 
     if 'sersic' in light_components_list:
         light = True
+    else:
+        light = False
 
     sersic = models.Sersic(total_mass=total_mass,r_eff=r_eff, n=n,invq=invq,
                             noord_flat=noord_flat,name='sersic',
@@ -333,7 +352,8 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
 
     sersic = set_comp_param_prior(comp=sersic, param_name='total_mass', params=params)
     sersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params)
-    sersic = set_comp_param_prior(comp=sersic, param_name='n', params=params)
+    sersic = set_comp_param_prior(comp=sersic, param_name='n', params=params,
+                                    param_name_alias='sersic_n')
 
     # --------------------------------------
     # Add the model component to the ModelSet
@@ -799,6 +819,152 @@ def _preprocess_geom_parameters(params=None):
 
     return params
 
+
+def add_light_sersic_comp(gal=None, mod_set=None, params=None):
+    params = _preprocess_light_sersic_parameters(params=params)
+
+    L_tot =        params['L_tot_sersic']        # Arbitrary
+    r_eff =       params['lr_eff']         # kpc
+    n =           params['lsersic_n']
+    r_inner =     params['lsersic_rinner'] # kpc
+    r_outer =     params['lsersic_router'] # kpc
+
+    # Fix components
+    sersic_fixed = {'L_tot': params['L_tot_sersic_fixed'],
+                    'r_eff': params['lr_eff_fixed'],
+                    'n': params['lsersic_n_fixed'],
+                    'r_inner': params['lsersic_rinner_fixed'],
+                    'r_outer': params['lsersic_router_fixed']}
+
+    # Set bounds
+    sersic_bounds = {'L_tot': (params['L_tot_sersic_bounds'][0], params['L_tot_sersic_bounds'][1]),
+                     'r_eff': (params['lr_eff_bounds'][0], params['lr_eff_bounds'][1]),
+                     'n':     (params['lsersic_n_bounds'][0], params['lsersic_n_bounds'][1]),
+                     'r_inner':     (params['lsersic_rinner_bounds'][0], params['lsersic_rinner_bounds'][1]),
+                     'r_outer':     (params['lsersic_router_bounds'][0], params['lsersic_router_bounds'][1])}
+
+    if 'light_sersic' in light_components_list:
+        light = True
+    else:
+        light = False
+
+    lsersic = models.LightTruncateSersic(r_eff=r_eff, n=n, L_tot=L_tot,
+                        r_inner=r_inner, r_outer=r_outer,name='lsersic',
+                        fixed=sersic_fixed, bounds=sersic_bounds)
+
+    lsersic = set_comp_param_prior(comp=sersic, param_name='L_tot', params=params,
+                                    param_name_alias='L_tot_sersic')
+    lsersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params,
+                                    param_name_alias='lr_eff')
+    lsersic = set_comp_param_prior(comp=sersic, param_name='n', params=params,
+                                    param_name_alias='lsersic_n')
+    lsersic = set_comp_param_prior(comp=sersic, param_name='r_inner', params=params,
+                                    param_name_alias='lsersic_rinner')
+    lsersic = set_comp_param_prior(comp=sersic, param_name='r_outer', params=params,
+                                    param_name_alias='lsersic_router')
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(lsersic, light=light)
+
+    return mod_set
+
+def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None):
+    params = _preprocess_light_gaus_ring_parameters(params=params)
+
+    L_tot =        params['L_tot_gaus_ring']        # Arbitrary
+    r_peak =       params['r_peak_gaus_ring']       # kpc
+    sigma_r =      params['sigma_r_gaus_ring']      # kpc
+
+    # Fix components
+    GR_fixed = {'L_tot': params['L_tot_gaus_ring_fixed'],
+                'r_peak': params['r_peak_gaus_ring_fixed'],
+                'sigma_r': params['sigma_r_gaus_ring_fixed']}
+
+    # Set bounds
+    GR_bounds = {'L_tot': (params['L_tot_gaus_ring_bounds'][0], params['L_tot_gaus_ring_bounds'][1]),
+                'r_peak': (params['r_peak_gaus_ring_bounds'][0], params['r_peak_gaus_ring_bounds'][1]),
+                'sigma_r':     (params['sigma_r_gaus_ring_bounds'][0], params['sigma_r_gaus_ring_bounds'][1])}
+
+    if 'light_gaussian_ring' in light_components_list:
+        light = True
+    else:
+        light = False
+
+    GR = models.LightGaussianRing(r_peak=r_peak, sigma_r=sigma_r, L_tot=L_tot,
+                        name='lgausring',fixed=GR_fixed, bounds=GR_bounds)
+
+    GR = set_comp_param_prior(comp=sersic, param_name='L_tot', params=params,
+                                    param_name_alias='L_tot_gaus_ring')
+    GR = set_comp_param_prior(comp=sersic, param_name='r_peak', params=params,
+                                    param_name_alias='r_peak_gaus_ring')
+    GR = set_comp_param_prior(comp=sersic, param_name='sigma_r', params=params,
+                                    param_name_alias='sigma_r_gaus_ring')
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(GR, light=light)
+
+    return mod_set
+
+def _preprocess_light_sersic_parameters(params=None):
+    if 'lsersic_n' not in list(params.keys()):
+        if 'n_disk' in list(params.keys()):
+            params['lsersic_n'] = params['n_disk']
+        elif 'sersic_n' in list(params.keys()):
+            params['lsersic_n'] = params['sersic_n']
+
+    if 'lr_eff' not in list(params.keys()):
+        if 'r_eff_disk' in list(params.keys()):
+            params['lr_eff'] = params['r_eff_disk']
+        elif 'r_eff' in list(params.keys()):
+            params['lr_eff'] = params['r_eff']
+
+    if 'L_tot_sersic' not in list(params.keys()):
+        params['L_tot_sersic'] = 1.
+
+    if 'lsersic_rinner' not in list(params.keys()):
+        params['lsersic_rinner'] = 0.
+    if 'lsersic_router' not in list(params.keys()):
+        params['lsersic_router'] = np.inf
+
+
+    for key in ['lsersic_n', 'lr_eff', 'L_tot_sersic', 'lsersic_rinner', 'lsersic_router']:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['lsersic_rinner', 'lsersic_router']:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (0.,20.)
+
+    if 'L_tot_sersic_bounds' not in list(params.keys()):
+        params['L_tot_sersic_bounds'] = (0., 2.)
+    if 'lr_eff_bounds' not in list(params.keys()):
+        params['lr_eff_bounds'] = (1., 15.)
+    if 'lsersic_n_bounds' not in list(params.keys()):
+        params['lsersic_n_bounds'] = (0.5, 8.0)
+
+    return params
+
+def _preprocess_light_gaus_ring_parameters(params=None):
+    if 'L_tot_gaus_ring' not in list(params.keys()):
+        params['L_tot_gaus_ring'] = 1.
+
+    for key in ['L_tot_gaus_ring', 'r_peak_gaus_ring', 'sigma_r_gaus_ring']:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['lsersic_rinner', 'lsersic_router']:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (0.,20.)
+
+    if 'L_tot_gaus_ring_bounds' not in list(params.keys()):
+        params['L_tot_gaus_ring_bounds'] = (0., 2.)
+    if 'r_peak_gaus_ring_bounds' not in list(params.keys()):
+        params['r_peak_gaus_ring_bounds'] = (1., 15.)
+    if 'sigma_r_gaus_ring_bounds' not in list(params.keys()):
+        params['sigma_r_gaus_ring_bounds'] = (0.2, 10.)
+
+    return params
+
 def setup_instrument_params(inst=None, params=None):
     pixscale = params['pixscale']*u.arcsec                # arcsec/pixel
     fov = [params['fov_npix'], params['fov_npix']]        # (nx, ny) pixels
@@ -1237,15 +1403,17 @@ def setup_data_weighting_method(method='UNSET', r=None):
     return weight
 
 
-def set_comp_param_prior(comp=None, param_name=None, params=None):
-    if params['{}_fixed'.format(param_name)] is False:
-        if '{}_prior'.format(param_name) in list(params.keys()):
+def set_comp_param_prior(comp=None, param_name=None, params=None, param_name_alias=None):
+    if param_name_alias is None:
+        param_name_alias = param_name
+    if params['{}_fixed'.format(param_name_alias)] is False:
+        if '{}_prior'.format(param_name_alias) in list(params.keys()):
             # Default to using pre-set value!
             try:
                 try:
                     center = comp.prior[param_name].center
                 except:
-                    center = params[param_name]
+                    center = params[param_name_alias]
             except:
                 # eg, UniformPrior
                 center = None
@@ -1255,28 +1423,28 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
                 try:
                     stddev = comp.prior[param_name].stddev
                 except:
-                    stddev = params['{}_stddev'.format(param_name)]
+                    stddev = params['{}_stddev'.format(param_name_alias)]
             except:
                 stddev = None
 
-            if params['{}_prior'.format(param_name)].lower() == 'flat':
+            if params['{}_prior'.format(param_name_alias)].lower() == 'flat':
                 comp.__getattribute__(param_name).prior = parameters.UniformPrior()
-            elif params['{}_prior'.format(param_name)].lower() == 'flat_linear':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'flat_linear':
                 comp.__getattribute__(param_name).prior = parameters.UniformLinearPrior()
-            elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'gaussian':
                 comp.__getattribute__(param_name).prior = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'sine_gaussian':
                 comp.__getattribute__(param_name).prior = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'gaussian_linear':
                 comp.__getattribute__(param_name).prior = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_flat_lowtrunc':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_flat_lowtrunc':
                 comp.__getattribute__(param_name).prior = TiedUniformPriorLowerTrunc(compn='disk+bulge', paramn='total_mass')
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian_lowtrunc':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_gaussian_lowtrunc':
                 comp.__getattribute__(param_name).prior = TiedBoundedGaussianPriorLowerTrunc(center=center, stddev=stddev,
                                                             compn='disk+bulge', paramn='total_mass')
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name,
-                                    params['{}_prior'.format(param_name)]))
+                                    params['{}_prior'.format(param_name_alias)]))
                 pass
 
     return comp
