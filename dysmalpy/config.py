@@ -127,6 +127,8 @@ class ConfigFitBase(ConfigBase):
         self.f_results = None
 
         self.f_vel_ascii = None
+        self.f_vcirc_ascii = None
+        self.f_mass_ascii = None
         self.f_log = None
 
         self.do_plotting = True

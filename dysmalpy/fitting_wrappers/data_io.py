@@ -78,6 +78,8 @@ def read_fitting_params_input(fname=None):
                     tmpval = False
                 elif strtmpval == 'None':
                     tmpval = None
+                elif strtmpval.lower() == 'inf':
+                    tmpval = np.inf
                 else:
                     try:
                         fltval = np.float(tmpval)
