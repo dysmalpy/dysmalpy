@@ -17,19 +17,26 @@ import scipy.optimize as scp_opt
 
 def tie_sigz_reff(model_set):
     #'sersic', 'disk+bulge', 'lsersic'
-    if model_set.light_components['disk+bulge']:
-        reff = model_set.components['disk+bulge'].r_eff_disk.value
-    elif model_set.light_components['sersic']:
-        reff = model_set.components['sersic'].r_eff.value
-    elif model_set.light_components['lsersic']:
-        reff = model_set.components['lsersic'].r_eff.value
+    reff = None
+    if 'disk+bulge' in model_set.light_components.keys():
+        if model_set.light_components['disk+bulge']:
+            reff = model_set.components['disk+bulge'].r_eff_disk.value
+    elif 'sersic' in model_set.light_components.keys():
+        if model_set.light_components['sersic']:
+            reff = model_set.components['sersic'].r_eff.value
+    elif 'lsersic' in model_set.light_components.keys():
+        if model_set.light_components['lsersic']:
+            reff = model_set.components['lsersic'].r_eff.value
 
     if 'disk+bulge' in model_set.components.keys():
         invq = model_set.components['disk+bulge'].invq_disk
     else:
         invq = 5.  # USE A DEFAULT of q=0.2
 
-    sigz = 2.0*reff/invq/2.35482
+    if reff is not None:
+        sigz = 2.0*reff/invq/2.35482
+    else:
+        sigz = 1.
 
     return sigz
 

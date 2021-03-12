@@ -1213,7 +1213,7 @@ class ModelSet:
                 for pp in self.tied[cmp]:
                     if self.tied[cmp][pp]:
                         new_value = self.tied[cmp][pp](self)
-                        self.set_parameter_value(cmp, pp, new_value)
+                        self.set_parameter_value(cmp, pp, new_value,skip_updated_tied=True)
 
 
     # Methods to grab the free parameters and keys
@@ -1580,7 +1580,8 @@ class ModelSet:
         return dlnrhogas_dlnr
 
 
-    def circular_velocity(self, r, compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
+    def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
+                            model_key_re=['disk+bulge', 'r_eff_disk'],
                           step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
@@ -1589,6 +1590,9 @@ class ModelSet:
         ----------
         r : float or array
             Radius or radii at which to calculate the circular velocity in kpc
+
+        compute_baryon : bool
+            If True, also return the circular velocity due to the baryons
 
         compute_dm : bool
             If True, also return the circular velocity due to the halo
@@ -1605,6 +1609,9 @@ class ModelSet:
         -------
         vel : float or array
             Total circular velocity in km/s
+
+        vbaryon : float or array, only if `compute_baryon` = True
+            Circular velocity due to the baryons
 
         vdm : float or array, only if `compute_dm` = True
             Circular velocity due to the halo
@@ -1651,8 +1658,13 @@ class ModelSet:
                 vdm = vels[1]
             else:
                 vel = vels
-            if compute_dm:
+
+            if (compute_baryon and compute_dm):
+                return vel, vbaryon, vdm
+            elif (compute_dm and (not compute_baryon)):
                 return vel, vdm
+            elif (compute_baryon and (not compute_dm)):
+                return vel, vbaryon
             else:
                 return vel
 
@@ -1805,6 +1817,7 @@ class ModelSet:
             try:
                 fnc = getattr(self, cols[j])
                 arr = fnc(r)
+                arr[~np.isfinite(arr)] = 0.
             except:
                 arr = np.ones(len(r))*-99.
             profiles[:, j+1] = arr
@@ -2470,15 +2483,6 @@ class BlackHole(MassModel):
         """
 
         menc = r*0. + np.power(10.,self.BH_mass)
-        try:
-            if len(r) > 1:
-                menc[r==0] = 0.
-            else:
-                if r[0] == 0.:
-                    menc[0] = 0.
-        except:
-            if r == 0:
-                menc = 0.
 
         return menc
 
@@ -4983,6 +4987,9 @@ class NFW(DarkMatterHalo):
     ----------
     .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
+    mvirial = DysmalParameter(default=1.0, bounds=(5, 20))
+    conc = DysmalParameter(default=5.0, bounds=(2, 20))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
 
@@ -5124,6 +5131,9 @@ class LinearNFW(DarkMatterHalo):
     ----------
     .. [1] https://ui.adsabs.harvard.edu/abs/1995MNRAS.275..720N/abstract
     """
+    mvirial = DysmalParameter(default=1.e1, bounds=(1.e5, 1.e20))
+    conc = DysmalParameter(default=5.0, bounds=(2, 20))
+    fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
         self.z = z
@@ -5556,7 +5566,8 @@ class KinematicOptions:
 
 
     def apply_adiabatic_contract(self, model, r, vbaryon, vhalo,
-                                 compute_dm=False, model_key_re=['disk+bulge', 'r_eff_disk'],
+                                 compute_dm=False,
+                                 model_key_re=['disk+bulge', 'r_eff_disk'],
                                  step1d = 0.2):
         """
         Function that applies adiabatic contraction to a ModelSet
@@ -5865,18 +5876,18 @@ class KinematicOptions:
                     if (mcomp._subtype == 'baryonic') | (mcomp._subtype == 'combined'):
                         if (isinstance(mcomp, DiskBulge)) | (isinstance(mcomp, LinearDiskBulge)):
                             p_val = mcomp.__getattribute__('{}_disk'.format(p_altname)).value
-                        else:
+                        elif (isinstance(mcomp, Sersic)) | (isinstance(mcomp, ExpDisk)):
                             p_val = mcomp.__getattribute__('{}'.format(p_altname)).value
                         break
 
             if p_val is None:
                 if param == 're':
-                    logger.warning("No baryonic mass component found. Using "
+                    logger.warning("No disk baryonic mass component found. Using "
                                "1 kpc as the pressure support effective"
                                " radius")
                     p_val = 1.0
                 elif param == 'n':
-                    logger.warning("No baryonic mass component found. Using "
+                    logger.warning("No disk baryonic mass component found. Using "
                                "n=1 as the pressure support Sersic index")
                     p_val = 1.0
 

@@ -201,6 +201,10 @@ def _fit_emcee_221(gal, **kwargs ):
         kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
     if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vcirc_ascii'] is None):
+        kwargs_fit['f_vcirc_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vcirc.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_mass_ascii'] is None):
+        kwargs_fit['f_mass_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_menc.dat'
 
 
     if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
@@ -217,7 +221,8 @@ def _fit_emcee_221(gal, **kwargs ):
     # Null filenames if not saving:
     save_keys = ['save_model', 'save_bestfit_cube', 'save_burn', 'save_results',
                 'save_vel_ascii', 'save_model_bestfit']
-    fname_keys = ['f_model', 'f_cube', 'f_burn_sampler', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_burn_sampler', 'f_results',
+                'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii', 'f_model_bestfit']
     for sk, fk in zip(save_keys, fname_keys):
         if not kwargs_fit[sk]:
             kwargs_fit[fk] = None
@@ -235,6 +240,7 @@ def _fit_emcee_221(gal, **kwargs ):
                     kwargs_fit['f_sampler'], kwargs_fit['f_plot_param_corner'],
                     kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'],
                     kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'],
+                    kwargs_fit['f_vcirc_ascii'], kwargs_fit['f_mass_ascii'],
                     kwargs_fit['f_model'], kwargs_fit['f_cube'], kwargs_fit['f_burn_sampler'] ]
         for fname in fnames_opt:
             if fname is not None:
@@ -271,8 +277,6 @@ def _fit_emcee_221(gal, **kwargs ):
                     'oversampled_chisq': kwargs_fit['oversampled_chisq']}
 
     kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
-
-    # kwargs_dict = {**kwargs_fit, **kwargs_galmodel}
 
     nBurn_orig = kwargs_fit['nBurn']
 
@@ -679,6 +683,10 @@ def _fit_emcee_3(gal, **kwargs ):
         kwargs_fit['f_chain_ascii'] = kwargs_fit['outdir']+'mcmc_chain_blobs.dat'
     if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vel_profile.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vcirc_ascii'] is None):
+        kwargs_fit['f_vcirc_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vcirc.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_mass_ascii'] is None):
+        kwargs_fit['f_mass_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_menc.dat'
 
     if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
         if gal.data.ndim == 1:
@@ -694,7 +702,8 @@ def _fit_emcee_3(gal, **kwargs ):
     # Null filenames if not saving:
     save_keys = ['save_model', 'save_bestfit_cube',  'save_results',
                 'save_vel_ascii', 'save_model_bestfit']
-    fname_keys = ['f_model', 'f_cube', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_results',
+                    'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii', 'f_model_bestfit']
     for sk, fk in zip(save_keys, fname_keys):
         if not kwargs_fit[sk]:
             kwargs_fit[fk] = None
@@ -711,6 +720,7 @@ def _fit_emcee_3(gal, **kwargs ):
         fnames_opt = [ kwargs_fit['f_plot_trace_burnin'], kwargs_fit['f_plot_trace'], kwargs_fit['f_plot_param_corner'],
                     kwargs_fit['f_plot_bestfit'], kwargs_fit['f_plot_param_corner'],
                     kwargs_fit['f_chain_ascii'], kwargs_fit['f_vel_ascii'],
+                    kwargs_fit['f_vcirc_ascii'], kwargs_fit['f_mass_ascii'],
                     kwargs_fit['f_model'], kwargs_fit['f_cube'] ]
         for fname in fnames_opt:
             if fname is not None:
@@ -1083,6 +1093,10 @@ def fit_mpfit(gal, **kwargs):
         kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
     if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
         kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir'] + 'galaxy_bestfit_vel_profile.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vcirc_ascii'] is None):
+        kwargs_fit['f_vcirc_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vcirc.dat'
+    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_mass_ascii'] is None):
+        kwargs_fit['f_mass_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_menc.dat'
 
     if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
         if gal.data.ndim == 1:
@@ -1098,7 +1112,8 @@ def fit_mpfit(gal, **kwargs):
     # Null filenames if not saving:
     save_keys = ['save_model', 'save_bestfit_cube',  'save_results',
                 'save_vel_ascii', 'save_model_bestfit']
-    fname_keys = ['f_model', 'f_cube', 'f_results', 'f_vel_ascii', 'f_model_bestfit']
+    fname_keys = ['f_model', 'f_cube', 'f_results',
+                    'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii', 'f_model_bestfit']
     for sk, fk in zip(save_keys, fname_keys):
         if not kwargs_fit[sk]:
             kwargs_fit[fk] = None
@@ -1112,7 +1127,9 @@ def fit_mpfit(gal, **kwargs):
     # Check for existing files if overwrite=False:
     if (not kwargs_fit['overwrite']):
         fnames = []
-        fnames_opt = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'], kwargs_fit['f_vel_ascii'],
+        fnames_opt = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'],
+                        kwargs_fit['f_vel_ascii'], kwargs_fit['f_vcirc_ascii'],
+                        kwargs_fit['f_mass_ascii'],
                         kwargs_fit['f_model'], kwargs_fit['f_cube'] ]
         for fname in fnames_opt:
             if fname is not None:
@@ -1173,11 +1190,13 @@ def fit_mpfit(gal, **kwargs):
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
 
     #logger.info('\n')
-    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
-    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    if 'halo' in gal.model.components.keys():
+        logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+    if 'disk+bulge' in gal.model.components.keys():
+        if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+        if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
     logger.info('\nMPFIT Fitting:\n'
@@ -1217,53 +1236,13 @@ def fit_mpfit(gal, **kwargs):
     mpfitResults.input_results(m, gal=gal, model_key_re=kwargs_fit['model_key_re'],
                     model_key_halo=kwargs_fit['model_key_halo'])
 
-    # Update theta to best-fit:
-    gal.model.update_parameters(mpfitResults.bestfit_parameters)
+    #####
+    # Do all analysis, plotting, saving:
+    #kwargs_all = {**kwargs_galmodel, **kwargs_fit}
+    mpfitResults.analyze_plot_save_results(gal, kwargs_galmodel=kwargs_galmodel,
+                                kwargs_fit=kwargs_fit)
 
-    gal.create_model_data(**kwargs_galmodel)
-
-    ###
-    mpfitResults.bestfit_redchisq = chisq_red(gal, fitdispersion=kwargs_fit['fitdispersion'],
-                    fitflux=kwargs_fit['fitflux'],
-                    model_key_re=kwargs_fit['model_key_re'])
-    mpfitResults.bestfit_chisq = chisq_eval(gal, fitdispersion=kwargs_fit['fitdispersion'],
-                    fitflux=kwargs_fit['fitflux'],
-                    model_key_re=kwargs_fit['model_key_re'])
-
-    # Get vmax and vrot
-    if kwargs_fit['model_key_re'] is not None:
-        comp = gal.model.components.__getitem__(kwargs_fit['model_key_re'][0])
-        param_i = comp.param_names.index(kwargs_fit['model_key_re'][1])
-        r_eff = comp.parameters[param_i]
-        mpfitResults.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
-
-    mpfitResults.vmax_bestfit = gal.model.get_vmax()
-
-    if kwargs_fit['f_results'] is not None:
-        mpfitResults.save_results(filename=kwargs_fit['f_results'], overwrite=kwargs_fit['overwrite'])
-
-    if kwargs_fit['f_model'] is not None:
-        # Save model w/ updated theta equal to best-fit:
-        gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
-                    overwrite=kwargs_fit['overwrite'])
-
-    if kwargs_fit['f_model_bestfit'] is not None:
-        gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
-
-    if kwargs_fit['save_bestfit_cube']:
-        gal.model_cube.data.write(kwargs_fit['f_cube'], overwrite=kwargs_fit['overwrite'])
-
-    if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
-        plotting.plot_bestfit(mpfitResults, gal, fitdispersion=kwargs_fit['fitdispersion'],
-                        fitflux=kwargs_fit['fitflux'], fileout=kwargs_fit['f_plot_bestfit'],
-                        overwrite=kwargs_fit['overwrite'], **kwargs_galmodel)
-
-    # Save velocity / other profiles to ascii file:
-    if kwargs_fit['f_vel_ascii'] is not None:
-        mpfitResults.save_bestfit_vel_ascii(gal, filename=kwargs_fit['f_vel_ascii'],
-                model_key_re=kwargs_fit['model_key_re'], overwrite=kwargs_fit['overwrite'])
-
-        # Clean up logger:
+    # Clean up logger:
     if kwargs_fit['f_log'] is not None:
         logger.removeHandler(loggerfile)
 
@@ -1366,6 +1345,18 @@ class FitResults(object):
             r = np.arange(0., rmax + stepsize, stepsize)
 
             gal.model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite)
+
+    def save_bestfit_vcirc_mass_profiles(self, gal, outpath=None,
+            fname_intrinsic=None, fname_intrinsic_m=None, overwrite=False):
+        """Save the best-fit vcirc, enclosed mass profiles"""
+        dpy_utils_io.create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
+                    fname_intrinsic=fname_intrinsic, fname_intrinsic_m=fname_intrinsic_m,
+                    overwrite=overwrite)
+
+
+    @abc.abstractmethod
+    def analyze_plot_save_results(self, *args, **kwargs):
+        """Method to do finishing analysis, plotting, and result saving after fitting."""
 
     @abc.abstractmethod
     def plot_results(self, *args, **kwargs):
@@ -1480,6 +1471,8 @@ class MCMCResults(FitResults):
                 f_model=None,
                 f_model_bestfit = None,
                 f_vel_ascii = None,
+                f_vcirc_ascii = None,
+                f_mass_ascii = None,
                 do_plotting = True,
                 overwrite=False,
                 **kwargs_galmodel):
@@ -1564,6 +1557,10 @@ class MCMCResults(FitResults):
         # Save velocity / other profiles to ascii file:
         if f_vel_ascii is not None:
             self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
+
+        if (f_vcirc_ascii is not None) or (f_mass_ascii is not None):
+            self.save_bestfit_vcirc_mass_profiles(gal, fname_intrinsic=f_vcirc_ascii,
+                fname_intrinsic_m=f_mass_ascii, overwrite=overwrite)
 
 
     def mod_linear_param_posterior(self, gal=None):
@@ -1915,6 +1912,68 @@ class MPFITResults(FitResults):
 
         super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
                                          f_results=f_results, fit_method='MPFIT')
+
+    def analyze_plot_save_results(self, gal,
+                kwargs_galmodel=None,
+                kwargs_fit=None):
+        """
+        Wrapper for analyzing MPFIT results and all remaining saving / plotting after fit.
+        """
+
+        # Update theta to best-fit:
+        gal.model.update_parameters(self.bestfit_parameters)
+
+        gal.create_model_data(**kwargs_galmodel)
+
+        ###
+        self.bestfit_redchisq = chisq_red(gal, fitdispersion=kwargs_fit['fitdispersion'],
+                        fitflux=kwargs_fit['fitflux'],
+                        model_key_re=kwargs_fit['model_key_re'])
+        self.bestfit_chisq = chisq_eval(gal, fitdispersion=kwargs_fit['fitdispersion'],
+                        fitflux=kwargs_fit['fitflux'],
+                        model_key_re=kwargs_fit['model_key_re'])
+
+        # Get vmax and vrot
+        if kwargs_fit['model_key_re'] is not None:
+            if kwargs_fit['model_key_re'][0] in gal.model.components.keys():
+                comp = gal.model.components.__getitem__(kwargs_fit['model_key_re'][0])
+                param_i = comp.param_names.index(kwargs_fit['model_key_re'][1])
+                r_eff = comp.parameters[param_i]
+                self.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
+            else:
+                self.vrot_bestfit = np.NaN
+
+        self.vmax_bestfit = gal.model.get_vmax()
+
+        if kwargs_fit['f_results'] is not None:
+            self.save_results(filename=kwargs_fit['f_results'], overwrite=kwargs_fit['overwrite'])
+
+        if kwargs_fit['f_model'] is not None:
+            # Save model w/ updated theta equal to best-fit:
+            gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
+                        overwrite=kwargs_fit['overwrite'])
+
+        if kwargs_fit['f_model_bestfit'] is not None:
+            gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
+
+        if kwargs_fit['save_bestfit_cube']:
+            gal.model_cube.data.write(kwargs_fit['f_cube'], overwrite=kwargs_fit['overwrite'])
+
+        if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
+            plotting.plot_bestfit(self, gal, fitdispersion=kwargs_fit['fitdispersion'],
+                            fitflux=kwargs_fit['fitflux'], fileout=kwargs_fit['f_plot_bestfit'],
+                            overwrite=kwargs_fit['overwrite'], **kwargs_galmodel)
+
+        # Save velocity / other profiles to ascii file:
+        if kwargs_fit['f_vel_ascii'] is not None:
+            self.save_bestfit_vel_ascii(gal, filename=kwargs_fit['f_vel_ascii'],
+                    model_key_re=kwargs_fit['model_key_re'], overwrite=kwargs_fit['overwrite'])
+
+        if (kwargs_fit['f_vcirc_ascii'] is not None) or (kwargs_fit['f_mass_ascii'] is not None):
+            self.save_bestfit_vcirc_mass_profiles(gal, outpath=kwargs_fit['outdir'],
+                    fname_intrinsic=kwargs_fit['f_vcirc_ascii'],
+                    fname_intrinsic_m=kwargs_fit['f_mass_ascii'], overwrite=kwargs_fit['overwrite'])
+
 
     def input_results(self, mpfit_obj, gal=None,
                     model_key_re=None, model_key_halo=None):

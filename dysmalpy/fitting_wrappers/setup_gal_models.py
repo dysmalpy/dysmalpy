@@ -148,11 +148,13 @@ def setup_gal_model_base(params=None,
 
     if 'light_components_list' in params.keys():
         light_components_list_orig = params['light_components_list']
+        if not isinstance(light_components_list_orig, list):
+            light_components_list_orig = [params['light_components_list']]
     else:
         # If 'light_sersic' and/or 'light_ring' in components_list: use those.
         light_components_list_orig = []
         for lp in ['light_sersic', 'light_gaussian_ring']:
-            if lp in components.list():
+            if lp in components_list:
                 light_components_list_orig.append(lp)
         if len(light_components_list_orig) == 0:
             # USE DEFAULT IF NOTHING ELSE!
@@ -223,11 +225,13 @@ def setup_gal_model_base(params=None,
 
     # --------------------------------------
     # Additional / Separate light components
-    if 'light_sersic' in components_list:
-        mod_set = add_light_sersic_comp(gal=gal, mod_set=mod_set, params=params)
+    if ('light_sersic' in components_list) or ('light_sersic' in light_components_list):
+        mod_set = add_light_sersic_comp(gal=gal, mod_set=mod_set,
+                params=params, light_components_list=light_components_list)
 
-    if 'light_gaussian_ring' in components_list:
-        mod_set = add_light_gaussian_ring_comp(gal=gal, mod_set=mod_set, params=params)
+    if ('light_gaussian_ring' in components_list) or ('light_gaussian_ring' in light_components_list):
+        mod_set = add_light_gaussian_ring_comp(gal=gal, mod_set=mod_set,
+                params=params, light_components_list=light_components_list)
 
 
     # --------------------------------------
@@ -370,7 +374,7 @@ def add_blackhole_comp(gal=None, mod_set=None, params=None):
     # Set bounds
     BH_bounds = {'BH_mass': (params['BH_mass_bounds'][0], params['BH_mass_bounds'][1])}
 
-    blackhole = models.BlackHole(BH_mass=BH_mass,name='BH', fixed=BH_fixed, bounds=BH_bounds)
+    blackhole = models.BlackHole(BH_mass=BH_mass, name='BH', fixed=BH_fixed, bounds=BH_bounds)
 
     blackhole = set_comp_param_prior(comp=blackhole, param_name='BH_mass', params=params)
 
@@ -820,7 +824,7 @@ def _preprocess_geom_parameters(params=None):
     return params
 
 
-def add_light_sersic_comp(gal=None, mod_set=None, params=None):
+def add_light_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
     params = _preprocess_light_sersic_parameters(params=params)
 
     L_tot =        params['L_tot_sersic']        # Arbitrary
@@ -852,15 +856,15 @@ def add_light_sersic_comp(gal=None, mod_set=None, params=None):
                         r_inner=r_inner, r_outer=r_outer,name='lsersic',
                         fixed=sersic_fixed, bounds=sersic_bounds)
 
-    lsersic = set_comp_param_prior(comp=sersic, param_name='L_tot', params=params,
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='L_tot', params=params,
                                     param_name_alias='L_tot_sersic')
-    lsersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params,
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_eff', params=params,
                                     param_name_alias='lr_eff')
-    lsersic = set_comp_param_prior(comp=sersic, param_name='n', params=params,
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='n', params=params,
                                     param_name_alias='lsersic_n')
-    lsersic = set_comp_param_prior(comp=sersic, param_name='r_inner', params=params,
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_inner', params=params,
                                     param_name_alias='lsersic_rinner')
-    lsersic = set_comp_param_prior(comp=sersic, param_name='r_outer', params=params,
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_outer', params=params,
                                     param_name_alias='lsersic_router')
     # --------------------------------------
     # Add the model component to the ModelSet
@@ -868,7 +872,7 @@ def add_light_sersic_comp(gal=None, mod_set=None, params=None):
 
     return mod_set
 
-def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None):
+def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None, light_components_list=None):
     params = _preprocess_light_gaus_ring_parameters(params=params)
 
     L_tot =        params['L_tot_gaus_ring']        # Arbitrary
@@ -893,11 +897,11 @@ def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None):
     GR = models.LightGaussianRing(r_peak=r_peak, sigma_r=sigma_r, L_tot=L_tot,
                         name='lgausring',fixed=GR_fixed, bounds=GR_bounds)
 
-    GR = set_comp_param_prior(comp=sersic, param_name='L_tot', params=params,
+    GR = set_comp_param_prior(comp=GR, param_name='L_tot', params=params,
                                     param_name_alias='L_tot_gaus_ring')
-    GR = set_comp_param_prior(comp=sersic, param_name='r_peak', params=params,
+    GR = set_comp_param_prior(comp=GR, param_name='r_peak', params=params,
                                     param_name_alias='r_peak_gaus_ring')
-    GR = set_comp_param_prior(comp=sersic, param_name='sigma_r', params=params,
+    GR = set_comp_param_prior(comp=GR, param_name='sigma_r', params=params,
                                     param_name_alias='sigma_r_gaus_ring')
     # --------------------------------------
     # Add the model component to the ModelSet
@@ -1153,6 +1157,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     f_results = outdir+'{}{}_mcmc_results.pickle'.format(galID, filename_extra)
     f_chain_ascii = outdir+'{}{}_mcmc_chain_blobs.dat'.format(galID, filename_extra)
     f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
+    f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
     mcmc_dict = {'outdir': outdir,
@@ -1170,6 +1176,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_mcmc_results': f_results,
                 'f_chain_ascii': f_chain_ascii,
                 'f_vel_ascii': f_vel_ascii,
+                'f_vcirc_ascii': f_vcirc_ascii,
+                'f_mass_ascii': f_mass_ascii,
                 'f_log': f_log}
 
     for key in params.keys():
@@ -1180,7 +1188,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
             mcmc_dict[key] = params[key]
 
     # Check for overridden filenames:
-    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
+                'f_vel_ascii', 'f_vel_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
         if key in params.keys():
@@ -1266,6 +1275,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     f_results = outdir+'{}{}_mpfit_results.pickle'.format(galID, filename_extra)
     f_plot_bestfit_multid = outdir+'{}{}_mpfit_best_fit_multid.{}'.format(galID, filename_extra, plot_type)
     f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
+    f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
 
@@ -1288,6 +1299,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'f_plot_bestfit_multid': f_plot_bestfit_multid,
                   'f_results':  f_results,
                   'f_vel_ascii': f_vel_ascii,
+                  'f_vcirc_ascii': f_vcirc_ascii,
+                  'f_mass_ascii': f_mass_ascii,
                   'f_log': f_log}
 
     for key in params.keys():
@@ -1299,7 +1312,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
 
 
     # Check for overriden filenames:
-    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
+                'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
         if key in params.keys():

@@ -28,7 +28,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FixedLocator, FixedFormatter
 
-
 import matplotlib.colors as mplcolors
 from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 
@@ -39,7 +38,8 @@ from spectral_cube import SpectralCube, BooleanArrayMask
 
 # Package imports
 from .utils import calc_pix_position, apply_smoothing_3D
-from .utils_io import create_vel_profile_files, read_bestfit_1d_obs_file, read_model_intrinsic_profile
+from .utils_io import create_vel_profile_files_obs1d, create_vel_profile_files_intrinsic, \
+                      read_bestfit_1d_obs_file, read_model_intrinsic_profile
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
@@ -2344,20 +2344,26 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
     # Check if the rot curves are done:
     if overwrite_curve_files:
-        curve_files_exist = False
+        curve_files_exist_int = False
+        curve_files_exist_obs1d = False
         file_exists = False
     else:
-        curve_files_exist = (os.path.isfile(fname_model_finer) and os.path.isfile(fname_intrinsic))
+        curve_files_exist_int = os.path.isfile(fname_intrinsic)
+        curve_files_exist_obs1d = os.path.isfile(fname_model_finer)
 
-
-    if not curve_files_exist:
-        # *_out-1dplots.txt
-        create_vel_profile_files(gal=gal, outpath=outpath,
+    if not curve_files_exist_obs1d:
+        # *_out-1dplots_finer_sampling.txt, *_out-1dplots.txt
+        create_vel_profile_files_obs1d(gal=gal, outpath=outpath,
                     fname_finer=fname_model_finer,
-                    fname_intrinsic=fname_intrinsic,
                     fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
+                    overwrite=overwrite_curve_files,
+                    **kwargs_galmodel)
+    if not curve_files_exist_int:
+        # *_vcirc_tot_bary_dm.dat
+        create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
+                    fname_intrinsic=fname_intrinsic,
                     overwrite=overwrite_curve_files,
                     **kwargs_galmodel)
 
@@ -2371,10 +2377,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         deg2rad = np.pi/180.
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
 
-
-        vsq = model_int.data['vcirc_tot'] ** 2 - \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                        gal.model.components['dispprof'].sigma0.value ** 2
+        vel_asymm_drift = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
+        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift**2
         vsq[vsq<0] = 0.
 
         model_int.data['vrot'] = np.sqrt(vsq)
@@ -2384,12 +2388,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
         sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
 
-        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 +  \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                gal.model.components['dispprof'].sigma0.value ** 2 )
-        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 +  \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                gal.model.components['dispprof'].sigma0.value ** 2 )
+        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift**2 )
+        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift**2 )
 
         ######################################
         # Setup plot:
@@ -2419,7 +2419,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         errbar_lw = 0.5
         errbar_cap = 1.5
         lw = 1.5
-
 
         fontsize_ticks = 9.
         fontsize_label = 10.
@@ -2562,16 +2561,16 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ###
 
 
+        if 'disk+bulge' in gal.model.components.keys():
+            ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
+            ax2.annotate(r'$R_{\mathrm{eff}}$',
+                (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
+                xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
 
-        ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
-        ax2.annotate(r'$R_{\mathrm{eff}}$',
-            (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
-            xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
-
-        # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
-        # ax2.annotate(r'$6r_d}$',
-        #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])),
-        #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
+            # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
+            # ax2.annotate(r'$6r_d}$',
+            #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])),
+            #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
 
         ###
         ax3 = ax2.twinx()
