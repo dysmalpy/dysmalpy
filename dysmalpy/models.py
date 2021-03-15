@@ -43,6 +43,7 @@ __all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'Bla
            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'DustExtinction',
            'KinematicOptions', 'ZHeightGauss',
+           'LightTruncateSersic', 'LightGaussianRing', 
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
            'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
            'apply_noord_flat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']
