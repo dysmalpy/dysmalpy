@@ -28,7 +28,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FixedLocator, FixedFormatter
 
-
 import matplotlib.colors as mplcolors
 from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
 
@@ -39,7 +38,8 @@ from spectral_cube import SpectralCube, BooleanArrayMask
 
 # Package imports
 from .utils import calc_pix_position, apply_smoothing_3D
-from .utils_io import create_vel_profile_files, read_bestfit_1d_obs_file, read_model_intrinsic_profile
+from .utils_io import create_vel_profile_files_obs1d, create_vel_profile_files_intrinsic, \
+                      read_bestfit_1d_obs_file, read_model_intrinsic_profile
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
@@ -1006,6 +1006,7 @@ def plot_model_1D(gal,
 
 def plot_model_2D(gal,
             fitdispersion=True,
+            fitflux=False,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
@@ -1017,21 +1018,29 @@ def plot_model_2D(gal,
     # Setup plot:
     f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
+    ncols = 1
     if fitdispersion:
-        grid_vel = ImageGrid(f, 121,
-                             nrows_ncols=(1, 1),
-                             direction="row",
-                             axes_pad=0.5,
-                             add_all=True,
-                             label_mode="1",
-                             share_all=True,
-                             cbar_location="right",
-                             cbar_mode="each",
-                             cbar_size="5%",
-                             cbar_pad="1%",
-                             )
+        ncols += 1
+    if fitflux:
+        ncols += 1
 
-        grid_disp = ImageGrid(f, 122,
+    #
+    cntr = 1
+    grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                         nrows_ncols=(1, 1),
+                         direction="row",
+                         axes_pad=0.5,
+                         add_all=True,
+                         label_mode="1",
+                         share_all=True,
+                         cbar_location="right",
+                         cbar_mode="each",
+                         cbar_size="5%",
+                         cbar_pad="1%",
+                         )
+    if fitdispersion:
+        cntr += 1
+        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,
@@ -1044,26 +1053,69 @@ def plot_model_2D(gal,
                               cbar_pad="1%",
                               )
 
-    else:
-        grid_vel = ImageGrid(f, 111,
-                             nrows_ncols=(1, 1),
-                             direction="row",
-                             axes_pad=0.5,
-                             add_all=True,
-                             label_mode="1",
-                             share_all=True,
-                             cbar_location="right",
-                             cbar_mode="each",
-                             cbar_size="5%",
-                             cbar_pad="1%",
-                             )
+    if fitflux:
+        cntr += 1
+        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+
+    # if fitdispersion:
+    #     grid_vel = ImageGrid(f, 121,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
+    #
+    #     grid_disp = ImageGrid(f, 122,
+    #                           nrows_ncols=(1, 1),
+    #                           direction="row",
+    #                           axes_pad=0.5,
+    #                           add_all=True,
+    #                           label_mode="1",
+    #                           share_all=True,
+    #                           cbar_location="right",
+    #                           cbar_mode="each",
+    #                           cbar_size="5%",
+    #                           cbar_pad="1%",
+    #                           )
+    #
+    # else:
+    #     grid_vel = ImageGrid(f, 111,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
 
 
     #
     keyxarr = ['model']
-    keyyarr = ['velocity', 'dispersion']
+    keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Model']
-    keyytitlearr = [r'$V$', r'$\sigma$']
+    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
 
     #f.set_size_inches(1.1*ncols*scale, nrows*scale)
     #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
@@ -1133,6 +1185,28 @@ def plot_model_2D(gal,
                              vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
             ax.set_ylabel(keyytitlearr[1])
+
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
+
+    if fitflux:
+        msk = np.isfinite(gal.model_data.data['flux'])
+        flux_vmin = gal.model_data.data['flux'][msk].min()
+        flux_vmax = gal.model_data.data['flux'][msk].max()
+
+
+        for ax, k in zip(grid_flux, keyxarr):
+            im = gal.model_data.data['flux'].copy()
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+
+            ax.set_ylabel(keyytitlearr[2])
 
             for pos in ['top', 'bottom', 'left', 'right']:
                 ax.spines[pos].set_visible(False)
@@ -2270,20 +2344,26 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
     # Check if the rot curves are done:
     if overwrite_curve_files:
-        curve_files_exist = False
+        curve_files_exist_int = False
+        curve_files_exist_obs1d = False
         file_exists = False
     else:
-        curve_files_exist = (os.path.isfile(fname_model_finer) and os.path.isfile(fname_intrinsic))
+        curve_files_exist_int = os.path.isfile(fname_intrinsic)
+        curve_files_exist_obs1d = os.path.isfile(fname_model_finer)
 
-
-    if not curve_files_exist:
-        # *_out-1dplots.txt
-        create_vel_profile_files(gal=gal, outpath=outpath,
+    if not curve_files_exist_obs1d:
+        # *_out-1dplots_finer_sampling.txt, *_out-1dplots.txt
+        create_vel_profile_files_obs1d(gal=gal, outpath=outpath,
                     fname_finer=fname_model_finer,
-                    fname_intrinsic=fname_intrinsic,
                     fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
+                    overwrite=overwrite_curve_files,
+                    **kwargs_galmodel)
+    if not curve_files_exist_int:
+        # *_vcirc_tot_bary_dm.dat
+        create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
+                    fname_intrinsic=fname_intrinsic,
                     overwrite=overwrite_curve_files,
                     **kwargs_galmodel)
 
@@ -2297,10 +2377,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         deg2rad = np.pi/180.
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
 
-
-        vsq = model_int.data['vcirc_tot'] ** 2 - \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                        gal.model.components['dispprof'].sigma0.value ** 2
+        vel_asymm_drift = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
+        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift**2
         vsq[vsq<0] = 0.
 
         model_int.data['vrot'] = np.sqrt(vsq)
@@ -2310,12 +2388,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
         sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
 
-        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 +  \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                gal.model.components['dispprof'].sigma0.value ** 2 )
-        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 +  \
-                3.36 * (model_int.rarr / gal.model.components['disk+bulge'].r_eff_disk.value) * \
-                gal.model.components['dispprof'].sigma0.value ** 2 )
+        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift**2 )
+        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift**2 )
 
         ######################################
         # Setup plot:
@@ -2345,7 +2419,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         errbar_lw = 0.5
         errbar_cap = 1.5
         lw = 1.5
-
 
         fontsize_ticks = 9.
         fontsize_label = 10.
@@ -2488,16 +2561,16 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ###
 
 
+        if 'disk+bulge' in gal.model.components.keys():
+            ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
+            ax2.annotate(r'$R_{\mathrm{eff}}$',
+                (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
+                xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
 
-        ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
-        ax2.annotate(r'$R_{\mathrm{eff}}$',
-            (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
-            xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
-
-        # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
-        # ax2.annotate(r'$6r_d}$',
-        #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])),
-        #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
+            # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
+            # ax2.annotate(r'$6r_d}$',
+            #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])),
+            #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
 
         ###
         ax3 = ax2.twinx()

@@ -78,6 +78,8 @@ def read_fitting_params_input(fname=None):
                     tmpval = False
                 elif strtmpval == 'None':
                     tmpval = None
+                elif strtmpval.lower() == 'inf':
+                    tmpval = np.inf
                 else:
                     try:
                         fltval = np.float(tmpval)
@@ -607,6 +609,15 @@ def load_single_object_3D_data(params=None, datadir=None):
     else:
         gal_weight = None
 
+    if ('xcenter' in params.keys()):
+        xcenter = params['xcenter']
+    else:
+        xcenter = None
+    #
+    if ('ycenter' in params.keys()):
+        ycenter = params['ycenter']
+    else:
+        ycenter = None
 
 
 
@@ -665,13 +676,14 @@ def load_single_object_3D_data(params=None, datadir=None):
     ####################################
 
 
-    cube, err_cube, mask, mask_sky, mask_spec, gal_weight, spec_arr = _auto_truncate_crop_cube(cube,
+    cube, err_cube, mask, mask_sky, mask_spec, gal_weight, spec_arr, xcenter, ycenter = _auto_truncate_crop_cube(cube,
                                             params=params,
                                             pixscale=pscale,
                                             spec_type='velocity', spec_arr=spec_arr,
                                             err_cube=err_cube, mask_cube=mask,
                                             mask_sky=mask_sky, mask_spec=mask_spec,
-                                            spec_unit=spec_unit,weight=gal_weight)
+                                            spec_unit=spec_unit,weight=gal_weight,
+                                            xcenter=xcenter, ycenter=ycenter)
 
 
     ####################################
@@ -717,7 +729,8 @@ def load_single_object_3D_data(params=None, datadir=None):
                                       spec_unit=u.km/u.s,
                                       weight=gal_weight,
                                       smoothing_type=smoothing_type,
-                                      smoothing_npix=smoothing_npix)
+                                      smoothing_npix=smoothing_npix,
+                                      xcenter=xcenter, ycenter=ycenter)
 
     return data3d
 

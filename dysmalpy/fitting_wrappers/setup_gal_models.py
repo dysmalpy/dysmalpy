@@ -128,6 +128,9 @@ def setup_gal_model_base(params=None,
         tied_rB_Burk_func=None,
         tied_alpha_Ein_func=None,
         tied_n_Ein_func=None,
+        tied_mvirial_func_DZ=None,
+        tied_s1_func_DZ=None,
+        tied_c2_func_DZ=None,
         tied_sigmaz_func=None):
 
     if 'components_list' in params.keys():
@@ -138,17 +141,27 @@ def setup_gal_model_base(params=None,
             components_list_orig.append('halo')
             # Or explicitly do NFW / TPH / etc?
 
+    # Make sure all lower case:
+    components_list = []
+    for cmp in components_list_orig:
+        components_list.append(cmp.lower())
 
     if 'light_components_list' in params.keys():
         light_components_list_orig = params['light_components_list']
+        if not isinstance(light_components_list_orig, list):
+            light_components_list_orig = [params['light_components_list']]
     else:
-        light_components_list_orig = ['disk']
+        # If 'light_sersic' and/or 'light_ring' in components_list: use those.
+        light_components_list_orig = []
+        for lp in ['light_sersic', 'light_gaussian_ring']:
+            if lp in components_list:
+                light_components_list_orig.append(lp)
+        if len(light_components_list_orig) == 0:
+            # USE DEFAULT IF NOTHING ELSE!
+            light_components_list_orig.append('disk')
 
     # Make sure all lower case:
-    components_list = []
-    light_components_list []
-    for cmp in components_list_orig:
-        components_list.append(cmp.lower())
+    light_components_list = []
     for cmp in light_components_list_orig:
         light_components_list.append(cmp.lower())
 
@@ -189,6 +202,9 @@ def setup_gal_model_base(params=None,
                     tied_rB_Burk_func=tied_rB_Burk_func,
                     tied_alpha_Ein_func=tied_alpha_Ein_func,
                     tied_n_Ein_func=tied_n_Ein_func,
+                    tied_mvirial_func_DZ=tied_mvirial_func_DZ,
+                    tied_s1_func_DZ=tied_s1_func_DZ,
+                    tied_c2_func_DZ=tied_c2_func_DZ,
                     comp_bary=comp_bary)
 
     # ------------------------------------------------------------
@@ -206,6 +222,17 @@ def setup_gal_model_base(params=None,
     # Geometry
     if 'geometry' in components_list:
         mod_set = add_geometry_comp(gal=gal, mod_set=mod_set, params=params)
+
+    # --------------------------------------
+    # Additional / Separate light components
+    if ('light_sersic' in components_list) or ('light_sersic' in light_components_list):
+        mod_set = add_light_sersic_comp(gal=gal, mod_set=mod_set,
+                params=params, light_components_list=light_components_list)
+
+    if ('light_gaussian_ring' in components_list) or ('light_gaussian_ring' in light_components_list):
+        mod_set = add_light_gaussian_ring_comp(gal=gal, mod_set=mod_set,
+                params=params, light_components_list=light_components_list)
+
 
     # --------------------------------------
     # Set some kinematic options for calculating the velocity profile
@@ -304,22 +331,24 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
 def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
     total_mass =  params['total_mass']        # log M_sun
     r_eff =       params['r_eff']             # kpc
-    n =           params['n']
+    n =           params['sersic_n']
     invq =        params['invq']              # 1/q0 , for Noordermeer flattening
     noord_flat =  params['noord_flat']        # Switch for applying Noordermeer flattening
 
     # Fix components
     sersic_fixed = {'total_mass': params['total_mass_fixed'],
                     'r_eff': params['r_eff_fixed'],
-                    'n': params['n_fixed']}
+                    'n': params['sersic_n_fixed']}
 
     # Set bounds
     sersic_bounds = {'total_mass': (params['total_mass_bounds'][0], params['total_mass_bounds'][1]),
                      'r_eff': (params['r_eff_bounds'][0], params['r_eff_bounds'][1]),
-                     'n':     (params['n_bounds'][0], params['n_bounds'][1])}
+                     'n':     (params['sersic_n_bounds'][0], params['sersic_n_bounds'][1])}
 
     if 'sersic' in light_components_list:
         light = True
+    else:
+        light = False
 
     sersic = models.Sersic(total_mass=total_mass,r_eff=r_eff, n=n,invq=invq,
                             noord_flat=noord_flat,name='sersic',
@@ -327,7 +356,8 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
 
     sersic = set_comp_param_prior(comp=sersic, param_name='total_mass', params=params)
     sersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params)
-    sersic = set_comp_param_prior(comp=sersic, param_name='n', params=params)
+    sersic = set_comp_param_prior(comp=sersic, param_name='n', params=params,
+                                    param_name_alias='sersic_n')
 
     # --------------------------------------
     # Add the model component to the ModelSet
@@ -337,14 +367,14 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
 
 def add_blackhole_comp(gal=None, mod_set=None, params=None):
     BH_mass =  params['BH_mass']        # log M_sun
-    
+
     # Fix components
     BH_fixed = {'BH_mass': params['BH_mass_fixed']}
 
     # Set bounds
     BH_bounds = {'BH_mass': (params['BH_mass_bounds'][0], params['BH_mass_bounds'][1])}
 
-    blackhole = models.BlackHole(BH_mass=BH_mass,name='BH', fixed=BH_fixed, bounds=BH_bounds)
+    blackhole = models.BlackHole(BH_mass=BH_mass, name='BH', fixed=BH_fixed, bounds=BH_bounds)
 
     blackhole = set_comp_param_prior(comp=blackhole, param_name='BH_mass', params=params)
 
@@ -362,6 +392,9 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_rB_Burk_func=None,
         tied_alpha_Ein_func=None,
         tied_n_Ein_func=None,
+        tied_mvirial_func_DZ=None,
+        tied_s1_func_DZ=None,
+        tied_c2_func_DZ=None,
         comp_bary='disk+bulge'):
 
     if tied_fdm_func is None:
@@ -378,6 +411,12 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_alpha_Ein_func = tied_functions.tie_alphaEinasto_Einasto
     if tied_n_Ein_func is None:
         tied_n_Ein_func = tied_functions.tie_nEinasto_Einasto
+    if tied_mvirial_func_DZ is None:
+        tied_mvirial_func_DZ = tied_functions.tie_lmvirial_to_fdm
+    if tied_s1_func_DZ is None:
+        tied_s1_func_DZ = tied_functions.tie_DZ_s1_MstarMhalo
+    if tied_c2_func_DZ is None:
+        tied_c2_func_DZ = tied_functions.tie_DZ_c2_MstarMhalo
 
     # Halo component
     if (params['halo_profile_type'].strip().upper() == 'NFW'):
@@ -614,6 +653,64 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
         halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
 
+    elif (params['halo_profile_type'].strip().upper() == 'DEKELZHAO'):
+        # Dekel-Zhao halo fit:
+
+        # Add values needed:
+        try:
+            mod_set.components[comp_bary].lmstar = params['lmstar']
+        except:
+            if 'lmstar' not in mod_set.components[comp_bary].__dict__:
+                mod_set.components[comp_bary].lmstar = None
+
+
+        # Setup parameters:
+        mvirial =   params['mvirial']
+        s1 =        params['s1']
+        c2 =        params['c2']
+        fdm =       params['fdm']
+
+        halo_fixed = {'mvirial':    params['mvirial_fixed'],
+                      's1':         params['s1_fixed'],
+                      'c2':         params['c2_fixed'],
+                      'fdm':        params['fdm_fixed']}
+
+        halo_bounds = {'mvirial':   (params['mvirial_bounds'][0], params['mvirial_bounds'][1]),
+                       's1':        (params['s1_bounds'][0], params['s1_bounds'][1]),
+                       'c2':        (params['c2_bounds'][0], params['c2_bounds'][1]),
+                       'fdm':       (params['fdm_bounds'][0], params['fdm_bounds'][1]) }
+
+        halo = models.DekelZhao(mvirial=mvirial, s1=s1, c2=c2, fdm=fdm, z=gal.z,
+                            fixed=halo_fixed, bounds=halo_bounds, name='halo')
+
+        # Tie the virial mass to Mstar
+        if params['mvirial_tied']:
+            halo.mvirial.tied = tied_mvirial_func_DZ
+
+        if 'fdm_tied' in params.keys():
+            if params['fdm_tied']:
+                # Tie fDM to the virial mass
+                halo.fdm.tied = tied_fdm_func
+                halo.fdm.fixed = False
+        else:
+            params['fdm_tied'] = False
+
+        if 's1_tied' in params.keys():
+            if params['s1_tied']:
+                # Tie the s1 to M*, Mvir (or fDM implicitly through Mvir tied...)
+                halo.s1.tied = tied_s1_func_DZ
+                halo.s1.fixed = False
+        if 'c2_tied' in params.keys():
+            if params['c2_tied']:
+                # Tie the c2 to M*, Mvir (or fDM implicitly through Mvir tied...)
+                halo.c2.tied = tied_c2_func_DZ
+                halo.c2.fixed = False
+
+        halo = set_comp_param_prior(comp=halo, param_name='mvirial', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='s1', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='c2', params=params)
+        halo = set_comp_param_prior(comp=halo, param_name='fdm', params=params)
+
     else:
         raise ValueError("{} halo profile type not recognized!".format(params['halo_profile_type']))
 
@@ -726,6 +823,152 @@ def _preprocess_geom_parameters(params=None):
 
     return params
 
+
+def add_light_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    params = _preprocess_light_sersic_parameters(params=params)
+
+    L_tot =        params['L_tot_sersic']        # Arbitrary
+    r_eff =       params['lr_eff']         # kpc
+    n =           params['lsersic_n']
+    r_inner =     params['lsersic_rinner'] # kpc
+    r_outer =     params['lsersic_router'] # kpc
+
+    # Fix components
+    sersic_fixed = {'L_tot': params['L_tot_sersic_fixed'],
+                    'r_eff': params['lr_eff_fixed'],
+                    'n': params['lsersic_n_fixed'],
+                    'r_inner': params['lsersic_rinner_fixed'],
+                    'r_outer': params['lsersic_router_fixed']}
+
+    # Set bounds
+    sersic_bounds = {'L_tot': (params['L_tot_sersic_bounds'][0], params['L_tot_sersic_bounds'][1]),
+                     'r_eff': (params['lr_eff_bounds'][0], params['lr_eff_bounds'][1]),
+                     'n':     (params['lsersic_n_bounds'][0], params['lsersic_n_bounds'][1]),
+                     'r_inner':     (params['lsersic_rinner_bounds'][0], params['lsersic_rinner_bounds'][1]),
+                     'r_outer':     (params['lsersic_router_bounds'][0], params['lsersic_router_bounds'][1])}
+
+    if 'light_sersic' in light_components_list:
+        light = True
+    else:
+        light = False
+
+    lsersic = models.LightTruncateSersic(r_eff=r_eff, n=n, L_tot=L_tot,
+                        r_inner=r_inner, r_outer=r_outer,name='lsersic',
+                        fixed=sersic_fixed, bounds=sersic_bounds)
+
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='L_tot', params=params,
+                                    param_name_alias='L_tot_sersic')
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_eff', params=params,
+                                    param_name_alias='lr_eff')
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='n', params=params,
+                                    param_name_alias='lsersic_n')
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_inner', params=params,
+                                    param_name_alias='lsersic_rinner')
+    lsersic = set_comp_param_prior(comp=lsersic, param_name='r_outer', params=params,
+                                    param_name_alias='lsersic_router')
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(lsersic, light=light)
+
+    return mod_set
+
+def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    params = _preprocess_light_gaus_ring_parameters(params=params)
+
+    L_tot =        params['L_tot_gaus_ring']        # Arbitrary
+    r_peak =       params['r_peak_gaus_ring']       # kpc
+    sigma_r =      params['sigma_r_gaus_ring']      # kpc
+
+    # Fix components
+    GR_fixed = {'L_tot': params['L_tot_gaus_ring_fixed'],
+                'r_peak': params['r_peak_gaus_ring_fixed'],
+                'sigma_r': params['sigma_r_gaus_ring_fixed']}
+
+    # Set bounds
+    GR_bounds = {'L_tot': (params['L_tot_gaus_ring_bounds'][0], params['L_tot_gaus_ring_bounds'][1]),
+                'r_peak': (params['r_peak_gaus_ring_bounds'][0], params['r_peak_gaus_ring_bounds'][1]),
+                'sigma_r':     (params['sigma_r_gaus_ring_bounds'][0], params['sigma_r_gaus_ring_bounds'][1])}
+
+    if 'light_gaussian_ring' in light_components_list:
+        light = True
+    else:
+        light = False
+
+    GR = models.LightGaussianRing(r_peak=r_peak, sigma_r=sigma_r, L_tot=L_tot,
+                        name='lgausring',fixed=GR_fixed, bounds=GR_bounds)
+
+    GR = set_comp_param_prior(comp=GR, param_name='L_tot', params=params,
+                                    param_name_alias='L_tot_gaus_ring')
+    GR = set_comp_param_prior(comp=GR, param_name='r_peak', params=params,
+                                    param_name_alias='r_peak_gaus_ring')
+    GR = set_comp_param_prior(comp=GR, param_name='sigma_r', params=params,
+                                    param_name_alias='sigma_r_gaus_ring')
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(GR, light=light)
+
+    return mod_set
+
+def _preprocess_light_sersic_parameters(params=None):
+    if 'lsersic_n' not in list(params.keys()):
+        if 'n_disk' in list(params.keys()):
+            params['lsersic_n'] = params['n_disk']
+        elif 'sersic_n' in list(params.keys()):
+            params['lsersic_n'] = params['sersic_n']
+
+    if 'lr_eff' not in list(params.keys()):
+        if 'r_eff_disk' in list(params.keys()):
+            params['lr_eff'] = params['r_eff_disk']
+        elif 'r_eff' in list(params.keys()):
+            params['lr_eff'] = params['r_eff']
+
+    if 'L_tot_sersic' not in list(params.keys()):
+        params['L_tot_sersic'] = 1.
+
+    if 'lsersic_rinner' not in list(params.keys()):
+        params['lsersic_rinner'] = 0.
+    if 'lsersic_router' not in list(params.keys()):
+        params['lsersic_router'] = np.inf
+
+
+    for key in ['lsersic_n', 'lr_eff', 'L_tot_sersic', 'lsersic_rinner', 'lsersic_router']:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['lsersic_rinner', 'lsersic_router']:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (0.,20.)
+
+    if 'L_tot_sersic_bounds' not in list(params.keys()):
+        params['L_tot_sersic_bounds'] = (0., 2.)
+    if 'lr_eff_bounds' not in list(params.keys()):
+        params['lr_eff_bounds'] = (1., 15.)
+    if 'lsersic_n_bounds' not in list(params.keys()):
+        params['lsersic_n_bounds'] = (0.5, 8.0)
+
+    return params
+
+def _preprocess_light_gaus_ring_parameters(params=None):
+    if 'L_tot_gaus_ring' not in list(params.keys()):
+        params['L_tot_gaus_ring'] = 1.
+
+    for key in ['L_tot_gaus_ring', 'r_peak_gaus_ring', 'sigma_r_gaus_ring']:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['lsersic_rinner', 'lsersic_router']:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (0.,20.)
+
+    if 'L_tot_gaus_ring_bounds' not in list(params.keys()):
+        params['L_tot_gaus_ring_bounds'] = (0., 2.)
+    if 'r_peak_gaus_ring_bounds' not in list(params.keys()):
+        params['r_peak_gaus_ring_bounds'] = (1., 15.)
+    if 'sigma_r_gaus_ring_bounds' not in list(params.keys()):
+        params['sigma_r_gaus_ring_bounds'] = (0.2, 10.)
+
+    return params
+
 def setup_instrument_params(inst=None, params=None):
     pixscale = params['pixscale']*u.arcsec                # arcsec/pixel
     fov = [params['fov_npix'], params['fov_npix']]        # (nx, ny) pixels
@@ -740,18 +983,75 @@ def setup_instrument_params(inst=None, params=None):
 
 
     if params['psf_type'].lower().strip() == 'gaussian':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Gaussian
-        beam = instrument.GaussianBeam(major=beamsize)
-    elif params['psf_type'].lower().strip() == 'moffat':
-        beamsize = params['psf_fwhm']*u.arcsec              # FWHM of beam, Moffat
-        beta = params['psf_beta']
-        beam = instrument.Moffat(major_fwhm=beamsize, beta=beta)
-    elif params['psf_type'].lower().strip() == 'doublegaussian':
-        # Kernel of both components multipled by: self._scaleN / np.sum(kernelN.array)
-        #    -- eg, scaleN controls the relative amount of flux in each component.
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm_major' in params.keys():
+            psf_fwhm_major = params['psf_fwhm_major']
+        else:
+            psf_fwhm_major = params['psf_fwhm']
+        if 'psf_fwhm_minor' in params.keys():
+            psf_fwhm_minor = params['psf_fwhm_minor']
+        else:
+            psf_fwhm_minor = params['psf_fwhm']
+        if 'psf_PA' in params.keys():
+            psf_PA = params['psf_PA']
+        else:
+            psf_PA = 0.
 
-        beamsize1 = params['psf_fwhm1']*u.arcsec              # FWHM of beam, Gaussian
-        beamsize2 = params['psf_fwhm2']*u.arcsec              # FWHM of beam, Gaussian
+        major = psf_fwhm_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor = psf_fwhm_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa = psf_PA * u.deg                          # PA of major axis
+        beam = instrument.GaussianBeam(major=major, minor=minor, pa=pa)
+
+    elif params['psf_type'].lower().strip() == 'moffat':
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm_major' in params.keys():
+            psf_fwhm_major = params['psf_fwhm_major']
+        else:
+            psf_fwhm_major = params['psf_fwhm']
+        if 'psf_fwhm_minor' in params.keys():
+            psf_fwhm_minor = params['psf_fwhm_minor']
+        else:
+            psf_fwhm_minor = params['psf_fwhm']
+        if 'psf_PA' in params.keys():
+            psf_PA = params['psf_PA']
+        else:
+            psf_PA = 0.
+
+        beta = params['psf_beta']
+
+        major = psf_fwhm_major*u.arcsec              # FWHM of beam major axis, Moffat
+        minor = psf_fwhm_minor*u.arcsec              # FWHM of beam minor axis, Moffat
+        pa = psf_PA * u.deg                          # PA of major axis
+
+        beam = instrument.Moffat(major_fwhm=major, minor_fwhm=minor, pa=pa, beta=beta)
+
+    elif params['psf_type'].lower().strip() == 'doublegaussian':
+        # ALLOWS FOR ELLIPTICAL
+        if 'psf_fwhm1_major' in params.keys():
+            psf_fwhm1_major = params['psf_fwhm1_major']
+        else:
+            psf_fwhm1_major = params['psf_fwhm1']
+        if 'psf_fwhm1_minor' in params.keys():
+            psf_fwhm1_minor = params['psf_fwhm1_minor']
+        else:
+            psf_fwhm1_minor = params['psf_fwhm']
+        if 'psf_PA1' in params.keys():
+            psf_PA1 = params['psf_PA1']
+        else:
+            psf_PA1 = 0.
+
+        if 'psf_fwhm2_major' in params.keys():
+            psf_fwhm2_major = params['psf_fwhm2_major']
+        else:
+            psf_fwhm2_major = params['psf_fwhm2']
+        if 'psf_fwhm2_minor' in params.keys():
+            psf_fwhm2_minor = params['psf_fwhm2_minor']
+        else:
+            psf_fwhm2_minor = params['psf_fwhm2']
+        if 'psf_PA2' in params.keys():
+            psf_PA2 = params['psf_PA2']
+        else:
+            psf_PA2 = 0.
 
         try:
             scale1 = params['psf_scale1']                     # Flux scaling of component 1
@@ -759,8 +1059,16 @@ def setup_instrument_params(inst=None, params=None):
             scale1 = 1.                                       # If ommitted, assume scale2 is rel to scale1=1.
         scale2 = params['psf_scale2']                         # Flux scaling of component 2
 
-        beam = instrument.DoubleBeam(major1=beamsize1, major2=beamsize2,
-                        scale1=scale1, scale2=scale2)
+        major1 = psf_fwhm1_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor1 = psf_fwhm1_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa1 = psf_PA1 * u.deg                          # PA of major axis
+
+        major2 = psf_fwhm2_major*u.arcsec              # FWHM of beam major axis, Gaussian
+        minor2 = psf_fwhm2_minor*u.arcsec              # FWHM of beam minor axis, Gaussian
+        pa2 = psf_PA2 * u.deg                          # PA of major axis
+
+        beam = instrument.DoubleBeam(major1=major1, minor1=minor1, pa1=pa1, scale1=scale1,
+                    major2=major2, minor2=minor2, pa2=pa2, scale2=scale2)
 
     else:
         raise ValueError("PSF type {} not recognized!".format(params['psf_type']))
@@ -849,6 +1157,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     f_results = outdir+'{}{}_mcmc_results.pickle'.format(galID, filename_extra)
     f_chain_ascii = outdir+'{}{}_mcmc_chain_blobs.dat'.format(galID, filename_extra)
     f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
+    f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
     mcmc_dict = {'outdir': outdir,
@@ -866,6 +1176,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_mcmc_results': f_results,
                 'f_chain_ascii': f_chain_ascii,
                 'f_vel_ascii': f_vel_ascii,
+                'f_vcirc_ascii': f_vcirc_ascii,
+                'f_mass_ascii': f_mass_ascii,
                 'f_log': f_log}
 
     for key in params.keys():
@@ -876,7 +1188,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
             mcmc_dict[key] = params[key]
 
     # Check for overridden filenames:
-    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
+                'f_vel_ascii', 'f_vel_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
         if key in params.keys():
@@ -962,6 +1275,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     f_results = outdir+'{}{}_mpfit_results.pickle'.format(galID, filename_extra)
     f_plot_bestfit_multid = outdir+'{}{}_mpfit_best_fit_multid.{}'.format(galID, filename_extra, plot_type)
     f_vel_ascii = outdir+'{}{}_galaxy_bestfit_vel_profile.dat'.format(galID, filename_extra)
+    f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
+    f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
 
 
@@ -984,6 +1299,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'f_plot_bestfit_multid': f_plot_bestfit_multid,
                   'f_results':  f_results,
                   'f_vel_ascii': f_vel_ascii,
+                  'f_vcirc_ascii': f_vcirc_ascii,
+                  'f_mass_ascii': f_mass_ascii,
                   'f_log': f_log}
 
     for key in params.keys():
@@ -995,7 +1312,8 @@ def setup_mpfit_dict(params=None, ndim_data=None):
 
 
     # Check for overriden filenames:
-    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results', 'f_vel_ascii',
+    fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
+                'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
     for key in fname_overridable:
         if key in params.keys():
@@ -1099,15 +1417,17 @@ def setup_data_weighting_method(method='UNSET', r=None):
     return weight
 
 
-def set_comp_param_prior(comp=None, param_name=None, params=None):
-    if params['{}_fixed'.format(param_name)] is False:
-        if '{}_prior'.format(param_name) in list(params.keys()):
+def set_comp_param_prior(comp=None, param_name=None, params=None, param_name_alias=None):
+    if param_name_alias is None:
+        param_name_alias = param_name
+    if params['{}_fixed'.format(param_name_alias)] is False:
+        if '{}_prior'.format(param_name_alias) in list(params.keys()):
             # Default to using pre-set value!
             try:
                 try:
                     center = comp.prior[param_name].center
                 except:
-                    center = params[param_name]
+                    center = params[param_name_alias]
             except:
                 # eg, UniformPrior
                 center = None
@@ -1117,28 +1437,28 @@ def set_comp_param_prior(comp=None, param_name=None, params=None):
                 try:
                     stddev = comp.prior[param_name].stddev
                 except:
-                    stddev = params['{}_stddev'.format(param_name)]
+                    stddev = params['{}_stddev'.format(param_name_alias)]
             except:
                 stddev = None
 
-            if params['{}_prior'.format(param_name)].lower() == 'flat':
+            if params['{}_prior'.format(param_name_alias)].lower() == 'flat':
                 comp.__getattribute__(param_name).prior = parameters.UniformPrior()
-            elif params['{}_prior'.format(param_name)].lower() == 'flat_linear':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'flat_linear':
                 comp.__getattribute__(param_name).prior = parameters.UniformLinearPrior()
-            elif params['{}_prior'.format(param_name)].lower() == 'gaussian':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'gaussian':
                 comp.__getattribute__(param_name).prior = parameters.BoundedGaussianPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'sine_gaussian':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'sine_gaussian':
                 comp.__getattribute__(param_name).prior = parameters.BoundedSineGaussianPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'gaussian_linear':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'gaussian_linear':
                 comp.__getattribute__(param_name).prior = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_flat_lowtrunc':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_flat_lowtrunc':
                 comp.__getattribute__(param_name).prior = TiedUniformPriorLowerTrunc(compn='disk+bulge', paramn='total_mass')
-            elif params['{}_prior'.format(param_name)].lower() == 'tied_gaussian_lowtrunc':
+            elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_gaussian_lowtrunc':
                 comp.__getattribute__(param_name).prior = TiedBoundedGaussianPriorLowerTrunc(center=center, stddev=stddev,
                                                             compn='disk+bulge', paramn='total_mass')
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name,
-                                    params['{}_prior'.format(param_name)]))
+                                    params['{}_prior'.format(param_name_alias)]))
                 pass
 
     return comp
