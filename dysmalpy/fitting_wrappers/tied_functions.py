@@ -16,10 +16,27 @@ import scipy.optimize as scp_opt
 
 
 def tie_sigz_reff(model_set):
+    #'sersic', 'disk+bulge', 'lsersic'
+    reff = None
+    if 'disk+bulge' in model_set.light_components.keys():
+        if model_set.light_components['disk+bulge']:
+            reff = model_set.components['disk+bulge'].r_eff_disk.value
+    elif 'sersic' in model_set.light_components.keys():
+        if model_set.light_components['sersic']:
+            reff = model_set.components['sersic'].r_eff.value
+    elif 'lsersic' in model_set.light_components.keys():
+        if model_set.light_components['lsersic']:
+            reff = model_set.components['lsersic'].r_eff.value
 
-    reff = model_set.components['disk+bulge'].r_eff_disk.value
-    invq = model_set.components['disk+bulge'].invq_disk
-    sigz = 2.0*reff/invq/2.35482
+    if 'disk+bulge' in model_set.components.keys():
+        invq = model_set.components['disk+bulge'].invq_disk
+    else:
+        invq = 5.  # USE A DEFAULT of q=0.2
+
+    if reff is not None:
+        sigz = 2.0*reff/invq/2.35482
+    else:
+        sigz = 1.
 
     return sigz
 
@@ -242,6 +259,52 @@ def tie_nEinasto_Einasto(model_set):
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     nEinasto = comp_halo.calc_nEinasto_from_fdm(comp_baryons, r_fdm)
     return nEinasto
+
+
+
+def _DZ_s1_MstarMhalo(Mstar, Mvir):
+    """
+    Function to tie s1 to M*/Mvir.
+    From Freundlich et al. 2020, Eqs 45, 47, 48 + Table 1
+    """
+    cdmo = np.power(10., 1.025 - 0.097 * np.log10(Mvir * 0.671 / 1.e12))
+    sdmo = (1. + 0.03*cdmo) / (1. + 0.01*cdmo)
+
+    x = Mstar/Mvir
+    x0 = 1.30e-3
+    sprime = 1
+    spp = 0.32
+    nu = 2.86
+    s1ratio = sprime / (1. + np.power(x/x0, nu)) + spp * np.log10(1. + np.power(x/x0, nu))
+
+    return s1ratio * sdmo
+
+def _DZ_c2_MstarMhalo(Mstar, Mvir):
+    """
+    Function to tie c1 to M*/Mvir.
+    From Freundlich et al. 2020, Eqs 47, 49 + Table 1
+    """
+    cdmo = np.power(10., 1.025 - 0.097 * np.log10(Mvir * 0.671 / 1.e12))
+
+    x = Mstar/Mvir
+    x0 = 2.43e-2
+    cprime = 1.14
+    nu = 1.37
+    mu = 0.142
+    c2ratio = cprime * (1. + np.power(x/x0, nu)) - np.power(x, mu)
+
+    return c2ratio * cdmo
+
+def tie_DZ_s1_MstarMhalo(model_set):
+    Mstar = np.power(10., model_set.components['disk+bulge'].lmstar)
+    Mvir = np.power(10., model_set.components['halo'].mvirial.value)
+    return _DZ_s1_MstarMhalo(Mstar, Mvir)
+
+def tie_DZ_c2_MstarMhalo(model_set):
+    Mstar = np.power(10., model_set.components['disk+bulge'].lmstar)
+    Mvir = np.power(10., model_set.components['halo'].mvirial.value)
+    return _DZ_c2_MstarMhalo(Mstar, Mvir)
+
 
 def tie_fdm(model_set):
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value

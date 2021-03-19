@@ -448,10 +448,9 @@ class Report(object):
             nfree = 0
 
             for param_n in gal.model.param_names[cmp_n]:
-
-                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
+                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
                     nfree += 1
-                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
                     best = results.bestfit_parameters[whparam]
 
                     # MCMC
@@ -473,8 +472,7 @@ class Report(object):
                 self.add_line( '' )
 
             for param_n in gal.model.param_names[cmp_n]:
-
-                if '{}:{}'.format(cmp_n,param_n) not in results.chain_param_names:
+                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) not in results.chain_param_names:
                     best = getattr(gal.model.components[cmp_n], param_n).value
 
                     if not getattr(gal.model.components[cmp_n], param_n).tied:
@@ -850,6 +848,61 @@ def _calc_Rout_max_2D(gal=None, results=None):
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+# def create_vel_profile_files(gal=None, outpath=None,
+#             moment=False,
+#             partial_weight=True,
+#             fname_model_matchdata=None,
+#             fname_finer=None,
+#             fname_intrinsic=None,
+#             fname_intrinsic_m = None,
+#             overwrite=False,
+#             **kwargs):
+#     #
+#     config_c_m_data = Config_create_model_data(**kwargs)
+#     config_sim_cube = Config_simulate_cube(**kwargs)
+#     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+#
+#     if outpath is None:
+#         raise ValueError
+#
+#     if fname_model_matchdata is None:
+#         #fname_model_matchdata = outpath + '{}_out-1dplots_{}.txt'.format(gal.name, monthday)
+#         fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, gal.name)
+#     if fname_finer is None:
+#         #fname_finer = outpath + '{}_out-1dplots_{}_finer_sampling.txt'.format(gal.name, monthday)
+#         fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, gal.name)
+#
+#     if fname_intrinsic is None:
+#         fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
+#     if fname_intrinsic_m is None:
+#         fname_intrinsic_m = '{}{}_menc_tot_bary_dm.dat'.format(outpath, gal.name)
+#
+#     ###
+#     galin = copy.deepcopy(gal)
+#
+#     # ---------------------------------------------------------------------------
+#     gal.create_model_data(**kwargs_galmodel)
+#
+#     # -------------------
+#     # Save Bary/DM vcirc:
+#     write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m, overwrite=overwrite)
+#
+#     # --------------------------------------------------------------------------
+#     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
+#         write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata, overwrite=overwrite)
+#
+#
+#     # Try finer scale:
+#     if (not os.path.isfile(fname_finer)) | (overwrite):
+#         # Reload galaxy object: reset things
+#         gal = copy.deepcopy(galin)
+#
+#         write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
+#                 partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
+#
+#
+#     return None
+
 def create_vel_profile_files(gal=None, outpath=None,
             moment=False,
             partial_weight=True,
@@ -859,7 +912,23 @@ def create_vel_profile_files(gal=None, outpath=None,
             fname_intrinsic_m = None,
             overwrite=False,
             **kwargs):
-    #
+
+    ####
+    create_vel_profile_files_obs1d(gal=gal, outpath=outpath,
+                moment=moment,partial_weight=partial_weight,
+                fname_model_matchdata=fname_model_matchdata, fname_finer=fname_finer,
+                overwrite=overwrite, **kwargs)
+    ####
+    create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
+                fname_intrinsic=fname_intrinsic, fname_intrinsic_m = fname_intrinsic_m,
+                overwrite=overwrite, **kwargs)
+
+    return None
+
+def create_vel_profile_files_obs1d(gal=None, outpath=None,
+            moment=False, partial_weight=True,
+            fname_model_matchdata=None, fname_finer=None,
+            overwrite=False, **kwargs):
     config_c_m_data = Config_create_model_data(**kwargs)
     config_sim_cube = Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
@@ -868,43 +937,49 @@ def create_vel_profile_files(gal=None, outpath=None,
         raise ValueError
 
     if fname_model_matchdata is None:
-        #fname_model_matchdata = outpath + '{}_out-1dplots_{}.txt'.format(gal.name, monthday)
         fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, gal.name)
     if fname_finer is None:
-        #fname_finer = outpath + '{}_out-1dplots_{}_finer_sampling.txt'.format(gal.name, monthday)
         fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, gal.name)
 
-    if fname_intrinsic is None:
-        fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
-    if fname_intrinsic_m is None:
-        fname_intrinsic_m = '{}{}_menc_tot_bary_dm.dat'.format(outpath, gal.name)
-
-    ###
-    galin = copy.deepcopy(gal)
-
     # ---------------------------------------------------------------------------
+    galin = copy.deepcopy(gal)
     gal.create_model_data(**kwargs_galmodel)
-
-    # -------------------
-    # Save Bary/DM vcirc:
-    write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m, overwrite=overwrite)
 
     # --------------------------------------------------------------------------
     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
         write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata, overwrite=overwrite)
 
-
     # Try finer scale:
     if (not os.path.isfile(fname_finer)) | (overwrite):
         # Reload galaxy object: reset things
         gal = copy.deepcopy(galin)
-
         write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
                 partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
 
-
     return None
 
+def create_vel_profile_files_intrinsic(gal=None, outpath=None,
+            fname_intrinsic=None, fname_intrinsic_m = None,
+            overwrite=False, **kwargs):
+
+    if ((outpath is None) and (fname_intrinsic_m is None) and (fname_intrinsic is None)):
+        raise ValueError("Must set 'outpath' if 'fname_intrinsic' or 'fname_intrinsic_m' are not specified!")
+
+    if (fname_intrinsic is None) and (outpath is not None):
+        fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
+    if (fname_intrinsic_m is None) and (outpath is not None):
+        fname_intrinsic_m = '{}{}_menc_tot_bary_dm.dat'.format(outpath, gal.name)
+
+    # ---------------------------------------------------------------------------
+    galin = copy.deepcopy(gal)
+
+    # -------------------
+    # Save Bary/DM vcirc:
+    if (not os.path.isfile(fname_intrinsic)) | (overwrite):
+        write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic,
+            fname_m=fname_intrinsic_m, overwrite=overwrite)
+
+    return None
 
 def write_1d_obs_finer_scale(gal=None, fname=None,
             partial_weight=True,
@@ -914,7 +989,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     config_sim_cube = Config_simulate_cube(**kwargs)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
 
-    
+
     if kwargs_galmodel['profile1d_type'] is None:
         kwargs_galmodel['profile1d_type'] = gal.data.profile1d_type
     if kwargs_galmodel['aperture_radius'] is None:
@@ -922,10 +997,10 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
             kwargs_galmodel['aperture_radius'] = gal.data.slit_width.value * 0.5
         except:
             kwargs_galmodel['aperture_radius'] = gal.data.slit_width * 0.5
-            
+
     profile1d_type = kwargs_galmodel['profile1d_type']
     aperture_radius = kwargs_galmodel['aperture_radius']
-    
+
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
     r_step = 0.025 #0.05
@@ -992,12 +1067,11 @@ def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None, overwrite=False):
     # Save Bary/DM vcirc:
 
     rstep = 0.1
-    rmax = 40.   #17.2   # kpc
+    rmax = 40.   # kpc
     rarr = np.arange(0, rmax+rstep, rstep)
 
-    vcirc_bar = gal.model.components['disk+bulge'].circular_velocity(rarr)
-    vcirc_dm  = gal.model.components['halo'].circular_velocity(rarr)
-    vcirc_tot = gal.model.circular_velocity(rarr)
+    vcirc_tot, vcirc_bar, vcirc_dm = gal.model.circular_velocity(rarr,
+                                    compute_baryon=True, compute_dm=True)
 
     menc_tot, menc_bar, menc_dm = gal.model.enclosed_mass(rarr)
 

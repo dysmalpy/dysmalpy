@@ -340,6 +340,7 @@ class GaussianBeam(_RBeam):
     """
     Re-definition of radio_beam.Beam to allow it to work with copy.deepcopy and copy.copy.
 
+    PA: angle to beam major axis, in deg E of N (0 is N, +90 is E).
     """
 
     def __deepcopy__(self, memo):
@@ -366,7 +367,8 @@ class DoubleBeam:
     minor1 : `~astropy.units.Quantity`
              FWHM along the minor axis of the first Gaussian beam
     pa1 : `~astropy.units.Quantity`
-          Position angle of the first Gaussian beam.
+          Position angle of the first Gaussian beam:
+            angle to beam major axis, in deg E of N (0 is N, +90 is E).
     scale1 : float
              Flux scaling for the first Gaussian beam
     major2 : `~astropy.units.Quantity`
@@ -374,7 +376,8 @@ class DoubleBeam:
     minor2 : `~astropy.units.Quantity`
              FWHM along the minor axis of the second Gaussian beam
     pa2 : `~astropy.units.Quantity`
-          Position angle of the second Gaussian beam
+          Position angle of the second Gaussian beam:
+            angle to beam major axis, in deg E of N (0 is N, +90 is E).
     scale2 : float
              Flux scaling for the second Gaussian beam
     """
@@ -476,7 +479,7 @@ class Moffat(object):
     minor_fwhm : `~astropy.units.Quantity`
                  FWHM of the Moffat PSF along the minor axis
     pa : `~astropy.units.Quantity`
-         Position angle of major axis of the Moffat PSF
+         Position angle of major axis of the Moffat PSF, in deg E of N (0 is N, +90 is E).
     beta : float
            beta parameter of the Moffat PSF
     padfac : int
@@ -497,7 +500,6 @@ class Moffat(object):
         if pa is None:
             pa = 0.*u.deg
 
-        #
         self.major_fwhm = major_fwhm
         self.minor_fwhm = minor_fwhm
         self.pa = pa
@@ -543,7 +545,6 @@ class Moffat(object):
             alpha = self.alpha/pixscale
 
 
-        #padfac = 16. #8. # from Beam
         if support_scaling is not None:
             padfac = support_scaling
         else:
@@ -558,29 +559,19 @@ class Moffat(object):
         if npix % 2 == 0:
             npix += 1
 
-
-        #print("alpha={}, beta={}, fwhm={}, pixscale={}, npix={}".format(alpha*pixscale, self.beta,
-        #            major_fwhm, pixscale, npix))
-
-
         # Arrays
         y, x = np.indices((npix, npix), dtype=float)
         x -= (npix-1)/2.
         y -= (npix-1)/2.
 
 
-
-        cost = np.cos(pa*np.pi/180.)
-        sint = np.sin(pa*np.pi/180.)
+        cost = np.cos((90.+pa)*np.pi/180.)
+        sint = np.sin((90.+pa)*np.pi/180.)
 
         xp = cost*x + sint*y
         yp = -sint*x + cost*y
 
-        # print("x={}, y={}".format(x,y))
-        # print("xp={}, yp={}".format(xp,yp))
-
         qtmp = minor_fwhm / major_fwhm
-
 
         r = np.sqrt(xp**2 + (yp/qtmp)**2)
 

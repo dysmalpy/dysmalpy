@@ -104,9 +104,8 @@ def auto_gen_3D_mask(cube=None, err=None, sig_thresh=1.5, npix_min=5, snr_thresh
 
 def _auto_truncate_crop_cube(cube, params=None,
             pixscale=None, spec_type='velocity', spec_arr=None,
-                                            err_cube=None, mask_cube=None,
-                                            mask_sky=None, mask_spec=None,
-                                            spec_unit=u.km/u.s,weight=None):
+            err_cube=None, mask_cube=None, mask_sky=None, mask_spec=None,
+            spec_unit=u.km/u.s,weight=None, xcenter=None, ycenter=None):
 
     # First truncate by spec:
     if 'spec_vel_trim' in params.keys():
@@ -139,7 +138,10 @@ def _auto_truncate_crop_cube(cube, params=None,
             mask_spec = mask_spec[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
         if weight is not None:
             weight = weight[:, sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]]
-
+        if xcenter is not None:
+            xcenter -= sp_trm[0]
+        if ycenter is not None:
+            ycenter -= sp_trm[2]
 
 
     ##############
@@ -178,4 +180,4 @@ def _auto_truncate_crop_cube(cube, params=None,
 
 
     #####
-    return cube, err_cube, mask_cube, mask_sky, mask_spec, weight, spec_arr
+    return cube, err_cube, mask_cube, mask_sky, mask_spec, weight, spec_arr, xcenter, ycenter
