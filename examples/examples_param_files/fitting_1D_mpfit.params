@@ -17,10 +17,21 @@ data_inst_corr,   True                       # Is the dispersion corrected for
 slit_width,       0.55                       # arcsecs
 slit_pa,          142.                       # Degrees from N towards blue
 symmetrize_data,  False                      # Symmetrize data before fitting?
-profile1d_type,   circ_ap_cube               # Default 1D aperture extraction shape
-aperture_radius,  0.275                      # Circular aperture radius, in ARCSEC. Have used half slit width in past
-                                             # -- Eg, aperture diam = slit width
 
+
+######## Data extraction apertures: ########
+## Rectangular apertures:
+profile1d_type,   rect_ap_cube               # 1D aperture extraction shape
+pix_perp,         5                          # Aperture width (e.g., slit width), in number of pixels
+                                             #      So arcsec width = pix_perp * pixscale (under 'Instrument Setup')
+pix_parallel,     3                          # Aperture length (e.g., how many pixels along the slit direction), in npix
+
+
+# ## Circular apertures:
+# profile1d_type,   circ_ap_cube             # 1D aperture extraction shape
+# aperture_radius,  0.275                    # Circular aperture radius, in ARCSEC. Have used half slit width in past
+                                             # -- Eg, aperture diam = slit width
+############################################
 
 
 # ***************************** OUTPUT *****************************************
@@ -382,7 +393,7 @@ sigma0_bounds,       5.0 300.0
 # ---------------
 
 # Initial Values
-sigmaz,              0.9      # Gaussian width of the galaxy in z
+sigmaz,              0.9      # Gaussian width of the galaxy in z, in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 sigmaz_fixed,        False

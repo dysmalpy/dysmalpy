@@ -404,7 +404,7 @@ sigma0_bounds,       5.0 300.0
 # ---------------
 
 # Initial Values
-sigmaz,              0.9      # Gaussian width of the galaxy in z
+sigmaz,              0.9      # Gaussian width of the galaxy in z, in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 sigmaz_fixed,        False
