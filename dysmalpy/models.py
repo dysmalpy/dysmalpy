@@ -39,7 +39,7 @@ from astropy.table import Table
 from .parameters import DysmalParameter
 
 __all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
-           'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao', 
+           'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'DustExtinction',
            'KinematicOptions', 'ZHeightGauss',
@@ -1489,54 +1489,13 @@ class ModelSet:
 
         return enc_mass, enc_bary, enc_dm
 
-    # def get_dlnrhotot_dlnr(self, r):
-    #     """
-    #     Calculate the composite derivative dln(rho,tot) / dlnr
-    #
-    #     Parameters
-    #     ----------
-    #     r : float or array
-    #         Radius or radii in kpc
-    #
-    #     Returns
-    #     -------
-    #     dlnrhotot_dlnr : float or array
-    #
-    #     """
-    #
-    #     # First check to make sure there is at least one mass component in the
-    #     # model set.
-    #     if len(self.mass_components) == 0:
-    #         raise AttributeError("There are no mass components so a dlnrho/dlnr "
-    #                              "can't be calculated.")
-    #     else:
-    #         rhotot = r*0.
-    #         drho_dr = r*0.
-    #
-    #         for cmp in self.mass_components:
-    #
-    #             if self.mass_components[cmp]:
-    #                 mcomp = self.components[cmp]
-    #
-    #                 cmpnt_rho = mcomp.rho(r)
-    #                 cmpnt_drhodr = mcomp.drho_dr(r)
-    #
-    #                 whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
-    #                 if len(whfin) < len(r):
-    #                     raise ValueError
-    #
-    #                 rhotot = rhotot + cmpnt_rho
-    #                 drho_dr = drho_dr + cmpnt_drhodr
-    #
-    #     dlnrhotot_dlnr = r / rhotot * (drho_dr)
-    #
-    #     return dlnrhotot_dlnr
 
     def get_dlnrhogas_dlnr(self, r):
         """
         Calculate the composite derivative dln(rho,gas) / dlnr
 
-        ** TO FIX: NEED TO WORK OUT GAS FRACTION / OR TREAT ALL BARYON AS GAS??? **
+        ** Assumes gas follows same distribution as total baryons.
+           Based on slope, so do not need to rescale for fgas/Mgas under this assumption.**
 
         Parameters
         ----------
@@ -1548,35 +1507,31 @@ class ModelSet:
         dlnrhogas_dlnr : float or array
 
         """
-
-        # First check to make sure there is at least one mass component in the
-        # model set.
+        # First check to make sure there is at least one mass component in the model set.
         if len(self.mass_components) == 0:
             raise AttributeError("There are no mass components so a dlnrho/dlnr "
                                  "can't be calculated.")
         else:
-            rhogas = r*0.
-            drho_dr = r*0.
+            rhogastot = r*0.
+            rho_dlnrhogas_dlnr_sum = r*0.
 
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
                     if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
-                        raise ValueError("Gas fraction???")
-
                         mcomp = self.components[cmp]
 
                         cmpnt_rho = mcomp.rho(r)
-                        cmpnt_drhodr = mcomp.drho_dr(r)
+                        cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
 
-                        whfin = np.where(np.isfinite(cmpnt_drhodr))[0]
+                        whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
                         if len(whfin) < len(r):
                             raise ValueError
 
-                        rhogas = rhogas + cmpnt_rho
-                        drho_dr = drho_dr + cmpnt_drhodr
+                        rhogastot += cmpnt_rho
+                        rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
 
-        dlnrhogas_dlnr = r / rhogas * (drho_dr)
+        dlnrhogas_dlnr = (1./rhogastot) * rho_dlnrhogas_dlnr_sum
 
         return dlnrhogas_dlnr
 
@@ -2655,21 +2610,6 @@ class ExpDisk(MassModel):
         # Shortcut for the exponential disk asymmetric drift term, from Burkert+10 eq 11:
         return -2. * (r / self.rd)
 
-    def drho_dr(self, r):
-        """
-        Surface density radial derivative
-
-        Parameters
-        ----------
-        r : float or array
-            Radius in kpc
-
-        Returns
-        -------
-        drhodr : float or array
-            Surface density radial derivative at `r`
-        """
-        return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 class Sersic(MassModel):
     """
@@ -2858,7 +2798,6 @@ class Sersic(MassModel):
         log_drhodr : float or array
             Log surface density derivative as a function or radius
         """
-
         if self.noord_flat:
             dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
 
@@ -2867,21 +2806,6 @@ class Sersic(MassModel):
             bn = scp_spec.gammaincinv(2. * self.n, 0.5)
             return -2. * (bn / self.n) * np.power(r/self.r_eff, 1./self.n)
 
-    def drho_dr(self, r):
-        """
-        Surface density radial derivative
-
-        Parameters
-        ----------
-        r : float or array
-            Radius in kpc
-
-        Returns
-        -------
-        drhodr : float or array
-            Surface density radial derivative at `r`
-        """
-        return self.dlnrho_dlnr(r) * self.rho(r) / r
 
 
 class DiskBulge(MassModel):
@@ -3356,78 +3280,11 @@ class DiskBulge(MassModel):
         log_drhodr : float or array
             Log surface density derivative as a function or radius
         """
+        # Save on duplicate interpolation calculations
+        rhoD = self.rho_disk(r)
+        rhoB = self.rho_bulge(r)
 
-        return r / self.rho(r) * self.drho_dr(r)
-
-    def drho_dr_disk(self, r):
-        """
-         Asymmetric drift term for the disk component
-
-         Parameters
-         ----------
-         r : float or array
-             Radius in kpc
-
-         Returns
-         -------
-         log_drhodr : float or array
-             Log surface density derivative as a function or radius
-         """
-        drhodr = self.rho_disk(r) / r * self.dlnrho_dlnr_disk(r)
-        try:
-            if len(r) > 1:
-                drhodr[r==0] = 0.
-            else:
-                if r[0] == 0.:
-                    drhodr[0] = 0.
-        except:
-            if r == 0:
-                drhodr = 0.
-        return drhodr
-
-    def drho_dr_bulge(self, r):
-        """
-         Asymmetric drift term for the bulge component
-
-         Parameters
-         ----------
-         r : float or array
-             Radius in kpc
-
-         Returns
-         -------
-         log_drhodr : float or array
-             Log surface density derivative as a function or radius
-         """
-        drhodr = self.rho_bulge(r) / r * self.dlnrho_dlnr_bulge(r)
-        try:
-            if len(r) > 1:
-                drhodr[r==0] = 0.
-            else:
-                if r[0] == 0.:
-                    drhodr[0] = 0.
-        except:
-            if r == 0:
-                drhodr = 0.
-
-        return drhodr
-
-    def drho_dr(self, r):
-        """
-        Surface density radial derivative
-
-        Parameters
-        ----------
-        r : float or array
-            Radius in kpc
-
-        Returns
-        -------
-        drhodr : float or array
-            Surface density radial derivative at `r`
-        """
-
-        return self.drho_dr_disk(r) + self.drho_dr_bulge(r)
+        return (1./(rhoD + rhoB)) * (rhoD*self.dlnrho_dlnr_disk(r) + rhoB*self.dlnrho_dlnr_bulge(r))
 
 
 class LinearDiskBulge(MassModel):
@@ -3850,34 +3707,6 @@ class DarkMatterHalo(MassModel):
             raise NotImplementedError("Adiabatic contraction not currently supported!")
         else:
             return self.circular_velocity(r)
-
-    #### DON'T USE: HALO IS COLLISIONLESS; ALSO DOESN'T CONTRIBUTE TO ASYMM DRIFT
-    # def drho_dr(self, r):
-    #     """
-    #     Surface density radial derivative
-    #
-    #     Parameters
-    #     ----------
-    #     r : float or array
-    #         Radius in kpc
-    #
-    #     Returns
-    #     -------
-    #     drhodr : float or array
-    #         Surface density radial derivative at `r`
-    #     """
-    #
-    #     drhodr = self.rho(r) / r * self.dlnrho_dlnr(r)
-    #     try:
-    #         if len(r) > 1:
-    #             drhodr[r == 0] = 0.
-    #         else:
-    #             if r[0] == 0.:
-    #                 drhodr[0] = 0.
-    #     except:
-    #         if r == 0:
-    #             drhodr = 0.
-    #     return drhodr
 
 
 
@@ -5833,14 +5662,9 @@ class KinematicOptions:
             if not _sersic_profile_mass_VC_loaded:
                 raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
-            # Incorrect:
-            #dlnrhotot_dlnr = model.get_dlnrhotot_dlnr(r)
-            #vel_asymm_drift = np.sqrt( - dlnrhotot_dlnr * sigma**2 )
-
             # NEEDS TO BE JUST RHO FOR THE GAS:
             dlnrhogas_dlnr = model.get_dlnrhogas_dlnr(r)
             vel_asymm_drift = np.sqrt( - dlnrhogas_dlnr * sigma**2 )
-
 
         return vel_asymm_drift
 
