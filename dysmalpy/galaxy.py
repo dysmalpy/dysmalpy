@@ -18,7 +18,6 @@ import os
 import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
-import astropy.modeling as apy_mod
 import scipy.interpolate as scp_interp
 import dill as _pickle
 
@@ -27,7 +26,7 @@ import dill as _pickle
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.instrument import Instrument
-from dysmalpy.utils import apply_smoothing_3D, rebin
+from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
@@ -660,7 +659,7 @@ class Galaxy:
 
                 sim_cube_final_scale = self.model_cube.data._data.copy()
                 if self.data.flux_map is None:
-                    mask_flat = np.sum(self.data.mask, axis=0)
+                    #mask_flat = np.sum(self.data.mask, axis=0)
                     num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
                                      self.model_cube.data/(self.data.error.unmasked_data[:].value**2)), axis=0)
                     den = np.sum(self.data.mask*
@@ -728,20 +727,12 @@ class Galaxy:
                     disp = np.zeros(mom0.shape)
                     for i in range(mom0.shape[0]):
                         for j in range(mom0.shape[1]):
-                            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * (mom2[i,j]**2)),
-                                                    mean=mom1[i,j],
-                                                    stddev=np.abs(mom2[i,j]))
-                            mod.amplitude.bounds = (0, None)
-                            mod.stddev.bounds = (0, None)
-                            fitter = apy_mod.fitting.LevMarLSQFitter()
-
-                            best_fit = fitter(mod, self.model_cube.data.spectral_axis.to(u.km/u.s).value,
-                                        self.model_cube.data.unmasked_data[:,i,j].value)
-
-                            flux[i,j] =  np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
-                            vel[i,j] = best_fit.mean.value
-                            disp[i,j] = best_fit.stddev.value
-
+                            best_fit = gaus_fit_sp_opt_leastsq(self.model_cube.data.spectral_axis.to(u.km/u.s).value,
+                                                self.model_cube.data.unmasked_data[:,i,j].value,
+                                                mom0[i,j], mom1[i,j], mom2[i,j])
+                            flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                            vel[i,j] = best_fit[1]
+                            disp[i,j] = best_fit[2]
 
             elif spec_type == "wavelength":
 

@@ -909,6 +909,7 @@ def plot_data_model_comparison_3D(gal,
             vcrop=False,
             vcrop_value=800.,
             overwrite=False,
+            moment=True,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -922,10 +923,11 @@ def plot_data_model_comparison_3D(gal,
                 symmetric_residuals=symmetric_residuals, max_residual=max_residual,
                 show_1d_apers=show_1d_apers,
                 fitdispersion=True, fitflux=True,
-                inst_corr=False,
+                inst_corr=True,
                 vcrop=vcrop,
                 vcrop_value=vcrop_value,
                 overwrite=overwrite,
+                moment=moment,
                 **kwargs_galmodel)
 
     return None
@@ -1237,6 +1239,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             vcrop_value=800.,
             remove_shift=True,
             overwrite=False,
+            moment=True,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1265,11 +1268,26 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
                     overwrite=overwrite, **kwargs_galmodel)
 
     elif gal.data.ndim == 3:
-
-        gal = extract_1D_2D_data_moments_from_cube(gal)
-
-
+        if moment:
+            gal = extract_1D_2D_data_moments_from_cube(gal, inst_corr=True)
+        else:
+            gal = extract_1D_2D_data_gausfit_from_cube(gal, inst_corr=True)
         # saves in gal.data1d, gal.data2d
+
+        # Data haven't actually been corrected for instrument LSF yet
+        if gal.data1d.data['inst_corr']:
+            inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
+            disp_prof_1D = np.sqrt(gal.data1d.data['dispersion']**2 - inst_corr_sigma**2 )
+            disp_prof_1D[~np.isfinite(disp_prof_1D)] = 0.
+            gal.data1d.data['dispersion'] = disp_prof_1D
+
+        if gal.data2d.data['inst_corr']:
+            inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
+            im = gal.data2d.data['dispersion'].copy()
+            im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
+            im[~np.isfinite(im)] = 0.
+            gal.data2d.data['dispersion'] = im
+
 
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1277,10 +1295,9 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
                     fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr,
                     vcrop=vcrop, vcrop_value=vcrop_value,
-                    remove_shift=remove_shift,
+                    remove_shift=remove_shift, moment=moment,
                     overwrite=overwrite, **kwargs_galmodel)
 
-        # raise ValueError("Not implemented yet!")
 
     return None
 
@@ -1298,6 +1315,7 @@ def plot_model_multid_base(gal,
             show_1d_apers=False,
             remove_shift = True,
             inst_corr=None,
+            moment=True,
             overwrite=False,
             **kwargs_galmodel):
 
@@ -1364,10 +1382,12 @@ def plot_model_multid_base(gal,
             grid_2D.append(plt.subplot(gs02[jj,mm]))
 
 
-
+    gal_input = copy.deepcopy(gal)
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
+        #gal.create_model_data(**kwargs_galmodel)
 
+    #raise ValueError
     #
     inst_corr_1d = inst_corr_2d = None
     if inst_corr is None:
@@ -1416,12 +1436,8 @@ def plot_model_multid_base(gal,
         else:
             apply_shift = False
 
-
-        gal.data = copy.deepcopy(data2d)
-        gal.instrument = copy.deepcopy(instorig2d)
-        pixscale = gal.instrument.pixscale.value
-
-        gal.model.update_parameters(theta)
+        # if theta is not None:
+        #     gal.model.update_parameters(theta)
 
         if apply_shift:
             if xshift is not None:
@@ -1429,11 +1445,38 @@ def plot_model_multid_base(gal,
             if yshift is not None:
                 gal.model.geometry.yshift = yshift
 
-        kwargs_galmodel_2d = kwargs_galmodel.copy()
-        kwargs_galmodel_2d['ndim_final'] = 2
-        kwargs_galmodel_2d['from_data'] = True
-        gal.create_model_data(**kwargs_galmodel_2d)
 
+
+        gal.instrument = copy.deepcopy(instorig2d)
+        pixscale = gal.instrument.pixscale.value
+        kwargs_galmodel_2d = kwargs_galmodel.copy()
+        kwargs_galmodel_2d['from_data'] = True
+        if galorig.data.ndim <= 2:
+            kwargs_galmodel_2d['ndim_final'] = 2
+            gal.data = copy.deepcopy(data2d)
+        elif galorig.data.ndim == 3:
+            kwargs_galmodel_2d['ndim_final'] = 3
+        gal.model_data = None
+        gal.create_model_data(**kwargs_galmodel_2d)
+        # gal.model.update_parameters(theta)
+        # gal.create_model_data(**kwargs_galmodel)
+
+        if galorig.data.ndim == 3:
+            #EXTRACT 2D MAPS HERE! (don't pre-do the dispersion correction)
+            #SET EQUAL TO MODEL_DATA!
+            gal.model_data_3D = copy.deepcopy(gal.model_data)
+            if moment:
+                gal.model_data = extract_2D_moments_from_cube(gal.model_data_3D.data, gal, inst_corr=inst_corr_2d)
+            else:
+                gal.model_data = extract_2D_gausfit_from_cube(gal.model_data_3D.data, gal, inst_corr=inst_corr_2d)
+
+            gal.data = copy.deepcopy(data2d)
+
+            if np.max(np.abs(gal.model_data_3D.data.unmasked_data[:] -gal_input.model_data.data.unmasked_data[:])) == 0.:
+                raise ValueError
+
+
+            #raise ValueError
 
         keyxarr = ['data', 'model', 'residual']
         keyxtitlearr = ['Data', 'Model', 'Residual']
@@ -1559,10 +1602,14 @@ def plot_model_multid_base(gal,
                     if keyyarr[j] == 'velocity':
                         im = gal.model_data.data['velocity'].copy()
                         im -= vel_shift
+                        vmin = vel_vmin
+                        vmax = vel_vmax
                         #im[~gal.data.mask] = np.nan
                     elif keyyarr[j] == 'dispersion':
                         im = gal.model_data.data['dispersion'].copy()
                         #im[~gal.data.mask] = np.nan
+                        vmin = disp_vmin
+                        vmax = disp_vmax
 
                         # Correct model for instrument dispersion
                         # if the data is instrument corrected:
@@ -1570,6 +1617,8 @@ def plot_model_multid_base(gal,
                             im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
                     elif keyyarr[j] == 'flux':
                         im = gal.model_data.data['flux'].copy()
+                        vmin = flux_vmin
+                        vmax = flux_vmax
 
                     cmaptmp = cmap
                 elif k == 'residual':
@@ -1749,9 +1798,23 @@ def plot_model_multid_base(gal,
 
 
         kwargs_galmodel_1d = kwargs_galmodel.copy()
-        kwargs_galmodel_1d['ndim_final'] = 1
+        if galorig.data.ndim <= 2:
+            kwargs_galmodel_1d['ndim_final'] = 1
+        elif galorig.data.ndim == 3:
+            kwargs_galmodel_1d['ndim_final'] = 3
+            datatmp = copy.deepcopy(gal.data)
+            gal.data = copy.deepcopy(galorig.data)
+
         gal.create_model_data(**kwargs_galmodel_1d)
 
+        if galorig.data.ndim == 3:
+            #EXTRACT 1D PROFILES HERE! (don't pre-do the dispersion correction)
+            #SET EQUAL TO MODEL_DATA!
+
+            gal.model_data_3D = copy.deepcopy(gal.model_data)
+
+            gal.model_data = extract_1D_from_cube(gal.model_data_3D.data, gal, moment=moment, inst_corr=inst_corr)
+            gal.data = copy.deepcopy(datatmp)
 
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
@@ -1881,6 +1944,9 @@ def plot_model_multid_base(gal,
     else:
         plt.draw()
         plt.show()
+
+
+    #raise ValueError
 
     return None
 
@@ -2236,6 +2302,7 @@ def plot_data_model_comparison(gal,theta = None,
                                vcrop_value=800.,
                                remove_shift=False,
                                overwrite=False,
+                               moment=True,
                                **kwargs_galmodel):
     """
     Plot data, model, and residuals between the data and this model.
@@ -2248,7 +2315,7 @@ def plot_data_model_comparison(gal,theta = None,
         dummy_gal.model.geometry.xshift = 0
         dummy_gal.model.geometry.yshift = 0
 
-    if theta is not None:
+    if (theta is not None) & (gal.data.ndim < 3):
         dummy_gal.model.update_parameters(theta)     # Update the parameters
         dummy_gal.create_model_data(**kwargs_galmodel)
 
@@ -2277,6 +2344,7 @@ def plot_data_model_comparison(gal,theta = None,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
+                    moment=moment,
                     **kwargs_galmodel)
 
 
@@ -2748,7 +2816,7 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
 def extract_1D_2D_data_gausfit_from_cube(gal,
             slit_width=None, slit_pa=None,
-            aper_dist=None):
+            aper_dist=None, inst_corr=True):
     try:
         if gal.data2d is not None:
             extract = False
@@ -2759,7 +2827,7 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
 
 
     if extract:
-        gal = extract_2D_gausfit_from_cube(gal)
+        gal.data2d = extract_2D_gausfit_from_cube(gal.data.data, gal, inst_corr=inst_corr)
 
 
     #
@@ -2772,9 +2840,9 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
         extract = True
 
     if extract:
-        gal = extract_1D_from_cube(gal,
+        gal.data1d = extract_1D_from_cube(gal.data.data, gal,
                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-                moment=False)
+                moment=False, inst_corr=inst_corr)
 
 
     return gal
@@ -2782,17 +2850,12 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
 #
 
 
-def extract_2D_gausfit_from_cube(gal):
-
-    #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+def extract_2D_gausfit_from_cube(cubein, gal, inst_corr=True):
+    # cubein must be SpectralCube instance!
 
     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
 
-    data_unscaled = gal.data.data.unmasked_data[:].value
-    data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-
-    data_cube = SpectralCube(data=data_scaled,
-                mask=mask, wcs=gal.data.data.wcs)
+    data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
 
     #
     if gal.data.smoothing_type is not None:
@@ -2804,10 +2867,6 @@ def extract_2D_gausfit_from_cube(gal):
     else:
         smoothing_type = None
         smoothing_npix = None
-
-    ## MOMENTS:
-    # vel = data_cube.moment1().to(u.km/u.s).value
-    # disp = data_cube.linewidth_sigma().to(u.km/u.s).value
 
 
     ## GAUSFIT:
@@ -2900,12 +2959,12 @@ def extract_2D_gausfit_from_cube(gal):
 
 
     # setup data2d:
-    gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+    data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = True, moment=False)
+                        inst_corr = inst_corr, moment=False)
 
-    return gal
+    return data2d
 
 
 
@@ -2913,7 +2972,7 @@ def extract_2D_gausfit_from_cube(gal):
 
 def extract_1D_2D_data_moments_from_cube(gal,
             slit_width=None, slit_pa=None,
-            aper_dist=None):
+            aper_dist=None, inst_corr=True):
     try:
         if gal.data2d is not None:
             extract = False
@@ -2924,10 +2983,9 @@ def extract_1D_2D_data_moments_from_cube(gal,
 
 
     if extract:
-        gal = extract_2D_moments_from_cube(gal)
+        gal.data2d = extract_2D_moments_from_cube(gal.data.data, gal, inst_corr=inst_corr)
 
 
-    #
     try:
         if gal.data1d is not None:
             extract = False
@@ -2937,17 +2995,16 @@ def extract_1D_2D_data_moments_from_cube(gal,
         extract = True
 
     if extract:
-        gal = extract_1D_from_cube(gal,
-                slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-                moment=False)
+        gal.data1d = extract_1D_from_cube(gal.data.data, gal, slit_width=slit_width,
+                slit_pa=slit_pa, aper_dist=aper_dist, moment=True, inst_corr=inst_corr)
 
 
     return gal
 
-def extract_1D_from_cube(gal,
+def extract_1D_from_cube(data_cube, gal,
             slit_width=None, slit_pa=None,
             aper_dist=None,
-            moment=False):
+            moment=False, inst_corr=True):
 
     if slit_width is None:
         try:
@@ -2973,24 +3030,25 @@ def extract_1D_from_cube(gal,
 
 
     # Aper centers: pick roughly number fitting into size:
-    nx = gal.data.shape[2]
-    ny = gal.data.shape[1]
+    nx = data_cube.shape[2]
+    ny = data_cube.shape[1]
     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
                     np.int(ny / 2.) + gal.model.geometry.yshift)
 
     aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
 
-    vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
+    vel_arr = data_cube.spectral_axis.to(u.km/u.s).value
 
     apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
              moment=moment)
 
-    data_unscaled = gal.data.data.unmasked_data[:].value
-    data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-    # Some extra arbitrary scaling:
-    data_scaled /= ((10.*rpix)**2)
+    # data_unscaled = data_cube.unmasked_data[:].value
+    # data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+    # # Some extra arbitrary scaling:
+    # data_scaled /= ((10.*rpix)**2)
+    data_scaled = data_cube.unmasked_data[:].value
 
     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
                     cube=data_scaled*gal.data.mask,
@@ -2999,31 +3057,32 @@ def extract_1D_from_cube(gal,
     # Remove points where the fit was bad
     ind = np.isfinite(vel1d) & np.isfinite(disp1d)
 
-    gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
+    data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
                              vel_disp=disp1d[ind], flux=flux1d[ind],
-                             slit_width=slit_width, slit_pa=slit_pa)
+                             slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
     apertures_redo = CircApertures(rarr=aper_centers_pix[ind], slit_PA=slit_pa, rpix=rpix,
                         nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep, moment=moment)
-    gal.data1d.apertures = apertures_redo
-    gal.data1d.profile1d_type = 'circ_ap_cube'
+    data1d.apertures = apertures_redo
+    data1d.profile1d_type = 'circ_ap_cube'
 
 
-    return gal
+    return data1d
 
 
-def extract_2D_moments_from_cube(gal):
+def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
+    # cubein must be SpectralCube instance!
 
-    #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=cubein.wcs)
 
-    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+    data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
 
-    data_unscaled = gal.data.data.unmasked_data[:].value
-    data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+    # data_unscaled = cubein.unmasked_data[:].value
+    # data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+    # # Some extra arbitrary scaling:
+    # data_scaled *= 100.
+    # data_cube = SpectralCube(data=data_scaled, mask=mask, wcs=cubein.wcs)
 
-    data_cube = SpectralCube(data=data_scaled,
-                mask=mask, wcs=gal.data.data.wcs)
-
-    #
+    #print("gal.data.smoothing_type={}".format(gal.data.smoothing_type))
     if gal.data.smoothing_type is not None:
         data_cube = apply_smoothing_3D(data_cube,
                     smoothing_type=gal.data.smoothing_type,
@@ -3053,9 +3112,328 @@ def extract_2D_moments_from_cube(gal):
 
 
     # setup data2d:
-    gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+    data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = True, moment=True)
+                        inst_corr = inst_corr, moment=True)
 
-    return gal
+    return data2d
+
+
+#
+
+# #############################################################
+#
+# def extract_1D_2D_data_gausfit_from_cube(gal,
+#             slit_width=None, slit_pa=None,
+#             aper_dist=None):
+#     try:
+#         if gal.data2d is not None:
+#             extract = False
+#         else:
+#             extract = True
+#     except:
+#         extract = True
+#
+#
+#     if extract:
+#         gal = extract_2D_gausfit_from_cube(gal)
+#
+#
+#     #
+#     try:
+#         if gal.data1d is not None:
+#             extract = False
+#         else:
+#             extract = True
+#     except:
+#         extract = True
+#
+#     if extract:
+#         gal = extract_1D_from_cube(gal,
+#                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
+#                 moment=False)
+#
+#
+#     return gal
+#
+# #
+#
+#
+# def extract_2D_gausfit_from_cube(gal):
+#
+#     #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+#
+#     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+#
+#     data_unscaled = gal.data.data.unmasked_data[:].value
+#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#
+#     data_cube = SpectralCube(data=data_scaled,
+#                 mask=mask, wcs=gal.data.data.wcs)
+#
+#     #
+#     if gal.data.smoothing_type is not None:
+#         data_cube = apply_smoothing_3D(data_cube,
+#                     smoothing_type=gal.data.smoothing_type,
+#                     smoothing_npix=gal.data.smoothing_npix)
+#         smoothing_type=gal.data.smoothing_type
+#         smoothing_npix=gal.data.smoothing_npix
+#     else:
+#         smoothing_type = None
+#         smoothing_npix = None
+#
+#     ## MOMENTS:
+#     # vel = data_cube.moment1().to(u.km/u.s).value
+#     # disp = data_cube.linewidth_sigma().to(u.km/u.s).value
+#
+#
+#     ## GAUSFIT:
+#     mom0 = data_cube.moment0().to(u.km/u.s).value
+#     mom1 = data_cube.moment1().to(u.km/u.s).value
+#     mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
+#
+#     flux = np.zeros(mom0.shape)
+#     vel = np.zeros(mom0.shape)
+#     disp = np.zeros(mom0.shape)
+#
+#
+#     wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
+#     try:
+#         err_cube = gal.data.error.unmasked_data[:].value
+#         err_cube[err_cube==99.] = err_cube.min()
+#         err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#
+#         #wgt_cube = wgt_cube * 1./err_cube
+#
+#         wgt_cube = 1./(err_cube)
+#
+#         # # Do a crude flux cut too:
+#         # wgt_cube[data_scaled<0.05*np.percentile(data_scaled, 95)] = 0
+#
+#
+#     except:
+#        pass
+#
+#     for i in range(mom0.shape[0]):
+#         for j in range(mom0.shape[1]):
+#             mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
+#                                     mean=mom1[i,j],
+#                                     stddev=np.abs(mom2[i,j]))
+#             mod.amplitude.bounds = (0, None)
+#             mod.stddev.bounds = (0, None)
+#             mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+#
+#
+#             fitter = apy_mod.fitting.LevMarLSQFitter()
+#
+#             # wgts = None
+#             wgts = wgt_cube[:,i,j]
+#             if (np.max(np.abs(wgts)) == 0):
+#                 wgts = None
+#
+#             # ########################
+#             # # Unmasked fit:
+#             # best_fit = fitter(mod, data_cube.spectral_axis.to(u.km/u.s).value,
+#             #             data_cube.unmasked_data[:,i,j].value, weights=wgts)
+#             # ########################
+#
+#             ########################
+#             # Masked fit:
+#             spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
+#             flux_arr = data_cube.filled_data[:,i,j].value
+#
+#             if np.isfinite(flux_arr).sum() >= len(mod._parameters):
+#                 spec_arr = spec_arr[np.isfinite(flux_arr)]
+#                 if wgts is not None:
+#                     wgts = wgts[np.isfinite(flux_arr)]
+#                 flux_arr = flux_arr[np.isfinite(flux_arr)]
+#
+#
+#             best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+#             ########################
+#
+#             flux[i,j] = np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
+#             vel[i,j] = best_fit.mean.value
+#             disp[i,j] = best_fit.stddev.value
+#
+#
+#
+#     #raise ValueError
+#
+#     ###########################
+#     # Flatten mask: only mask fully masked spaxels:
+#     msk3d_coll = np.sum(gal.data.mask, axis=0)
+#     whmsk = np.where(msk3d_coll == 0)
+#     mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+#     mask[whmsk] = 0
+#
+#
+#     # Artificially mask the bad stuff:
+#     flux[~np.isfinite(flux)] = 0
+#     vel[~np.isfinite(vel)] = 0
+#     disp[~np.isfinite(disp)] = 0
+#     mask[~np.isfinite(vel)] = 0
+#     mask[~np.isfinite(disp)] = 0
+#
+#
+#     # setup data2d:
+#     gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
+#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+#                         inst_corr = True, moment=False)
+#
+#     return gal
+#
+
+
+# ##################################################
+#
+# def extract_1D_2D_data_moments_from_cube(gal,
+#             slit_width=None, slit_pa=None,
+#             aper_dist=None):
+#     try:
+#         if gal.data2d is not None:
+#             extract = False
+#         else:
+#             extract = True
+#     except:
+#         extract = True
+#
+#
+#     if extract:
+#         gal = extract_2D_moments_from_cube(gal)
+#
+#
+#     #
+#     try:
+#         if gal.data1d is not None:
+#             extract = False
+#         else:
+#             extract = True
+#     except:
+#         extract = True
+#
+#     if extract:
+#         gal = extract_1D_from_cube(gal,
+#                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
+#                 moment=False)
+#
+#
+#     return gal
+#
+# def extract_1D_from_cube(gal,
+#             slit_width=None, slit_pa=None,
+#             aper_dist=None,
+#             moment=False):
+#
+#     if slit_width is None:
+#         try:
+#             slit_width = gal.instrument.beam.major.to(u.arcsec).value
+#         except:
+#             slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
+#     if slit_pa is None:
+#         slit_pa = gal.model.geometry.pa.value
+#
+#
+#     rstep = gal.instrument.pixscale.value
+#
+#
+#     rpix = slit_width/rstep/2.
+#
+#     if aper_dist is None:
+#         #aper_dist_pix = rpix #2*rpix
+#
+#         aper_dist_pix = rstep #rstep * 2.
+#
+#     else:
+#         aper_dist_pix = aper_dist/rstep
+#
+#
+#     # Aper centers: pick roughly number fitting into size:
+#     nx = gal.data.shape[2]
+#     ny = gal.data.shape[1]
+#     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+#                     np.int(ny / 2.) + gal.model.geometry.yshift)
+#
+#     aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
+#     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
+#
+#     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
+#
+#     apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
+#              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+#              moment=moment)
+#
+#     data_unscaled = gal.data.data.unmasked_data[:].value
+#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#     # Some extra arbitrary scaling:
+#     data_scaled /= ((10.*rpix)**2)
+#
+#     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
+#                     cube=data_scaled*gal.data.mask,
+#                     center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+#
+#     # Remove points where the fit was bad
+#     ind = np.isfinite(vel1d) & np.isfinite(disp1d)
+#
+#     gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
+#                              vel_disp=disp1d[ind], flux=flux1d[ind],
+#                              slit_width=slit_width, slit_pa=slit_pa)
+#     apertures_redo = CircApertures(rarr=aper_centers_pix[ind], slit_PA=slit_pa, rpix=rpix,
+#                         nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep, moment=moment)
+#     gal.data1d.apertures = apertures_redo
+#     gal.data1d.profile1d_type = 'circ_ap_cube'
+#
+#
+#     return gal
+#
+#
+# def extract_2D_moments_from_cube(gal):
+#
+#     #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
+#
+#     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+#
+#     data_unscaled = gal.data.data.unmasked_data[:].value
+#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#
+#     data_cube = SpectralCube(data=data_scaled,
+#                 mask=mask, wcs=gal.data.data.wcs)
+#
+#     # # Data is already "pre-smoothed", if it exists.....
+#     # if gal.data.smoothing_type is not None:
+#     #     data_cube = apply_smoothing_3D(data_cube,
+#     #                 smoothing_type=gal.data.smoothing_type,
+#     #                 smoothing_npix=gal.data.smoothing_npix)
+#     #     smoothing_type=gal.data.smoothing_type
+#     #     smoothing_npix=gal.data.smoothing_npix
+#     # else:
+#     #     smoothing_type = None
+#     #     smoothing_npix = None
+#
+#     vel = data_cube.moment1().to(u.km/u.s).value
+#     disp = data_cube.linewidth_sigma().to(u.km/u.s).value
+#     flux = data_cube.moment0().to(u.km/u.s).value
+#
+#     msk3d_coll = np.sum(gal.data.mask, axis=0)
+#     whmsk = np.where(msk3d_coll == 0)
+#     mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+#     mask[whmsk] = 0
+#
+#
+#     # Artificially mask the bad stuff:
+#     flux[~np.isfinite(flux)] = 0
+#     vel[~np.isfinite(vel)] = 0
+#     disp[~np.isfinite(disp)] = 0
+#     mask[~np.isfinite(vel)] = 0
+#     mask[~np.isfinite(disp)] = 0
+#
+#
+#     # setup data2d:
+#     gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
+#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+#                         inst_corr = True, moment=True)
+#
+#     return gal

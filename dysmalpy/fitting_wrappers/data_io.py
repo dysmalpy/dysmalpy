@@ -710,8 +710,8 @@ def load_single_object_3D_data(params=None, datadir=None):
     mask[~np.isfinite(cube)] = 0
     err_cube[~np.isfinite(err_cube)] = -99.
 
-    # Clean up 0s in error, if it's masked
-    err_cube[mask == 0] = 99.
+    # # Clean up 0s in error, if it's masked
+    # err_cube[mask == 0] = 99.
 
     ####################################
     if 'smoothing_type' in params.keys():
