@@ -1278,7 +1278,7 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
     f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
-
+    
 
     if ndim_data == 1:
         f_model_bestfit = outdir+'{}{}_out-1dplots.txt'.format(galID, filename_extra)

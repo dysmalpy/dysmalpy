@@ -2012,7 +2012,7 @@ class ModelSet:
                     #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
                     vr_obs = - vr * zsky/rgal3D
                     vr_obs[rgal3D == 0] = vr[rgal3D == 0]
-                    vobs_mass += vin_obs
+                    vobs_mass += vr_obs
                 #######
             elif transform_method.lower().strip() == 'rotate':
                 vcirc_mass = vrot

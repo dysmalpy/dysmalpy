@@ -18,10 +18,9 @@ import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
 import scipy.ndimage as sp_ndi
 from scipy import interpolate
-from scipy.optimize import minimize
+from scipy.optimize import minimize, leastsq
 from scipy.stats import norm
 from astropy.convolution import Gaussian2DKernel
-#from astropy.convolution import convolve as apy_convolve
 from astropy.convolution import convolve_fft as apy_convolve_fft
 
 from spectral_cube import SpectralCube, BooleanArrayMask
@@ -264,17 +263,24 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
         mom1 = np.sum(spec_fit * spec_arr_fit) / mom0
         mom2 = np.sum(spec_fit * (spec_arr_fit - mom1) ** 2) / mom0
 
-        mod = apy_mod.models.Gaussian1D(amplitude=mom0 / np.sqrt(2 * np.pi * np.abs(mom2)),
-                                        mean=mom1,
-                                        stddev=np.sqrt(np.abs(mom2)))
-        mod.amplitude.bounds = (0, None)
-        mod.stddev.bounds = (0, None)
-        fitter = apy_mod.fitting.LevMarLSQFitter()
-        best_fit = fitter(mod, spec_arr_fit, spec_fit)
+        ## OLD: astropy fitter
+        # mod = apy_mod.models.Gaussian1D(amplitude=mom0 / np.sqrt(2 * np.pi * np.abs(mom2)),
+        #                                 mean=mom1,
+        #                                 stddev=np.sqrt(np.abs(mom2)))
+        # mod.amplitude.bounds = (0, None)
+        # mod.stddev.bounds = (0, None)
+        # fitter = apy_mod.fitting.LevMarLSQFitter()
+        # best_fit = fitter(mod, spec_arr_fit, spec_fit)
+        #
+        # mean[i] = best_fit.mean.value
+        # disp[i] = best_fit.stddev.value
+        # flux[i] = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp[i]
 
-        mean[i] = best_fit.mean.value
-        disp[i] = best_fit.stddev.value
-        flux[i] = best_fit.amplitude.value * np.sqrt(2 * np.pi) * disp[i]
+        ## NEW: Direct to scipy.optimize.leastsq fitting:
+        best_fit = gaus_fit_sp_opt_leastsq(spec_fit, spec_arr_fit, mom0, mom1, mom2)
+        flux[i] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+        mean[i] = best_fit[1]
+        disp[i] = best_fit[2]
 
         if debug:
             print(ap_centers[i], xaps[i], yaps[i])
@@ -605,6 +611,56 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
 
     return PA, stddev_x, stddev_y
 
+
+
+
+
+###########################################################################################
+# Faster gaussian fitting to extract from 3D model cube:
+#   directly go to scipy.optimize.leastsq,
+#   instead of using AstroPy fitting.LevMarLSQFitter and models.Gaussian1D
+
+def _gaus_resid(coeffs, x, y):
+    return coeffs[0]*np.exp(-((x-coeffs[1])**2/(2.*coeffs[2]**2))) - y
+
+def _gaus_dfunc(coeffs, x, *args):
+    d_amp = np.exp(-0.5 * (x-coeffs[1])**2 / coeffs[2]**2 )
+    d_mean = coeffs[0] * d_amp * (x-coeffs[1]) / coeffs[2]**2
+    d_stddev = coeffs[0] * d_amp * (x-coeffs[1])**2 / coeffs[2]**3
+
+    return np.array([d_amp,d_mean,d_stddev])
+
+def gaus_fit_sp_opt_leastsq(x, y, amp_guess, mean_guess, stddev_guess):
+    # fitparams = gaus_fit_sp_opt_leastsq(x, y, amp_guess, mean_guess, stddev_guess)
+    # x, y: arrays, same length (dep/indep variables)
+    # [amp/mean/stddev]_guess: floats containing pre-computed moments from y.
+
+    init_values = np.array([amp_guess/np.sqrt(2*np.pi*(stddev_guess**2)), mean_guess, np.abs(stddev_guess)])
+
+    fitparams, flags = leastsq(_gaus_resid, init_values, args=(x, y), Dfun=_gaus_dfunc, col_deriv=True)
+
+    # fitparams: amp, mean, stddev
+    return fitparams
+
+## TEMPPPPP: test of the old method
+# def gaus_fit_apy_mod_fitter(x, y, amp_guess, mean_guess, stddev_guess):
+#     # fitparams = gaus_fit_apy_mod_fitter(x, y, amp_guess, mean_guess, stddev_guess)
+#     # x, y: arrays, same length (dep/indep variables)
+#     # [amp/mean/stddev]_guess: floats containing pre-computed moments from y.
+#
+#     # OLD: astropy fitter
+#     mod = apy_mod.models.Gaussian1D(amplitude=amp_guess / np.sqrt(2 * np.pi * np.abs(stddev_guess)),
+#                                     mean=mean_guess,
+#                                     stddev=np.sqrt(np.abs(stddev_guess)))
+#     mod.amplitude.bounds = (0, None)
+#     mod.stddev.bounds = (0, None)
+#     fitter = apy_mod.fitting.LevMarLSQFitter()
+#     best_fit = fitter(mod, x, y)
+#
+#     # fitparams: amp, mean, stddev
+#     return [best_fit.amplitude.value, best_fit.mean.value, best_fit.stddev.value]
+
+###########################################################################################
 
 def get_cin_cout(shape, asint=False):
 

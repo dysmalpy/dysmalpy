@@ -66,10 +66,15 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
             datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
             params['datadir'] = datadir
 
-    if 'plot_type' not in params.keys():
+    ####
+    # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
+    if plot_type is not None:
         params['plot_type'] = plot_type
     else:
-        plot_type = params['plot_type']
+        if 'plot_type' in params.keys():
+            plot_type = params['plot_type']
+        else:
+            params['plot_type'] = plot_type
 
     # Check if fitting already done:
     if params['fit_method'] == 'mcmc':
