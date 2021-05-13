@@ -81,11 +81,13 @@ psf_beta,         -99.         # Beta parameter for a Moffat PSF
 # Model Settings
 # -------------
 # List of components to use:  SEPARATE WITH SPACES
-## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof   geometry   zheight_gaus
+## MUST always keep:            geometry   zheight_gaus
+## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof
 components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
 # possible options:
 #       disk+bulge, sersic, blackhole
-#       const_disp_prof,   geometry,   zheight_gaus,  halo
+#       const_disp_prof,   geometry,   zheight_gaus,  halo,
+#       radial_flow
 
 # List of components that emit light. SEPARATE WITH SPACES
 ##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
@@ -376,7 +378,7 @@ mvirial_tied,        False     # for NFW, mvirial_tied=True determines Mvirial f
 
 # ********************************************************************************
 # INTRINSIC DISPERSION PROFILE
-# ------------------
+# ----------------------------
 
 # Initial Values
 sigma0,              39.0      # Constant intrinsic dispersion value
@@ -386,6 +388,14 @@ sigma0_fixed,        False
 
 # Parameter bounds. Lower and upper bounds
 sigma0_bounds,       5.0 300.0
+
+
+
+# # ********************************************************************************
+# # UNIFORM RADIAL FLOW
+# # -------------------
+#
+# vr,       0.             # Radial flow [km/s]. Positive: inflow. Negative: Outflow.
 
 
 

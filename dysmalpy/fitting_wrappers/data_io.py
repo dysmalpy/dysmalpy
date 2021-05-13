@@ -107,10 +107,15 @@ def read_fitting_params(fname=None):
                                'include_halo': False,
                                'halo_profile_type': 'NFW',
                                'weighting_method': None}
-    if param_input['fit_method'].strip().lower() == 'mcmc':
-        params = config.Config_fit_mcmc().dict
-    elif param_input['fit_method'].strip().lower() == 'mpfit':
-        params = config.Config_fit_mpfit().dict
+    if 'fit_method' in list(param_input.keys()):
+        fit_method = param_input['fit_method'].strip().lower()
+        if param_input['fit_method'].strip().lower() == 'mcmc':
+            params = config.Config_fit_mcmc().dict
+        elif param_input['fit_method'].strip().lower() == 'mpfit':
+            params = config.Config_fit_mpfit().dict
+    else:
+        fit_method = None
+        params = {'outdir': None, 'overwrite': False}
 
     params.update(params_wrapper_specific)
 
@@ -135,47 +140,48 @@ def read_fitting_params(fname=None):
             params['include_halo'] = True
 
     if params['include_halo']:
-        if params['blob_name'] is None:
-            if 'fdm_fixed' in params.keys():
-                if not params['fdm_fixed']:
-                    # fdm is free
-                    if params['halo_profile_type'].upper() == 'NFW':
-                        params['blob_name'] = 'mvirial'
-                    elif params['halo_profile_type'].lower() == 'twopowerhalo':
-                        params['blob_name'] = ['alpha', 'mvirial']
-                    elif params['halo_profile_type'].lower() == 'burkert':
-                        params['blob_name'] = ['rb', 'mvirial']
-                else:
-                    if params['halo_profile_type'].upper() == 'NFW':
-                        if params['halo_conc_fixed'] is False:
-                            params['blob_name'] = ['fdm', 'mvirial']
-                        else:
-                            params['blob_name'] = 'fdm'
+        if (fit_method is not None):
+            if params['blob_name'] is None:
+                if 'fdm_fixed' in params.keys():
+                    if not params['fdm_fixed']:
+                        # fdm is free
+                        if params['halo_profile_type'].upper() == 'NFW':
+                            params['blob_name'] = 'mvirial'
+                        elif params['halo_profile_type'].lower() == 'twopowerhalo':
+                            params['blob_name'] = ['alpha', 'mvirial']
+                        elif params['halo_profile_type'].lower() == 'burkert':
+                            params['blob_name'] = ['rb', 'mvirial']
                     else:
-                        params['blob_name'] = ['fdm', 'mvirial']
+                        if params['halo_profile_type'].upper() == 'NFW':
+                            if params['halo_conc_fixed'] is False:
+                                params['blob_name'] = ['fdm', 'mvirial']
+                            else:
+                                params['blob_name'] = 'fdm'
+                        else:
+                            params['blob_name'] = ['fdm', 'mvirial']
 
+            # ONLY SET THESE IF FITTING, FOR NOW
+            if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
+                if params['mvirial_fixed'] is True:
+                    params['fdm'] = 0.5
+                    params['fdm_fixed'] = False
+                    params['fdm_bounds'] = [0, 1]
+                    params['blob_name'] = 'mvirial'
+                else:
+                    params['fdm'] = -99.9
+                    params['fdm_fixed'] = True
+                    params['fdm_bounds'] = [0, 1]
+                    params['blob_name'] = 'fdm'
 
-        if ('fdm_fixed' not in params.keys()) | ('fdm' not in params.keys()):
-            if params['mvirial_fixed'] is True:
-                params['fdm'] = 0.5
-                params['fdm_fixed'] = False
-                params['fdm_bounds'] = [0, 1]
-                params['blob_name'] = 'mvirial'
-            else:
-                params['fdm'] = -99.9
-                params['fdm_fixed'] = True
-                params['fdm_bounds'] = [0, 1]
-                params['blob_name'] = 'fdm'
-
-        # Put a default, if missing
-        if ('mvirial_tied' not in params.keys()):
-            if params['halo_profile_type'].upper() == 'NFW':
-                params['mvirial_tied'] = False
-            #elif ((params['halo_profile_type'].lower() == 'twopowerhalo') | \
-            #            (params['halo_profile_type'].lower() == 'burkert')):
-            else:
-                # Default to the "old" behavior
-                params['mvirial_tied'] = True
+            # Put a default, if missing
+            if ('mvirial_tied' not in params.keys()):
+                if params['halo_profile_type'].upper() == 'NFW':
+                    params['mvirial_tied'] = False
+                #elif ((params['halo_profile_type'].lower() == 'twopowerhalo') | \
+                #            (params['halo_profile_type'].lower() == 'burkert')):
+                else:
+                    # Default to the "old" behavior
+                    params['mvirial_tied'] = True
 
         # Put a default, if missing:
         if ('mhalo_relation' not in params.keys()):
@@ -894,3 +900,11 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
 
         with open(fout_name, 'w') as fnew:
             fnew.writelines(lines)
+
+
+def ensure_dir(dir):
+    """ Short function to ensure dir is a directory; if not, make the directory."""
+    if not os.path.exists(dir):
+        print( "Making path="+dir)
+        os.makedirs(dir)
+    return None

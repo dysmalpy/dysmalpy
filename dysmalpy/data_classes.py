@@ -300,7 +300,7 @@ class Data2D(Data):
 
                 raise ValueError("vel_disp_err and velocity are not the"
                                  " same size.")
-            
+
             if mask_vel_disp is not None:
                 if mask_vel_disp.shape != velocity.shape:
                     raise ValueError("mask_vel_disp and velocity are not the same size.")
@@ -450,9 +450,9 @@ class Data3D(Data):
         w.wcs.crpix = [xref, yref, 1]
         w.wcs.cunit = ['deg', 'deg', spec_unit.to_string()]
         w.wcs.crval = [ra, dec, spec_arr[0]]
-        data = SpectralCube(data=cube, wcs=w)
+        data = SpectralCube(data=cube, wcs=w).with_spectral_unit(spec_unit)
         if err_cube is not None:
-            error = SpectralCube(data=err_cube, wcs=w)
+            error = SpectralCube(data=err_cube, wcs=w).with_spectral_unit(spec_unit)
         else:
             error = None
         shape = cube.shape

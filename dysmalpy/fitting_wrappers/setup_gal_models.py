@@ -218,10 +218,16 @@ def setup_gal_model_base(params=None,
         mod_set = add_zheight_gaus_comp(gal=gal, mod_set=mod_set, params=params,
                     tied_sigmaz_func=tied_sigmaz_func)
 
+
     # --------------------------------------
     # Geometry
     if 'geometry' in components_list:
         mod_set = add_geometry_comp(gal=gal, mod_set=mod_set, params=params)
+
+    # ------------------------------------------------------------
+    # Uniform radial component: inflow / outflow:
+    if 'radial_flow' in components_list:
+        mod_set = add_uniform_radial_flow(gal=gal, mod_set=mod_set, params=params)
 
     # --------------------------------------
     # Additional / Separate light components
@@ -250,6 +256,8 @@ def setup_gal_model_base(params=None,
     return gal
 
 def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    params = _preprocess_disk_bulge_parameters(params=params)
+
     total_mass =  params['total_mass']        # log M_sun
     bt =          params['bt']                # Bulge-Total ratio
     r_eff_disk =  params['r_eff_disk']        # kpc
@@ -329,6 +337,8 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
     return mod_set
 
 def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
+    params = _preprocess_sersic_parameters(params=params)
+
     total_mass =  params['total_mass']        # log M_sun
     r_eff =       params['r_eff']             # kpc
     n =           params['sersic_n']
@@ -366,6 +376,8 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
     return mod_set
 
 def add_blackhole_comp(gal=None, mod_set=None, params=None):
+    params = _preprocess_blackhole_parameters(params=params)
+
     BH_mass =  params['BH_mass']        # log M_sun
 
     # Fix components
@@ -396,6 +408,8 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
         tied_s1_func_DZ=None,
         tied_c2_func_DZ=None,
         comp_bary='disk+bulge'):
+
+    params = _preprocess_halo_parameters(params=params)
 
     if tied_fdm_func is None:
         tied_fdm_func = tied_functions.tie_fdm
@@ -721,6 +735,7 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
     return mod_set
 
 def add_const_disp_prof_comp(gal=None, mod_set=None, params=None):
+    params = _preprocess_const_disp_prof_parameters(params=params)
 
     sigma0 = params['sigma0']       # km/s
     disp_fixed = {'sigma0': params['sigma0_fixed']}
@@ -739,6 +754,7 @@ def add_const_disp_prof_comp(gal=None, mod_set=None, params=None):
 
 def add_zheight_gaus_comp(gal=None, mod_set=None, params=None,
             tied_sigmaz_func=None):
+    params = _preprocess_zheight_gaus_parameters(params=params)
 
     if tied_sigmaz_func is None:
         tied_sigmaz_func = tied_functions.tie_sigz_reff
@@ -760,6 +776,7 @@ def add_zheight_gaus_comp(gal=None, mod_set=None, params=None,
     mod_set.add_component(zheight_prof)
 
     return mod_set
+
 
 def add_geometry_comp(gal=None, mod_set=None, params=None):
     params = _preprocess_geom_parameters(params=params)
@@ -798,36 +815,32 @@ def add_geometry_comp(gal=None, mod_set=None, params=None):
 
     return mod_set
 
-def _preprocess_geom_parameters(params=None):
-    if 'pa' not in list(params.keys()):
-        params['pa'] = params['slit_pa']  # default convention; neg r is blue side
 
-    for key in ['xshift', 'yshift', 'vel_shift']:
-        if key not in list(params.keys()):
-            params[key] = 0.
+def add_uniform_radial_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_uniform_radial_flow_parameters(params=params)
 
-    for key in ['xshift', 'yshift', 'vel_shift', 'inc', 'pa']:
-        if '{}_fixed'.format(key) not in list(params.keys()):
-            params['{}_fixed'.format(key)] = True
+    vr = params['vr']                # km/s;  inflow is positive, outflow is negative
 
-    for key in ['xshift', 'yshift']:
-        if '{}_bounds'.format(key) not in list(params.keys()):
-            params['{}_bounds'.format(key)] = (-1.,1.)
+    radialflow_fixed = {'vr': params['vr_fixed']}
+    radialflow_bounds = {'vr':  (params['vr_bounds'][0], params['vr_bounds'][1])}
 
-    if 'vel_shift_bounds' not in list(params.keys()):
-        params['vel_shift_bounds'] = (-100., 100.)
-    if 'pa_bounds' not in list(params.keys()):
-        params['pa_bounds'] = (-180., 180.)
-    if 'inc' not in list(params.keys()):
-        params['inc_bounds'] = (0., 90.)
+    radialflow = models.UniformRadialFlow(vr=vr,  name='radialflow',
+                           fixed=radialflow_fixed, bounds=radialflow_bounds,)
+    radialflow = set_comp_param_prior(comp=radialflow, param_name='vr', params=params)
 
-    return params
+    # --------------------------------------
+    # Add the model component to the ModelSet
+
+    mod_set.add_component(radialflow)
+
+
+    return mod_set
 
 
 def add_light_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
     params = _preprocess_light_sersic_parameters(params=params)
 
-    L_tot =        params['L_tot_sersic']        # Arbitrary
+    L_tot =       params['L_tot_sersic']        # Arbitrary
     r_eff =       params['lr_eff']         # kpc
     n =           params['lsersic_n']
     r_inner =     params['lsersic_rinner'] # kpc
@@ -908,6 +921,223 @@ def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None, light_comp
     mod_set.add_component(GR, light=light)
 
     return mod_set
+
+
+def _preprocess_params_defaults(params=None, bounds_dict=None):
+    for key in bounds_dict.keys():
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = bounds_dict[key]
+    return params
+
+def _preprocess_disk_bulge_parameters(params=None):
+    bounds_dict = {'total_mass': [9., 13.],
+                  'r_eff_disk': [1., 15.],
+                  'n_disk': [0.5, 8.],
+                  'r_eff_bulge': [1., 4.],
+                  'n_bulge': [1., 8.],
+                  'bt': [0., 1.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+
+def _preprocess_sersic_parameters(params=None):
+    bounds_dict = {'total_mass': [9., 13.],
+                  'r_eff': [1., 15.],
+                  'n': [0.5, 8.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_blackhole_parameters(params=None):
+    bounds_dict = {'BH_mass': [6., 11.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_halo_parameters(params=None):
+
+    for key in ['lmstar', 'fgas', 'mhalo_relation', 'truncate_lmstar_halo']:
+        if '{}'.format(key) not in list(params.keys()):
+            params[key] = None
+
+    # Halo component
+    if (params['halo_profile_type'].strip().upper() == 'NFW'):
+        # NFW halo
+        bounds_dict = {'mvirial': [6., 18.],
+                       'halo_conc': [2., 12.],
+                       'fdm':   [0., 1.]}
+
+        params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+        if 'fdm' not in list(params.keys()):
+            params['fdm'] = -99.
+            params['fdm_tied'] = True
+
+        if 'mvirial' not in list(params.keys()):
+            params['mvirial'] = -99.
+            params['mvirial_tied'] = True
+
+        if (params['fdm_fixed'] is False) and (params['mvirial_fixed'] is False):
+            fdm_tied = mvir_tied = False
+            if 'mvirial_tied' in params.keys():
+                if params['mvirial_tied']:
+                    mvir_tied = True
+                else:
+                    mvir_tied = False
+            if 'fdm_tied' in params.keys():
+                if params['fdm_tied']:
+                    fdm_tied = True
+                else:
+                    fdm_tied = False
+
+            if (not fdm_tied) and (not mvir_tied):
+                params['fdm_tied'] = True
+
+        elif ((not params['fdm_fixed']) & (params['mvirial_fixed'])):
+            if 'mvirial_tied' not in params.keys():
+                params['mvirial_tied'] = True
+            else:
+                if (not params['mvirial_tied']):
+                    # Override setting and make tied, as it can't be truly fixed
+                    params['mvirial_tied'] = True
+        elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
+            if 'fdm_tied' not in params.keys():
+                params['fdm_tied'] = True
+            else:
+                if (not params['fdm_tied']):
+                    # Override setting and make tied, as it can't be truly fixed
+                    params['fdm_tied'] = True
+
+    elif (params['halo_profile_type'].strip().upper() == 'TWOPOWERHALO'):
+        # Two-power halo fit:
+        bounds_dict = {'mvirial': [6., 18.],
+                       'halo_conc': [2., 12.],
+                       'fdm':   [0., 1.],
+                       'alpha': [0., 3.],
+                       'beta':  [2., 4.]}
+
+        params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+        if 'fdm' not in list(params.keys()):
+            params['fdm'] = -99.
+            params['fdm_tied'] = True
+
+        if 'mvirial' not in list(params.keys()):
+            params['mvirial'] = -99.
+            params['mvirial_tied'] = True
+
+
+
+    elif (params['halo_profile_type'].strip().upper() == 'BURKERT'):
+        # Burkert halo profile:
+        bounds_dict = {'mvirial': [6., 18.],
+                       'rB': [0.5, 15.],
+                       'fdm':   [0., 1.]}
+
+        params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+
+        if 'fdm' not in list(params.keys()):
+            params['fdm'] = -99.
+            params['fdm_tied'] = True
+
+        if 'mvirial' not in list(params.keys()):
+            params['mvirial'] = -99.
+            params['mvirial_tied'] = True
+
+
+    elif (params['halo_profile_type'].strip().upper() == 'EINASTO'):
+        # Einastro halo profile:
+        bounds_dict = {'mvirial': [6., 18.],
+                       'halo_conc': [0.5, 15.],
+                       'fdm':   [0., 1.],
+                       'alphaEinasto': [0., 2.],
+                       'nEinasto':  [1., 12.]}
+
+        params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+
+        if 'fdm' not in list(params.keys()):
+            params['fdm'] = -99.
+            params['fdm_tied'] = True
+
+        if 'mvirial' not in list(params.keys()):
+            params['mvirial'] = -99.
+            params['mvirial_tied'] = True
+
+
+    elif (params['halo_profile_type'].strip().upper() == 'DEKELZHAO'):
+        # Dekel-Zhao halo fit:
+        bounds_dict = {'mvirial': [6., 18.],
+                       's1': [0.5, 15.],
+                       'c2':   [0., 1.],
+                       'fdm': [0., 1.]}
+
+        params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+        if 'fdm' not in list(params.keys()):
+            params['fdm'] = -99.
+            params['fdm_tied'] = True
+
+        if 'mvirial' not in list(params.keys()):
+            params['mvirial'] = -99.
+            params['mvirial_tied'] = True
+
+
+    return params
+
+def _preprocess_const_disp_prof_parameters(params=None):
+    bounds_dict = {'sigma0': [5., 300.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+    return params
+
+def _preprocess_zheight_gaus_parameters(params=None):
+    bounds_dict = {'sigmaz': [0.1, 5.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+
+    if 'zheight_tied' not in list(params.keys()):
+        params['zheight_tied'] = True
+
+    return params
+
+def _preprocess_geom_parameters(params=None, geom_type=''):
+    if '{}pa'.format(geom_type) not in list(params.keys()):
+        params['{}pa'.format(geom_type)] = params['slit_pa']  # default convention; neg r is blue side
+
+    for key in ['{}xshift'.format(geom_type), '{}yshift'.format(geom_type), '{}vel_shift'.format(geom_type)]:
+        if key not in list(params.keys()):
+            params[key] = 0.
+
+    for key in ['{}xshift'.format(geom_type), '{}yshift'.format(geom_type),
+                '{}vel_shift'.format(geom_type), '{}inc'.format(geom_type), '{}pa'.format(geom_type)]:
+        if '{}_fixed'.format(key) not in list(params.keys()):
+            params['{}_fixed'.format(key)] = True
+
+    for key in ['{}xshift'.format(geom_type), '{}yshift'.format(geom_type)]:
+        if '{}_bounds'.format(key) not in list(params.keys()):
+            params['{}_bounds'.format(key)] = (-1.,1.)
+
+    if '{}vel_shift_bounds'.format(geom_type) not in list(params.keys()):
+        params['{}vel_shift_bounds'.format(geom_type)] = (-100., 100.)
+    if '{}pa_bounds'.format(geom_type) not in list(params.keys()):
+        params['{}pa_bounds'.format(geom_type)] = (-180., 180.)
+    if '{}inc_bounds'.format(geom_type) not in list(params.keys()):
+        params['{}inc_bounds'.format(geom_type)] = (0., 90.)
+
+    return params
+
+def _preprocess_uniform_radial_flow_parameters(params=None):
+    bounds_dict = {'vr': [-100., 100.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
 
 def _preprocess_light_sersic_parameters(params=None):
     if 'lsersic_n' not in list(params.keys()):
@@ -1278,7 +1508,7 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     f_vcirc_ascii = outdir+'{}{}_galaxy_bestfit_vcirc.dat'.format(galID, filename_extra)
     f_mass_ascii = outdir+'{}{}_galaxy_bestfit_menc.dat'.format(galID, filename_extra)
     f_log = outdir+'{}{}_info.log'.format(galID, filename_extra)
-    
+
 
     if ndim_data == 1:
         f_model_bestfit = outdir+'{}{}_out-1dplots.txt'.format(galID, filename_extra)
