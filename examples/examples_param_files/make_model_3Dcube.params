@@ -225,7 +225,7 @@ sigma0,              39.0      # Constant intrinsic dispersion value
 # # UNIFORM RADIAL FLOW
 # # -------------------
 #
-# vr,       0.             # Radial flow [km/s]. Positive: inflow. Negative: Outflow.
+# vr,       0.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
 
 
 
