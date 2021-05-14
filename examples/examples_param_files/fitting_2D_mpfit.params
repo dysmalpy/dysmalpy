@@ -393,7 +393,7 @@ sigma0_bounds,       5.0 300.0
 # # UNIFORM RADIAL FLOW
 # # ------------------
 #
-# vr,       0.             # Radial flow [km/s]. Positive: inflow. Negative: Outflow.
+# vr,       0.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
 
 
 

@@ -5923,7 +5923,7 @@ class UniformRadialFlow(_DysmalFittable3DModel):
     Parameters
     ----------
     vr : float
-        Radial velocity in km/s. vr > 0 for inflow, vr < 0 for outflow
+        Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
 
     Notes
     -----
@@ -5943,7 +5943,7 @@ class UniformRadialFlow(_DysmalFittable3DModel):
     def evaluate(self, x, y, z, vr):
         """Evaluate the radial velocity as a function of position x, y, z"""
 
-        vel = np.ones(x.shape) * (- vr)
+        vel = np.ones(x.shape) * (vr)
 
         return vel
 

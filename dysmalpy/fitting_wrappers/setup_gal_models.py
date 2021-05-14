@@ -819,7 +819,7 @@ def add_geometry_comp(gal=None, mod_set=None, params=None):
 def add_uniform_radial_flow(gal=None, mod_set=None, params=None):
     params = _preprocess_uniform_radial_flow_parameters(params=params)
 
-    vr = params['vr']                # km/s;  inflow is positive, outflow is negative
+    vr = params['vr']                # km/s;  outflow is positive, inflow is negative
 
     radialflow_fixed = {'vr': params['vr_fixed']}
     radialflow_bounds = {'vr':  (params['vr_bounds'][0], params['vr_bounds'][1])}
