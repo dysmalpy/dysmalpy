@@ -78,10 +78,10 @@ class Instrument:
         # Case of two beams: analytic and empirical: if beam_type==None, assume analytic
         self.beam = beam
         self.beam_type = beam_type
-
         self._beam_kernel = None
         self.lsf = lsf
         self._lsf_kernel = None
+
         self.fov = fov
         self.spec_type = spec_type
         self.spec_start = spec_start
@@ -111,7 +111,6 @@ class Instrument:
                New model cube after applying the PSF and LSF convolution
         """
 
-
         if self.beam is None and self.lsf is None:
             # Nothing to do if a PSF and LSF aren't set for the instrument
             logger.warning("No convolution being performed since PSF and LSF "
@@ -119,18 +118,15 @@ class Instrument:
             return cube
 
         elif self.lsf is None:
-
             cube = self.convolve_with_beam(cube)
 
         elif self.beam is None:
-
             cube = self.convolve_with_lsf(cube, spec_center=spec_center)
 
         else:
-
+            # Separate convolution steps: note this is FASTER than doing a composite convolution
             cube_conv_beam = self.convolve_with_beam(cube)
-            cube = self.convolve_with_lsf(cube_conv_beam,
-                                          spec_center=spec_center)
+            cube = self.convolve_with_lsf(cube_conv_beam, spec_center=spec_center)
 
         return cube
 
@@ -187,6 +183,13 @@ class Instrument:
 
         return cube
 
+    def _clear_kernels(self):
+        """
+        Delete pre-computed kernels
+        """
+        self._beam_kernel = None
+        self._lsf_kernel = None
+
     def set_beam_kernel(self, support_scaling=12.):
         """
         Calculate and store the PSF convolution kernel
@@ -217,12 +220,10 @@ class Instrument:
 
             kern2D = self.beam.copy()
 
-            # Replace NaNs/non-finite with zero:
-            kern2D[~np.isfinite(kern2D)] = 0.
+            kern2D[~np.isfinite(kern2D)] = 0.               # Replace NaNs/non-finite with zero
+            kern2D[kern2D<0.] = 0.                          # Replace < 0 with zero:
 
-            # Replace < 0 with zero:
-            kern2D[kern2D<0.] = 0.
-            kern2D /= np.sum(kern2D[np.isfinite(kern2D)])  # need to normalize
+            kern2D /= np.sum(kern2D[np.isfinite(kern2D)])   # need to normalize
 
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
@@ -241,37 +242,28 @@ class Instrument:
                       and Instrument.spec_center hasn't been set.
 
         """
-
         if (self.spec_step is None):
             raise ValueError("Spectral step not defined.")
 
         elif (self.spec_step is not None) and (self.spec_type == 'velocity'):
-
             kernel = self.lsf.as_velocity_kernel(self.spec_step)
 
         elif (self.spec_step is not None) and (self.spec_type == 'wavelength'):
-
             if (self.spec_center is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
                                  "the instrument or call to convolve.")
 
             elif (spec_center is not None):
-                #logger.info("Overriding the instrument central wavelength "
-                #            "with {}.".format(spec_center))
-
                 kernel = self.lsf.as_wave_kernel(self.spec_step, spec_center)
 
             else:
-
-                kernel = self.lsf.as_wave_kernel(self.spec_step,
-                                                 self.spec_center)
+                kernel = self.lsf.as_wave_kernel(self.spec_step, self.spec_center)
 
         kern1D = kernel.array
         kern3D = np.zeros(shape=(kern1D.shape[0], 1, 1,))
         kern3D[:, 0, 0] = kern1D
 
         self._lsf_kernel = kern3D
-
 
     @property
     def beam(self):
