@@ -14,7 +14,7 @@ import logging
 import numpy as np
 import astropy.units as u
 
-from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq
+from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq, gaus_fit_apy_mod_fitter
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
@@ -65,10 +65,11 @@ class Aperture(object):
         mask[np.int(self.aper_center[1]), np.int(self.aper_center[0])] = True
         return mask
 
-    def extract_aper_kin(self, spec_arr=None,
-            cube=None, err=None, mask=None, spec_mask=None):
+    def extract_aper_spec(self, spec_arr=None,
+            cube=None, err=None, mask=None, spec_mask=None, skip_specmask=False):
         """
-        spec_arr: the spectral direction array -- eg, vel array or wave array.
+        Extract the raw LOS spectral distribution for the cube (data or model).
+        If setting mask, this must be the CUBE mask.
         """
         if hasattr(self, 'partial_weight'):
             if self.partial_weight:
@@ -79,19 +80,52 @@ class Aperture(object):
             mask_ap = self.define_aperture_mask()
 
         mask_cube = np.tile(mask_ap, (cube.shape[0], 1, 1))
-        spec = np.nansum(np.nansum(cube*mask_cube, axis=1), axis=1)
 
-        if spec_mask is not None:
+        if mask is not None:
+            mask_cube *= mask
+            spec_mask2 = np.sum(np.sum(mask_cube, axis=2), axis=1)
+            spec_mask2[spec_mask2>0] = 1.
+            spec_mask2 = np.array(spec_mask2, dtype=np.bool)
+            if spec_mask is None:
+                spec_mask = spec_mask2
+
+        spec = np.nansum(np.nansum(cube*mask_cube, axis=1), axis=1)
+        if err is not None:
+            espec = np.sqrt(np.nansum(np.nansum((err**2)*mask_cube, axis=1),axis=1))
+
+        if (spec_mask is not None) & (not skip_specmask):
             spec_fit = spec[spec_mask]
             spec_arr_fit = spec_arr[spec_mask]
+            if err is not None:
+                espec_fit = espec[spec_mask]
         else:
             spec_fit = spec
             spec_arr_fit = spec_arr
+            if err is not None:
+                espec_fit = espec
+        if err is None:
+            espec_fit = None
+
+        return spec_arr_fit, spec_fit, espec_fit
+
+
+    def extract_aper_kin(self, spec_arr=None,
+            cube=None, err=None, mask=None, spec_mask=None):
+        """
+        Extract the kinematic information from the aperture LOS spectral distribution:
+                flux, velocity, dispersion.
+
+        spec_arr: the spectral direction array -- eg, vel array or wave array.
+        """
+
+        spec_arr_fit, spec_fit, espec_fit = self.extract_aper_spec(spec_arr=spec_arr,
+                cube=cube, err=err, mask=mask, spec_mask=spec_mask)
 
         # Use the first and second moment as a guess of the line parameters
-        mom0 = np.sum(spec_fit)
-        mom1 = np.sum(spec_fit * spec_arr_fit) / mom0
-        mom2 = np.sum(spec_fit * (spec_arr_fit - mom1) ** 2) / mom0
+        delspec = np.average(spec_arr[1:]-spec_arr[:-1])  # need del spec
+        mom0 = np.sum(spec_fit) * delspec
+        mom1 = np.sum(spec_fit * spec_arr_fit) * delspec / mom0
+        mom2 = np.sum(spec_fit * (spec_arr_fit - mom1) ** 2) * delspec / mom0
 
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
         # Catch case where mixing old + new w/o moment defined
@@ -104,14 +138,26 @@ class Aperture(object):
             vel1d = mom1
             disp1d = np.sqrt(np.abs(mom2))
         else:
-            best_fit = gaus_fit_sp_opt_leastsq(spec_arr_fit, spec_fit, mom0, mom1, np.sqrt(np.abs(mom2)))
-            flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-            vel1d = best_fit[1]
-            disp1d = best_fit[2]
+            try:
+                if err is not None:
+                    # Use astropy model fitter:
+                    best_fit = gaus_fit_apy_mod_fitter(spec_arr_fit, spec_fit,
+                                    mom0, mom1, np.sqrt(np.abs(mom2)), yerr=espec_fit)
+                else:
+                    # Use unweighted -- FASTER
+                    best_fit = gaus_fit_sp_opt_leastsq(spec_arr_fit, spec_fit, mom0, mom1, np.sqrt(np.abs(mom2)))
 
+                flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                vel1d = best_fit[1]
+                disp1d = best_fit[2]
+            except:
+                flux1d = np.NaN
+                vel1d = np.NaN
+                disp1d = np.NaN
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         return flux1d, vel1d, disp1d
+
 
 class EllipAperture(Aperture):
     """
@@ -309,7 +355,6 @@ class Apertures(object):
         vel1d = np.zeros(naps)
         disp1d = np.zeros(naps)
 
-
         for i in range(naps):
             flux1d[i], vel1d[i], disp1d[i] = self.apertures[i].extract_aper_kin(spec_arr=spec_arr,
                     cube=cube, err=err, mask=mask, spec_mask=spec_mask)
@@ -328,7 +373,7 @@ class Apertures(object):
         return aper_centers_pixout*pixscale, flux1d, vel1d, disp1d
 
 
-#
+
 class EllipApertures(Apertures):
     """
     Generic case. Should be array of Aperture objects. Needs the loop.
@@ -349,8 +394,6 @@ class EllipApertures(Apertures):
             slit_PA_use = 0.
         else:
             slit_PA_use = slit_PA
-
-        #aper_center_pix_shift = None
 
         # Assume the default central pixel is the center of the cube
         if center_pixel is None:
@@ -492,7 +535,6 @@ class SquareApertures(RectApertures):
 
 
 
-
 def setup_aperture_types(gal=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
@@ -503,7 +545,6 @@ def setup_aperture_types(gal=None, profile1d_type=None,
 
     # partial_weight:
     #           are partial pixels weighted in apertures?
-    #
 
     if from_data:
         slit_width = gal.data.slit_width
@@ -520,14 +561,12 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         rstep /= (1.* oversample)
         aper_centers *= oversample
 
-
     try:
         xcenter_samp = (gal.data.xcenter + 0.5)*oversample - 0.5
         ycenter_samp = (gal.data.ycenter + 0.5)*oversample - 0.5
         center_pixel = [xcenter_samp, ycenter_samp]
     except:
         center_pixel = None
-
 
     if (gal.data is not None):
         if (gal.data.aper_center_pix_shift is not None):
@@ -542,7 +581,6 @@ def setup_aperture_types(gal=None, profile1d_type=None,
     #print("aperture_class: center_pixel={}".format(center_pixel))
 
     if (profile1d_type.lower() == 'circ_ap_cube'):
-
         if (aperture_radius is not None):
             rpix = aperture_radius/rstep
         else:
@@ -554,7 +592,6 @@ def setup_aperture_types(gal=None, profile1d_type=None,
                  moment=moment)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
-
         if (pix_perp is None):
             pix_perp = slit_width/rstep
         else:
@@ -565,8 +602,6 @@ def setup_aperture_types(gal=None, profile1d_type=None,
         else:
             pix_parallel *= oversample
 
-        aper_centers_pix = aper_centers/rstep
-
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
@@ -574,13 +609,10 @@ def setup_aperture_types(gal=None, profile1d_type=None,
                 moment=moment)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
-
         if ('pix_length' is None):
             pix_length = slit_width/rstep
         else:
             pix_length *= oversample
-
-        aper_centers_pix = aper_centers/rstep
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,

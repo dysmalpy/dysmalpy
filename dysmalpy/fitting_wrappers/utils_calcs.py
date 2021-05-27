@@ -33,18 +33,32 @@ def _auto_gen_3D_mask_simple(cube=None, err=None, snr_thresh=3.):
 
     return mask
 
-def auto_gen_3D_mask(cube=None, err=None, sig_thresh=1.5, npix_min=5, snr_thresh=3., snr_thresh_1=3.):
+
+def _auto_gen_3D_mask_sky(ecube, mask=None, sky_var_thresh=None):
+    varspec = np.sum(np.sum(ecube**2 * mask, axis=2), axis=1)
+
+    whmask = np.where(varspec > sky_var_thresh*np.median(varspec))[0]
+    mask_sky1d = np.ones(len(varspec))
+    mask_sky1d[whmask] = 0.
+    mask_sky = np.tile(mask_sky1d.reshape((mask_sky1d.shape[0],1,1)), (1, ecube.shape[1], ecube.shape[2]))
+
+    return mask_sky
+
+def auto_gen_3D_mask(cube=None, err=None,
+            sig_thresh=1.5, npix_min=5,
+            snr_thresh=3., 
+            snr_thresh_1=None,
+            sky_var_thresh=3.):
+
+    # snr_thresh=3., snr_thresh_1=3.,
 
     ## Crude first-pass masking by pixel S/N:
-    mask_sn_pix = _auto_gen_3D_mask_simple(cube=cube, err=err, snr_thresh=snr_thresh_1)
-
-    #mask = mask_sn_pix.copy()
-
-    #cube_m = cube.copy() * mask_sn_pix.copy()
-    #ecube_m = err.copy() * mask_sn_pix.copy()
+    if snr_thresh_1 is not None:
+        mask_sn_pix = _auto_gen_3D_mask_simple(cube=cube, err=err, snr_thresh=snr_thresh_1)
+    else:
+        mask_sn_pix = None
 
 
-    # TEST:
     mask = np.ones(cube.shape)
 
     cube_m = cube.copy()
@@ -55,50 +69,66 @@ def auto_gen_3D_mask(cube=None, err=None, sig_thresh=1.5, npix_min=5, snr_thresh
     mask[~np.isfinite(cube_m)] = 0
     cube_m[~np.isfinite(cube_m)] = -99.
 
-    mask[~np.isfinite(cube_m)] = 0
+    mask[~np.isfinite(ecube_m)] = 0
     ecube_m[~np.isfinite(ecube_m)] = -99.
 
     # Clean up 0s in error, if it's masked
     ecube_m[mask == 0] = 99.
 
-    ####################################
-    fmap_cube_sn = np.sum(cube_m, axis=0)
-    emap_cube_sn = np.sqrt(np.sum(ecube_m**2, axis=0))
 
 
-
-    # Do segmap on mask2D?????
-    if loaded_photutils:
-
-        bkg = photutils.Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3))
-
-        thresh = sig_thresh * bkg.background_rms
-
-        #kernel = Gaussian2DKernel(2. /(2. *np.sqrt(2.*np.log(2.))), x_size=3, y_size=3)   # Gaussian of FWHM 2 pix
-        kernel = Gaussian2DKernel(3. /(2. *np.sqrt(2.*np.log(2.))), x_size=5, y_size=5)   # Gaussian of FWHM 3 pix
-        segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_min, filter_kernel=kernel)
-
-
-        mask2D = segm._data.copy()
-        mask2D[mask2D>0] = 1
+    if sky_var_thresh is not None:
+        # Mask skylines from variance:
+        mask_sky = _auto_gen_3D_mask_sky(ecube_m, mask=mask, sky_var_thresh=sky_var_thresh)
+        #mask *= mask_sky
     else:
-        # TRY JUST S/N cut on 2D?
-        sn_map_cube_sn = fmap_cube_sn / emap_cube_sn
-
-        mask2D = np.ones(sn_map_cube_sn.shape)
-        mask2D[sn_map_cube_sn < snr_thresh] = 0
+        mask_sky = None
 
 
-
-    # Apply mask2D to mask:
-    mask_cube = np.tile(mask2D, (cube_m.shape[0], 1, 1))
-
-    #mask = mask * mask_cube
-
-    mask = mask * mask_sn_pix
+    ####################################
+    if sig_thresh is not None:
+        fmap_cube_sn = np.sum(cube_m*mask, axis=0)
+        emap_cube_sn = np.sqrt(np.sum(ecube_m**2*mask, axis=0))
 
 
-    mask = mask * mask_cube
+        # Do segmap on mask2D?????
+        if loaded_photutils:
+
+            bkg = photutils.Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3))
+
+            thresh = sig_thresh * bkg.background_rms
+
+            #kernel = Gaussian2DKernel(2. /(2. *np.sqrt(2.*np.log(2.))), x_size=3, y_size=3)   # Gaussian of FWHM 2 pix
+            kernel = Gaussian2DKernel(3. /(2. *np.sqrt(2.*np.log(2.))), x_size=5, y_size=5)   # Gaussian of FWHM 3 pix
+            segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_min, filter_kernel=kernel)
+
+
+            mask2D = segm._data.copy()
+            mask2D[mask2D>0] = 1
+        else:
+            # TRY JUST S/N cut on 2D?
+            sn_map_cube_sn = fmap_cube_sn / emap_cube_sn
+
+            mask2D = np.ones(sn_map_cube_sn.shape)
+            mask2D[sn_map_cube_sn < snr_thresh] = 0
+
+
+
+        # Apply mask2D to mask:
+        mask_cube = np.tile(mask2D, (cube_m.shape[0], 1, 1))
+
+    else:
+        mask_cube = None
+
+
+    if mask_sn_pix is not None:
+        mask *= mask_sn_pix
+
+    if mask_cube is not None:
+        mask *= mask_cube
+
+    if mask_sky is not None:
+        mask *= mask_sky
 
     return mask
 

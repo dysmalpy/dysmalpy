@@ -5306,6 +5306,36 @@ class ZHeightGauss(ZHeightProfile):
         return self.sigmaz
 
 
+class ZHeightExp(ZHeightProfile):
+    r"""
+    Exponential flux distribution in the z-direction
+
+    Parameters
+    ----------
+    hz : float
+        Scale length of the exponential in kpc
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        F_z = \exp\left\{\frac{-z}{h_z}\right\}
+    """
+    hz = DysmalParameter(default=1.0, fixed=True, bounds=(0, 10))
+
+    def __init__(self, **kwargs):
+        super(ZHeightExp, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(z, hz):
+        return np.exp(-z/hz)
+
+    @property
+    def z_scalelength(self):
+        return self.hz
+
 
 # ****** Kinematic Options Class **********
 class KinematicOptions:

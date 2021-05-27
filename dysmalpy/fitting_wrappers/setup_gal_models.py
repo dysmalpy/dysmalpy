@@ -106,8 +106,13 @@ def setup_single_object_3D(params=None, data=None):
 
     gal = setup_gal_model_base(params=params)
 
-    # Override FOV from the cube shape:
-    gal.instrument.fov = [data.shape[2], data.shape[1]]
+    # # Override instrument settings:
+    # #      FOV from the cube shape,
+    # #      spectral settings from cube spectral array
+    # gal.instrument.fov = [data.shape[2], data.shape[1]]
+    #
+    # Note: should automatically be done after adding gal.data now, as part of checks
+
 
     # ------------------------------------------------------------
 

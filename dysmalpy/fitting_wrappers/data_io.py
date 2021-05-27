@@ -697,13 +697,16 @@ def load_single_object_3D_data(params=None, datadir=None):
         if params['auto_gen_3D_mask']:
             if 'auto_gen_mask_snr_thresh_1' not in params.keys():
                 params['auto_gen_mask_snr_thresh_1'] = params['auto_gen_mask_snr_thresh']
+            if 'auto_gen_mask_sky_var_thresh' not in params.keys():
+                params['auto_gen_mask_sky_var_thresh'] = 3.
             #mask = _auto_gen_3D_mask_simple(cube=cube, err=err_cube, snr_thresh=params['auto_gen_mask_snr_thresh'],
             #        npix_min=params['auto_gen_mask_npix_min'])
             mask = auto_gen_3D_mask(cube=cube, err=err_cube,
                     sig_thresh=params['auto_gen_mask_sig_thresh'],
                     #snr_thresh=params['auto_gen_mask_snr_thresh'],
                     #snr_thresh_1 = params['auto_gen_mask_snr_thresh_1'],
-                    npix_min=params['auto_gen_mask_npix_min'])
+                    npix_min=params['auto_gen_mask_npix_min'],
+                    sky_var_thresh=params['auto_gen_mask_sky_var_thresh'])
 
         else:
             mask = np.ones(cube.shape)
