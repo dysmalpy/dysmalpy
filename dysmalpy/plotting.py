@@ -53,6 +53,33 @@ __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+def plot_bestfit(mcmcResults, gal,
+                 fitdispersion=True,
+                 fitflux=False,
+                 show_1d_apers=False,
+                 fileout=None,
+                 fileout_apertures=None,
+                 fileout_all_spax=None,
+                 fileout_channel=None,
+                 vcrop=False,
+                 vcrop_value=800.,
+                 remove_shift=False,
+                 overwrite=False,
+                 moment=False,
+                 **kwargs_galmodel):
+    """
+    Plot data, bestfit model, and residuals from the MCMC fitting.
+    """
+    plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
+            fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
+            fileout_apertures=fileout_apertures, fileout_all_spax=fileout_all_spax,
+            fileout_channel=fileout_channel,
+            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
+            remove_shift=remove_shift, moment=moment,
+            overwrite=overwrite, **kwargs_galmodel)
+
+    return None
+
 
 def plot_trace(mcmcResults, fileout=None, overwrite=False):
     """
@@ -300,6 +327,93 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         plt.close(fig)
     else:
         plt.show()
+
+    return None
+
+
+
+
+def plot_data_model_comparison(gal,theta = None,
+                               fitdispersion=True,
+                               fitflux=False,
+                               fileout=None,
+                               fileout_apertures=None,
+                               fileout_all_spax=None,
+                               fileout_channel=None,
+                               show_multid=True,
+                               show_apertures=True,
+                               show_all_spax=True,
+                               show_channel=True,
+                               vcrop=False,
+                               show_1d_apers=False,
+                               vcrop_value=800.,
+                               remove_shift=False,
+                               overwrite=False,
+                               moment=False,
+                               **kwargs_galmodel):
+    """
+    Plot data, model, and residuals between the data and this model.
+    """
+
+    dummy_gal = copy.deepcopy(gal)
+
+    if remove_shift:
+        dummy_gal.data.aper_center_pix_shift = (0,0)
+        dummy_gal.model.geometry.xshift = 0
+        dummy_gal.model.geometry.yshift = 0
+
+    # if (theta is not None) & (gal.data.ndim < 3):
+    #     dummy_gal.model.update_parameters(theta)     # Update the parameters
+    #     dummy_gal.create_model_data(**kwargs_galmodel)
+
+    if (theta is not None) & (gal.data.ndim == 3):
+        dummy_gal.model.update_parameters(theta)     # Update the parameters
+        dummy_gal.create_model_data(**kwargs_galmodel)
+
+
+    if gal.data.ndim == 1:
+        plot_data_model_comparison_1D(dummy_gal,
+                    data = None,
+                    theta = theta,
+                    fitdispersion=fitdispersion,
+                    fitflux=fitflux,
+                    fileout=fileout,
+                    overwrite=overwrite,
+                    **kwargs_galmodel)
+    elif gal.data.ndim == 2:
+        plot_data_model_comparison_2D(dummy_gal,
+                    theta = theta,
+                    fitdispersion=fitdispersion,
+                    fitflux=fitflux,
+                    fileout=fileout,
+                    overwrite=overwrite,
+                    **kwargs_galmodel)
+    elif gal.data.ndim == 3:
+        plot_data_model_comparison_3D(dummy_gal,
+                    theta = theta,
+                    show_1d_apers=show_1d_apers,
+                    fileout=fileout,
+                    fileout_apertures=fileout_apertures,
+                    fileout_all_spax=fileout_all_spax,
+                    fileout_channel=fileout_channel,
+                    vcrop=vcrop,
+                    vcrop_value=vcrop_value,
+                    overwrite=overwrite,
+                    moment=moment,
+                    show_multid=show_multid,
+                    show_apertures=show_apertures,
+                    show_all_spax=show_all_spax,
+                    show_channel=show_channel,
+                    **kwargs_galmodel)
+
+    elif gal.data.ndim == 0:
+        plot_data_model_comparison_0D(dummy_gal,
+                                      fileout=fileout,
+                                      overwrite=overwrite,
+                                      **kwargs_galmodel)
+    else:
+        logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
+        raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
 
     return None
 
@@ -899,10 +1013,13 @@ def plot_data_model_comparison_2D(gal,
         plt.draw()
         plt.show()
 
-#
+
 def plot_data_model_comparison_3D(gal,
             theta = None,
             fileout=None,
+            fileout_apertures=None,
+            fileout_all_spax=None,
+            fileout_channel=None,
             symmetric_residuals=True,
             show_1d_apers = False,
             max_residual=100.,
@@ -911,6 +1028,10 @@ def plot_data_model_comparison_3D(gal,
             vcrop_value=800.,
             overwrite=False,
             moment=False,
+            show_multid=True,
+            show_apertures=True,
+            show_all_spax=True,
+            show_channel=True,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -919,316 +1040,43 @@ def plot_data_model_comparison_3D(gal,
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    plot_model_multid(gal, theta=theta,
-                fileout=fileout,
-                symmetric_residuals=symmetric_residuals, max_residual=max_residual,
-                show_1d_apers=show_1d_apers,
-                fitdispersion=True, fitflux=True,
-                inst_corr=True,
-                vcrop=vcrop,
-                vcrop_value=vcrop_value,
-                overwrite=overwrite,
-                moment=moment,
-                **kwargs_galmodel)
+    if show_multid:
+        plot_model_multid(gal, theta=theta,
+                    fileout=fileout,
+                    symmetric_residuals=symmetric_residuals, max_residual=max_residual,
+                    show_1d_apers=show_1d_apers,
+                    fitdispersion=True, fitflux=True,
+                    inst_corr=True,
+                    vcrop=vcrop,
+                    vcrop_value=vcrop_value,
+                    overwrite=overwrite,
+                    moment=moment,
+                    **kwargs_galmodel)
+
+    if show_all_spax:
+        #if fileout_all_spax is not None:
+        plot_spaxel_compare_3D_cubes(gal, fileout=fileout_all_spax,
+                        typ='all', show_model=True, overwrite=overwrite)
+
+    if show_apertures:
+        #if fileout_apertures is not None:
+        plot_aperture_compare_3D_cubes(gal, fileout=fileout_apertures, overwrite=overwrite)
+
+    if show_channel:
+        #if fileout_channel is not None:
+        plot_channel_maps_3D_cube(gal,
+                    show_data=True, show_model=True,show_residual=True,
+                    vbounds = [-450., 450.], delv = 100.,
+                    vbounds_shift=True, cmap=cm.Greys,
+                    fileout=fileout_channel, overwrite=overwrite)
+
+
 
     return None
 
 
-
-def plot_model_1D(gal,
-            fitdispersion=True,
-            fitflux=False,
-            best_dispersion=None,
-            inst_corr=True,
-            fileout=None,
-            **kwargs_galmodel):
-    ######################################
-    # Setup data/model comparison: if this isn't the fit dimension
-    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-
-    model_data = gal.model_data
-
-    if inst_corr:
-            model_data.data['dispersion'] = \
-                np.sqrt( model_data.data['dispersion']**2 - \
-                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
-
-
-    ######################################
-    # Setup plot:
-    f = plt.figure()
-    scale = 3.5
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
-    if fitflux:
-        ncols += 1
-    nrows = 1
-
-    f.set_size_inches(1.1*ncols*scale, nrows*scale)
-    gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
-
-    keyxtitle = r'$r$ [arcsec]'
-    keyyarr = ['velocity', 'dispersion', 'flux']
-    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
-    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
-    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
-    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
-                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
-
-    errbar_lw = 0.5
-    errbar_cap = 1.5
-
-    axes = []
-    k = -1
-    for j in six.moves.xrange(ncols):
-        # Comparison:
-        axes.append(plt.subplot(gs[0,j]))
-        k += 1
-
-        axes[k].scatter( model_data.rarr, model_data.data[keyyarr[j]],
-            c='red', marker='s', s=25, lw=1, label=None)
-
-        if keyyarr[j] == 'dispersion':
-            if best_dispersion:
-                axes[k].axhline(y=best_dispersion, ls='--', color='red', zorder=-1.)
-
-        axes[k].set_xlabel(keyxtitle)
-        axes[k].set_ylabel(keyytitlearr[j])
-        axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
-
-    #############################################################
-    # Save to file:
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.show()
-
-
-def plot_model_2D(gal,
-            fitdispersion=True,
-            fitflux=False,
-            fileout=None,
-            symmetric_residuals=True,
-            max_residual=100.,
-            inst_corr=True,
-            **kwargs_galmodel):
-    #
-
-    ######################################
-    # Setup plot:
-    f = plt.figure(figsize=(9.5, 6))
-    scale = 3.5
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
-    if fitflux:
-        ncols += 1
-
-    #
-    cntr = 1
-    grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
-                         nrows_ncols=(1, 1),
-                         direction="row",
-                         axes_pad=0.5,
-                         add_all=True,
-                         label_mode="1",
-                         share_all=True,
-                         cbar_location="right",
-                         cbar_mode="each",
-                         cbar_size="5%",
-                         cbar_pad="1%",
-                         )
-    if fitdispersion:
-        cntr += 1
-        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
-                              nrows_ncols=(1, 1),
-                              direction="row",
-                              axes_pad=0.5,
-                              add_all=True,
-                              label_mode="1",
-                              share_all=True,
-                              cbar_location="right",
-                              cbar_mode="each",
-                              cbar_size="5%",
-                              cbar_pad="1%",
-                              )
-
-    if fitflux:
-        cntr += 1
-        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
-                              nrows_ncols=(1, 1),
-                              direction="row",
-                              axes_pad=0.5,
-                              add_all=True,
-                              label_mode="1",
-                              share_all=True,
-                              cbar_location="right",
-                              cbar_mode="each",
-                              cbar_size="5%",
-                              cbar_pad="1%",
-                              )
-
-
-    # if fitdispersion:
-    #     grid_vel = ImageGrid(f, 121,
-    #                          nrows_ncols=(1, 1),
-    #                          direction="row",
-    #                          axes_pad=0.5,
-    #                          add_all=True,
-    #                          label_mode="1",
-    #                          share_all=True,
-    #                          cbar_location="right",
-    #                          cbar_mode="each",
-    #                          cbar_size="5%",
-    #                          cbar_pad="1%",
-    #                          )
-    #
-    #     grid_disp = ImageGrid(f, 122,
-    #                           nrows_ncols=(1, 1),
-    #                           direction="row",
-    #                           axes_pad=0.5,
-    #                           add_all=True,
-    #                           label_mode="1",
-    #                           share_all=True,
-    #                           cbar_location="right",
-    #                           cbar_mode="each",
-    #                           cbar_size="5%",
-    #                           cbar_pad="1%",
-    #                           )
-    #
-    # else:
-    #     grid_vel = ImageGrid(f, 111,
-    #                          nrows_ncols=(1, 1),
-    #                          direction="row",
-    #                          axes_pad=0.5,
-    #                          add_all=True,
-    #                          label_mode="1",
-    #                          share_all=True,
-    #                          cbar_location="right",
-    #                          cbar_mode="each",
-    #                          cbar_size="5%",
-    #                          cbar_pad="1%",
-    #                          )
-
-
-    #
-    keyxarr = ['model']
-    keyyarr = ['velocity', 'dispersion', 'flux']
-    keyxtitlearr = ['Model']
-    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
-
-    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
-    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
-
-
-
-    int_mode = "nearest"
-    origin = 'lower'
-    cmap =  cm.Spectral_r  #cm.nipy_spectral
-    cmap.set_bad(color='k')
-
-    msk = np.isfinite(gal.model_data.data['velocity'])
-    vel_vmin = gal.model_data.data['velocity'][msk].min()
-    vel_vmax = gal.model_data.data['velocity'][msk].max()
-    if np.abs(vel_vmax) > 400.:
-        vel_vmax = 400.
-    if np.abs(vel_vmin) > 400.:
-        vel_vmin = -400.
-
-    # try:
-    #     vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
-    # except:
-    #     vel_shift = 0
-    vel_shift = gal.model.geometry.vel_shift.value
-    #
-    vel_vmin -= vel_shift
-    vel_vmax -= vel_shift
-
-    for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
-        im = gal.model_data.data['velocity'].copy()
-        im -= vel_shift
-
-        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                         vmin=vel_vmin, vmax=vel_vmax, origin=origin)
-
-        for pos in ['top', 'bottom', 'left', 'right']:
-            ax.spines[pos].set_visible(False)
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-        ax.set_ylabel(keyytitlearr[0])
-
-        cbar = ax.cax.colorbar(imax)
-        cbar.ax.tick_params(labelsize=8)
-
-    if fitdispersion:
-        msk = np.isfinite(gal.model_data.data['dispersion'])
-        disp_vmin = gal.model_data.data['dispersion'][msk].min()
-        disp_vmax = gal.model_data.data['dispersion'][msk].max()
-
-        if np.abs(disp_vmax) > 500:
-            disp_vmax = 500.
-        if np.abs(disp_vmin) > 500:
-            disp_vmin = 0.
-
-        for ax, k in zip(grid_disp, keyxarr):
-            im = gal.model_data.data['dispersion'].copy()
-            if inst_corr:
-                im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
-                             u.km / u.s).value ** 2)
-
-                disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
-                disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
-
-
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
-
-            ax.set_ylabel(keyytitlearr[1])
-
-            for pos in ['top', 'bottom', 'left', 'right']:
-                ax.spines[pos].set_visible(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-
-            cbar = ax.cax.colorbar(imax)
-            cbar.ax.tick_params(labelsize=8)
-
-    if fitflux:
-        msk = np.isfinite(gal.model_data.data['flux'])
-        flux_vmin = gal.model_data.data['flux'][msk].min()
-        flux_vmax = gal.model_data.data['flux'][msk].max()
-
-
-        for ax, k in zip(grid_flux, keyxarr):
-            im = gal.model_data.data['flux'].copy()
-
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
-
-            ax.set_ylabel(keyytitlearr[2])
-
-            for pos in ['top', 'bottom', 'left', 'right']:
-                ax.spines[pos].set_visible(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-
-            cbar = ax.cax.colorbar(imax)
-            cbar.ax.tick_params(labelsize=8)
-
-    #############################################################
-    # Save to file:
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-
+#############################################################
+#############################################################
 
 def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             fileout=None,
@@ -1302,6 +1150,9 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
 
 
     return None
+
+
+#############################################################
 
 def plot_model_multid_base(gal,
             data1d=None, data2d=None,
@@ -1956,7 +1807,1101 @@ def plot_model_multid_base(gal,
 
 
 
-#
+
+#############################################################
+
+def plot_aperture_compare_3D_cubes(gal,
+                datacube=None, errcube=None, modelcube=None, mask=None,
+                fileout=None,
+                slit_width=None, slit_pa=None,
+                aper_dist=None,
+                overwrite=False):
+
+    if datacube is None:
+        datacube = gal.data.data
+    if errcube is None:
+        errcube = gal.data.error
+    if modelcube is None:
+        modelcube = gal.model_data.data
+    if mask is None:
+        mask = gal.data.mask
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    ######################################
+    if slit_width is None:
+        try:
+            slit_width = gal.instrument.beam.major.to(u.arcsec).value
+        except:
+            slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
+    if slit_pa is None:
+        slit_pa = gal.model.geometry.pa.value
+
+
+    rstep = gal.instrument.pixscale.value
+
+
+    rpix = slit_width/rstep/2.
+
+    if aper_dist is None:
+        aper_dist_pix = rstep #rstep * 2.
+    else:
+        #aper_dist_pix = aper_dist/rstep
+        aper_dist_pix = aper_dist
+
+
+    # Aper centers: pick roughly number fitting into size:
+    nx = datacube.shape[2]
+    ny = datacube.shape[1]
+    center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+                    np.int(ny / 2.) + gal.model.geometry.yshift)
+
+    #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
+
+    nap = np.int(np.floor((nx/rpix)))
+    # Make odd
+    if nap % 2 == 0.:
+        nap -= 1
+
+    ###
+    # nap = nx
+
+    aper_centers = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
+
+    specarr = datacube.spectral_axis.to(u.km/u.s).value
+
+    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+             moment=False)
+
+
+    data_scaled = datacube.unmasked_data[:].value
+    if errcube is not None:
+        ecube =  errcube.unmasked_data[:].value * mask
+    else:
+        ecube = None
+    model_scaled = modelcube.unmasked_data[:].value
+
+    aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=specarr,
+                    cube=data_scaled, mask=mask, err=ecube,
+                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+
+    ## UNWEIGHTED GAUS FIT TO DATA
+    # aper_centers2, flux1d2, vel1d2, disp1d2 = apertures.extract_1d_kinematics(spec_arr=specarr,
+    #                 cube=data_scaled, mask=mask, err=None,
+    #                 center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+
+    #####
+    aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
+                    cube=model_scaled, mask=mask, err=None,
+                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+
+    apertures_mom = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+             moment=True)
+    aper_centers_mod_mom, flux1d_mod_mom, vel1d_mod_mom, disp1d_mod_mom = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
+                    cube=model_scaled, mask=mask, err=None,
+                    center_pixel = center_pixel,
+                    pixscale=gal.instrument.pixscale.value)
+
+    aper_centers2, flux1d2, vel1d2, disp1d2 = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
+                    cube=data_scaled, mask=mask, err=ecube,
+                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+
+    ######################################
+    # Setup plot:
+
+    nrows = np.int(np.round(np.sqrt(len(aper_centers))))
+    ncols = np.int(np.ceil(len(aper_centers)/(1.*nrows)))
+
+    padx = 0.25
+    pady = 0.25
+
+    xextra = 0.15 #0.2
+    yextra = 0. #0.75
+
+    scale = 2.5 #3.5
+
+    f = plt.figure()
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
+
+
+    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
+
+
+    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+
+    axes = []
+
+
+    for i in range(nrows):
+        for j in range(ncols):
+            axes.append(plt.subplot(gs[i,j]))
+
+
+
+    #############################################################
+    # for each ap:
+
+    for k in range(len(axes)):
+        ax = axes[k]
+        if k < len(aper_centers):
+            _, datarr, errarr = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
+                    cube=datacube, mask=mask, err=errcube, skip_specmask=True)
+            _, modarr, _ = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
+                    cube=modelcube, mask=mask, skip_specmask=True)
+            _, maskarr, _ = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
+                    cube=mask, skip_specmask=True)
+            maskarr[maskarr>0] = 1.
+
+
+            gmod_flux2=flux1d_mod_mom[k]
+            gmod_vel2=vel1d_mod_mom[k]
+            gmod_disp2=disp1d_mod_mom[k]
+
+            gmod_flux2 = None
+            gmod_vel2 = None
+            gmod_disp2 = None
+
+            gdata_flux2=flux1d2[k]
+            gdata_vel2=vel1d2[k]
+            gdata_disp2=disp1d2[k]
+            # gdata_flux2=None
+            # gdata_vel2=None
+            # gdata_disp2=None
+
+            ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
+                gdata_flux=flux1d[k], gdata_vel=vel1d[k], gdata_disp=disp1d[k],
+                gdata_flux2=gdata_flux2, gdata_vel2=gdata_vel2, gdata_disp2=gdata_disp2,
+                model=modarr, gmod_flux=flux1d_mod[k], gmod_vel=vel1d_mod[k],
+                gmod_disp=disp1d_mod[k],
+                gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
+                gmod_disp2=gmod_disp2,
+                ax=ax)
+
+            ax.annotate('Ap {}'.format(k),
+                    (0.02,0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontsize=8)
+        else:
+            ax.set_axis_off()
+
+    #############################################################
+    # Save to file:
+    f.suptitle(suptitle, fontsize=16, y=0.925) #0.95)
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+
+
+def plot_spaxel_compare_3D_cubes(gal,
+                datacube=None, errcube=None,
+                modelcube=None, mask=None,
+                fileout=None,
+                typ='all',
+                show_model=True,
+                skip_masked=True,
+                overwrite=False):
+
+    if typ.strip().lower() not in ['all', 'diag']:
+        raise ValueError("typ={} not recognized for `plot_spaxel_compare_3D_cubes`!".format(typ))
+    # Clean up:
+    typ = typ.strip().lower()
+
+    if datacube is None:
+        datacube = gal.data.data
+    if errcube is None:
+        errcube = gal.data.error
+    if mask is None:
+        mask = np.array(gal.data.mask, dtype=np.float)
+    if show_model:
+        if modelcube is None:
+            modelcube = gal.model_data.data
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+
+    # Aper centers: pick roughly number fitting into size:
+    nx = datacube.shape[2]
+    ny = datacube.shape[1]
+    npix = np.max([nx,ny])
+
+
+    specarr = datacube.spectral_axis.to(u.km/u.s).value
+
+
+    ######################################
+    # Setup plot:
+
+    if typ == 'all':
+        rowinds = np.where(np.sum(np.sum(mask,axis=0),axis=1)>0)[0]
+        colinds = np.where(np.sum(np.sum(mask,axis=0),axis=0)>0)[0]
+
+        nrows = len(rowinds)
+        ncols = len(colinds)
+    elif typ == 'diag':
+        nrows = np.int(np.round(np.sqrt(npix)))
+        ncols = np.int(np.ceil(npix/(1.*nrows)))
+        rowinds = np.arange(nrows*ncols)
+        colinds = np.arange(nrows*ncols)
+        #print("npix={}, nrows={}, ncols={}".format(npix, ncols, nrows))
+
+
+
+    padx = 0.25
+    pady = 0.25
+
+    xextra = 0.15 #0.2
+    yextra = 0. #0.75
+
+    scale = 2.5 #3.5
+
+    f = plt.figure()
+    figsize = ((ncols+(ncols-1)*padx+xextra)*scale,
+               (nrows+(nrows-1)*pady+yextra)*scale)
+    #print("figsize={}; nrows={}, ncols={}".format(figsize, nrows, ncols))
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale,
+                      (nrows+(nrows-1)*pady+yextra)*scale)
+    #                 (nrows+pady+yextra)*scale)
+
+
+    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
+    #suptitle = None
+
+    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+
+    axes = []
+
+    for i in range(nrows):
+        for j in range(ncols):
+            if typ == 'all':
+                # invert rows:
+                ii = nrows - 1 - i
+            else:
+                ii = i
+            axes.append(plt.subplot(gs[ii,j]))
+
+
+
+    #############################################################
+    if show_model:
+        mom0_mod = modelcube.moment0().to(u.km/u.s).value
+        mom1_mod = modelcube.moment1().to(u.km/u.s).value
+        mom2_mod = modelcube.linewidth_sigma().to(u.km/u.s).value
+
+    maskbool = np.array(mask, dtype=np.bool)
+    datacube_masked = datacube.with_mask(maskbool)
+    mom0_dat = datacube_masked.moment0().to(u.km/u.s).value
+    mom1_dat = datacube_masked.moment1().to(u.km/u.s).value
+    mom2_dat = datacube_masked.linewidth_sigma().to(u.km/u.s).value
+
+
+    specstep = np.average(specarr[1:]-specarr[:-1])
+
+    # for each spax:
+    k = -1
+    for i in rowinds:
+        for j in colinds:
+            skip = False
+            if typ == 'diag':
+                if (i == j):
+                    k += 1
+                else:
+                    skip = True
+            elif typ == 'all':
+                k += 1
+
+            if (k < len(axes)) & (not skip) & (i < npix):
+                ax = axes[k]
+
+                datarr = datacube[:,i,j].value
+                maskarr = mask[:,i,j]
+                errarr = errcube[:,i,j].value
+                if show_model:
+                    modarr = modelcube[:,i,j].value
+                else:
+                    modarr = None
+
+                do_plot = True
+                if skip_masked:
+                    if (maskarr.max() <= 0):
+                        do_plot = False
+
+                if ((typ == 'all') & (do_plot)) | (typ == 'diag'):
+                    if show_model:
+                        flux1d_mod_mom = mom0_mod[i,j]
+                        vel1d_mod_mom = mom1_mod[i,j]
+                        disp1d_mod_mom = mom2_mod[i,j]
+
+                        best_fit = gaus_fit_sp_opt_leastsq(specarr, modarr, mom0_mod[i,j],
+                                        mom1_mod[i,j], mom2_mod[i,j])
+                        flux1d_mod = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                        vel1d_mod = best_fit[1]
+                        disp1d_mod = best_fit[2]
+                    else:
+                        flux1d_mod_mom = None
+                        vel1d_mod_mom = None
+                        disp1d_mod_mom = None
+                        flux1d_mod = None
+                        vel1d_mod = None
+                        disp1d_mod = None
+
+                    maskarr_bool = np.array(maskarr, dtype=np.bool)
+
+                    flux1d2 = mom0_dat[i,j]
+                    vel1d2 = mom1_dat[i,j]
+                    disp1d2 = mom2_dat[i,j]
+                    try:
+                        best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
+                                        mom0_dat[i,j], mom1_dat[i,j], mom2_dat[i,j], yerr=errarr[maskarr_bool])
+                    except:
+                        best_fit = [np.NaN, np.NaN, np.NaN]
+                    flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                    vel1d = best_fit[1]
+                    disp1d = best_fit[2]
+
+
+                    # UNWEIGHTED:
+                    # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
+                    #                 mom0[i,j], mom1[i,j], mom2[i,j])
+                    # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                    # vel1d2 = best_fit[1]
+                    # disp1d2 = best_fit[2]
+                    # # flux1d2 = None
+                    # # vel1d2 = None
+                    # # disp1d2 = None
+
+                    gmod_flux2=flux1d_mod_mom
+                    gmod_vel2=vel1d_mod_mom
+                    gmod_disp2=disp1d_mod_mom
+
+                    # gmod_flux2 = None
+                    # gmod_vel2 = None
+                    # gmod_disp2 = None
+
+                    ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
+                        gdata_flux=flux1d, gdata_vel=vel1d, gdata_disp=disp1d,
+                        gdata_flux2=flux1d2, gdata_vel2=vel1d2, gdata_disp2=disp1d2,
+                        model=modarr, gmod_flux=flux1d_mod, gmod_vel=vel1d_mod,
+                        gmod_disp=disp1d_mod,
+                        gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
+                        gmod_disp2=gmod_disp2,
+                        ax=ax)
+
+                    ax.annotate('Pix ({},{})'.format(j,i),
+                            (0.02,0.98), xycoords='axes fraction',
+                            ha='left', va='top', fontsize=8)
+                else:
+                    ax.set_axis_off()
+            elif (k < len(axes)) & (not skip) & (k >= npix):
+                #print("TURNING OFF: typ={}, i={}, j={}, k={}".format(typ, i, j, k))
+                ax = axes[k]
+                ax.set_axis_off()
+
+    #############################################################
+    # Save to file:
+    if suptitle is not None:
+        #ytitlepos=0.895  # 36.875
+        #ytitlepos=0.905  # 18.125
+        yoff = 0.105 - 0.01*(36.875-f.get_size_inches()[1])/18.75
+        ytitlepos = 1.-yoff
+        if f.get_size_inches()[1] < 20.:
+            ytitlefontsize = 20
+        else:
+            ytitlefontsize = 30
+        f.suptitle(suptitle, fontsize=ytitlefontsize, y=ytitlepos) # color='red',
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+
+#############################################################
+
+def plot_channel_maps_3D_cube(gal,
+            show_data=True,
+            show_model=True,
+            show_residual=True,
+            vbounds = [-450., 450.],
+            delv = 100.,
+            vbounds_shift=True,
+            cmap=cm.Greys,
+            fileout=None,
+            overwrite=False):
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    if (not show_data) | (not show_model):
+        show_residual = False
+
+    vbounds = np.array(vbounds)
+    if vbounds_shift:
+        vbounds += gal.model.geometry.vel_shift.value
+
+    v_slice_lims_arr = np.arange(vbounds[0], vbounds[1]+delv, delv)
+
+
+    #################################################
+    # center slice: flux limits:
+    ind = np.int(np.round((len(v_slice_lims_arr)-2)/2.))
+    v_slice_lims = v_slice_lims_arr[ind:ind+2]
+    subcube = gal.data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+    im = subcube.moment0().value * gal.data.mask
+    flux_lims = [im.min(), im.max()]
+    fac = 1. # 0.33
+    immax = np.max(np.abs(im))
+    flux_lims_resid = [-fac*immax, fac*immax]
+    #################################################
+
+    f = plt.figure()
+    scale = 3.
+
+    show_multi = True
+    if show_residual:
+        n_cols = 3
+        n_rows = len(v_slice_lims_arr)-1
+        ind_dat = 0
+        ind_mod = 1
+        ind_resid = 2
+    elif (show_data) & (show_model):
+        n_cols = 2
+        n_rows = len(v_slice_lims_arr)-1
+        ind_dat = 0
+        ind_mod = 1
+        ind_resid = None
+    else:
+        n_cols = np.int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
+        n_rows = np.int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
+        show_multi = False
+        if show_data:
+            ind_dat = 0
+            ind_mod = ind_resid = None
+        else:
+            ind_mod = 0
+            ind_dat = ind_resid = None
+
+
+    wspace_outer = 0.
+    wspace = 0.1 #0.25
+    hspace = 0.1 #0.25
+    padfac = 0.1 #0.15
+    fac = 1.
+    f.set_size_inches(fac*scale*n_cols+(n_cols-1)*scale*padfac,scale*n_rows+(n_rows-1)*scale*padfac)
+
+    gs =  gridspec.GridSpec(n_rows,n_cols, wspace=wspace, hspace=hspace)
+    # width_ratios=np.ones(n_cols), height_ratios=np.ones(n_rows),
+
+
+    if show_multi:
+        if show_data:
+            axes_dat = []
+        if show_model:
+            axes_mod = []
+        if show_residual:
+            axes_resid = []
+        for j in range(n_rows):
+            if show_data:
+                axes_dat.append(plt.subplot(gs[j,ind_dat]))
+            if show_model:
+                axes_mod.append(plt.subplot(gs[j,ind_mod]))
+            if show_residual:
+                axes_resid.append(plt.subplot(gs[j,ind_resid]))
+    else:
+        if show_data:
+            axes_dat = []
+        if show_model:
+            axes_mod = []
+        for j in range(n_rows):
+            for i in range(n_cols):
+                if show_data:
+                    axes_dat.append(plt.subplot(gs[j,i]))
+                if show_model:
+                    axes_mod.append(plt.subplot(gs[j,i]))
+
+    types = []
+    axes_stack = []
+    if show_data:
+        types.append('data')
+        axes_stack.append(axes_dat)
+    if show_model:
+        types.append('model')
+        axes_stack.append(axes_mod)
+    if show_residual:
+        types.append('residual')
+        axes_stack.append(axes_resid)
+
+
+    center = np.array([(gal.model_data.data.shape[2]-1.)/2., (gal.model_data.data.shape[1]-1.)/2.])
+    #print(center)
+    center[0] += gal.model.geometry.xshift.value
+    center[1] += gal.model.geometry.yshift.value
+
+    #for k in range(n_rows):
+    k = -1
+    for ii in range(n_rows):
+        if show_multi:
+            k += 1
+            v_slice_lims = v_slice_lims_arr[k:k+2]
+        for j in range(n_cols):
+            if show_multi:
+                ind_stack = j
+            else:
+                k += 1
+                ind_stack = 0
+                v_slice_lims = v_slice_lims_arr[k:k+2]
+
+            ##
+            ax = axes_stack[ind_stack][k]
+
+            typ = types[ind_stack]
+            flims = flux_lims
+            if typ == 'data':
+                cube = gal.data.data*gal.data.mask
+            elif typ == 'model':
+                cube = gal.model_data.data*gal.model_data.mask
+            elif typ == 'residual':
+                cube = gal.data.data*gal.data.mask - gal.model_data.data*gal.model_data.mask
+                flims = flux_lims_resid
+
+            ax = plot_channel_slice(ax=ax,speccube=cube, center=center,
+                        v_slice_lims=v_slice_lims, flux_lims=flims, cmap=cmap)
+
+
+            ###########################
+            label_str = None
+            if (show_multi & (ii == 0)):
+                if (j==0):
+                    label_str = "{}: {}".format(gal.name, typ.capitalize())
+                else:
+                    label_str = typ.capitalize()
+            elif ((not show_multi) & (k == 0)):
+                label_str = "{}: {}".format(typ.capitalize())
+            if label_str is not None:
+                ax.set_title(label_str, fontsize=14)
+            ###########################
+
+    #############################################################
+    # Save to file:
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+
+#############################################################
+
+def plot_spaxel_fit(specarr, data, mask, err=None,
+        gdata_flux=None, gdata_vel=None, gdata_disp=None,
+        gdata_flux2=None, gdata_vel2=None, gdata_disp2=None,
+        model=None,
+        gmod_flux=None, gmod_vel=None, gmod_disp=None,
+        gmod_flux2=None, gmod_vel2=None, gmod_disp2=None,
+        ax=None):
+    returnax = True
+    if ax is None:
+        returnax = False
+        ax = plt.subplot(111)
+
+    ax.plot(specarr, data, color='black', marker='o', ms=4., mfc='None', ls='None', alpha=0.5)
+    ax.plot(specarr, data*mask, color='black', marker='o', ms=4.)
+
+    gdata_A = gdata_flux / ( np.sqrt(2 * np.pi) * gdata_disp)
+    ax.plot(specarr, gdata_A*np.exp(-((specarr-gdata_vel)**2/(2.*gdata_disp**2))),
+            color='turquoise',zorder=10., lw=0.5)
+
+
+    try:
+        gdata_A2 = gdata_flux2 / ( np.sqrt(2 * np.pi) * gdata_disp2)
+        ax.plot(specarr, gdata_A2*np.exp(-((specarr-gdata_vel2)**2/(2.*gdata_disp2**2))),
+                color='tab:green', ls='--', zorder=5., lw=0.5)
+    except:
+        pass
+
+    if model is not None:
+        ax.plot(specarr, model, color='red', ls='-', lw=1., alpha=0.5)
+        ax.plot(specarr, model*mask, color='red',lw=1.5)
+
+
+        gmod_A = gmod_flux / ( np.sqrt(2 * np.pi) * gmod_disp)
+        ax.plot(specarr, gmod_A*np.exp(-((specarr-gmod_vel)**2/(2.*gmod_disp**2))),
+                    color='orange', ls='--', zorder=10., lw=0.5)
+
+        try:
+            gmod_A2 = gmod_flux2 / ( np.sqrt(2 * np.pi) * gmod_disp2)
+            ax.plot(specarr, gmod_A2*np.exp(-((specarr-gmod_vel2)**2/(2.*gmod_disp2**2))),
+                    color='purple', ls=':', zorder=10., lw=0.5)
+        except:
+            pass
+
+
+    if err is not None:
+        ylim = ax.get_ylim()
+        ax.errorbar(specarr, data, xerr=None, yerr=err, alpha=0.25, capsize=0.,
+                                marker=None, ls='None', ecolor='k', zorder=-1.)
+        ax.set_ylim(ylim)
+
+    ax.axhline(y=0., ls='--', color='grey', alpha=0.5, zorder=-20.)
+
+    xlim = ax.get_xlim()
+    xrange = xlim[1]-xlim[0]
+    if xrange >= 1000.:
+        xmajloc = 500.
+        xminloc = 100.
+    elif xrange >= 500.:
+        xmajloc = 200.
+        xminloc = 50.
+    elif xrange >= 250.:
+        xmajloc = 100.
+        xminloc = 20.
+    elif xrange >= 100.:
+        xmajloc = 50.
+        xminloc = 10.
+    elif xrange >= 50.:
+        xmajloc = 10.
+        xminloc = 2.
+    elif xrange >= 10.:
+        xmajloc = 2.
+        xminloc = 0.5
+    else:
+        xmajloc = None
+        xminloc = None
+
+    if xmajloc is not None:
+        ax.xaxis.set_major_locator(MultipleLocator(xmajloc))
+        ax.xaxis.set_minor_locator(MultipleLocator(xminloc))
+
+
+    if returnax:
+        return ax
+    else:
+        return None
+
+
+#############################################################
+
+def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None,
+                      center=None, show_pix_coords=False, cmap=cm.Greys,
+                      color_contours='red', color_center='cyan'):
+
+    if ax is None:
+        ax = plt.gca()
+    if v_slice_lims is None:
+        v_slice_lims = [-50., 50.]
+
+    subcube = speccube.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+
+    im = subcube.moment0().value
+
+    if center is None:
+        center = ((im.shape[1]-1.)/2., (im.shape[0]-1.)/2.)
+
+
+
+    int_mode = "nearest"
+    origin = 'lower'
+    if flux_lims is not None:
+        vmin = flux_lims[0]
+        vmax = flux_lims[1]
+    else:
+        vmin = None
+        vmax = None
+    imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                        vmin=vmin, vmax=vmax, origin=origin)
+
+
+
+    sigma_levels = [1.,2.,3.]
+    levels = 1.0 - np.exp(-0.5 * np.array(sigma_levels) ** 2)
+    lw_contour = 1.5
+    rgba_color = mplcolors.colorConverter.to_rgba(color_contours)
+    color_levels = [list(rgba_color) for l in levels]
+    lw_arr = []
+    for ii, l in enumerate(levels):
+        color_levels[ii][-1] *= float(ii+1) / (len(levels))
+        lw_arr.append(lw_contour * float(ii+1+len(levels)*0.5) / (len(levels)*1.5))
+    contour_kwargs = {'colors': color_levels, 'linewidths': lw_arr, 'linestyles': '-'}
+
+
+    #################################################
+    # Syntax taken from corner/core.py
+    imflat = im.flatten()
+    inds = np.argsort(imflat)[::-1]
+    imflat = imflat[inds]
+    sm = np.cumsum(imflat)
+    sm /= sm[-1]
+    contour_levels = np.empty(len(levels))
+    for i, v0 in enumerate(levels):
+        try:
+            contour_levels[i] = imflat[sm<=v0][-1]
+        except:
+            contour_levels[i] = imflat[0]
+    contour_levels.sort()
+    m = np.diff(contour_levels) == 0
+    if np.any(m): #and not quiet:
+        print("Too few points to create valid contours")
+    while np.any(m):
+        contour_levels[np.where(m)[0][0]] *= 1.0 - 1e-4
+        m = np.diff(contour_levels) == 0
+    contour_levels.sort()
+
+    ax.contour(im, contour_levels, **contour_kwargs)
+
+    #################################################
+
+    ax.plot(center[0], center[1], '+', mew=1., ms=10., c=color_center) #'cyan') #'white')
+
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    ybase_offset = 0.035 #0.065
+    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
+    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+    string = r'$[{:0.1f},{:0.1f}]$'.format(v_slice_lims[0], v_slice_lims[1])
+    ax.annotate(string, xy=(x_base, y_base),
+                xycoords="data",
+                xytext=(0,0),
+                color='black',
+                textcoords="offset points", ha="left", va="center",
+                fontsize=8)
+
+    if not show_pix_coords:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    return ax
+
+
+#############################################################
+
+#############################################################
+
+def plot_model_1D(gal,
+            fitdispersion=True,
+            fitflux=False,
+            best_dispersion=None,
+            inst_corr=True,
+            fileout=None,
+            **kwargs_galmodel):
+    ######################################
+    # Setup data/model comparison: if this isn't the fit dimension
+    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
+
+    model_data = gal.model_data
+
+    if inst_corr:
+            model_data.data['dispersion'] = \
+                np.sqrt( model_data.data['dispersion']**2 - \
+                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+
+
+    ######################################
+    # Setup plot:
+    f = plt.figure()
+    scale = 3.5
+    ncols = 1
+    if fitdispersion:
+        ncols += 1
+    if fitflux:
+        ncols += 1
+    nrows = 1
+
+    f.set_size_inches(1.1*ncols*scale, nrows*scale)
+    gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
+
+    keyxtitle = r'$r$ [arcsec]'
+    keyyarr = ['velocity', 'dispersion', 'flux']
+    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
+    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
+    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
+    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
+                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
+                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
+
+    errbar_lw = 0.5
+    errbar_cap = 1.5
+
+    axes = []
+    k = -1
+    for j in six.moves.xrange(ncols):
+        # Comparison:
+        axes.append(plt.subplot(gs[0,j]))
+        k += 1
+
+        axes[k].scatter( model_data.rarr, model_data.data[keyyarr[j]],
+            c='red', marker='s', s=25, lw=1, label=None)
+
+        if keyyarr[j] == 'dispersion':
+            if best_dispersion:
+                axes[k].axhline(y=best_dispersion, ls='--', color='red', zorder=-1.)
+
+        axes[k].set_xlabel(keyxtitle)
+        axes[k].set_ylabel(keyytitlearr[j])
+        axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+
+def plot_model_2D(gal,
+            fitdispersion=True,
+            fitflux=False,
+            fileout=None,
+            symmetric_residuals=True,
+            max_residual=100.,
+            inst_corr=True,
+            **kwargs_galmodel):
+    #
+
+    ######################################
+    # Setup plot:
+    f = plt.figure(figsize=(9.5, 6))
+    scale = 3.5
+    ncols = 1
+    if fitdispersion:
+        ncols += 1
+    if fitflux:
+        ncols += 1
+
+    #
+    cntr = 1
+    grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                         nrows_ncols=(1, 1),
+                         direction="row",
+                         axes_pad=0.5,
+                         add_all=True,
+                         label_mode="1",
+                         share_all=True,
+                         cbar_location="right",
+                         cbar_mode="each",
+                         cbar_size="5%",
+                         cbar_pad="1%",
+                         )
+    if fitdispersion:
+        cntr += 1
+        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+    if fitflux:
+        cntr += 1
+        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+
+    # if fitdispersion:
+    #     grid_vel = ImageGrid(f, 121,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
+    #
+    #     grid_disp = ImageGrid(f, 122,
+    #                           nrows_ncols=(1, 1),
+    #                           direction="row",
+    #                           axes_pad=0.5,
+    #                           add_all=True,
+    #                           label_mode="1",
+    #                           share_all=True,
+    #                           cbar_location="right",
+    #                           cbar_mode="each",
+    #                           cbar_size="5%",
+    #                           cbar_pad="1%",
+    #                           )
+    #
+    # else:
+    #     grid_vel = ImageGrid(f, 111,
+    #                          nrows_ncols=(1, 1),
+    #                          direction="row",
+    #                          axes_pad=0.5,
+    #                          add_all=True,
+    #                          label_mode="1",
+    #                          share_all=True,
+    #                          cbar_location="right",
+    #                          cbar_mode="each",
+    #                          cbar_size="5%",
+    #                          cbar_pad="1%",
+    #                          )
+
+
+    #
+    keyxarr = ['model']
+    keyyarr = ['velocity', 'dispersion', 'flux']
+    keyxtitlearr = ['Model']
+    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
+
+    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
+    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
+
+
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap =  cm.Spectral_r  #cm.nipy_spectral
+    cmap.set_bad(color='k')
+
+    msk = np.isfinite(gal.model_data.data['velocity'])
+    vel_vmin = gal.model_data.data['velocity'][msk].min()
+    vel_vmax = gal.model_data.data['velocity'][msk].max()
+    if np.abs(vel_vmax) > 400.:
+        vel_vmax = 400.
+    if np.abs(vel_vmin) > 400.:
+        vel_vmin = -400.
+
+    # try:
+    #     vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
+    # except:
+    #     vel_shift = 0
+    vel_shift = gal.model.geometry.vel_shift.value
+    #
+    vel_vmin -= vel_shift
+    vel_vmax -= vel_shift
+
+    for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
+        im = gal.model_data.data['velocity'].copy()
+        im -= vel_shift
+
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                         vmin=vel_vmin, vmax=vel_vmax, origin=origin)
+
+        for pos in ['top', 'bottom', 'left', 'right']:
+            ax.spines[pos].set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        ax.set_ylabel(keyytitlearr[0])
+
+        cbar = ax.cax.colorbar(imax)
+        cbar.ax.tick_params(labelsize=8)
+
+    if fitdispersion:
+        msk = np.isfinite(gal.model_data.data['dispersion'])
+        disp_vmin = gal.model_data.data['dispersion'][msk].min()
+        disp_vmax = gal.model_data.data['dispersion'][msk].max()
+
+        if np.abs(disp_vmax) > 500:
+            disp_vmax = 500.
+        if np.abs(disp_vmin) > 500:
+            disp_vmin = 0.
+
+        for ax, k in zip(grid_disp, keyxarr):
+            im = gal.model_data.data['dispersion'].copy()
+            if inst_corr:
+                im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                             u.km / u.s).value ** 2)
+
+                disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
+                disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
+
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+
+            ax.set_ylabel(keyytitlearr[1])
+
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
+
+    if fitflux:
+        msk = np.isfinite(gal.model_data.data['flux'])
+        flux_vmin = gal.model_data.data['flux'][msk].min()
+        flux_vmax = gal.model_data.data['flux'][msk].max()
+
+
+        for ax, k in zip(grid_flux, keyxarr):
+            im = gal.model_data.data['flux'].copy()
+
+            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+
+            ax.set_ylabel(keyytitlearr[2])
+
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            cbar = ax.cax.colorbar(imax)
+            cbar.ax.tick_params(labelsize=8)
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+
+
+
+#############################################################
+
 def plot_model_2D_residual(gal,
             data1d=None,
             data2d=None,
@@ -2297,96 +3242,6 @@ def plot_model_2D_residual(gal,
 
 
 
-def plot_data_model_comparison(gal,theta = None,
-                               fitdispersion=True,
-                               fitflux=False,
-                               fileout=None,
-                               vcrop=False,
-                               show_1d_apers=False,
-                               vcrop_value=800.,
-                               remove_shift=False,
-                               overwrite=False,
-                               moment=False,
-                               **kwargs_galmodel):
-    """
-    Plot data, model, and residuals between the data and this model.
-    """
-
-    dummy_gal = copy.deepcopy(gal)
-
-    if remove_shift:
-        dummy_gal.data.aper_center_pix_shift = (0,0)
-        dummy_gal.model.geometry.xshift = 0
-        dummy_gal.model.geometry.yshift = 0
-
-    if (theta is not None) & (gal.data.ndim < 3):
-        dummy_gal.model.update_parameters(theta)     # Update the parameters
-        dummy_gal.create_model_data(**kwargs_galmodel)
-
-    if gal.data.ndim == 1:
-        plot_data_model_comparison_1D(dummy_gal,
-                    data = None,
-                    theta = theta,
-                    fitdispersion=fitdispersion,
-                    fitflux=fitflux,
-                    fileout=fileout,
-                    overwrite=overwrite,
-                    **kwargs_galmodel)
-    elif gal.data.ndim == 2:
-        plot_data_model_comparison_2D(dummy_gal,
-                    theta = theta,
-                    fitdispersion=fitdispersion,
-                    fitflux=fitflux,
-                    fileout=fileout,
-                    overwrite=overwrite,
-                    **kwargs_galmodel)
-    elif gal.data.ndim == 3:
-        plot_data_model_comparison_3D(dummy_gal,
-                    theta = theta,
-                    show_1d_apers=show_1d_apers,
-                    fileout=fileout,
-                    vcrop=vcrop,
-                    vcrop_value=vcrop_value,
-                    overwrite=overwrite,
-                    moment=moment,
-                    **kwargs_galmodel)
-
-
-        # logger.warning("Need to implement fitting plot_bestfit for 3D *AFTER* Dysmalpy datastructure finalized!")
-
-    elif gal.data.ndim == 0:
-        plot_data_model_comparison_0D(dummy_gal,
-                                      fileout=fileout,
-                                      overwrite=overwrite,
-                                      **kwargs_galmodel)
-    else:
-        logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
-        raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
-
-    return None
-
-def plot_bestfit(mcmcResults, gal,
-                 fitdispersion=True,
-                 fitflux=False,
-                 show_1d_apers=False,
-                 fileout=None,
-                 vcrop=False,
-                 vcrop_value=800.,
-                 remove_shift=False,
-                 overwrite=False,
-                 moment=False,
-                 **kwargs_galmodel):
-    """
-    Plot data, bestfit model, and residuals from the MCMC fitting.
-    """
-    plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
-            fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
-            vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
-            remove_shift=remove_shift, moment=moment,
-            overwrite=overwrite, **kwargs_galmodel)
-
-    return None
-
 
 def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False,
             outpath = None,
@@ -2722,871 +3577,6 @@ def make_clean_mcmc_plot_names(mcmcResults):
 
     return names
 
-
-#############################################################
-def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
-
-    aper_centers = data1d.rarr
-    slit_width = data1d.slit_width
-    slit_pa = data1d.slit_pa
-    rstep = gal.instrument.pixscale.value
-    try:
-        rstep1d = gal.instrument1d.pixscale.value
-    except:
-        rstep1d = rstep
-    rpix = slit_width/rstep/2.
-    # aper_dist_pix = 2*rpix
-    aper_centers_pix = aper_centers/rstep#1d
-
-    if aper_centers[0] <= 0:
-        # Starts from neg -> pos:
-        pa = slit_pa
-    else:
-        # Goes "backwards": pos -> neg [but the aper shapes are ALSO stored this way]
-        pa = slit_pa + 180
-
-    print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim,
-                                    gal.model.geometry.xshift.value,
-                                    gal.model.geometry.yshift.value,
-                                    gal.model.geometry.vel_shift.value))
-
-
-
-    nx = data2d.data['velocity'].shape[1]
-    ny = data2d.data['velocity'].shape[0]
-
-    try:
-        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d,
-                            gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
-    except:
-        center_pixel_kin = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                            np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
-
-    if not remove_shift:
-        if data1d.aper_center_pix_shift is not None:
-            try:
-                center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
-                                gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-            except:
-                center_pixel = (np.int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
-                                np.int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-        else:
-            try:
-                center_pixel = (gal.data.xcenter, gal.data.ycenter)
-            except:
-                center_pixel = None
-    else:
-        # remove shift:
-        ##center_pixel = None
-        center_pixel = center_pixel_kin
-
-
-
-    # print("plotting: center_pixel w/ NO REMOVE shift:")
-    # print("plotting: center_pixel={}".format(center_pixel))
-    # print("plotting: aper_center_pix_shift={}".format(data1d.aper_center_pix_shift))
-
-
-    if center_pixel is None:
-        #center_pixel = (np.int(nx / 2), np.int(ny / 2))
-        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                        np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
-
-    # +++++++++++++++++
-
-    pyoff = 0.
-    ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
-    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
-    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
-
-    # +++++++++++++++++
-
-    # First determine the centers of all the apertures that fit within the cube
-    xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
-
-
-    cmstar = cm.plasma
-    cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
-    cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
-
-    for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-        #print("mm={}:  rap={}, xap, yap=({}, {}), rpix={}".format(mm, rap, xap, yap, rpix))
-        circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
-        ax.add_artist(circle)
-        if (mm == 0):
-            ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
-
-    return ax
-
-
-#############################################################
-
-def plot_aperture_compare_3D_cubes(gal,
-                datacube=None, errcube=None, modelcube=None, mask=None,
-                fileout=None,
-                slit_width=None, slit_pa=None,
-                aper_dist=None,
-                moment=False, inst_corr=True,
-                overwrite=False):
-
-    if datacube is None:
-        datacube = gal.data.data
-    if errcube is None:
-        errcube = gal.data.error
-    if modelcube is None:
-        modelcube = gal.model_data.data
-    if mask is None:
-        mask = gal.data.mask
-
-    # Check for existing file:
-    if (not overwrite) and (fileout is not None):
-        if os.path.isfile(fileout):
-            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-            return None
-
-
-
-
-
-    ######################################
-    if slit_width is None:
-        try:
-            slit_width = gal.instrument.beam.major.to(u.arcsec).value
-        except:
-            slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
-    if slit_pa is None:
-        slit_pa = gal.model.geometry.pa.value
-
-
-    rstep = gal.instrument.pixscale.value
-
-
-    rpix = slit_width/rstep/2.
-
-    if aper_dist is None:
-        aper_dist_pix = rstep #rstep * 2.
-
-        #aper_dist_pix = slit_width/2.
-    else:
-        #aper_dist_pix = aper_dist/rstep
-        aper_dist_pix = aper_dist
-
-
-    # Aper centers: pick roughly number fitting into size:
-    nx = datacube.shape[2]
-    ny = datacube.shape[1]
-    center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                    np.int(ny / 2.) + gal.model.geometry.yshift)
-
-    #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
-
-    nap = np.int(np.floor((nx/rpix)))
-    # Make odd
-    if nap % 2 == 0.:
-        nap -= 1
-
-    ###
-    # nap = nx
-
-    aper_centers = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
-    #print("nx={}, nap={}, aper_centers_pix={}".format(nx, nap, aper_centers_pix))
-
-    specarr = datacube.spectral_axis.to(u.km/u.s).value
-
-    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-             moment=moment)
-
-
-    data_scaled = datacube.unmasked_data[:].value
-    if errcube is not None:
-        ecube =  errcube.unmasked_data[:].value * mask
-    else:
-        ecube = None
-    model_scaled = modelcube.unmasked_data[:].value
-
-    aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=specarr,
-                    cube=data_scaled, mask=mask, err=ecube, #None, #ecube,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
-
-    aper_centers2, flux1d2, vel1d2, disp1d2 = apertures.extract_1d_kinematics(spec_arr=specarr,
-                    cube=data_scaled, mask=mask, err=None, #ecube,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
-
-    #####
-    aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
-                    cube=model_scaled, mask=mask, err=None,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
-
-    if not moment:
-        apertures_mom = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 moment=True)
-        aper_centers_mod_mom, flux1d_mod_mom, vel1d_mod_mom, disp1d_mod_mom = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
-                        cube=model_scaled, mask=mask, err=None,
-                        center_pixel = center_pixel,
-                        pixscale=gal.instrument.pixscale.value)
-
-    ######################################
-    # Setup plot:
-
-    nrows = np.int(np.round(np.sqrt(len(aper_centers))))
-    ncols = np.int(np.ceil(len(aper_centers)/(1.*nrows)))
-
-    padx = 0.25
-    pady = 0.25
-
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
-
-    scale = 2.5 #3.5
-
-    f = plt.figure()
-    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-
-
-    suptitle = '{}: Fitting dim: n={}, Moment: {}'.format(gal.name, gal.data.ndim, moment)
-
-    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-
-    axes = []
-
-
-    for i in range(nrows):
-        for j in range(ncols):
-            axes.append(plt.subplot(gs[i,j]))
-
-
-
-    #############################################################
-    # for each ap:
-
-    for k in range(len(axes)):
-        ax = axes[k]
-        if k < len(aper_centers):
-            _, datarr, errarr = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
-                    cube=datacube, mask=mask, err=errcube, skip_specmask=True)
-            _, modarr, _ = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
-                    cube=modelcube, mask=mask, skip_specmask=True)
-            _, maskarr, _ = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
-                    cube=mask, skip_specmask=True)
-            maskarr[maskarr>0] = 1.
-
-            # ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-            #     gdata_flux=flux1d[k], gdata_vel=vel1d[k], gdata_disp=disp1d[k], ax=ax)
-
-            if not moment:
-                gmod_flux2=flux1d_mod_mom[k]
-                gmod_vel2=vel1d_mod_mom[k]
-                gmod_disp2=disp1d_mod_mom[k]
-            else:
-                gmod_flux2 = None
-                gmod_vel2 = None
-                gmod_disp2 = None
-
-            gdata_flux2=flux1d2[k]
-            gdata_vel2=vel1d2[k]
-            gdata_disp2=disp1d2[k]
-            # gdata_flux2=None
-            # gdata_vel2=None
-            # gdata_disp2=None
-
-            ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-                gdata_flux=flux1d[k], gdata_vel=vel1d[k], gdata_disp=disp1d[k],
-                gdata_flux2=gdata_flux2, gdata_vel2=gdata_vel2, gdata_disp2=gdata_disp2,
-                model=modarr, gmod_flux=flux1d_mod[k], gmod_vel=vel1d_mod[k],
-                gmod_disp=disp1d_mod[k],
-                gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
-                gmod_disp2=gmod_disp2,
-                ax=ax)
-
-            ax.annotate('Ap {}'.format(k),
-                    (0.02,0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontsize=8)
-        else:
-            ax.set_axis_off()
-
-    #############################################################
-    # Save to file:
-
-    f.suptitle(suptitle, fontsize=16, y=0.95)
-
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-    return None
-
-def plot_diag_spaxel_compare_3D_cubes(gal,
-                datacube=None, errcube=None, modelcube=None, mask=None,
-                fileout=None,
-                moment=False,
-                overwrite=False):
-
-    if datacube is None:
-        datacube = gal.data.data
-    if errcube is None:
-        errcube = gal.data.error
-    if modelcube is None:
-        modelcube = gal.model_data.data
-    if mask is None:
-        mask = gal.data.mask
-
-    # Check for existing file:
-    if (not overwrite) and (fileout is not None):
-        if os.path.isfile(fileout):
-            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-            return None
-
-
-    # Aper centers: pick roughly number fitting into size:
-    nx = datacube.shape[2]
-    ny = datacube.shape[1]
-    npix = np.max([nx,ny])
-
-
-    specarr = datacube.spectral_axis.to(u.km/u.s).value
-
-
-    data_scaled = datacube.unmasked_data[:].value
-    if errcube is not None:
-        ecube =  errcube.unmasked_data[:].value * mask
-    else:
-        ecube = None
-    model_scaled = modelcube.unmasked_data[:].value
-
-    ######################################
-    # Setup plot:
-
-    nrows = np.int(np.round(np.sqrt(npix)))
-    ncols = np.int(np.ceil(npix/(1.*nrows)))
-
-    padx = 0.25
-    pady = 0.25
-
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
-
-    scale = 2.5 #3.5
-
-    f = plt.figure()
-    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-
-
-    suptitle = '{}: Fitting dim: n={}, Moment: {}'.format(gal.name, gal.data.ndim, moment)
-
-    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-
-    axes = []
-
-
-    for i in range(nrows):
-        for j in range(ncols):
-            axes.append(plt.subplot(gs[i,j]))
-
-
-
-    #############################################################
-    # for each ap:
-
-    for k in range(len(axes)):
-        ax = axes[k]
-        if k < npix:
-            datarr = datacube[:,k,k]
-            maskarr = mask[:,k,k]
-            errarr = errcube[:,k,k]
-            modarr = modelcube[:,k,k]
-
-            mom0 = modelcube.moment0().to(u.km/u.s).value
-            mom1 = modelcube.moment1().to(u.km/u.s).value
-            mom2 = modelcube.linewidth_sigma().to(u.km/u.s).value
-            flux1d_mod_mom = mom0[k,k]
-            vel1d_mod_mom = mom1[k,k]
-            disp1d_mod_mom = mom2[k,k]
-
-            if not moment:
-                best_fit = gaus_fit_sp_opt_leastsq(specarr, modarr, mom0[k,k], mom1[k,k], mom2[k,k])
-                flux1d_mod = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                vel1d_mod = best_fit[1]
-                disp1d_mod = best_fit[2]
-            else:
-                flux1d_mod = flux1d_mod_mom
-                vel1d_mod = vel1d_mod_mom
-                disp1d_mod = disp1d_mod_mom
-
-            maskbool = np.array(mask, dtype=np.bool)
-            datacube_masked = datacube.with_mask(maskbool)
-            mom0 = datacube_masked.moment0().to(u.km/u.s).value
-            mom1 = datacube_masked.moment1().to(u.km/u.s).value
-            mom2 = datacube_masked.linewidth_sigma().to(u.km/u.s).value
-            maskarr_bool = np.array(maskarr, dtype=np.bool)
-            if not moment:
-                flux1d2 = mom0[k,k]
-                vel1d2 = mom1[k,k]
-                disp1d2 = mom2[k,k]
-                try:
-                    best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
-                                    mom0[k,k], mom1[k,k], mom2[k,k], yerr=errarr[maskarr_bool])
-                    flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                    vel1d = best_fit[1]
-                    disp1d = best_fit[2]
-                except:
-                    flux1d = 0.
-                    vel1d = 0.
-                    disp1d = 99.
-            else:
-                flux1d = mom0[k,k]
-                vel1d = mom1[k,k]
-                disp1d = mom2[k,k]
-
-                flux1d2 = None
-                vel1d2 = None
-                disp1d2 = None
-
-
-            if not moment:
-                gmod_flux2=flux1d_mod_mom
-                gmod_vel2=vel1d_mod_mom
-                gmod_disp2=disp1d_mod_mom
-            else:
-                gmod_flux2 = None
-                gmod_vel2 = None
-                gmod_disp2 = None
-
-            ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-                gdata_flux=flux1d, gdata_vel=vel1d, gdata_disp=disp1d,
-                gdata_flux2=flux1d2, gdata_vel2=vel1d2, gdata_disp2=disp1d2,
-                model=modarr, gmod_flux=flux1d_mod, gmod_vel=vel1d_mod,
-                gmod_disp=disp1d_mod,
-                gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
-                gmod_disp2=gmod_disp2,
-                ax=ax)
-
-            ax.annotate('Pix ({},{})'.format(k,k),
-                    (0.02,0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontsize=8)
-        else:
-            ax.set_axis_off()
-
-    #############################################################
-    # Save to file:
-
-    f.suptitle(suptitle, fontsize=16, y=0.95)
-
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-    return None
-
-def plot_all_spaxel_compare_3D_cubes(gal,
-                datacube=None, errcube=None, modelcube=None, mask=None,
-                fileout=None,
-                moment=False,
-                overwrite=False):
-
-    if datacube is None:
-        datacube = gal.data.data
-    if errcube is None:
-        errcube = gal.data.error
-    if modelcube is None:
-        modelcube = gal.model_data.data
-    if mask is None:
-        mask = np.array(gal.data.mask, dtype=np.float)
-
-    # Check for existing file:
-    if (not overwrite) and (fileout is not None):
-        if os.path.isfile(fileout):
-            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-            return None
-
-
-    # Aper centers: pick roughly number fitting into size:
-    nx = datacube.shape[2]
-    ny = datacube.shape[1]
-    npix = np.max([nx,ny])
-
-
-    specarr = datacube.spectral_axis.to(u.km/u.s).value
-
-
-    data_scaled = datacube.unmasked_data[:].value
-    if errcube is not None:
-        ecube =  errcube.unmasked_data[:].value * mask
-    else:
-        ecube = None
-    model_scaled = modelcube.unmasked_data[:].value
-
-    ######################################
-    # Setup plot:
-
-    # nrows = npix
-    # ncols = npix
-
-    rowinds = np.where(np.sum(np.sum(mask,axis=0),axis=1)>0)[0]
-    colinds = np.where(np.sum(np.sum(mask,axis=0),axis=0)>0)[0]
-
-    nrows = len(rowinds)
-    ncols = len(colinds)
-
-
-    padx = 0.25
-    pady = 0.25
-
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
-
-    scale = 2.5 #3.5
-
-    f = plt.figure()
-    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-
-
-    suptitle = '{}: Fitting dim: n={}, Moment: {}'.format(gal.name, gal.data.ndim, moment)
-
-    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-
-    axes = []
-
-
-    for i in range(nrows):
-        for j in range(ncols):
-            # invert rows:
-            ii = nrows - 1 - i
-            axes.append(plt.subplot(gs[ii,j]))
-
-
-
-    #############################################################
-    # for each ap:
-    specstep = np.average(specarr[1:]-specarr[:-1])
-    k = -1
-    for i in rowinds:
-        for j in colinds:
-            k += 1
-            if k < len(axes):
-                ax = axes[k]
-
-                datarr = datacube[:,i,j].value
-                maskarr = mask[:,i,j]
-                errarr = errcube[:,i,j].value
-                modarr = modelcube[:,i,j].value
-
-                if maskarr.max() > 0:
-                    mom0 = modelcube.moment0().to(u.km/u.s).value
-                    mom1 = modelcube.moment1().to(u.km/u.s).value
-                    mom2 = modelcube.linewidth_sigma().to(u.km/u.s).value
-                    flux1d_mod_mom = mom0[i,j]
-                    vel1d_mod_mom = mom1[i,j]
-                    disp1d_mod_mom = mom2[i,j]
-
-                    if not moment:
-                        best_fit = gaus_fit_sp_opt_leastsq(specarr, modarr, mom0[i,j], mom1[i,j], mom2[i,j])
-                        flux1d_mod = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                        vel1d_mod = best_fit[1]
-                        disp1d_mod = best_fit[2]
-                    else:
-                        flux1d_mod = flux1d_mod_mom
-                        vel1d_mod = vel1d_mod_mom
-                        disp1d_mod = disp1d_mod_mom
-
-                    maskbool = np.array(mask, dtype=np.bool)
-                    datacube_masked = datacube.with_mask(maskbool)
-                    mom0 = datacube_masked.moment0().to(u.km/u.s).value
-                    mom1 = datacube_masked.moment1().to(u.km/u.s).value
-                    mom2 = datacube_masked.linewidth_sigma().to(u.km/u.s).value
-                    maskarr_bool = np.array(maskarr, dtype=np.bool)
-                    if not moment:
-                        flux1d2 = mom0[i,j]
-                        vel1d2 = mom1[i,j]
-                        disp1d2 = mom2[i,j]
-                        best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
-                                        mom0[i,j], mom1[i,j], mom2[i,j], yerr=errarr[maskarr_bool])
-                        flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                        vel1d = best_fit[1]
-                        disp1d = best_fit[2]
-                    else:
-                        flux1d = mom0[i,j]
-                        vel1d = mom1[i,j]
-                        disp1d = mom2[i,j]
-                        flux1d2 = None
-                        vel1d2 = None
-                        disp1d2 = None
-
-                    # UNWEIGHTED:
-                    # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
-                    #                 mom0[i,j], mom1[i,j], mom2[i,j])
-                    # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                    # vel1d2 = best_fit[1]
-                    # disp1d2 = best_fit[2]
-                    # # flux1d2 = None
-                    # # vel1d2 = None
-                    # # disp1d2 = None
-
-                    if not moment:
-                        gmod_flux2=flux1d_mod_mom
-                        gmod_vel2=vel1d_mod_mom
-                        gmod_disp2=disp1d_mod_mom
-                    else:
-                        gmod_flux2 = None
-                        gmod_vel2 = None
-                        gmod_disp2 = None
-
-                    #raise ValueError
-
-                    ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-                        gdata_flux=flux1d, gdata_vel=vel1d, gdata_disp=disp1d,
-                        gdata_flux2=flux1d2, gdata_vel2=vel1d2, gdata_disp2=disp1d2,
-                        model=modarr, gmod_flux=flux1d_mod, gmod_vel=vel1d_mod,
-                        gmod_disp=disp1d_mod,
-                        gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
-                        gmod_disp2=gmod_disp2,
-                        ax=ax)
-
-                    ax.annotate('Pix ({},{})'.format(j,i),
-                            (0.02,0.98), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                else:
-                    ax.set_axis_off()
-            else:
-                ax.set_axis_off()
-
-    #############################################################
-    # Save to file:
-
-    f.suptitle(suptitle, fontsize=16, y=0.95)
-
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-    return None
-
-def plot_all_spaxels(gal, datacube=None, errcube=None, mask=None,
-                fileout=None, moment=False,
-                overwrite=False):
-
-    if datacube is None:
-        datacube = gal.data.data
-    if errcube is None:
-        errcube = gal.data.error
-    if mask is None:
-        mask = np.array(gal.data.mask, dtype=np.float)
-
-    # Check for existing file:
-    if (not overwrite) and (fileout is not None):
-        if os.path.isfile(fileout):
-            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-            return None
-
-
-    # Aper centers: pick roughly number fitting into size:
-    nx = datacube.shape[2]
-    ny = datacube.shape[1]
-    npix = np.max([nx,ny])
-
-
-    specarr = datacube.spectral_axis.to(u.km/u.s).value
-
-    maskbool = np.array(mask, dtype=np.bool)
-    datacube_masked = datacube.with_mask(maskbool)
-    mom0 = datacube_masked.moment0().to(u.km/u.s).value
-    mom1 = datacube_masked.moment1().to(u.km/u.s).value
-    mom2 = datacube_masked.linewidth_sigma().to(u.km/u.s).value
-
-    # datacube_masked_noneg = copy.deepcopy(datacube_masked)
-    # slice = datacube_masked_noneg.unmasked_data[:].value
-    # slice[slice<0.] = 0.
-    # ##
-    # mom0_noneg = datacube_masked_noneg.moment0().to(u.km/u.s).value
-    # mom1_noneg = datacube_masked_noneg.moment1().to(u.km/u.s).value
-    # mom0[~np.isfinite(mom2)] = mom0_noneg[~np.isfinite(mom2)]
-    # mom1[~np.isfinite(mom2)] = mom1_noneg[~np.isfinite(mom2)]
-    # ##
-    # mom2_noneg = datacube_masked_noneg.linewidth_sigma().to(u.km/u.s).value
-    # mom2[~np.isfinite(mom2)] = mom2_noneg[~np.isfinite(mom2)]
-
-    mom2_abs = np.sqrt(np.abs(datacube_masked.moment2().to(u.km**2/u.s**2).value))
-    mom2[~np.isfinite(mom2)] = mom2_abs[~np.isfinite(mom2)]
-
-    ######################################
-    # Setup plot:
-
-    # nrows = npix
-    # ncols = npix
-
-    rowinds = np.where(np.sum(np.sum(mask,axis=0),axis=1)>0)[0]
-    colinds = np.where(np.sum(np.sum(mask,axis=0),axis=0)>0)[0]
-
-    nrows = len(rowinds)
-    ncols = len(colinds)
-
-
-    padx = 0.25
-    pady = 0.25
-
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
-
-    scale = 2.5 #3.5
-
-    f = plt.figure()
-    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-
-
-    suptitle = '{}: Fitting dim: n={}, Moment: {}'.format(gal.name, gal.data.ndim, moment)
-
-    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-
-    axes = []
-
-
-    for i in range(nrows):
-        for j in range(ncols):
-            # invert rows:
-            ii = nrows - 1 - i
-            axes.append(plt.subplot(gs[ii,j]))
-
-    #############################################################
-    # for each ap:
-    specstep = np.average(specarr[1:]-specarr[:-1])
-    k = -1
-    for i in rowinds:
-        for j in colinds:
-            k += 1
-            if k < len(axes):
-                ax = axes[k]
-
-                datarr = datacube[:,i,j].value
-                maskarr = mask[:,i,j]
-                errarr = errcube[:,i,j].value
-
-                if maskarr.max() > 0:
-                    maskarr_bool = np.array(maskarr, dtype=np.bool)
-                    if not moment:
-                        flux1d2 = mom0[i,j]
-                        vel1d2 = mom1[i,j]
-                        disp1d2 = mom2[i,j]
-                        best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
-                                        mom0[i,j], mom1[i,j], mom2[i,j], yerr=errarr[maskarr_bool])
-                        flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                        vel1d = best_fit[1]
-                        disp1d = best_fit[2]
-                    else:
-                        flux1d = mom0[i,j]
-                        vel1d = mom1[i,j]
-                        disp1d = mom2[i,j]
-                        flux1d2 = None
-                        vel1d2 = None
-                        disp1d2 = None
-
-                    # UNWEIGHTED:
-                    # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
-                    #                 mom0[i,j], mom1[i,j], mom2[i,j])
-                    # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                    # vel1d2 = best_fit[1]
-                    # disp1d2 = best_fit[2]
-                    # # flux1d2 = None
-                    # # vel1d2 = None
-                    # # disp1d2 = None
-
-
-
-                    ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-                        gdata_flux=flux1d, gdata_vel=vel1d, gdata_disp=disp1d,
-                        gdata_flux2=flux1d2, gdata_vel2=vel1d2, gdata_disp2=disp1d2,
-                        ax=ax)
-
-                    ax.annotate('Pix ({},{})'.format(j,i),
-                            (0.02,0.98), xycoords='axes fraction',
-                            ha='left', va='top', fontsize=8)
-                else:
-                    ax.set_axis_off()
-            else:
-                ax.set_axis_off()
-
-    #############################################################
-    # Save to file:
-
-    f.suptitle(suptitle, fontsize=16, y=0.95)
-
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-    return None
-
-def plot_spaxel_fit(specarr, data, mask, err=None,
-        gdata_flux=None, gdata_vel=None, gdata_disp=None,
-        gdata_flux2=None, gdata_vel2=None, gdata_disp2=None,
-        model=None,
-        gmod_flux=None, gmod_vel=None, gmod_disp=None,
-        gmod_flux2=None, gmod_vel2=None, gmod_disp2=None,
-        ax=None):
-    returnax = True
-    if ax is None:
-        returnax = False
-        ax = plt.subplot(111)
-
-    ax.plot(specarr, data, color='black', marker='o', ms=4., mfc='None', ls='None', alpha=0.5)
-    ax.plot(specarr, data*mask, color='black', marker='o', ms=4.)
-
-    gdata_A = gdata_flux / ( np.sqrt(2 * np.pi) * gdata_disp)
-    ax.plot(specarr, gdata_A*np.exp(-((specarr-gdata_vel)**2/(2.*gdata_disp**2))),
-            color='turquoise',zorder=10., lw=0.5)
-
-
-    try:
-        gdata_A2 = gdata_flux2 / ( np.sqrt(2 * np.pi) * gdata_disp2)
-        ax.plot(specarr, gdata_A2*np.exp(-((specarr-gdata_vel2)**2/(2.*gdata_disp2**2))),
-                color='tab:green', ls='--', zorder=5., lw=0.5)
-    except:
-        pass
-
-    if model is not None:
-        # ax.plot(specarr, model, color='red', marker='s', mfc='None', ls='None', alpha=0.5)
-        # ax.plot(specarr, model*mask, color='red', marker='s')
-
-        ax.plot(specarr, model, color='red', ls='-', lw=1., alpha=0.5)
-        ax.plot(specarr, model*mask, color='red',lw=1.5)
-
-
-        gmod_A = gmod_flux / ( np.sqrt(2 * np.pi) * gmod_disp)
-        ax.plot(specarr, gmod_A*np.exp(-((specarr-gmod_vel)**2/(2.*gmod_disp**2))),
-                    color='orange', ls='--', zorder=10., lw=0.5)
-
-        try:
-            gmod_A2 = gmod_flux2 / ( np.sqrt(2 * np.pi) * gmod_disp2)
-            ax.plot(specarr, gmod_A2*np.exp(-((specarr-gmod_vel2)**2/(2.*gmod_disp2**2))),
-                    color='purple', ls=':', zorder=10., lw=0.5)
-        except:
-            pass
-
-    if err is not None:
-        ylim = ax.get_ylim()
-        ax.errorbar(specarr, data, xerr=None, yerr=err, alpha=0.25, capsize=0.,
-                                marker=None, ls='None', ecolor='k', zorder=-1.)
-        ax.set_ylim(ylim)
-
-
-    ax.axhline(y=0., ls='--', color='grey', alpha=0.5, zorder=-20.)
-    if returnax:
-        return ax
-    else:
-        return None
 
 #############################################################
 
@@ -3927,320 +3917,92 @@ def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
     return data2d
 
 
-#
-
-# #############################################################
-#
-# def extract_1D_2D_data_gausfit_from_cube(gal,
-#             slit_width=None, slit_pa=None,
-#             aper_dist=None):
-#     try:
-#         if gal.data2d is not None:
-#             extract = False
-#         else:
-#             extract = True
-#     except:
-#         extract = True
-#
-#
-#     if extract:
-#         gal = extract_2D_gausfit_from_cube(gal)
-#
-#
-#     #
-#     try:
-#         if gal.data1d is not None:
-#             extract = False
-#         else:
-#             extract = True
-#     except:
-#         extract = True
-#
-#     if extract:
-#         gal = extract_1D_from_cube(gal,
-#                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-#                 moment=False)
-#
-#
-#     return gal
-#
-# #
-#
-#
-# def extract_2D_gausfit_from_cube(gal):
-#
-#     #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
-#
-#     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
-#
-#     data_unscaled = gal.data.data.unmasked_data[:].value
-#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-#
-#     data_cube = SpectralCube(data=data_scaled,
-#                 mask=mask, wcs=gal.data.data.wcs)
-#
-#     #
-#     if gal.data.smoothing_type is not None:
-#         data_cube = apply_smoothing_3D(data_cube,
-#                     smoothing_type=gal.data.smoothing_type,
-#                     smoothing_npix=gal.data.smoothing_npix)
-#         smoothing_type=gal.data.smoothing_type
-#         smoothing_npix=gal.data.smoothing_npix
-#     else:
-#         smoothing_type = None
-#         smoothing_npix = None
-#
-#     ## MOMENTS:
-#     # vel = data_cube.moment1().to(u.km/u.s).value
-#     # disp = data_cube.linewidth_sigma().to(u.km/u.s).value
-#
-#
-#     ## GAUSFIT:
-#     mom0 = data_cube.moment0().to(u.km/u.s).value
-#     mom1 = data_cube.moment1().to(u.km/u.s).value
-#     mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
-#
-#     flux = np.zeros(mom0.shape)
-#     vel = np.zeros(mom0.shape)
-#     disp = np.zeros(mom0.shape)
-#
-#
-#     wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
-#     try:
-#         err_cube = gal.data.error.unmasked_data[:].value
-#         err_cube[err_cube==99.] = err_cube.min()
-#         err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-#
-#         #wgt_cube = wgt_cube * 1./err_cube
-#
-#         wgt_cube = 1./(err_cube)
-#
-#         # # Do a crude flux cut too:
-#         # wgt_cube[data_scaled<0.05*np.percentile(data_scaled, 95)] = 0
-#
-#
-#     except:
-#        pass
-#
-#     for i in range(mom0.shape[0]):
-#         for j in range(mom0.shape[1]):
-#             mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
-#                                     mean=mom1[i,j],
-#                                     stddev=np.abs(mom2[i,j]))
-#             mod.amplitude.bounds = (0, None)
-#             mod.stddev.bounds = (0, None)
-#             mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
-#
-#
-#             fitter = apy_mod.fitting.LevMarLSQFitter()
-#
-#             # wgts = None
-#             wgts = wgt_cube[:,i,j]
-#             if (np.max(np.abs(wgts)) == 0):
-#                 wgts = None
-#
-#             # ########################
-#             # # Unmasked fit:
-#             # best_fit = fitter(mod, data_cube.spectral_axis.to(u.km/u.s).value,
-#             #             data_cube.unmasked_data[:,i,j].value, weights=wgts)
-#             # ########################
-#
-#             ########################
-#             # Masked fit:
-#             spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
-#             flux_arr = data_cube.filled_data[:,i,j].value
-#
-#             if np.isfinite(flux_arr).sum() >= len(mod._parameters):
-#                 spec_arr = spec_arr[np.isfinite(flux_arr)]
-#                 if wgts is not None:
-#                     wgts = wgts[np.isfinite(flux_arr)]
-#                 flux_arr = flux_arr[np.isfinite(flux_arr)]
-#
-#
-#             best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
-#             ########################
-#
-#             flux[i,j] = np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
-#             vel[i,j] = best_fit.mean.value
-#             disp[i,j] = best_fit.stddev.value
-#
-#
-#
-#     #raise ValueError
-#
-#     ###########################
-#     # Flatten mask: only mask fully masked spaxels:
-#     msk3d_coll = np.sum(gal.data.mask, axis=0)
-#     whmsk = np.where(msk3d_coll == 0)
-#     mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
-#     mask[whmsk] = 0
-#
-#
-#     # Artificially mask the bad stuff:
-#     flux[~np.isfinite(flux)] = 0
-#     vel[~np.isfinite(vel)] = 0
-#     disp[~np.isfinite(disp)] = 0
-#     mask[~np.isfinite(vel)] = 0
-#     mask[~np.isfinite(disp)] = 0
-#
-#
-#     # setup data2d:
-#     gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
-#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
-#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-#                         inst_corr = True, moment=False)
-#
-#     return gal
-#
 
 
-# ##################################################
-#
-# def extract_1D_2D_data_moments_from_cube(gal,
-#             slit_width=None, slit_pa=None,
-#             aper_dist=None):
-#     try:
-#         if gal.data2d is not None:
-#             extract = False
-#         else:
-#             extract = True
-#     except:
-#         extract = True
-#
-#
-#     if extract:
-#         gal = extract_2D_moments_from_cube(gal)
-#
-#
-#     #
-#     try:
-#         if gal.data1d is not None:
-#             extract = False
-#         else:
-#             extract = True
-#     except:
-#         extract = True
-#
-#     if extract:
-#         gal = extract_1D_from_cube(gal,
-#                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-#                 moment=False)
-#
-#
-#     return gal
-#
-# def extract_1D_from_cube(gal,
-#             slit_width=None, slit_pa=None,
-#             aper_dist=None,
-#             moment=False):
-#
-#     if slit_width is None:
-#         try:
-#             slit_width = gal.instrument.beam.major.to(u.arcsec).value
-#         except:
-#             slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
-#     if slit_pa is None:
-#         slit_pa = gal.model.geometry.pa.value
-#
-#
-#     rstep = gal.instrument.pixscale.value
-#
-#
-#     rpix = slit_width/rstep/2.
-#
-#     if aper_dist is None:
-#         #aper_dist_pix = rpix #2*rpix
-#
-#         aper_dist_pix = rstep #rstep * 2.
-#
-#     else:
-#         aper_dist_pix = aper_dist/rstep
-#
-#
-#     # Aper centers: pick roughly number fitting into size:
-#     nx = gal.data.shape[2]
-#     ny = gal.data.shape[1]
-#     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-#                     np.int(ny / 2.) + gal.model.geometry.yshift)
-#
-#     aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
-#     aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
-#
-#     vel_arr = gal.data.data.spectral_axis.to(u.km/u.s).value
-#
-#     apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-#              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-#              moment=moment)
-#
-#     data_unscaled = gal.data.data.unmasked_data[:].value
-#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-#     # Some extra arbitrary scaling:
-#     data_scaled /= ((10.*rpix)**2)
-#
-#     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
-#                     cube=data_scaled, mask=gal.data.mask,
-#                     center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
-#
-#     # Remove points where the fit was bad
-#     ind = np.isfinite(vel1d) & np.isfinite(disp1d)
-#
-#     gal.data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
-#                              vel_disp=disp1d[ind], flux=flux1d[ind],
-#                              slit_width=slit_width, slit_pa=slit_pa)
-#     apertures_redo = CircApertures(rarr=aper_centers_pix[ind], slit_PA=slit_pa, rpix=rpix,
-#                         nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep, moment=moment)
-#     gal.data1d.apertures = apertures_redo
-#     gal.data1d.profile1d_type = 'circ_ap_cube'
-#
-#
-#     return gal
-#
-#
-# def extract_2D_moments_from_cube(gal):
-#
-#     #raise ValueError("needs to be changed to match how data is extracted // reflect proper 'data' v 'model' comparison")
-#
-#     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
-#
-#     data_unscaled = gal.data.data.unmasked_data[:].value
-#     data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-#
-#     data_cube = SpectralCube(data=data_scaled,
-#                 mask=mask, wcs=gal.data.data.wcs)
-#
-#     # # Data is already "pre-smoothed", if it exists.....
-#     # if gal.data.smoothing_type is not None:
-#     #     data_cube = apply_smoothing_3D(data_cube,
-#     #                 smoothing_type=gal.data.smoothing_type,
-#     #                 smoothing_npix=gal.data.smoothing_npix)
-#     #     smoothing_type=gal.data.smoothing_type
-#     #     smoothing_npix=gal.data.smoothing_npix
-#     # else:
-#     #     smoothing_type = None
-#     #     smoothing_npix = None
-#
-#     vel = data_cube.moment1().to(u.km/u.s).value
-#     disp = data_cube.linewidth_sigma().to(u.km/u.s).value
-#     flux = data_cube.moment0().to(u.km/u.s).value
-#
-#     msk3d_coll = np.sum(gal.data.mask, axis=0)
-#     whmsk = np.where(msk3d_coll == 0)
-#     mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
-#     mask[whmsk] = 0
-#
-#
-#     # Artificially mask the bad stuff:
-#     flux[~np.isfinite(flux)] = 0
-#     vel[~np.isfinite(vel)] = 0
-#     disp[~np.isfinite(disp)] = 0
-#     mask[~np.isfinite(vel)] = 0
-#     mask[~np.isfinite(disp)] = 0
-#
-#
-#     # setup data2d:
-#     gal.data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
-#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
-#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-#                         inst_corr = True, moment=True)
-#
-#     return gal
+
+#############################################################
+def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
+
+    aper_centers = data1d.rarr
+    slit_width = data1d.slit_width
+    slit_pa = data1d.slit_pa
+    rstep = gal.instrument.pixscale.value
+    try:
+        rstep1d = gal.instrument1d.pixscale.value
+    except:
+        rstep1d = rstep
+    rpix = slit_width/rstep/2.
+    # aper_dist_pix = 2*rpix
+    aper_centers_pix = aper_centers/rstep#1d
+
+    if aper_centers[0] <= 0:
+        # Starts from neg -> pos:
+        pa = slit_pa
+    else:
+        # Goes "backwards": pos -> neg [but the aper shapes are ALSO stored this way]
+        pa = slit_pa + 180
+
+    print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim,
+                                    gal.model.geometry.xshift.value,
+                                    gal.model.geometry.yshift.value,
+                                    gal.model.geometry.vel_shift.value))
+
+
+
+    nx = data2d.data['velocity'].shape[1]
+    ny = data2d.data['velocity'].shape[0]
+
+    try:
+        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d,
+                            gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
+    except:
+        center_pixel_kin = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
+                            np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+
+    if not remove_shift:
+        if data1d.aper_center_pix_shift is not None:
+            try:
+                center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
+                                gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+            except:
+                center_pixel = (np.int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
+                                np.int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+        else:
+            try:
+                center_pixel = (gal.data.xcenter, gal.data.ycenter)
+            except:
+                center_pixel = None
+    else:
+        center_pixel = center_pixel_kin
+
+
+
+    if center_pixel is None:
+        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
+                        np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+
+    # +++++++++++++++++
+
+    pyoff = 0.
+    ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
+    ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
+    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
+
+    # +++++++++++++++++
+
+    # First determine the centers of all the apertures that fit within the cube
+    xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
+
+
+    cmstar = cm.plasma
+    cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
+    cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
+
+    for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
+        #print("mm={}:  rap={}, xap, yap=({}, {}), rpix={}".format(mm, rap, xap, yap, rpix))
+        circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
+        ax.add_artist(circle)
+        if (mm == 0):
+            ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
+
+    return ax
