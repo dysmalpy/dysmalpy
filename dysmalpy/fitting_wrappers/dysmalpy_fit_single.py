@@ -16,7 +16,29 @@ except ImportError:
 
 def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
             outdir=None, plot_type='pdf', overwrite=None):
+    """
+    Fit observed kinematics, based on settings / files specified in the parameter file.
 
+    Input:
+        param_filename:     Path to parameters file.
+
+    Optional input:
+        data:               Galaxy data (`Data1D`/`Data2D`/`Data3D`/`Data0D` instance)
+                            Otherwise, loads data based on data filenames in parameters file.
+
+        datadir:            Path to data directory. If set, overrides datadir set in the parameters file.
+
+        outdir:             Path to output directory. If set, overrides outdir set in the parameters file.
+
+        plot_type:          Filetype ending for fitting plots. (e.g., 'pdf', 'png')
+
+        overwrite:          Option to overwrite any pre-existing fititng files.
+                            If set, overrides overwrite set in the parameters file.
+
+    Output:
+            Saves fitting results to outdir (specifed in call to `dysmalpy_fit_single` or in parameters file).
+    """
+    
     # Only load full imports later to speed up usage from command line.
     import matplotlib
     matplotlib.use('agg')

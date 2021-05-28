@@ -28,7 +28,7 @@ from dysmalpy import config
 
 import astropy.io.fits as fits
 
-from dysmalpy.fitting_wrappers.utils_calcs import auto_gen_3D_mask, _auto_truncate_crop_cube
+from dysmalpy.fitting_wrappers.utils_calcs import auto_gen_3D_mask, _auto_truncate_crop_cube, pad_3D_mask_to_uncropped_size
 from dysmalpy.fitting_wrappers.setup_gal_models import setup_data_weighting_method
 
 def read_fitting_params_input(fname=None):
@@ -195,6 +195,8 @@ def read_fitting_params(fname=None):
     return params
 
 
+
+
 def save_results_ascii_files(fit_results=None, gal=None, params=None, overwrite=False):
     filename_extra = ''
     if 'filename_extra' in params.keys():
@@ -353,7 +355,7 @@ def load_single_object_2D_data(params=None, adjust_error=False,
             skip_crop=False, datadir=None):
 
     # +++++++++++++++++++++++++++++++++++++++++++
-    # Upload the data set to be fit
+    # Load the data set to be fit
 
 
     # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
@@ -572,12 +574,12 @@ def load_single_object_2D_data(params=None, adjust_error=False,
 
     return data2d
 
-#
-def load_single_object_3D_data(params=None, datadir=None):
 
-
+def load_single_object_3D_data(params=None, datadir=None,
+            skip_automask=False, skip_auto_truncate_crop=False,
+            return_crop_info=False):
     # +++++++++++++++++++++++++++++++++++++++++++
-    # Upload the data set to be fit
+    # Load the data set to be fit
 
     # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
     if datadir is None:
@@ -588,7 +590,6 @@ def load_single_object_3D_data(params=None, datadir=None):
         if datadir is None:
             datadir = ''
 
-
     cube = fits.getdata(datadir+params['fdata_cube'])
     err_cube = fits.getdata(datadir+params['fdata_err'])
     header = fits.getheader(datadir+params['fdata_cube'])
@@ -596,18 +597,36 @@ def load_single_object_3D_data(params=None, datadir=None):
     mask = None
     if 'fdata_mask' in params.keys():
         if params['fdata_mask'] is not None:
-            mask = fits.getdata(datadir+params['fdata_mask'])
+            # Check if it's full path:
+            fdata_mask = params['fdata_mask']
+            if not os.path.isfile(fdata_mask):
+                # Otherwise try datadir:
+                fdata_mask = datadir+params['fdata_mask']
+            if os.path.isfile(fdata_mask):
+                mask = fits.getdata(fdata_mask)
+                # Crop cube: first check if masks match the cubes already or not -- otherwise load later
+                if mask.shape != cube.shape:
+                    #mask = None
+                    raise ValueError
 
-    #
+
     mask_sky=None
     if 'fdata_mask_sky' in params.keys():
         if params['fdata_mask_sky'] is not None:
             mask_sky = fits.getdata(datadir+params['fdata_mask_sky'])
-    #
+            # Crop cube: first check if masks match the cubes already or not -- otherwise load later
+            if mask_sky.shape != cube.shape[1:3]:
+                #mask_sky = None
+                raise ValueError
+
     mask_spec=None
     if 'fdata_mask_spec' in params.keys():
         if params['fdata_mask_spec'] is not None:
             mask_spec = fits.getdata(datadir+params['fdata_mask_spec'])
+            # Crop cube: first check if masks match the cubes already or not -- otherwise load later
+            if mask_spec.shape[0] != cube.shape[0]:
+                #mask_spec = None
+                raise ValueError
 
 
     if 'weighting_method' in params.keys():
@@ -624,7 +643,6 @@ def load_single_object_3D_data(params=None, datadir=None):
         ycenter = params['ycenter']
     else:
         ycenter = None
-
 
 
     ####################################
@@ -674,42 +692,63 @@ def load_single_object_3D_data(params=None, datadir=None):
         elif header['CUNIT3'].strip().upper() == 'MICRON':
             raise ValueError('Assumed unit was km/s -- but does not match the cube header! CUNIT3={}'.format(header['CUNIT3']))
 
-
-
-
-    pscale = np.abs(header['CDELT1']) * 3600.    # convert from deg CDELT1 to arcsec
-
-    ####################################
-
-
-    cube, err_cube, mask, mask_sky, mask_spec, gal_weight, spec_arr, xcenter, ycenter = _auto_truncate_crop_cube(cube,
-                                            params=params,
-                                            pixscale=pscale,
-                                            spec_type='velocity', spec_arr=spec_arr,
-                                            err_cube=err_cube, mask_cube=mask,
-                                            mask_sky=mask_sky, mask_spec=mask_spec,
-                                            spec_unit=spec_unit,weight=gal_weight,
-                                            xcenter=xcenter, ycenter=ycenter)
-
+    if header['CUNIT1'].strip().upper() in ['DEGREE', 'DEG']:
+        pscale = np.abs(header['CDELT1']) * 3600.    # convert from deg CDELT1 to arcsec
+    elif header['CUNIT1'].strip().upper() in ['ARCSEC']:
+        pscale = np.abs(header['CDELT1'])
 
     ####################################
-    if (mask is None) & ('auto_gen_3D_mask' in params.keys()):
+
+    cube_precrop_sh = cube.shape
+    wh_spec_keep = wh_ends_trim = sp_trm = None
+    if (not skip_auto_truncate_crop):
+        cube, err_cube, mask, mask_sky, mask_spec, \
+            gal_weight, spec_arr, xcenter, ycenter, \
+            wh_spec_keep, wh_ends_trim, sp_trm = _auto_truncate_crop_cube(cube,
+                                                params=params,
+                                                spec_type='velocity', spec_arr=spec_arr,
+                                                err_cube=err_cube, mask_cube=mask,
+                                                mask_sky=mask_sky, mask_spec=mask_spec,
+                                                spec_unit=spec_unit,weight=gal_weight,
+                                                xcenter=xcenter, ycenter=ycenter)
+
+
+    # # Try loading masks that weren't set earlier bc of size differences:
+    # if mask is None:
+    #     if 'fdata_mask' in params.keys():
+    #         if params['fdata_mask'] is not None:
+    #             # Check if it's full path:
+    #             fdata_mask = params['fdata_mask']
+    #             if not os.path.isfile(fdata_mask):
+    #                 # Otherwise try datadir:
+    #                 fdata_mask = datadir+params['fdata_mask']
+    #             if os.path.isfile(fdata_mask):
+    #                 mask = fits.getdata(fdata_mask)
+    #
+    # if mask is None:
+    #     if 'fdata_mask_sky' in params.keys():
+    #         if params['fdata_mask_sky'] is not None:
+    #             mask_sky = fits.getdata(datadir+params['fdata_mask_sky'])
+    # if mask_spec is None:
+    #     if 'fdata_mask_spec' in params.keys():
+    #         if params['fdata_mask_spec'] is not None:
+    #             mask_spec = fits.getdata(datadir+params['fdata_mask_spec'])
+
+    ####################################
+    if (mask is None) & ('auto_gen_3D_mask' in params.keys()) & (not skip_automask):
         if params['auto_gen_3D_mask']:
-            if 'auto_gen_mask_snr_thresh_1' not in params.keys():
-                params['auto_gen_mask_snr_thresh_1'] = params['auto_gen_mask_snr_thresh']
-            if 'auto_gen_mask_sky_var_thresh' not in params.keys():
-                params['auto_gen_mask_sky_var_thresh'] = 3.
-            #mask = _auto_gen_3D_mask_simple(cube=cube, err=err_cube, snr_thresh=params['auto_gen_mask_snr_thresh'],
-            #        npix_min=params['auto_gen_mask_npix_min'])
-            mask = auto_gen_3D_mask(cube=cube, err=err_cube,
-                    sig_thresh=params['auto_gen_mask_sig_thresh'],
-                    #snr_thresh=params['auto_gen_mask_snr_thresh'],
-                    #snr_thresh_1 = params['auto_gen_mask_snr_thresh_1'],
-                    npix_min=params['auto_gen_mask_npix_min'],
-                    sky_var_thresh=params['auto_gen_mask_sky_var_thresh'])
+            if 'fdata_mask' in params.keys():
+                if not os.path.isfile(fdata_mask):
+                    print("Can't load mask from 'fdata_mask'={}, ".format(fdata_mask))
+                    print("  but 'auto_gen_3D_mask'={}, ".format(auto_gen_3D_mask))
+                    print("  so automatically generating mask")
 
-        else:
-            mask = np.ones(cube.shape)
+            mask = generate_3D_mask(cube=cube, err=err_cube, params=params)
+
+
+    # Catch final cases: skip_automask=True or 'auto_gen_3D_mask' not in params.keys():
+    if (mask is None):
+        mask = np.ones(cube.shape)
 
     ####################################
     # Mask NaNs:
@@ -741,10 +780,145 @@ def load_single_object_3D_data(params=None, datadir=None):
                                       smoothing_npix=smoothing_npix,
                                       xcenter=xcenter, ycenter=ycenter)
 
+
+    if return_crop_info:
+        data3d.cube_precrop_sh = cube_precrop_sh
+        data3d.wh_spec_keep = wh_spec_keep
+        data3d.wh_ends_trim = wh_ends_trim
+        data3d.sp_trm = sp_trm
+
     return data3d
 
 
+def generate_3D_mask(gal=None, cube=None, err=None, params=None,
+            sig_segmap_thresh=None, npix_segmap_min=None,
+            snr_int_flux_thresh=None, snr_thresh_pixel=None,
+            sky_var_thresh=None,
+            apply_skymask_first=None):
 
+    """
+    Generate a mask for a 3D cube, based on thresholds / other automated detections.
+
+    If values are not set, they are taken from the params settings.
+
+    See `~dysmalpy.fitting_wrappers.utils_calcs.auto_gen_3D_mask` for parameter explanations.
+
+    Input:
+        cube:               3D cube (numpy ndarray)
+        err:                3D error cube (numpy ndarray)
+
+        params:             Parameters setting dictionary
+
+    Optional input:
+        gal:                Galaxy instance. If cube or err is not set, will use
+                            the gal.data.data, gal.data.error cubes
+
+    Output:
+            mask (3D cube)
+    """
+    if cube is None:
+        cube = gal.data.data.unmasked_data[:].value * gal.data.mask
+    if err is None:
+        err = gal.data.error.unmasked_data[:].value
+
+    if snr_thresh_pixel is None:
+        if 'auto_gen_mask_snr_thresh_pixel' not in params.keys():
+            params['auto_gen_mask_snr_thresh_pixel'] = None
+        snr_thresh_pixel = params['auto_gen_mask_snr_thresh_pixel']
+
+    if sky_var_thresh is None:
+        if 'auto_gen_mask_sky_var_thresh' not in params.keys():
+            params['auto_gen_mask_sky_var_thresh'] = 3.
+        sky_var_thresh = params['auto_gen_mask_sky_var_thresh']
+
+    if snr_int_flux_thresh is None:
+        if 'auto_gen_mask_snr_int_flux_thresh' not in params.keys():
+            params['auto_gen_mask_snr_int_flux_thresh'] = 3.
+        snr_int_flux_thresh = params['auto_gen_mask_snr_int_flux_thresh']
+
+    if sig_segmap_thresh is None:
+        if 'auto_gen_mask_sig_segmap_thresh' not in params.keys():
+            params['auto_gen_mask_sig_segmap_thresh'] = 1.5
+        sig_segmap_thresh = params['auto_gen_mask_sig_segmap_thresh']
+
+    if npix_segmap_min is None:
+        if 'auto_gen_mask_npix_segmap_min' not in params.keys():
+            params['auto_gen_mask_npix_segmap_min'] = 5
+        npix_segmap_min = params['auto_gen_mask_npix_segmap_min']
+
+    if apply_skymask_first is None:
+        if 'auto_gen_mask_apply_skymask_first' not in params.keys():
+            params['auto_gen_mask_apply_skymask_first'] = True
+        apply_skymask_first = params['auto_gen_mask_apply_skymask_first']
+
+
+    msg =  "++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
+    msg += "  Creating 3D auto mask with the following settings: \n"
+    msg += "        sig_segmap_thresh   = {} \n".format(sig_segmap_thresh)
+    msg += "        npix_segmap_min     = {} \n".format(npix_segmap_min)
+    msg += "        snr_int_flux_thresh = {} \n".format(snr_int_flux_thresh)
+    msg += "        snr_thresh_pixel    = {} \n".format(snr_thresh_pixel)
+    msg += "        sky_var_thresh      = {} \n".format(sky_var_thresh)
+    msg += "        apply_skymask_first = {} \n".format(apply_skymask_first)
+    msg += "++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
+    print(msg)
+
+    return auto_gen_3D_mask(cube=cube, err=err,
+                    sig_segmap_thresh=sig_segmap_thresh, npix_segmap_min=npix_segmap_min,
+                    snr_int_flux_thresh=snr_int_flux_thresh, snr_thresh_pixel = snr_thresh_pixel,
+                    sky_var_thresh=sky_var_thresh, apply_skymask_first=apply_skymask_first)
+
+
+
+
+def save_3D_mask(gal=None, mask=None, filename=None, overwrite=False, save_uncropped_size=True):
+
+    """
+    Generate a mask for a 3D cube, based on thresholds / other automated detections.
+
+    If values are not set, they are taken from the params settings.
+
+    See `~dysmalpy.fitting_wrappers.utils_calcs.auto_gen_3D_mask` for parameter explanations.
+
+    Input:
+        cube:               3D cube (numpy ndarray)
+        err:                3D error cube (numpy ndarray)
+
+        params:             Parameters setting dictionary
+
+    Optional input:
+        gal:                Galaxy instance. If cube or err is not set, will use
+                            the gal.data.data, gal.data.error cubes
+
+        save_uncropped_size:  If gal.data has info about pre-cropped size, will save the
+                                mask w/ zero padding to match the original data cube size (eg, for saving)
+
+    Output:
+            mask (3D cube)
+    """
+    mask_cube = mask.copy()
+    if gal is not None:
+        if gal.data.data.wcs.wcs.cunit[1].to_string().upper().strip() in ['DEGREE', 'DEG']:
+            pscale = np.abs(gal.data.data.wcs.wcs.cdelt[0]) * 3600.    # convert from deg CDELT1 to arcsec
+        elif gal.data.data.wcs.wcs.cunit[1].to_string().upper().strip() in ['ARCSEC']:
+            pscale = np.abs(gal.data.data.wcs.wcs.cdelt[0])
+        pixscale=pscale
+        if gal.data.data.wcs.wcs.ctype[2] == 'VOPT':
+            spec_type = 'velocity'
+        elif gal.data.data.wcs.wcs.ctype[2] == 'WAVE':
+            spec_type = 'wavelength'
+
+        spec_unit=u.Unit(gal.data.data.wcs.wcs.cunit[2].to_string())
+        spec_arr = gal.data.data.spectral_axis.to(spec_unit).value
+
+        if save_uncropped_size:
+            mask_cube, spec_arr  = pad_3D_mask_to_uncropped_size(gal=gal, mask=mask)
+
+    mask_cube = data_classes.Data3D(cube=mask_cube, pixscale=pixscale,
+                        spec_type=spec_type, spec_arr=spec_arr, spec_unit=spec_unit)
+    mask_cube.data.write(filename, overwrite=overwrite)
+
+    return None
 
 def ensure_path_trailing_slash(path):
     if (path[-1] != '/'):
@@ -752,8 +926,9 @@ def ensure_path_trailing_slash(path):
     return path
 
 ####
-def get_ndim_fit_from_paramfile(param_filename=None):
-    params = read_fitting_params(fname=param_filename)
+def get_ndim_fit_from_paramfile(params=None, param_filename=None):
+    if params is None:
+        params = read_fitting_params(fname=param_filename)
 
     ndim_fit = None
 

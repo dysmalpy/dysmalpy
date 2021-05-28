@@ -1815,6 +1815,7 @@ def plot_aperture_compare_3D_cubes(gal,
                 fileout=None,
                 slit_width=None, slit_pa=None,
                 aper_dist=None,
+                skip_fits=True,
                 overwrite=False):
 
     if datacube is None:
@@ -1879,39 +1880,39 @@ def plot_aperture_compare_3D_cubes(gal,
              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
              moment=False)
 
+    if not skip_fits:
+        data_scaled = datacube.unmasked_data[:].value
+        if errcube is not None:
+            ecube =  errcube.unmasked_data[:].value * mask
+        else:
+            ecube = None
+        model_scaled = modelcube.unmasked_data[:].value
 
-    data_scaled = datacube.unmasked_data[:].value
-    if errcube is not None:
-        ecube =  errcube.unmasked_data[:].value * mask
-    else:
-        ecube = None
-    model_scaled = modelcube.unmasked_data[:].value
+        aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=specarr,
+                        cube=data_scaled, mask=mask, err=ecube,
+                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
 
-    aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=specarr,
-                    cube=data_scaled, mask=mask, err=ecube,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+        ## UNWEIGHTED GAUS FIT TO DATA
+        # aper_centers2, flux1d2, vel1d2, disp1d2 = apertures.extract_1d_kinematics(spec_arr=specarr,
+        #                 cube=data_scaled, mask=mask, err=None,
+        #                 center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
 
-    ## UNWEIGHTED GAUS FIT TO DATA
-    # aper_centers2, flux1d2, vel1d2, disp1d2 = apertures.extract_1d_kinematics(spec_arr=specarr,
-    #                 cube=data_scaled, mask=mask, err=None,
-    #                 center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+        #####
+        aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
+                        cube=model_scaled, mask=mask, err=None,
+                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
 
-    #####
-    aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
-                    cube=model_scaled, mask=mask, err=None,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+        apertures_mom = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                 moment=True)
+        aper_centers_mod_mom, flux1d_mod_mom, vel1d_mod_mom, disp1d_mod_mom = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
+                        cube=model_scaled, mask=mask, err=None,
+                        center_pixel = center_pixel,
+                        pixscale=gal.instrument.pixscale.value)
 
-    apertures_mom = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-             moment=True)
-    aper_centers_mod_mom, flux1d_mod_mom, vel1d_mod_mom, disp1d_mod_mom = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
-                    cube=model_scaled, mask=mask, err=None,
-                    center_pixel = center_pixel,
-                    pixscale=gal.instrument.pixscale.value)
-
-    aper_centers2, flux1d2, vel1d2, disp1d2 = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
-                    cube=data_scaled, mask=mask, err=ecube,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+        aper_centers2, flux1d2, vel1d2, disp1d2 = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
+                        cube=data_scaled, mask=mask, err=ecube,
+                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
 
     ######################################
     # Setup plot:
@@ -1959,29 +1960,38 @@ def plot_aperture_compare_3D_cubes(gal,
                     cube=mask, skip_specmask=True)
             maskarr[maskarr>0] = 1.
 
+            if not skip_fits:
+                gmod_flux2=flux1d_mod_mom[k]
+                gmod_vel2=vel1d_mod_mom[k]
+                gmod_disp2=disp1d_mod_mom[k]
 
-            gmod_flux2=flux1d_mod_mom[k]
-            gmod_vel2=vel1d_mod_mom[k]
-            gmod_disp2=disp1d_mod_mom[k]
+                gmod_flux2 = gmod_vel2 = gmod_disp2 = None
 
-            gmod_flux2 = None
-            gmod_vel2 = None
-            gmod_disp2 = None
+                gdata_flux2=flux1d2[k]
+                gdata_vel2=vel1d2[k]
+                gdata_disp2=disp1d2[k]
+                # gdata_flux2=None
+                # gdata_vel2=None
+                # gdata_disp2=None
 
-            gdata_flux2=flux1d2[k]
-            gdata_vel2=vel1d2[k]
-            gdata_disp2=disp1d2[k]
-            # gdata_flux2=None
-            # gdata_vel2=None
-            # gdata_disp2=None
+                gdata_flux=flux1d[k]
+                gdata_vel=vel1d[k]
+                gdata_disp=disp1d[k]
+                gmod_flux=flux1d_mod[k]
+                gmod_vel=vel1d_mod[k]
+                gmod_disp=disp1d_mod[k]
+
+            else:
+                gdata_flux = gdata_vel = gdata_disp = None
+                gdata_flux2 = gdata_vel2 = gdata_disp2 = None
+                gmod_flux = gmod_vel = gmod_disp = None
+                gmod_flux2 = gmod_vel2 = gmod_disp2 = None
 
             ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
-                gdata_flux=flux1d[k], gdata_vel=vel1d[k], gdata_disp=disp1d[k],
+                gdata_flux=gdata_flux, gdata_vel=gdata_vel, gdata_disp=gdata_disp,
                 gdata_flux2=gdata_flux2, gdata_vel2=gdata_vel2, gdata_disp2=gdata_disp2,
-                model=modarr, gmod_flux=flux1d_mod[k], gmod_vel=vel1d_mod[k],
-                gmod_disp=disp1d_mod[k],
-                gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2,
-                gmod_disp2=gmod_disp2,
+                model=modarr, gmod_flux=gmod_flux, gmod_vel=gmod_vel, gmod_disp=gmod_disp,
+                gmod_flux2=gmod_flux2, gmod_vel2=gmod_vel2, gmod_disp2=gmod_disp2,
                 ax=ax)
 
             ax.annotate('Ap {}'.format(k),
@@ -2011,7 +2021,8 @@ def plot_spaxel_compare_3D_cubes(gal,
                 fileout=None,
                 typ='all',
                 show_model=True,
-                skip_masked=True,
+                skip_masked=False,
+                skip_fits=True,
                 overwrite=False):
 
     if typ.strip().lower() not in ['all', 'diag']:
@@ -2027,7 +2038,11 @@ def plot_spaxel_compare_3D_cubes(gal,
         mask = np.array(gal.data.mask, dtype=np.float)
     if show_model:
         if modelcube is None:
-            modelcube = gal.model_data.data
+            try:
+                modelcube = gal.model_data.data
+            except:
+                # Skip showing model
+                show_model = False
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -2041,9 +2056,7 @@ def plot_spaxel_compare_3D_cubes(gal,
     ny = datacube.shape[1]
     npix = np.max([nx,ny])
 
-
     specarr = datacube.spectral_axis.to(u.km/u.s).value
-
 
     ######################################
     # Setup plot:
@@ -2097,21 +2110,18 @@ def plot_spaxel_compare_3D_cubes(gal,
             axes.append(plt.subplot(gs[ii,j]))
 
 
-
     #############################################################
-    if show_model:
-        mom0_mod = modelcube.moment0().to(u.km/u.s).value
-        mom1_mod = modelcube.moment1().to(u.km/u.s).value
-        mom2_mod = modelcube.linewidth_sigma().to(u.km/u.s).value
+    if not skip_fits:
+        if show_model:
+            mom0_mod = modelcube.moment0().to(u.km/u.s).value
+            mom1_mod = modelcube.moment1().to(u.km/u.s).value
+            mom2_mod = modelcube.linewidth_sigma().to(u.km/u.s).value
 
-    maskbool = np.array(mask, dtype=np.bool)
-    datacube_masked = datacube.with_mask(maskbool)
-    mom0_dat = datacube_masked.moment0().to(u.km/u.s).value
-    mom1_dat = datacube_masked.moment1().to(u.km/u.s).value
-    mom2_dat = datacube_masked.linewidth_sigma().to(u.km/u.s).value
-
-
-    specstep = np.average(specarr[1:]-specarr[:-1])
+        maskbool = np.array(mask, dtype=np.bool)
+        datacube_masked = datacube.with_mask(maskbool)
+        mom0_dat = datacube_masked.moment0().to(u.km/u.s).value
+        mom1_dat = datacube_masked.moment1().to(u.km/u.s).value
+        mom2_dat = datacube_masked.linewidth_sigma().to(u.km/u.s).value
 
     # for each spax:
     k = -1
@@ -2143,56 +2153,63 @@ def plot_spaxel_compare_3D_cubes(gal,
                         do_plot = False
 
                 if ((typ == 'all') & (do_plot)) | (typ == 'diag'):
-                    if show_model:
-                        flux1d_mod_mom = mom0_mod[i,j]
-                        vel1d_mod_mom = mom1_mod[i,j]
-                        disp1d_mod_mom = mom2_mod[i,j]
+                    if not skip_fits:
+                        if show_model:
+                            flux1d_mod_mom = mom0_mod[i,j]
+                            vel1d_mod_mom = mom1_mod[i,j]
+                            disp1d_mod_mom = mom2_mod[i,j]
 
-                        best_fit = gaus_fit_sp_opt_leastsq(specarr, modarr, mom0_mod[i,j],
-                                        mom1_mod[i,j], mom2_mod[i,j])
-                        flux1d_mod = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                        vel1d_mod = best_fit[1]
-                        disp1d_mod = best_fit[2]
+                            best_fit = gaus_fit_sp_opt_leastsq(specarr, modarr, mom0_mod[i,j],
+                                            mom1_mod[i,j], mom2_mod[i,j])
+                            flux1d_mod = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                            vel1d_mod = best_fit[1]
+                            disp1d_mod = best_fit[2]
+                        else:
+                            flux1d_mod_mom = None
+                            vel1d_mod_mom = None
+                            disp1d_mod_mom = None
+                            flux1d_mod = None
+                            vel1d_mod = None
+                            disp1d_mod = None
+
+                        maskarr_bool = np.array(maskarr, dtype=np.bool)
+
+                        flux1d2 = mom0_dat[i,j]
+                        vel1d2 = mom1_dat[i,j]
+                        disp1d2 = mom2_dat[i,j]
+                        try:
+                            best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
+                                            mom0_dat[i,j], mom1_dat[i,j], mom2_dat[i,j], yerr=errarr[maskarr_bool])
+                        except:
+                            best_fit = [np.NaN, np.NaN, np.NaN]
+                        flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                        vel1d = best_fit[1]
+                        disp1d = best_fit[2]
+
+                        # UNWEIGHTED:
+                        # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
+                        #                 mom0[i,j], mom1[i,j], mom2[i,j])
+                        # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                        # vel1d2 = best_fit[1]
+                        # disp1d2 = best_fit[2]
+                        # # flux1d2 = None
+                        # # vel1d2 = None
+                        # # disp1d2 = None
+
+                        gmod_flux2=flux1d_mod_mom
+                        gmod_vel2=vel1d_mod_mom
+                        gmod_disp2=disp1d_mod_mom
+
+                        # gmod_flux2 = None
+                        # gmod_vel2 = None
+                        # gmod_disp2 = None
+
                     else:
-                        flux1d_mod_mom = None
-                        vel1d_mod_mom = None
-                        disp1d_mod_mom = None
-                        flux1d_mod = None
-                        vel1d_mod = None
-                        disp1d_mod = None
+                        flux1d = vel1d = disp1d = None
+                        flux1d2 = vel1d2 = disp1d2 = None
+                        flux1d_mod = vel1d_mod = disp1d_mod = None
+                        gmod_flux2 = gmod_vel2 = gmod_disp2 = None
 
-                    maskarr_bool = np.array(maskarr, dtype=np.bool)
-
-                    flux1d2 = mom0_dat[i,j]
-                    vel1d2 = mom1_dat[i,j]
-                    disp1d2 = mom2_dat[i,j]
-                    try:
-                        best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
-                                        mom0_dat[i,j], mom1_dat[i,j], mom2_dat[i,j], yerr=errarr[maskarr_bool])
-                    except:
-                        best_fit = [np.NaN, np.NaN, np.NaN]
-                    flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                    vel1d = best_fit[1]
-                    disp1d = best_fit[2]
-
-
-                    # UNWEIGHTED:
-                    # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
-                    #                 mom0[i,j], mom1[i,j], mom2[i,j])
-                    # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                    # vel1d2 = best_fit[1]
-                    # disp1d2 = best_fit[2]
-                    # # flux1d2 = None
-                    # # vel1d2 = None
-                    # # disp1d2 = None
-
-                    gmod_flux2=flux1d_mod_mom
-                    gmod_vel2=vel1d_mod_mom
-                    gmod_disp2=disp1d_mod_mom
-
-                    # gmod_flux2 = None
-                    # gmod_vel2 = None
-                    # gmod_disp2 = None
 
                     ax = plot_spaxel_fit(specarr, datarr, maskarr, err=errarr,
                         gdata_flux=flux1d, gdata_vel=vel1d, gdata_disp=disp1d,
@@ -2206,6 +2223,9 @@ def plot_spaxel_compare_3D_cubes(gal,
                     ax.annotate('Pix ({},{})'.format(j,i),
                             (0.02,0.98), xycoords='axes fraction',
                             ha='left', va='top', fontsize=8)
+
+                    if (maskarr.max() <= 0):
+                        ax.set_facecolor('#f0f0f0') #'#e3e3e3')
                 else:
                     ax.set_axis_off()
             elif (k < len(axes)) & (not skip) & (k >= npix):
@@ -2431,37 +2451,49 @@ def plot_spaxel_fit(specarr, data, mask, err=None,
         returnax = False
         ax = plt.subplot(111)
 
-    ax.plot(specarr, data, color='black', marker='o', ms=4., mfc='None', ls='None', alpha=0.5)
-    ax.plot(specarr, data*mask, color='black', marker='o', ms=4.)
 
-    gdata_A = gdata_flux / ( np.sqrt(2 * np.pi) * gdata_disp)
-    ax.plot(specarr, gdata_A*np.exp(-((specarr-gdata_vel)**2/(2.*gdata_disp**2))),
-            color='turquoise',zorder=10., lw=0.5)
+    ax.plot(specarr, data*mask, color='black', marker='o', ms=4., zorder=1.)
+    if (mask.max() > 0):
+        ylim = ax.get_ylim()
+    ax.plot(specarr, data, color='black', marker='o', ms=4., mfc='None', ls='None', alpha=0.5, zorder=0.)
+    if (mask.max() > 0):
+        ax.set_ylim(ylim)
 
-
-    try:
-        gdata_A2 = gdata_flux2 / ( np.sqrt(2 * np.pi) * gdata_disp2)
-        ax.plot(specarr, gdata_A2*np.exp(-((specarr-gdata_vel2)**2/(2.*gdata_disp2**2))),
-                color='tab:green', ls='--', zorder=5., lw=0.5)
-    except:
-        pass
-
-    if model is not None:
-        ax.plot(specarr, model, color='red', ls='-', lw=1., alpha=0.5)
-        ax.plot(specarr, model*mask, color='red',lw=1.5)
-
-
-        gmod_A = gmod_flux / ( np.sqrt(2 * np.pi) * gmod_disp)
-        ax.plot(specarr, gmod_A*np.exp(-((specarr-gmod_vel)**2/(2.*gmod_disp**2))),
-                    color='orange', ls='--', zorder=10., lw=0.5)
-
+    if gdata_flux is not None:
         try:
-            gmod_A2 = gmod_flux2 / ( np.sqrt(2 * np.pi) * gmod_disp2)
-            ax.plot(specarr, gmod_A2*np.exp(-((specarr-gmod_vel2)**2/(2.*gmod_disp2**2))),
-                    color='purple', ls=':', zorder=10., lw=0.5)
+            gdata_A = gdata_flux / ( np.sqrt(2 * np.pi) * gdata_disp)
+            ax.plot(specarr, gdata_A*np.exp(-((specarr-gdata_vel)**2/(2.*gdata_disp**2))),
+                    color='turquoise',zorder=10., lw=0.5)
         except:
             pass
 
+    if gdata_flux2 is not None:
+        try:
+            gdata_A2 = gdata_flux2 / ( np.sqrt(2 * np.pi) * gdata_disp2)
+            ax.plot(specarr, gdata_A2*np.exp(-((specarr-gdata_vel2)**2/(2.*gdata_disp2**2))),
+                    color='tab:green', ls='--', zorder=5., lw=0.5)
+        except:
+            pass
+
+    if model is not None:
+        ax.plot(specarr, model, color='red', ls='-', lw=1., alpha=0.5, zorder=1.)
+        ax.plot(specarr, model*mask, color='red',lw=1.5, zorder=1.)
+
+        if gmod_flux is not None:
+            try:
+                gmod_A = gmod_flux / ( np.sqrt(2 * np.pi) * gmod_disp)
+                ax.plot(specarr, gmod_A*np.exp(-((specarr-gmod_vel)**2/(2.*gmod_disp**2))),
+                            color='orange', ls='--', zorder=10., lw=0.5)
+            except:
+                pass
+
+        if gmod_flux2 is not None:
+            try:
+                gmod_A2 = gmod_flux2 / ( np.sqrt(2 * np.pi) * gmod_disp2)
+                ax.plot(specarr, gmod_A2*np.exp(-((specarr-gmod_vel2)**2/(2.*gmod_disp2**2))),
+                        color='purple', ls=':', zorder=10., lw=0.5)
+            except:
+                pass
 
     if err is not None:
         ylim = ax.get_ylim()
@@ -2498,7 +2530,6 @@ def plot_spaxel_fit(specarr, data, mask, err=None,
     if xmajloc is not None:
         ax.xaxis.set_major_locator(MultipleLocator(xmajloc))
         ax.xaxis.set_minor_locator(MultipleLocator(xminloc))
-
 
     if returnax:
         return ax
