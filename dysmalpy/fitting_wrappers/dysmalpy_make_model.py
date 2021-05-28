@@ -15,6 +15,21 @@ except ImportError:
     from . import tkinter_io
 
 def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
+    """
+    Generate a DYSMAL model, based on parameter values specified in the parameter file.
+
+    Input:
+        param_filename:     Path to parameters file.
+
+    Optional input:
+        outdir:             Path to output directory. If set, overrides outdir set in the parameters file.
+
+        overwrite:          Option to overwrite any pre-existing fititng files.
+                            If set, overrides overwrite set in the parameters file.
+
+    Output:
+            Saves model files to outdir (specifed in call to `dysmalpy_make_model` or in parameters file).
+    """
 
     # Only load full imports later to speed up usage from command line.
     from dysmalpy import config

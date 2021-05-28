@@ -22,6 +22,94 @@ except:
 import emcee
 
 
+
+
+def load_galaxy(params=None, param_filename=None, data=None, datadir=None,
+                skip_automask=False, skip_auto_truncate_crop=False,
+                return_crop_info=True):
+    """
+    Load the galaxy data files.
+    (Helpful for examining without fitting, or generating mask, etc)
+
+    Input:
+        param_filename:     Path to parameters file.
+
+    Optional input:
+        params:             Parameters dictionary (if pre-loaded). If not None, skips reading from file.
+
+        data:               Galaxy data (`Data1D`/`Data2D`/`Data3D`/`Data0D` instance)
+                            Otherwise, loads data based on data filenames in parameters file.
+
+        datadir:            Path to data directory. If set, overrides datadir set in the parameters file.
+
+        skip_automask:      Skip automasking for 3D cubes. Default: False
+        skip_auto_truncate_crop: Skip automatic truncating and cropping of 3D cubes. Default: False
+
+    Output:
+        gal:                Galaxy instance
+    """
+
+    # Get fitting dimension:
+    ndim = data_io.get_ndim_fit_from_paramfile(params=params, param_filename=param_filename)
+
+    # Read in the parameters from param_filename:
+    if params is None:
+        params = data_io.read_fitting_params(fname=param_filename)
+
+    # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
+    if datadir is not None:
+        params['datadir'] = datadir
+
+    if 'datadir' in params.keys():
+        if params['datadir'] is not None:
+            datadir = data_io.ensure_path_trailing_slash(params['datadir'])
+            params['datadir'] = datadir
+
+    if 'datadir' in params.keys():
+        datadir = params['datadir']
+
+    # Check if you can find filename; if not open datadir interface:
+    datadir, params = data_io.check_datadir_specified(params, datadir, ndim=ndim,
+                    param_filename=param_filename)
+
+    #######################
+
+    # ------------------------------------------------------------
+    # Initialize the Galaxy and Instrument
+    gal = galaxy.Galaxy(z=params['z'], name=params['galID'])
+    inst = instrument.Instrument()
+
+    # ------------------------------------------------------------
+    # Load data:
+    if data is None:
+        if ndim == 1:
+            if 'fdata_mask' in params.keys():
+                fdata_mask = params['fdata_mask']
+            else:
+                fdata_mask = None
+            data = data_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask,
+                        params=params, datadir=datadir)
+            data.filename_velocity = datadir+params['fdata']
+        elif ndim == 2:
+            data = data_io.load_single_object_2D_data(params=params)
+        elif ndim == 3:
+            data = data_io.load_single_object_3D_data(params=params, skip_automask=skip_automask,
+                            skip_auto_truncate_crop=skip_auto_truncate_crop,
+                            return_crop_info=return_crop_info)
+        else:
+            raise ValueError("ndim={} not recognized!".format(ndim))
+
+
+    # --------------------------------------
+    # Set up the instrument
+    inst = setup_instrument_params(inst=inst, params=params)
+
+    # Add the data and instrument to the Galaxy
+    gal.data = data
+    gal.instrument = inst
+
+    return gal
+
 # ------------------------------------------------------------
 def setup_single_object_1D(params=None, data=None):
     # ------------------------------------------------------------
