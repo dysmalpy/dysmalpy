@@ -191,6 +191,16 @@ def _fit_emcee_221(gal, **kwargs ):
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_param_corner.{}'.format(kwargs_fit['plot_type'])
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
+
+    # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_spaxel'] is None):
+        kwargs_fit['f_plot_spaxel'] = kwargs_fit['outdir']+'mcmc_best_fit_spaxels.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_aperture'] is None):
+        kwargs_fit['f_plot_aperture'] = kwargs_fit['outdir']+'mcmc_best_fit_apertures.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_channel'] is None):
+        kwargs_fit['f_plot_channel'] = kwargs_fit['outdir']+'mcmc_best_fit_channel.{}'.format(kwargs_fit['plot_type'])
+
+
     if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
         # LEGACY SUPPORT: WILL BE DEPRECIATED:
         if kwargs_fit['f_mcmc_results'] is not None:
@@ -229,6 +239,10 @@ def _fit_emcee_221(gal, **kwargs ):
 
     if not kwargs_fit['do_plotting']:
         fname_keys = ['f_plot_trace', 'f_plot_trace_burnin', 'f_plot_param_corner', 'f_plot_bestfit']
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        if (gal.data.ndim == 3):
+            for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
+                fname_keys.append(kw)
         for fk in fname_keys:
             kwargs_fit[fk] = None
 
@@ -677,6 +691,17 @@ def _fit_emcee_3(gal, **kwargs ):
             kwargs_fit['f_results'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir']+'mcmc_best_fit.{}'.format(kwargs_fit['plot_type'])
+
+
+    # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_spaxel'] is None):
+        kwargs_fit['f_plot_spaxel'] = kwargs_fit['outdir']+'mcmc_best_fit_spaxels.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_aperture'] is None):
+        kwargs_fit['f_plot_aperture'] = kwargs_fit['outdir']+'mcmc_best_fit_apertures.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_channel'] is None):
+        kwargs_fit['f_plot_channel'] = kwargs_fit['outdir']+'mcmc_best_fit_channel.{}'.format(kwargs_fit['plot_type'])
+
+
     if kwargs_fit['f_plot_param_corner'] is None:
         kwargs_fit['f_plot_param_corner'] = kwargs_fit['outdir']+'mcmc_results.pickle'
     if kwargs_fit['f_chain_ascii'] is None:
@@ -710,8 +735,13 @@ def _fit_emcee_3(gal, **kwargs ):
 
     if not kwargs_fit['do_plotting']:
         fname_keys = ['f_plot_trace', 'f_plot_trace_burnin', 'f_plot_param_corner', 'f_plot_bestfit']
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        if (gal.data.ndim == 3):
+            for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
+                fname_keys.append(kw)
         for fk in fname_keys:
             kwargs_fit[fk] = None
+
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
@@ -1089,6 +1119,15 @@ def fit_mpfit(gal, **kwargs):
         kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mpfit_bestfit_cube.fits'
     if kwargs_fit['f_plot_bestfit'] is None:
         kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir'] + 'mpfit_best_fit.{}'.format(kwargs_fit['plot_type'])
+
+    # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_spaxel'] is None):
+        kwargs_fit['f_plot_spaxel'] = kwargs_fit['outdir']+'mpfit_best_fit_spaxels.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_aperture'] is None):
+        kwargs_fit['f_plot_aperture'] = kwargs_fit['outdir']+'mpfit_best_fit_apertures.{}'.format(kwargs_fit['plot_type'])
+    if (gal.data.ndim == 3) & (kwargs_fit['f_plot_channel'] is None):
+        kwargs_fit['f_plot_channel'] = kwargs_fit['outdir']+'mpfit_best_fit_channel.{}'.format(kwargs_fit['plot_type'])
+
     if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
         kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
     if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
@@ -1120,8 +1159,13 @@ def fit_mpfit(gal, **kwargs):
 
     if not kwargs_fit['do_plotting']:
         fname_keys = ['f_plot_bestfit']
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        if (gal.data.ndim == 3):
+            for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
+                fname_keys.append(kw)
         for fk in fname_keys:
             kwargs_fit[fk] = None
+
 
     # ---------------------------------------------------
     # Check for existing files if overwrite=False:
@@ -1258,6 +1302,9 @@ class FitResults(object):
     def __init__(self,
                  model=None,
                  f_plot_bestfit=None,
+                 f_plot_spaxel=None,
+                 f_plot_aperture=None,
+                 f_plot_channel=None,
                  f_results=None,
                  fit_method=None):
 
@@ -1278,6 +1325,12 @@ class FitResults(object):
             self.chain_param_names = None
 
         self.f_plot_bestfit = f_plot_bestfit
+
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        self.f_plot_spaxel = f_plot_spaxel
+        self.f_plot_aperture = f_plot_aperture
+        self.f_plot_channel = f_plot_channel
+
         self.f_results = f_results
         self.fit_method = fit_method
 
@@ -1369,6 +1422,10 @@ class FitResults(object):
 
     def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, fileout=None, overwrite=False, **kwargs_galmodel):
         """Plot/replot the bestfit for the MCMC fitting"""
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        # f_plot_spaxel=None,
+        # f_plot_aperture=None,
+        # f_plot_channel=None,
         #if fileout is None:
         #    fileout = self.f_plot_bestfit
         # Check for existing file:
@@ -1430,6 +1487,9 @@ class MCMCResults(FitResults):
                  f_sampler=None,
                  f_plot_param_corner=None,
                  f_plot_bestfit=None,
+                 f_plot_spaxel=None,
+                 f_plot_aperture=None,
+                 f_plot_channel=None,
                  f_results=None,
                  f_chain_ascii=None,
                  linked_posterior_names=None,
@@ -1455,7 +1515,8 @@ class MCMCResults(FitResults):
         self.blob_name = blob_name
 
         super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                                          f_results=f_results, fit_method='MCMC')
+                    f_plot_spaxel=f_plot_spaxel, f_plot_aperture=f_plot_aperture, f_plot_channel=f_plot_channel,
+                    f_results=f_results, fit_method='MCMC')
 
 
     def analyze_plot_save_results(self, gal,
@@ -1880,12 +1941,17 @@ class MCMCResults(FitResults):
 
 
     def plot_results(self, gal, fitdispersion=True, fitflux=False,
-                     f_plot_param_corner=None, f_plot_bestfit=None, f_plot_trace=None,
+                     f_plot_param_corner=None, f_plot_bestfit=None,
+                     f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
+                     f_plot_trace=None,
                      overwrite=False, **kwargs_galmodel):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
         self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
+                fileout=f_plot_bestfit, fileout_aperture=f_plot_aperture,
+                fileout_spaxel=f_plot_spaxel, fileout_channel=f_plot_channel,
+                overwrite=overwrite, **kwargs_galmodel)
         self.plot_trace(fileout=f_plot_trace, overwrite=overwrite)
 
 
@@ -1903,15 +1969,17 @@ class MPFITResults(FitResults):
     """
     Class to hold results of using MPFIT to fit to DYSMALPY models.
     """
-    def __init__(self, model=None, f_plot_bestfit=None, f_results=None, blob_name=None, **kwargs):
+    def __init__(self, model=None, f_plot_bestfit=None, f_plot_spaxel=None,
+                    f_plot_aperture=None, f_plot_channel=None,
+                    f_results=None, blob_name=None, **kwargs):
 
         self._mpfit_object = None
-
 
         self.blob_name = blob_name
 
         super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                                         f_results=f_results, fit_method='MPFIT')
+                        f_plot_spaxel=f_plot_spaxel, f_plot_aperture=f_plot_aperture, f_plot_channel=f_plot_channel,
+                        f_results=f_results, fit_method='MPFIT')
 
     def analyze_plot_save_results(self, gal,
                 kwargs_galmodel=None,
@@ -1962,6 +2030,9 @@ class MPFITResults(FitResults):
         if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
             plotting.plot_bestfit(self, gal, fitdispersion=kwargs_fit['fitdispersion'],
                             fitflux=kwargs_fit['fitflux'], fileout=kwargs_fit['f_plot_bestfit'],
+                            fileout_aperture=kwargs_fit['f_plot_aperture'],
+                            fileout_spaxel=kwargs_fit['f_plot_spaxel'],
+                            fileout_channel=kwargs_fit['f_plot_channel'],
                             overwrite=kwargs_fit['overwrite'], **kwargs_galmodel)
 
         # Save velocity / other profiles to ascii file:
@@ -2032,10 +2103,15 @@ class MPFITResults(FitResults):
 
 
     def plot_results(self, gal, fitdispersion=True, fitflux=False,
-                     f_plot_bestfit=None, overwrite=False, **kwargs_galmodel):
+                     f_plot_bestfit=None,
+                     f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
+                     overwrite=False, **kwargs_galmodel):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
         self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                         fileout=f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
+                         fileout=f_plot_bestfit, fileout_aperture=f_plot_aperture,
+                         fileout_spaxel=f_plot_spaxel, fileout_channel=f_plot_channel,
+                         overwrite=overwrite, **kwargs_galmodel)
 
 
 def log_prob(theta, gal,

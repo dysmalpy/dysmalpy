@@ -188,7 +188,6 @@ def setup_single_object_3D(params=None, data=None):
     if data is None:
         data = data_io.load_single_object_3D_data(params=params)
 
-
     # ------------------------------------------------------------
     # Setup galaxy, instrument, model:
 
@@ -205,6 +204,16 @@ def setup_single_object_3D(params=None, data=None):
     # ------------------------------------------------------------
 
     gal.data = data
+
+    ### Load comparison data, if existing:   (CAUTION!!!)
+    if 'fdata_1d' in params.keys():
+        gal.data1d_2 = data_io.load_single_object_1D_data(fdata=params['fdata_1d'], params=params, extra='_1d')
+        gal.data1d_2.filename_velocity = params['datadir']+params['fdata_1d']
+
+    if 'fdata_vel_2d' in params.keys():
+        gal.data2d_2 = data_io.load_single_object_2D_data(params=params, extra='_2d')
+        gal.data2d_2.filename_velocity = params['datadir']+params['fdata_vel_2d']
+
 
     # ------------------------------------------------------------
     # Setup fitting dict:
@@ -1460,6 +1469,10 @@ def setup_mcmc_dict(params=None, ndim_data=None):
         f_model_bestfit = outdir+'{}{}_out-velmaps.fits'.format(galID, filename_extra)
     elif ndim_data == 3:
         f_model_bestfit = outdir+'{}{}_out-cube.fits'.format(galID, filename_extra)
+
+        f_plot_spaxel = outdir+'{}{}_spaxels.{}'.format(galID, filename_extra, plot_type)
+        f_plot_aperture = outdir+'{}{}_apertures.{}'.format(galID, filename_extra, plot_type)
+        f_plot_channel = outdir+'{}{}_channel.{}'.format(galID, filename_extra, plot_type)
     elif ndim_data == 0:
         f_model_bestfit = outdir+'{}{}_out-0d.txt'.format(galID, filename_extra)
     else:
@@ -1503,6 +1516,11 @@ def setup_mcmc_dict(params=None, ndim_data=None):
                 'f_mass_ascii': f_mass_ascii,
                 'f_log': f_log}
 
+    if ndim_data == 3:
+        mcmc_dict['f_plot_spaxel']   = f_plot_spaxel
+        mcmc_dict['f_plot_aperture'] = f_plot_aperture
+        mcmc_dict['f_plot_channel']  = f_plot_channel
+
     for key in params.keys():
         # # Copy over all various fitting options
         # mcmc_dict[key] = params[key]
@@ -1514,6 +1532,9 @@ def setup_mcmc_dict(params=None, ndim_data=None):
     fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
                 'f_vel_ascii', 'f_vel_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
+    if ndim_data == 3:
+        for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
+            fname_overridable.append(kw)
     for key in fname_overridable:
         if key in params.keys():
             if params[key] is not None:
@@ -1609,6 +1630,11 @@ def setup_mpfit_dict(params=None, ndim_data=None):
         f_model_bestfit = outdir+'{}{}_out-velmaps.fits'.format(galID, filename_extra)
     elif ndim_data == 3:
         f_model_bestfit = outdir+'{}{}_out-cube.fits'.format(galID, filename_extra)
+
+        f_plot_spaxel = outdir+'{}{}_spaxels.{}'.format(galID, filename_extra, plot_type)
+        f_plot_aperture = outdir+'{}{}_apertures.{}'.format(galID, filename_extra, plot_type)
+        f_plot_channel = outdir+'{}{}_channel.{}'.format(galID, filename_extra, plot_type)
+
     elif ndim_data == 0:
         f_model_bestfit = outdir+'{}{}_out-0d.txt'.format(galID, filename_extra)
     else:
@@ -1626,6 +1652,12 @@ def setup_mpfit_dict(params=None, ndim_data=None):
                   'f_mass_ascii': f_mass_ascii,
                   'f_log': f_log}
 
+
+    if ndim_data == 3:
+        mpfit_dict['f_plot_spaxel']   = f_plot_spaxel
+        mpfit_dict['f_plot_aperture'] = f_plot_aperture
+        mpfit_dict['f_plot_channel']  = f_plot_channel
+
     for key in params.keys():
         # # Copy over all various fitting options
         # mpfit_dict[key] = params[key]
@@ -1638,6 +1670,9 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     fname_overridable = ['f_model', 'f_model_bestfit', 'f_cube', 'f_results',
                 'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii',
                 'f_plot_bestfit', 'f_plot_bestfit_multid', 'f_log' ]
+    if ndim_data == 3:
+        for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
+            fname_overridable.append(kw)
     for key in fname_overridable:
         if key in params.keys():
             if params[key] is not None:
@@ -1650,31 +1685,31 @@ def setup_mpfit_dict(params=None, ndim_data=None):
     return mpfit_dict
 
 
-def setup_basic_aperture_types(gal=None, params=None):
+def setup_basic_aperture_types(gal=None, params=None, extra=''):
 
-    if ('aperture_radius' in params.keys()):
-        aperture_radius=params['aperture_radius']
+    if ('aperture_radius'+extra in params.keys()):
+        aperture_radius=params['aperture_radius'+extra]
     else:
         aperture_radius = None
 
-    if ('pix_perp' in params.keys()):
-        pix_perp=params['pix_perp']
+    if ('pix_perp'+extra in params.keys()):
+        pix_perp=params['pix_perp'+extra]
     else:
         pix_perp = None
 
-    if ('pix_parallel' in params.keys()):
-        pix_parallel=params['pix_parallel']
+    if ('pix_parallel'+extra in params.keys()):
+        pix_parallel=params['pix_parallel'+extra]
     else:
         pix_parallel = None
 
-    if ('pix_length' in params.keys()):
-        pix_length=params['pix_length']
+    if ('pix_length'+extra in params.keys()):
+        pix_length=params['pix_length'+extra]
     else:
         pix_length = None
 
 
-    if ('partial_weight' in params.keys()):
-        partial_weight = params['partial_weight']
+    if ('partial_weight'+extra in params.keys()):
+        partial_weight = params['partial_weight'+extra]
     else:
         # # Preserve previous default behavior
         # partial_weight = False
@@ -1682,8 +1717,8 @@ def setup_basic_aperture_types(gal=None, params=None):
         ## NEW default behavior: always use partial_weight:
         partial_weight = True
 
-    if ('moment_calc' in params.keys()):
-        moment_calc = params['moment_calc']
+    if ('moment_calc'+extra in params.keys()):
+        moment_calc = params['moment_calc'+extra]
     else:
         moment_calc = False
 

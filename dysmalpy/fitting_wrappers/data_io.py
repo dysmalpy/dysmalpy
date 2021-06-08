@@ -273,13 +273,13 @@ def make_catalog_row_entry(ascii_data=None, galID=None):
     return data
 
 
-def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir=None):
+def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir=None, extra=''):
 
     # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
     if datadir is None:
         # If datadir not passed directly, look for entry in params file:
-        if 'datadir' in params.keys():
-            datadir = params['datadir']
+        if 'datadir'+extra in params.keys():
+            datadir = params['datadir'+extra]
         # If not passed directly as kwarg, and missing from params file, set to empty -- filenames must be full path.
         if datadir is None:
             datadir = ''
@@ -299,6 +299,16 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
         gal_flux = None
         err_flux = None
 
+    if 'r_shift'+extra in params.keys():
+        # Apply a shift to the radius, if specified:
+        if params['r_shift'+extra] is not None:
+            gal_r += params['r_shift'+extra]
+
+
+    if 'v_shift'+extra in params.keys():
+        # Apply a shift to the radius, if specified:
+        if params['v_shift'+extra] is not None:
+            gal_vel += params['v_shift'+extra]
 
     if fdata_mask is not None:
         if os.path.isfile(datadir+fdata_mask):
@@ -315,7 +325,7 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
     #####
     # Apply symmetrization if wanted:
     try:
-        if params['symmetrize_data']:
+        if params['symmetrize_data'+extra]:
             gal_r_new, gal_vel, err_vel = dysmalpy_utils.symmetrize_1D_profile(gal_r, gal_vel, err_vel, sym=1)
             gal_r, gal_disp, err_disp = dysmalpy_utils.symmetrize_1D_profile(gal_r, gal_disp, err_disp, sym=2)
             if gal_flux is not None:
@@ -324,18 +334,18 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
         pass
 
 
-    if 'weighting_method' in params.keys():
-        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=gal_r)
+    if 'weighting_method'+extra in params.keys():
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'+extra], r=gal_r)
     else:
         gal_weight = None
     #
-    if ('xcenter' in params.keys()):
-        xcenter = params['xcenter']
+    if ('xcenter'+extra in params.keys()):
+        xcenter = params['xcenter'+extra]
     else:
         xcenter = None
     #
-    if ('ycenter' in params.keys()):
-        ycenter = params['ycenter']
+    if ('ycenter'+extra in params.keys()):
+        ycenter = params['ycenter'+extra]
     else:
         ycenter = None
 
@@ -344,15 +354,15 @@ def load_single_object_1D_data(fdata=None, fdata_mask=None, params=None, datadir
                                 flux=gal_flux, flux_err=err_flux,
                                 weight=gal_weight,
                                 mask_velocity=msk_vel, mask_vel_disp=msk_disp,
-                                slit_width=params['slit_width'],
-                                slit_pa=params['slit_pa'], inst_corr=params['data_inst_corr'],
+                                slit_width=params['slit_width'+extra],
+                                slit_pa=params['slit_pa'+extra], inst_corr=params['data_inst_corr'+extra],
                                 xcenter=xcenter, ycenter=ycenter)
 
     return data1d
 
 def load_single_object_2D_data(params=None, adjust_error=False,
             automask=True, vmax=500., dispmax=600.,
-            skip_crop=False, datadir=None):
+            skip_crop=False, datadir=None, extra=''):
 
     # +++++++++++++++++++++++++++++++++++++++++++
     # Load the data set to be fit
@@ -361,23 +371,23 @@ def load_single_object_2D_data(params=None, adjust_error=False,
     # Setup datadir, if set. If not set (so datadir=None), fdata must be the full path.
     if datadir is None:
         # If datadir not passed directly, look for entry in params file:
-        if 'datadir' in params.keys():
-            datadir = params['datadir']
+        if 'datadir'+extra in params.keys():
+            datadir = params['datadir'+extra]
         # If not passed directly as kwarg, and missing from params file, set to empty -- filenames must be full path.
         if datadir is None:
             datadir = ''
 
 
-    gal_vel = fits.getdata(datadir+params['fdata_vel'])
-    err_vel = fits.getdata(datadir+params['fdata_verr'])
-    if params['fitdispersion']:
-        gal_disp = fits.getdata(datadir+params['fdata_disp'])
-        err_disp = fits.getdata(datadir+params['fdata_derr'])
-    if params['fitflux']:
-        gal_flux = fits.getdata(datadir+params['fdata_flux'])
-        err_flux = fits.getdata(datadir+params['fdata_ferr'])
+    gal_vel = fits.getdata(datadir+params['fdata_vel'+extra])
+    err_vel = fits.getdata(datadir+params['fdata_verr'+extra])
+    if params['fitdispersion'+extra]:
+        gal_disp = fits.getdata(datadir+params['fdata_disp'+extra])
+        err_disp = fits.getdata(datadir+params['fdata_derr'+extra])
+    if params['fitflux'+extra]:
+        gal_flux = fits.getdata(datadir+params['fdata_flux'+extra])
+        err_flux = fits.getdata(datadir+params['fdata_ferr'+extra])
 
-    mask = fits.getdata(datadir+params['fdata_mask'])
+    mask = fits.getdata(datadir+params['fdata_mask'+extra])
 
 
     # Mask NaNs:
@@ -387,13 +397,13 @@ def load_single_object_2D_data(params=None, adjust_error=False,
     mask[~np.isfinite(err_vel)] = 0
     err_vel[~np.isfinite(err_vel)] = 0.
 
-    if params['fitdispersion']:
+    if params['fitdispersion'+extra]:
         mask[~np.isfinite(gal_disp)] = 0
         gal_disp[~np.isfinite(gal_disp)] = 0.
 
         mask[~np.isfinite(err_disp)] = 0
         err_disp[~np.isfinite(err_disp)] = 0.
-    if params['fitflux']:
+    if params['fitflux'+extra]:
         mask[~np.isfinite(gal_flux)] = 0
         gal_flux[~np.isfinite(gal_flux)] = 0.
 
@@ -412,11 +422,11 @@ def load_single_object_2D_data(params=None, adjust_error=False,
         errv_l68 = np.percentile(err_vel, 15.865)
         indv = (err_vel < errv_l68)
         err_vel[indv] = errv_l68
-        if params['fitdispersion']:
+        if params['fitdispersion'+extra]:
             errd_l68 = np.percentile(err_disp, 15.865)
             indd = (err_disp < errd_l68)
             err_disp[indd] = errd_l68
-        if params['fitflux']:
+        if params['fitflux'+extra]:
             errf_l68 = np.percentile(err_flux, 15.865)
             indf = (err_flux < errf_l68)
             err_flux[indf] = errf_l68
@@ -424,15 +434,15 @@ def load_single_object_2D_data(params=None, adjust_error=False,
 
     # Mask pixels with zero error for vel/disp:
     mask[(err_vel == 0)] = 0
-    if params['fitdispersion']:
+    if params['fitdispersion'+extra]:
         mask[(err_disp == 0)] = 0
-    if params['fitflux']:
+    if params['fitflux'+extra]:
         mask[(err_flux == 0)] = 0
 
     #####
     # Apply symmetrization if wanted:
     try:
-        if params['symmetrize_data']:
+        if params['symmetrize_data'+extra]:
             ybin, xbin = np.indices(gal_vel.shape, dtype=np.float64)
             ybin = ybin.flatten()
             xbin = xbin.flatten()
@@ -456,7 +466,7 @@ def load_single_object_2D_data(params=None, adjust_error=False,
             gal_vel[bool_mask] = gal_vel_flat[bool_mask_flat]
             err_vel[bool_mask] = err_vel_flat[bool_mask_flat]
 
-            if params['fitdispersion']:
+            if params['fitdispersion'+extra]:
                 gal_disp_flat_in = gal_disp.flatten()
                 err_disp_flat_in = err_disp.flatten()
                 gal_disp_flat_in[~bool_mask_flat] = np.NaN
@@ -467,7 +477,7 @@ def load_single_object_2D_data(params=None, adjust_error=False,
 
                 gal_disp[bool_mask] = gal_disp_flat[bool_mask_flat]
                 err_disp[bool_mask] = err_disp_flat[bool_mask_flat]
-            if params['fitflux']:
+            if params['fitflux'+extra]:
                 gal_flus_flat_in = gal_flux.flatten()
                 err_flux_flat_in = err_flux.flatten()
                 gal_flux_flat_in[~bool_mask_flat] = np.NaN
@@ -483,34 +493,34 @@ def load_single_object_2D_data(params=None, adjust_error=False,
         pass
 
     #
-    if 'weighting_method' in params.keys():
-        gal_weight = setup_data_weighting_method(method=params['weighting_method'], r=None)
+    if 'weighting_method'+extra in params.keys():
+        gal_weight = setup_data_weighting_method(method=params['weighting_method'+extra], r=None)
     else:
         gal_weight = None
 
     #
-    if ('moment_calc' in params.keys()):
-        moment_calc = params['moment_calc']
+    if ('moment_calc'+extra in params.keys()):
+        moment_calc = params['moment_calc'+extra]
     else:
         moment_calc = False
-    if ('xcenter' in params.keys()):
-        xcenter = params['xcenter']
+    if ('xcenter'+extra in params.keys()):
+        xcenter = params['xcenter'+extra]
     else:
         xcenter = None
-    if ('ycenter' in params.keys()):
-        ycenter = params['ycenter']
+    if ('ycenter'+extra in params.keys()):
+        ycenter = params['ycenter'+extra]
     else:
         ycenter = None
 
-    if params['fitdispersion']:
-        file_disp = datadir+params['fdata_disp']
+    if params['fitdispersion'+extra]:
+        file_disp = datadir+params['fdata_disp'+extra]
     else:
         file_disp = None
         gal_disp = None
         err_disp = None
-    if params['fitflux']:
+    if params['fitflux'+extra]:
         try:
-            file_flux = datadir+params['fdata_flux']
+            file_flux = datadir+params['fdata_flux'+extra]
         except:
             file_flux = None
     else:
@@ -521,17 +531,17 @@ def load_single_object_2D_data(params=None, adjust_error=False,
 
     # Crop, if desired
     if not skip_crop:
-        if 'cropbox' in params.keys():
-            if params['cropbox'] is not None:
-                crp = params['cropbox']
+        if 'cropbox'+extra in params.keys():
+            if params['cropbox'+extra] is not None:
+                crp = params['cropbox'+extra]
                 # cropbox: l r b t
                 mask = mask[crp[2]:crp[3], crp[0]:crp[1]]
                 gal_vel = gal_vel[crp[2]:crp[3], crp[0]:crp[1]]
                 err_vel = err_vel[crp[2]:crp[3], crp[0]:crp[1]]
-                if params['fitdispersion']:
+                if params['fitdispersion'+extra]:
                     gal_disp = gal_disp[crp[2]:crp[3], crp[0]:crp[1]]
                     err_disp = err_disp[crp[2]:crp[3], crp[0]:crp[1]]
-                if params['fitflux']:
+                if params['fitflux'+extra]:
                     gal_flux = gal_flux[crp[2]:crp[3], crp[0]:crp[1]]
                     err_flux = err_flux[crp[2]:crp[3], crp[0]:crp[1]]
                 if gal_weight is not None:
@@ -539,35 +549,35 @@ def load_single_object_2D_data(params=None, adjust_error=False,
                 if xcenter is not None:
                     xcenter -= crp[0]
                     ycenter -= crp[2]
-        elif params['fov_npix'] < min(gal_vel.shape):
-            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'])/2.))
-            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'])/2.))
-            gal_vel = gal_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            err_vel = err_vel[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            if params['fitdispersion']:
-                gal_disp = gal_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-                err_disp = err_disp[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-            if params['fitflux']:
-                gal_flux = gal_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
-                err_flux = err_flux[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+        elif params['fov_npix'+extra] < min(gal_vel.shape):
+            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'+extra])/2.))
+            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'+extra])/2.))
+            gal_vel = gal_vel[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
+            err_vel = err_vel[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
+            if params['fitdispersion'+extra]:
+                gal_disp = gal_disp[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
+                err_disp = err_disp[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
+            if params['fitflux'+extra]:
+                gal_flux = gal_flux[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
+                err_flux = err_flux[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
 
-            mask = mask[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+            mask = mask[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
             if gal_weight is not None:
-                gal_weight = gal_weight[crp_y:params['fov_npix']+crp_y, crp_x:params['fov_npix']+crp_x]
+                gal_weight = gal_weight[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
 
 
-    data2d = data_classes.Data2D(pixscale=params['pixscale'], velocity=gal_vel,
+    data2d = data_classes.Data2D(pixscale=params['pixscale'+extra], velocity=gal_vel,
                                       vel_disp=gal_disp, vel_err=err_vel,
                                       vel_disp_err=err_disp,
                                       flux=gal_flux, flux_err=err_flux,
                                       mask=mask,
                                       weight=gal_weight,
-                                      filename_velocity=datadir+params['fdata_vel'],
+                                      filename_velocity=datadir+params['fdata_vel'+extra],
                                       filename_dispersion=file_disp,
                                       filename_flux=file_flux,
-                                      smoothing_type=params['smoothing_type'],
-                                      smoothing_npix=params['smoothing_npix'],
-                                      inst_corr=params['data_inst_corr'],
+                                      smoothing_type=params['smoothing_type'+extra],
+                                      smoothing_npix=params['smoothing_npix'+extra],
+                                      inst_corr=params['data_inst_corr'+extra],
                                       moment=moment_calc,
                                       xcenter=xcenter, ycenter=ycenter)
 
@@ -743,7 +753,7 @@ def load_single_object_3D_data(params=None, datadir=None,
                     print("  but 'auto_gen_3D_mask'={}, ".format(auto_gen_3D_mask))
                     print("  so automatically generating mask")
 
-            mask = generate_3D_mask(cube=cube, err=err_cube, params=params)
+            mask, mask_dict = generate_3D_mask(cube=cube, err=err_cube, params=params)
 
 
     # Catch final cases: skip_automask=True or 'auto_gen_3D_mask' not in params.keys():
@@ -770,6 +780,9 @@ def load_single_object_3D_data(params=None, datadir=None,
         smoothing_npix=params['smoothing_npix']
     else:
         smoothing_npix = 1
+
+
+    #print("xcenter={}, ycenter={}".format(xcenter, ycenter))
 
     data3d = data_classes.Data3D(cube, pixscale=pscale, spec_type='velocity', spec_arr=spec_arr,
                                       err_cube=err_cube, mask_cube=mask,
@@ -814,7 +827,7 @@ def generate_3D_mask(gal=None, cube=None, err=None, params=None,
                             the gal.data.data, gal.data.error cubes
 
     Output:
-            mask (3D cube)
+            mask (3D cube), mask_dict (info about generated mask)
     """
     if cube is None:
         cube = gal.data.data.unmasked_data[:].value * gal.data.mask

@@ -58,24 +58,25 @@ def plot_bestfit(mcmcResults, gal,
                  fitflux=False,
                  show_1d_apers=False,
                  fileout=None,
-                 fileout_apertures=None,
-                 fileout_all_spax=None,
+                 fileout_aperture=None,
+                 fileout_spaxel=None,
                  fileout_channel=None,
                  vcrop=False,
                  vcrop_value=800.,
                  remove_shift=False,
                  overwrite=False,
                  moment=False,
+                 fill_mask=True,
                  **kwargs_galmodel):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
             fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
-            fileout_apertures=fileout_apertures, fileout_all_spax=fileout_all_spax,
+            fileout_aperture=fileout_aperture, fileout_spaxel=fileout_spaxel,
             fileout_channel=fileout_channel,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
-            remove_shift=remove_shift, moment=moment,
+            remove_shift=remove_shift, moment=moment, fill_mask=fill_mask,
             overwrite=overwrite, **kwargs_galmodel)
 
     return None
@@ -337,8 +338,8 @@ def plot_data_model_comparison(gal,theta = None,
                                fitdispersion=True,
                                fitflux=False,
                                fileout=None,
-                               fileout_apertures=None,
-                               fileout_all_spax=None,
+                               fileout_aperture=None,
+                               fileout_spaxel=None,
                                fileout_channel=None,
                                show_multid=True,
                                show_apertures=True,
@@ -350,6 +351,7 @@ def plot_data_model_comparison(gal,theta = None,
                                remove_shift=False,
                                overwrite=False,
                                moment=False,
+                               fill_mask=True,
                                **kwargs_galmodel):
     """
     Plot data, model, and residuals between the data and this model.
@@ -393,8 +395,8 @@ def plot_data_model_comparison(gal,theta = None,
                     theta = theta,
                     show_1d_apers=show_1d_apers,
                     fileout=fileout,
-                    fileout_apertures=fileout_apertures,
-                    fileout_all_spax=fileout_all_spax,
+                    fileout_aperture=fileout_aperture,
+                    fileout_spaxel=fileout_spaxel,
                     fileout_channel=fileout_channel,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
@@ -404,6 +406,7 @@ def plot_data_model_comparison(gal,theta = None,
                     show_apertures=show_apertures,
                     show_all_spax=show_all_spax,
                     show_channel=show_channel,
+                    fill_mask=fill_mask,
                     **kwargs_galmodel)
 
     elif gal.data.ndim == 0:
@@ -828,6 +831,10 @@ def plot_data_model_comparison_2D(gal,
         imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                          vmin=vel_vmin, vmax=vel_vmax, origin=origin)
 
+
+
+        ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+
         if k == 'data':
             ax.set_ylabel(keyytitlearr[0])
             for pos in ['top', 'bottom', 'left', 'right']:
@@ -906,6 +913,9 @@ def plot_data_model_comparison_2D(gal,
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
+
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
                 for pos in ['top', 'bottom', 'left', 'right']:
@@ -975,6 +985,8 @@ def plot_data_model_comparison_2D(gal,
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=flux_vmin, vmax=flux_vmax, origin=origin)
 
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[2])
                 for pos in ['top', 'bottom', 'left', 'right']:
@@ -1017,8 +1029,8 @@ def plot_data_model_comparison_2D(gal,
 def plot_data_model_comparison_3D(gal,
             theta = None,
             fileout=None,
-            fileout_apertures=None,
-            fileout_all_spax=None,
+            fileout_aperture=None,
+            fileout_spaxel=None,
             fileout_channel=None,
             symmetric_residuals=True,
             show_1d_apers = False,
@@ -1032,6 +1044,8 @@ def plot_data_model_comparison_3D(gal,
             show_apertures=True,
             show_all_spax=True,
             show_channel=True,
+            remove_shift=False,
+            fill_mask=True,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1051,16 +1065,18 @@ def plot_data_model_comparison_3D(gal,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
                     moment=moment,
+                    remove_shift=False,   # TRY THIS
+                    fill_mask=fill_mask,
                     **kwargs_galmodel)
 
     if show_all_spax:
-        #if fileout_all_spax is not None:
-        plot_spaxel_compare_3D_cubes(gal, fileout=fileout_all_spax,
+        #if fileout_spaxel is not None:
+        plot_spaxel_compare_3D_cubes(gal, fileout=fileout_spaxel,
                         typ='all', show_model=True, overwrite=overwrite)
 
     if show_apertures:
-        #if fileout_apertures is not None:
-        plot_aperture_compare_3D_cubes(gal, fileout=fileout_apertures, overwrite=overwrite)
+        #if fileout_aperture is not None:
+        plot_aperture_compare_3D_cubes(gal, fileout=fileout_aperture, overwrite=overwrite)
 
     if show_channel:
         #if fileout_channel is not None:
@@ -1089,6 +1105,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             remove_shift=True,
             overwrite=False,
             moment=False,
+            fill_mask=True,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1119,9 +1136,9 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
     elif gal.data.ndim == 3:
         print("plot_model_multid: ndim=3: moment={}".format(moment))
         if moment:
-            gal = extract_1D_2D_data_moments_from_cube(gal, inst_corr=True)
+            gal = extract_1D_2D_data_moments_from_cube(gal, inst_corr=True, fill_mask=fill_mask)
         else:
-            gal = extract_1D_2D_data_gausfit_from_cube(gal, inst_corr=True)
+            gal = extract_1D_2D_data_gausfit_from_cube(gal, inst_corr=True, fill_mask=fill_mask)
         # saves in gal.data1d, gal.data2d
 
         # Data haven't actually been corrected for instrument LSF yet
@@ -1138,6 +1155,13 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             im[~np.isfinite(im)] = 0.
             gal.data2d.data['dispersion'] = im
 
+        if 'filled_mask_data' in gal.data1d.__dict__.keys():
+            if gal.data1d.filled_mask_data.data['inst_corr']:
+                inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
+                disp_prof_1D = np.sqrt(gal.data1d.filled_mask_data.data['dispersion']**2 - inst_corr_sigma**2 )
+                disp_prof_1D[~np.isfinite(disp_prof_1D)] = 0.
+                gal.data1d.filled_mask_data.data['dispersion'] = disp_prof_1D
+
 
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
@@ -1145,7 +1169,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
                     fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr,
                     vcrop=vcrop, vcrop_value=vcrop_value,
-                    remove_shift=remove_shift, moment=moment,
+                    remove_shift=remove_shift, moment=moment, fill_mask=fill_mask,
                     overwrite=overwrite, **kwargs_galmodel)
 
 
@@ -1169,6 +1193,7 @@ def plot_model_multid_base(gal,
             remove_shift = True,
             inst_corr=None,
             moment=True,
+            fill_mask=True,
             overwrite=False,
             **kwargs_galmodel):
 
@@ -1536,6 +1561,9 @@ def plot_model_multid_base(gal,
                                     remove_shift=remove_shift)
 
 
+
+                ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+
                 ####################################
                 # Show a 1arcsec line:
                 xlim = ax.get_xlim()
@@ -1634,8 +1662,8 @@ def plot_model_multid_base(gal,
 
             else:
                 # Testing with Emily's models -- no shifts applied from Hannah
-                #pass
-                gal.model.geometry.vel_shift = 0
+                pass
+                #gal.model.geometry.vel_shift = 0
 
         elif galorig.data.ndim == 1:
             if remove_shift:
@@ -1643,7 +1671,6 @@ def plot_model_multid_base(gal,
                 gal.model.geometry.xshift = 0
                 gal.model.geometry.yshift = 0
                 gal.data.aper_center_pix_shift = (0,0)
-                #pass
                 gal.model.geometry.vel_shift = 0
 
 
@@ -1673,6 +1700,12 @@ def plot_model_multid_base(gal,
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - inst_corr_sigma**2 )
 
+
+        # COMPARE TO EXISTING PROFILES:
+        if 'data1d_2' in galnew.__dict__.keys():
+            data1d_2 = galnew.data1d_2.copy()
+        else:
+            data1d_2 = None
 
         ######################################
 
@@ -1707,13 +1740,47 @@ def plot_model_multid_base(gal,
                     except:
                         pass
 
-                    ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
-                        c='red', marker='s', s=25, lw=1, label='Model')
+
+                    if fill_mask:
+                        ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
+                            edgecolors='red', facecolors='none', marker='s', s=25, lw=1, zorder=-10., label='Model')
+                    else:
+                        ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
+                            c='red', marker='s', s=25, lw=1, label='Model')
+
+
+
+                    if data1d_2 is not None:
+                        if data1d_2.data[keyyarr[j]] is not None:
+                            ax.errorbar( data1d_2.rarr, data1d_2.data[keyyarr[j]],
+                                    xerr=None, yerr = data1d_2.error[keyyarr[j]],
+                                    marker=None, ls='None', ecolor='blue', zorder=-5.,
+                                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+                            ax.scatter( data1d_2.rarr, data1d_2.data[keyyarr[j]],
+                                edgecolors='blue', facecolors='none', marker='o', s=25, lw=1, #zorder=-0.5,
+                                label='Data2')
+                            rrange = data1d_2.rarr.max() - data1d_2.rarr.min()
+                            xlim = [data1d_2.rarr.min() - padfacxlim*rrange, data1d_2.rarr.max() + padfacxlim*rrange]
+
+
+                    ylim = ax.get_ylim()
+
+                    if fill_mask:
+                        if 'filled_mask_data' in data.__dict__.keys():
+                            #ylim = [data.filled_mask_data.data[keyyarr[j]].min(), data.filled_mask_data.data[keyyarr[j]].max()]
+                            ax.errorbar( data.filled_mask_data.rarr, data.filled_mask_data.data[keyyarr[j]],
+                                    xerr=None, yerr = data.filled_mask_data.error[keyyarr[j]],
+                                    marker=None, ls='None', ecolor='grey', zorder=-1.,
+                                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+                            ax.scatter( data.filled_mask_data.rarr, data.filled_mask_data.data[keyyarr[j]],
+                                edgecolors='grey', facecolors='none', marker='o', s=25, lw=1, label='Unmasked data')
+
                     ax.set_xlabel(keyxtitle)
                     ax.set_ylabel(keyytitlearr[j])
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
 
                     ax.set_xlim(xlim)
+                    ax.set_ylim(ylim)
 
                     if ((show_1d_apers) & (data2d is not None)):
                         # Color gradient background:
@@ -1761,7 +1828,8 @@ def plot_model_multid_base(gal,
                             c='red', marker='s', s=25, lw=1, label=None)
                     except:
                         pass
-                    #
+
+
                     ax.set_xlabel(keyxtitle)
                     ax.set_ylabel(keyytitlearrresid[j])
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
@@ -2771,58 +2839,11 @@ def plot_model_2D(gal,
                               cbar_pad="1%",
                               )
 
-
-    # if fitdispersion:
-    #     grid_vel = ImageGrid(f, 121,
-    #                          nrows_ncols=(1, 1),
-    #                          direction="row",
-    #                          axes_pad=0.5,
-    #                          add_all=True,
-    #                          label_mode="1",
-    #                          share_all=True,
-    #                          cbar_location="right",
-    #                          cbar_mode="each",
-    #                          cbar_size="5%",
-    #                          cbar_pad="1%",
-    #                          )
-    #
-    #     grid_disp = ImageGrid(f, 122,
-    #                           nrows_ncols=(1, 1),
-    #                           direction="row",
-    #                           axes_pad=0.5,
-    #                           add_all=True,
-    #                           label_mode="1",
-    #                           share_all=True,
-    #                           cbar_location="right",
-    #                           cbar_mode="each",
-    #                           cbar_size="5%",
-    #                           cbar_pad="1%",
-    #                           )
-    #
-    # else:
-    #     grid_vel = ImageGrid(f, 111,
-    #                          nrows_ncols=(1, 1),
-    #                          direction="row",
-    #                          axes_pad=0.5,
-    #                          add_all=True,
-    #                          label_mode="1",
-    #                          share_all=True,
-    #                          cbar_location="right",
-    #                          cbar_mode="each",
-    #                          cbar_size="5%",
-    #                          cbar_pad="1%",
-    #                          )
-
-
     #
     keyxarr = ['model']
     keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Model']
     keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
-
-    #f.set_size_inches(1.1*ncols*scale, nrows*scale)
-    #gs = gridspec.GridSpec(nrows, ncols, wspace=0.05, hspace=0.05)
-
 
 
     int_mode = "nearest"
@@ -2838,10 +2859,6 @@ def plot_model_2D(gal,
     if np.abs(vel_vmin) > 400.:
         vel_vmin = -400.
 
-    # try:
-    #     vel_shift = gal.model.get_vel_shift(model_key_vel_shift=model_key_vel_shift)
-    # except:
-    #     vel_shift = 0
     vel_shift = gal.model.geometry.vel_shift.value
     #
     vel_vmin -= vel_shift
@@ -2860,6 +2877,8 @@ def plot_model_2D(gal,
         ax.set_yticks([])
 
         ax.set_ylabel(keyytitlearr[0])
+
+        ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
 
         cbar = ax.cax.colorbar(imax)
         cbar.ax.tick_params(labelsize=8)
@@ -2894,6 +2913,8 @@ def plot_model_2D(gal,
             ax.set_xticks([])
             ax.set_yticks([])
 
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
 
@@ -2915,6 +2936,8 @@ def plot_model_2D(gal,
                 ax.spines[pos].set_visible(False)
             ax.set_xticks([])
             ax.set_yticks([])
+
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
@@ -3216,6 +3239,9 @@ def plot_model_2D_residual(gal,
                                 textcoords="offset points", ha="left", va="center",
                                 fontsize=8)
                 ####################################
+
+
+                ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
 
                 if j == 0:
                     ax.set_ylabel(yt)
@@ -3613,7 +3639,8 @@ def make_clean_mcmc_plot_names(mcmcResults):
 
 def extract_1D_2D_data_gausfit_from_cube(gal,
             slit_width=None, slit_pa=None,
-            aper_dist=None, inst_corr=True):
+            aper_dist=None, inst_corr=True,
+            fill_mask=True):
     try:
         if gal.data2d is not None:
             extract = False
@@ -3641,7 +3668,7 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
         gal.data1d = extract_1D_from_cube(gal.data.data, gal,
                 errcube=gal.data.error,
                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-                moment=False, inst_corr=inst_corr)
+                moment=False, inst_corr=inst_corr, fill_mask=fill_mask)
 
 
     return gal
@@ -3651,7 +3678,8 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
 
 def extract_1D_2D_data_moments_from_cube(gal,
             slit_width=None, slit_pa=None,
-            aper_dist=None, inst_corr=True):
+            aper_dist=None, inst_corr=True,
+            fill_mask=True):
     try:
         if gal.data2d is not None:
             extract = False
@@ -3675,7 +3703,7 @@ def extract_1D_2D_data_moments_from_cube(gal,
 
     if extract:
         gal.data1d = extract_1D_from_cube(gal.data.data, gal, slit_width=slit_width,
-                slit_pa=slit_pa, aper_dist=aper_dist, moment=True, inst_corr=inst_corr)
+                slit_pa=slit_pa, aper_dist=aper_dist, moment=True, inst_corr=inst_corr, fill_mask=fill_mask)
 
 
     return gal
@@ -3684,7 +3712,8 @@ def extract_1D_2D_data_moments_from_cube(gal,
 def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
             slit_width=None, slit_pa=None,
             aper_dist=None,
-            moment=False, inst_corr=True):
+            moment=False, inst_corr=True,
+            fill_mask=True):
 
     if slit_width is None:
         try:
@@ -3695,21 +3724,29 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
         slit_pa = gal.model.geometry.pa.value
 
 
-    rstep = gal.instrument.pixscale.value
+    #rstep = gal.instrument.pixscale.value
+    pixscale = gal.instrument.pixscale.value
 
 
-    rpix = slit_width/rstep/2.
+    #rpix = slit_width/rstep/2.
+    rpix = slit_width/pixscale/2.
 
-    if aper_dist is None:
-        # # aper_dist_pix = rpix #2*rpix
+    # if aper_dist is None:
+    #     # # aper_dist_pix = rpix #2*rpix
+    #
+    #     aper_dist_pix = 1. #pixscale #rstep #rstep * 2.
+    #
+    #     #aper_dist_pix = slit_width/2.
+    #
+    # else:
+    #     #aper_dist_pix = aper_dist/rstep
+    #     aper_dist_pix = aper_dist / pixscale # aper_dist
 
-        aper_dist_pix = rstep #rstep * 2.
+    # # EVERY PIXEL
+    # aper_dist_pix = 1. #pixscale #rstep
 
-        #aper_dist_pix = slit_width/2.
-
-    else:
-        #aper_dist_pix = aper_dist/rstep
-        aper_dist_pix = aper_dist
+    # EVERY 0.5 PSF FWHM
+    aper_dist_pix = slit_width/2./ pixscale
 
 
     # Aper centers: pick roughly number fitting into size:
@@ -3720,7 +3757,24 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
 
     #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
 
-    nap = np.int(np.floor(nx/rpix))
+    # AHHHHH
+    # #nap = np.int(np.floor(nx/rpix))
+
+    diag_step = False
+
+    if np.abs(np.cos(slit_pa*np.pi/180.)) >= np.abs(np.sin(slit_pa*np.pi/180.)):
+        nmax = ny / np.abs(np.cos(slit_pa*np.pi/180.))
+        if diag_step & (aper_dist_pix == 1.):
+            aper_dist_pix *= 1. / np.abs(np.cos(slit_pa*np.pi/180.))
+    else:
+        nmax = nx / np.abs(np.sin(slit_pa*np.pi/180.))
+        if diag_step & (aper_dist_pix == 1.):
+            aper_dist_pix *= 1. / np.abs(np.sin(slit_pa*np.pi/180.))
+
+    nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
+                                                # Otherwise, fewer and more spaced out
+
+
     # Make odd
     if nap % 2 == 0.:
         nap -= 1
@@ -3729,29 +3783,31 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
     # nap = nx
 
     aper_centers = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
+    aper_centers_arcsec = aper_centers*aper_dist_pix*pixscale
 
-    #print("nx={}, nap={}, aper_centers_pix={}".format(nx, nap, aper_centers_pix))
+
+    #print("nx={}, nap={}, aper_centers_arcsec={}".format(nx, nap, aper_centers_arcsec))
 
     vel_arr = data_cube.spectral_axis.to(u.km/u.s).value
 
-    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+    apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
              moment=moment)
 
-    # data_unscaled = data_cube.unmasked_data[:].value
-    # data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-    # # Some extra arbitrary scaling:
-    # data_scaled /= ((10.*rpix)**2)
     data_scaled = data_cube.unmasked_data[:].value
+
+
+    mask = gal.data.mask.copy()
+
     if errcube is not None:
-        ecube = errcube.unmasked_data[:].value * gal.data.mask
+        ecube = errcube.unmasked_data[:].value * mask
     else:
         ecube = None
 
     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
-                    cube=data_scaled, mask=gal.data.mask, err=ecube,
+                    cube=data_scaled, mask=mask, err=ecube,
                     center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+
 
     # # Remove points where the fit was bad
     # ind = np.isfinite(vel1d) & np.isfinite(disp1d)
@@ -3769,6 +3825,27 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
                         slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
     data1d.apertures = apertures
     data1d.profile1d_type = 'circ_ap_cube'
+    data1d.xcenter = gal.data.xcenter
+    data1d.ycenter = gal.data.ycenter
+
+    if fill_mask:
+        # Unmask any fully masked bits, and fill with the other mask:
+        mask2d = np.sum(mask, axis=0)
+        whzero = np.where(mask2d == 0)
+        maskspec = np.sum(np.sum(mask, axis=2), axis=1)
+        maskspec[maskspec>0] = 1
+        mask_filled = np.tile(maskspec.reshape((maskspec.shape[0],1,1)), (1, data_scaled.shape[1], data_scaled.shape[2]))
+        mask[:, whzero[0], whzero[1]] = mask_filled[:, whzero[0], whzero[1]]
+
+        if errcube is not None:
+            ecube = errcube.unmasked_data[:].value * mask
+        else:
+            ecube = None
+        aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
+                        cube=data_scaled, mask=mask, err=ecube,
+                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+        data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
+                            slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
 
 
     return data1d
@@ -3890,7 +3967,11 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
     data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = inst_corr, moment=False)
+                        inst_corr = inst_corr, moment=False,
+                        xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
+
+
+
 
     return data2d
 
@@ -3943,7 +4024,8 @@ def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
     data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = inst_corr, moment=True)
+                        inst_corr = inst_corr, moment=True,
+                        xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
 
     return data2d
 
@@ -4035,5 +4117,75 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         ax.add_artist(circle)
         if (mm == 0):
             ax.scatter(xap+pyoff, yap+pyoff, color=cmapscale.to_rgba(mm), marker='.')
+
+    return ax
+
+
+def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
+    ####################################
+    # Show MAJOR AXIS line, center:
+    center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                        gal.data.ycenter + gal.model.geometry.yshift.value)
+    try:
+        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                            gal.data.ycenter + gal.model.geometry.yshift.value)
+    except:
+        center_pixel_kin = ((im.shape[1]-1.)/ 2. + gal.model.geometry.xshift.value,
+                            (im.shape[0]-1.)/ 2. + gal.model.geometry.yshift.value)
+
+    # Start going to neg, pos of center, at PA, and check if mask True/not
+    #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
+
+    cPA = np.cos(gal.model.components['geom'].pa.value * np.pi/180.)
+    sPA = np.sin(gal.model.components['geom'].pa.value * np.pi/180.)
+
+    A_xs = []
+    A_ys = []
+    if finer_step:
+        rstep_A = 0.25
+    else:
+        rstep_A = 1.
+    #rstep_A = 0.25
+
+    rMA_tmp = 0
+    rMA_arr = []
+    # PA is to Blue; rMA_arr is [Blue (neg), Red (pos)]
+    # but for PA definition blue will be pos step; invert at the end
+    for fac in [1.,-1.]:
+        ended_MA = False
+        while not ended_MA:
+            rMA_tmp += fac * rstep_A
+            xtmp = rMA_tmp * -sPA + center_pixel_kin[0]
+            ytmp = rMA_tmp * cPA  + center_pixel_kin[1]
+            if (xtmp < 0) | (xtmp > mask.shape[1]-1) | (ytmp < 0) | (ytmp > mask.shape[0]-1):
+                A_xs.append((rMA_tmp - fac*rstep_A) * -sPA + center_pixel_kin[0])
+                A_ys.append((rMA_tmp - fac*rstep_A) * cPA  + center_pixel_kin[1])
+                rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
+                rMA_tmp = 0
+                ended_MA = True
+            elif not mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+                A_xs.append((rMA_tmp) * -sPA + center_pixel_kin[0])
+                A_ys.append((rMA_tmp) * cPA  + center_pixel_kin[1])
+                rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
+                rMA_tmp = 0
+                ended_MA = True
+
+    B_xs = []
+    B_ys = []
+    len_minor_marker = 1./20. * im.shape[0]   # CONSTANT SIZE REL TO AXIS
+    for fac in [-1.,1.]:
+        B_xs.append(fac*len_minor_marker*0.5 * cPA  + center_pixel_kin[0])
+        B_ys.append(fac*len_minor_marker*0.5 * sPA + center_pixel_kin[1])
+
+    lw_major = 3.
+    lw_minor = 2.25
+    color_kin_axes = 'black'
+    ax.plot(A_xs , A_ys, color=color_kin_axes, lw=lw_major, ls='-')
+    ax.plot(B_xs, B_ys,color=color_kin_axes, lw=lw_minor, ls='-')
+
+    color_kin_axes2 = 'white'
+    fac2 = 0.66
+    ax.plot(A_xs , A_ys, color=color_kin_axes2, lw=lw_major*fac2, ls='-')
+    ax.plot(B_xs, B_ys,color=color_kin_axes2, lw=lw_minor*fac2, ls='-')
 
     return ax
