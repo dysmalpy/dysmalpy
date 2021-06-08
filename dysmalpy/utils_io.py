@@ -294,7 +294,7 @@ class Report(object):
             self._create_results_report_machine(gal, results, params=params, **kwargs)
 
 
-    def _create_results_report_pretty(self, gal, results, params=None,**kwargs):
+    def _create_results_report_pretty(self, gal, results, params=None, **kwargs):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -362,8 +362,7 @@ class Report(object):
         if params is not None:
             if 'fit_module' in params.keys():
                 self.add_line( '   fit_module: {}'.format(params['fit_module']))
-                #self.add_line( '' )
-        #self.add_line( '' )
+
         # --------------------------------------
         if 'profile1d_type' in gal.data.__dict__.keys():
             self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
@@ -371,7 +370,7 @@ class Report(object):
 
         fitdispersion = fitflux = None
         weighting_method = moment_calc = partial_weight = zcalc_truncate = None
-        n_wholepix_z_min = None
+        n_wholepix_z_min = oversample = oversize = None
         if params is not None:
             if 'fitdispersion' in params.keys():
                 fitdispersion = params['fitdispersion']
@@ -389,6 +388,11 @@ class Report(object):
 
             if 'n_wholepix_z_min' in params.keys():
                 n_wholepix_z_min = params['n_wholepix_z_min']
+
+            if 'oversample' in params.keys():
+                oversample = params['oversample']
+            if 'oversize' in params.keys():
+                oversize = params['oversize']
 
         if 'apertures' in gal.data.__dict__.keys():
             if gal.data.apertures is not None:
@@ -411,6 +415,19 @@ class Report(object):
                     config_sim_cube = Config_simulate_cube()
                     n_wholepix_z_min = "[Default: {}]".format(config_sim_cube.n_wholepix_z_min)
 
+        if oversample is None:
+            if 'oversample' in kwargs.keys():
+                oversample = kwargs['oversample']
+            else:
+                config_sim_cube = Config_simulate_cube()
+                oversample = "[Default: {}]".format(config_sim_cube.oversample)
+        if oversize is None:
+            if 'oversize' in kwargs.keys():
+                oversize = kwargs['oversize']
+            else:
+                config_sim_cube = Config_simulate_cube()
+                oversize = "[Default: {}]".format(config_sim_cube.oversize)
+
         # Save info on fitdispersion / fitflux
         if fitdispersion is not None:
             self.add_line( 'fitdispersion:         {}'.format(fitdispersion))
@@ -419,17 +436,27 @@ class Report(object):
         if ((fitdispersion is not None) or (fitflux is not None)):
             self.add_line( '' )
 
-        # Save info on weighting / moments:
+        # Save info on weighting / moments :
         if weighting_method is not None:
             self.add_line( 'weighting_method:      {}'.format(weighting_method))
         if moment_calc is not None:
             self.add_line( 'moment_calc:           {}'.format(moment_calc))
         if partial_weight is not None:
             self.add_line( 'partial_weight:        {}'.format(partial_weight))
+
+
+        # Save info on z calculation / oversampling:
         if zcalc_truncate is not None:
             self.add_line( 'zcalc_truncate:        {}'.format(zcalc_truncate))
         if n_wholepix_z_min is not None:
             self.add_line( 'n_wholepix_z_min:      {}'.format(n_wholepix_z_min))
+        if oversample is not None:
+            self.add_line( 'oversample:            {}'.format(oversample))
+        if oversize is not None:
+            self.add_line( 'oversize:              {}'.format(oversize))
+
+        self.add_line( '' )
+
         # INFO on pressure support type:
         self.add_line( 'pressure_support:      {}'.format(gal.model.kinematic_options.pressure_support))
         if gal.model.kinematic_options.pressure_support:
@@ -487,6 +514,9 @@ class Report(object):
 
                     self.add_line( datstr )
 
+            if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
+                datstr = '    {: <11}    {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
+                self.add_line( datstr )
 
         ####
         if blob_names is not None:

@@ -58,16 +58,27 @@ def auto_gen_3D_mask(cube=None, err=None,
         apply_skymask_first:    Apply skyline mask before doing segmentation/integrated flux masking? Default: True
 
     Output:
-            mask (3D cube)
+            mask (3D cube), mask_dict (info about generated mask)
     """
 
     # snr_int_flux_thresh=3., snr_thresh_pixel=3.,
+
+
+    mask_dict = {}
+    mask_dict['sig_segmap_thresh'] =    sig_segmap_thresh
+    mask_dict['npix_segmap_min'] =      npix_segmap_min
+    mask_dict['snr_int_flux_thresh'] =  snr_int_flux_thresh
+    mask_dict['snr_thresh_pixel'] =     snr_thresh_pixel
+    mask_dict['sky_var_thresh'] =       sky_var_thresh
+    mask_dict['apply_skymask_first'] =  apply_skymask_first
 
     ## Crude first-pass masking by pixel S/N:
     if snr_thresh_pixel is not None:
         mask_sn_pix = _auto_gen_3D_mask_pixel_SNR(cube=cube, err=err, snr_thresh=snr_thresh_pixel)
     else:
         mask_sn_pix = None
+
+    mask_dict['mask_sn_pix'] = mask_sn_pix
 
 
     mask = np.ones(cube.shape)
@@ -94,6 +105,7 @@ def auto_gen_3D_mask(cube=None, err=None,
     else:
         mask_sky = None
 
+    mask_dict['mask_sky'] = mask_sky
 
     ####################################
     # Integrated 2D flux masking: either segmentation map, or SNR cut
@@ -106,6 +118,8 @@ def auto_gen_3D_mask(cube=None, err=None,
     mask2D = None
     fmap_cube_sn = np.sum(cube_m*mask, axis=0)
     emap_cube_sn = np.sqrt(np.sum(ecube_m**2*mask, axis=0))
+    mask_dict['fmap_cube_sn'] = fmap_cube_sn
+    mask_dict['emap_cube_sn'] = emap_cube_sn
     if sig_segmap_thresh is not None:
         # Do segmap on mask2D?????
         if loaded_photutils:
@@ -130,8 +144,24 @@ def auto_gen_3D_mask(cube=None, err=None,
             segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_segmap_min, filter_kernel=kernel)
 
 
-            mask2D = segm._data.copy()
-            mask2D[mask2D>0] = 1
+            mask_dict['exclude_percentile'] = exclude_percentile
+            mask_dict['thresh'] = thresh
+            mask_dict['segm'] = segm
+
+            # Find the max flux seg region:
+            segmap_ind = None
+            segfluxmax = 0.
+            for seg in segm.segments:
+                mseg = seg._segment_data.copy()
+                mseg[mseg>0] = 1
+                mseg_flux = fmap_cube_sn.copy() * mseg
+                if mseg_flux.sum() > segfluxmax:
+                    segfluxmax = mseg_flux.sum()
+                    mask2D = mseg
+
+
+            #mask2D = segm._data.copy()
+            #mask2D[mask2D>0] = 1
         else:
             do_int_flux_SNR_mask = True
 
@@ -155,6 +185,8 @@ def auto_gen_3D_mask(cube=None, err=None,
         mask_cube = None
 
 
+    mask_dict['mask2D'] = mask2D
+    mask_dict['mask_cube'] = mask_cube
 
     if mask_sn_pix is not None:
         mask *= mask_sn_pix
@@ -165,7 +197,7 @@ def auto_gen_3D_mask(cube=None, err=None,
     if mask_sky is not None:
         mask *= mask_sky
 
-    return mask
+    return mask, mask_dict
 
 def _auto_gen_3D_mask_pixel_SNR(cube=None, err=None, snr_thresh=3.):
     # Crude first-pass on auto-generated 3D cube mask, based on S/N:
