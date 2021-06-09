@@ -135,6 +135,12 @@ def write_model_1d_obs_file(gal=None, fname=None, overwrite=False):
     model_vel = gal.model_data.data['velocity']
     model_disp = gal.model_data.data['dispersion']
 
+    # Correct dispersion for instrumental resolution of data is inst-corrected:
+    if 'inst_corr' in gal.data.data.keys():
+        if gal.data.data['inst_corr']:
+            model_disp = np.sqrt( model_disp**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+            model_disp[~np.isfinite(model_disp)] = 0
+
     # Write 1D profiles to text file
     np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
                fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
@@ -1022,7 +1028,11 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
 
     if kwargs_galmodel['profile1d_type'] is None:
         kwargs_galmodel['profile1d_type'] = gal.data.profile1d_type
-    if kwargs_galmodel['aperture_radius'] is None:
+
+    if (kwargs_galmodel['aperture_radius'] is not None): 
+        if (kwargs_galmodel['aperture_radius'] < 0.):
+            kwargs_galmodel['aperture_radius'] = None 
+    if (kwargs_galmodel['aperture_radius'] is None): 
         try:
             kwargs_galmodel['aperture_radius'] = gal.data.slit_width.value * 0.5
         except:
@@ -1036,14 +1046,21 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     r_step = 0.025 #0.05
     if rmax_abs > 4.:
         r_step = 0.05
-    aper_centers_interp = np.arange(0, rmax_abs+r_step, r_step)
+    #aper_centers_interp = np.arange(0, rmax_abs+r_step, r_step)
+    aper_centers_interp = np.arange(-rmax_abs, rmax_abs+r_step, r_step)
 
-    if kwargs_galmodel['slit_pa'] is None:
-        try:
-            kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
-        except:
-            kwargs_galmodel['slit_pa'] = gal.data.slit_pa
+    # if kwargs_galmodel['slit_pa'] is None:
+    #     try:
+    #         kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
+    #     except:
+    #         kwargs_galmodel['slit_pa'] = gal.data.slit_pa
 
+    # Get slit-pa from model or data.
+    try:
+        kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
+    except:
+        kwargs_galmodel['slit_pa'] = gal.data.slit_pa
+    
     if profile1d_type == 'rect_ap_cube':
         f_par = interpolate.interp1d(gal.data.rarr, gal.data.apertures.pix_parallel,
                         kind='slinear', fill_value='extrapolate')
