@@ -66,7 +66,7 @@ def plot_bestfit(mcmcResults, gal,
                  remove_shift=False,
                  overwrite=False,
                  moment=False,
-                 fill_mask=True,
+                 fill_mask=False,
                  **kwargs_galmodel):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
@@ -351,7 +351,7 @@ def plot_data_model_comparison(gal,theta = None,
                                remove_shift=False,
                                overwrite=False,
                                moment=False,
-                               fill_mask=True,
+                               fill_mask=False,
                                **kwargs_galmodel):
     """
     Plot data, model, and residuals between the data and this model.
@@ -1045,7 +1045,7 @@ def plot_data_model_comparison_3D(gal,
             show_all_spax=True,
             show_channel=True,
             remove_shift=False,
-            fill_mask=True,
+            fill_mask=False,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1076,7 +1076,8 @@ def plot_data_model_comparison_3D(gal,
 
     if show_apertures:
         #if fileout_aperture is not None:
-        plot_aperture_compare_3D_cubes(gal, fileout=fileout_aperture, overwrite=overwrite)
+        plot_aperture_compare_3D_cubes(gal, fileout=fileout_aperture,
+                            fill_mask=fill_mask, overwrite=overwrite)
 
     if show_channel:
         #if fileout_channel is not None:
@@ -1105,7 +1106,7 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             remove_shift=True,
             overwrite=False,
             moment=False,
-            fill_mask=True,
+            fill_mask=False,
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1193,7 +1194,7 @@ def plot_model_multid_base(gal,
             remove_shift = True,
             inst_corr=None,
             moment=True,
-            fill_mask=True,
+            fill_mask=False,
             overwrite=False,
             **kwargs_galmodel):
 
@@ -1748,8 +1749,6 @@ def plot_model_multid_base(gal,
                         ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
                             c='red', marker='s', s=25, lw=1, label='Model')
 
-
-
                     if data1d_2 is not None:
                         if data1d_2.data[keyyarr[j]] is not None:
                             ax.errorbar( data1d_2.rarr, data1d_2.data[keyyarr[j]],
@@ -1883,8 +1882,68 @@ def plot_aperture_compare_3D_cubes(gal,
                 fileout=None,
                 slit_width=None, slit_pa=None,
                 aper_dist=None,
+                fill_mask=False,
                 skip_fits=True,
                 overwrite=False):
+    #
+    # if datacube is None:
+    #     datacube = gal.data.data
+    # if errcube is None:
+    #     errcube = gal.data.error
+    # if modelcube is None:
+    #     modelcube = gal.model_data.data
+    # if mask is None:
+    #     mask = gal.data.mask
+    #
+    # # Check for existing file:
+    # if (not overwrite) and (fileout is not None):
+    #     if os.path.isfile(fileout):
+    #         logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+    #         return None
+    #
+    # ######################################
+    # if slit_width is None:
+    #     try:
+    #         slit_width = gal.instrument.beam.major.to(u.arcsec).value
+    #     except:
+    #         slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
+    # if slit_pa is None:
+    #     slit_pa = gal.model.geometry.pa.value
+    #
+    #
+    # pixscale = gal.instrument.pixscale.value
+    #
+    #
+    # rpix = slit_width/pixscale/2.
+    #
+    # if aper_dist is None:
+    #     aper_dist_pix = 1. # pixscale #rstep * 2.
+    # else:
+    #     #aper_dist_pix = aper_dist/rstep
+    #     aper_dist_pix = aper_dist
+    #
+    #
+    # # Aper centers: pick roughly number fitting into size:
+    # nx = datacube.shape[2]
+    # ny = datacube.shape[1]
+    # center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+    #                 np.int(ny / 2.) + gal.model.geometry.yshift)
+    #
+    # #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
+    #
+    # nap = np.int(np.floor((nx/rpix)))
+    # # Make odd
+    # if nap % 2 == 0.:
+    #     nap -= 1
+    #
+    # ###
+    # # nap = nx
+    #
+    # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+    # aper_centers_arcsec = aper_centers*aper_dist_pix*pixscale      # /rstep
+
+
+    #############################################################
 
     if datacube is None:
         datacube = gal.data.data
@@ -1902,6 +1961,7 @@ def plot_aperture_compare_3D_cubes(gal,
             return None
 
     ######################################
+
     if slit_width is None:
         try:
             slit_width = gal.instrument.beam.major.to(u.arcsec).value
@@ -1910,43 +1970,35 @@ def plot_aperture_compare_3D_cubes(gal,
     if slit_pa is None:
         slit_pa = gal.model.geometry.pa.value
 
+    if mask is None:
+        mask = gal.data.mask.copy()
 
-    rstep = gal.instrument.pixscale.value
+    pixscale = gal.instrument.pixscale.value
 
-
-    rpix = slit_width/rstep/2.
-
-    if aper_dist is None:
-        aper_dist_pix = rstep #rstep * 2.
-    else:
-        #aper_dist_pix = aper_dist/rstep
-        aper_dist_pix = aper_dist
-
+    rpix = slit_width/pixscale/2.
 
     # Aper centers: pick roughly number fitting into size:
     nx = datacube.shape[2]
     ny = datacube.shape[1]
-    center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                    np.int(ny / 2.) + gal.model.geometry.yshift)
+    try:
+        center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                        gal.data.ycenter + gal.model.geometry.yshift.value)
+    except:
+        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+                        np.int(ny / 2.) + gal.model.geometry.yshift)
 
-    #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
 
-    nap = np.int(np.floor((nx/rpix)))
-    # Make odd
-    if nap % 2 == 0.:
-        nap -= 1
+    aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, gal, mask=mask,
+                slit_width=slit_width, slit_pa=slit_pa,
+                aper_dist=aper_dist, fill_mask=fill_mask)
 
-    ###
-    # nap = nx
 
-    aper_centers = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    aper_centers_pix = aper_centers*aper_dist_pix      # /rstep
+    #############################################################
 
     specarr = datacube.spectral_axis.to(u.km/u.s).value
 
-    apertures = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-             moment=False)
+    apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=False)
 
     if not skip_fits:
         data_scaled = datacube.unmasked_data[:].value
@@ -1968,25 +2020,23 @@ def plot_aperture_compare_3D_cubes(gal,
         #####
         aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
                         cube=model_scaled, mask=mask, err=None,
-                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+                        center_pixel = center_pixel, pixscale=pixscale)
 
-        apertures_mom = CircApertures(rarr=aper_centers_pix, slit_PA=slit_pa, rpix=rpix,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 moment=True)
+        apertures_mom = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=True)
         aper_centers_mod_mom, flux1d_mod_mom, vel1d_mod_mom, disp1d_mod_mom = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
                         cube=model_scaled, mask=mask, err=None,
-                        center_pixel = center_pixel,
-                        pixscale=gal.instrument.pixscale.value)
+                        center_pixel = center_pixel, pixscale=pixscale)
 
         aper_centers2, flux1d2, vel1d2, disp1d2 = apertures_mom.extract_1d_kinematics(spec_arr=specarr,
                         cube=data_scaled, mask=mask, err=ecube,
-                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+                        center_pixel = center_pixel, pixscale=pixscale)
 
     ######################################
     # Setup plot:
 
-    nrows = np.int(np.round(np.sqrt(len(aper_centers))))
-    ncols = np.int(np.ceil(len(aper_centers)/(1.*nrows)))
+    nrows = np.int(np.round(np.sqrt(len(aper_centers_arcsec))))
+    ncols = np.int(np.ceil(len(aper_centers_arcsec)/(1.*nrows)))
 
     padx = 0.25
     pady = 0.25
@@ -2019,7 +2069,7 @@ def plot_aperture_compare_3D_cubes(gal,
 
     for k in range(len(axes)):
         ax = axes[k]
-        if k < len(aper_centers):
+        if k < len(aper_centers_arcsec):
             _, datarr, errarr = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
                     cube=datacube, mask=mask, err=errcube, skip_specmask=True)
             _, modarr, _ = apertures.apertures[k].extract_aper_spec(spec_arr=specarr,
@@ -2697,6 +2747,67 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
         ax.set_yticks([])
 
     return ax
+
+
+#############################################################
+
+
+def plot_3D_data_automask_info(gal, mask_dict, axes=None):
+    if axes is None:
+        # Setup plotting
+        return_axes = False
+
+        nrows = 1; ncols = 5
+        padx = pady = 0.2
+        xextra = 0.15; yextra = 0.
+        scale = 2.5
+        fig = plt.figure()
+        fig.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale,
+                            (nrows+(nrows-1)*pady+yextra)*scale )
+
+
+        gs = gridspec.GridSpec(nrows, ncols, hspace=pady, wspace=padx)
+        axes = []
+
+        for jj in range(nrows):
+            for mm in range(ncols):
+                axes.append(plt.subplot(gs[jj,mm]))
+
+    else:
+        return_axes = True
+
+    int_mode = "nearest"; origin = 'lower'; cmap=cm.viridis
+
+    xcenter = gal.data.xcenter
+    ycenter = gal.data.ycenter
+    if xcenter is None:
+        xcenter =(gal.data.data.shape[2]-1)/2.
+    if ycenter is None:
+        ycenter =(gal.data.data.shape[1]-1)/2.
+
+
+    titles = ['Collapsed flux', 'Collapsed err', 'Segm', 'Mask2D', 'Masked flux']
+    for i, im in enumerate([mask_dict['fmap_cube_sn'],
+                            mask_dict['emap_cube_sn'],
+                            mask_dict['segm'], mask_dict['mask2D'],
+                           mask_dict['mask2D']*mask_dict['fmap_cube_sn']]):
+        ax = axes[i]
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                                origin=origin, vmin=None, vmax=None)
+        ax.scatter(xcenter, ycenter, color='magenta', marker='+', s=30)
+        cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                fraction=5./101., aspect=20.)
+        cbar = plt.colorbar(imax, cax=cax)
+        cbar.ax.tick_params(labelsize=8)
+        ax.set_title(titles[i], fontsize=12)
+
+        axes[i] = ax
+
+    if return_axes:
+        return axes
+    else:
+        return None
+
 
 
 #############################################################
@@ -3640,7 +3751,7 @@ def make_clean_mcmc_plot_names(mcmcResults):
 def extract_1D_2D_data_gausfit_from_cube(gal,
             slit_width=None, slit_pa=None,
             aper_dist=None, inst_corr=True,
-            fill_mask=True):
+            fill_mask=False):
     try:
         if gal.data2d is not None:
             extract = False
@@ -3679,7 +3790,7 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
 def extract_1D_2D_data_moments_from_cube(gal,
             slit_width=None, slit_pa=None,
             aper_dist=None, inst_corr=True,
-            fill_mask=True):
+            fill_mask=False):
     try:
         if gal.data2d is not None:
             extract = False
@@ -3708,12 +3819,9 @@ def extract_1D_2D_data_moments_from_cube(gal,
 
     return gal
 
-
-def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
+def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
             slit_width=None, slit_pa=None,
-            aper_dist=None,
-            moment=False, inst_corr=True,
-            fill_mask=True):
+            aper_dist=None, fill_mask=False):
 
     if slit_width is None:
         try:
@@ -3724,80 +3832,298 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
         slit_pa = gal.model.geometry.pa.value
 
 
-    #rstep = gal.instrument.pixscale.value
+    if mask is None:
+        mask = gal.data.mask.copy()
+
     pixscale = gal.instrument.pixscale.value
 
-
-    #rpix = slit_width/rstep/2.
     rpix = slit_width/pixscale/2.
 
-    # if aper_dist is None:
-    #     # # aper_dist_pix = rpix #2*rpix
-    #
-    #     aper_dist_pix = 1. #pixscale #rstep #rstep * 2.
-    #
-    #     #aper_dist_pix = slit_width/2.
-    #
-    # else:
-    #     #aper_dist_pix = aper_dist/rstep
-    #     aper_dist_pix = aper_dist / pixscale # aper_dist
+    #############################
 
-    # # EVERY PIXEL
-    # aper_dist_pix = 1. #pixscale #rstep
 
-    # EVERY 0.5 PSF FWHM
-    aper_dist_pix = slit_width/2./ pixscale
+    if aper_dist is None:
+        # # EVERY PIXEL
+        aper_dist_pix = 1. #pixscale #rstep
 
+        # # EVERY 0.5 PSF FWHM
+        # aper_dist_pix = slit_width/2./ pixscale
+    else:
+        aper_dist_pix = aper_dist/pixscale
+        #aper_dist_pix = aper_dist
 
     # Aper centers: pick roughly number fitting into size:
     nx = data_cube.shape[2]
     ny = data_cube.shape[1]
-    center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                    np.int(ny / 2.) + gal.model.geometry.yshift)
+    try:
+        center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                            gal.data.ycenter + gal.model.geometry.yshift.value)
+    except:
+        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+                        np.int(ny / 2.) + gal.model.geometry.yshift)
 
-    #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
-
-    # AHHHHH
-    # #nap = np.int(np.floor(nx/rpix))
-
-    diag_step = False
-
-    if np.abs(np.cos(slit_pa*np.pi/180.)) >= np.abs(np.sin(slit_pa*np.pi/180.)):
-        nmax = ny / np.abs(np.cos(slit_pa*np.pi/180.))
-        if diag_step & (aper_dist_pix == 1.):
-            aper_dist_pix *= 1. / np.abs(np.cos(slit_pa*np.pi/180.))
+    cPA = np.cos(slit_pa * np.pi/180.)
+    sPA = np.sin(slit_pa * np.pi/180.)
+    ###################
+    if fill_mask:
+        diag_step = False
+        if np.abs(cPA) >= np.abs(sPA):
+            nmax = ny / np.abs(cPA)
+            if diag_step & (aper_dist_pix == 1.):
+                aper_dist_pix *= 1. / np.abs(cPA)
+        else:
+            nmax = nx / np.abs(sPA)
+            if diag_step & (aper_dist_pix == 1.):
+                aper_dist_pix *= 1. / np.abs(sPA)
+        rMA_arr = None
     else:
-        nmax = nx / np.abs(np.sin(slit_pa*np.pi/180.))
-        if diag_step & (aper_dist_pix == 1.):
-            aper_dist_pix *= 1. / np.abs(np.sin(slit_pa*np.pi/180.))
+        # Just use unmasked range:
+        maskflat = np.sum(mask, axis=0)
+        maskflat[maskflat>0] = 1
+        mask2D = np.array(maskflat, dtype=np.bool)
+        rstep_A = 0.25
 
-    nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
-                                                # Otherwise, fewer and more spaced out
+        rMA_tmp = 0
+        rMA_arr = []
+        # PA is to Blue; rMA_arr is [Blue (neg), Red (pos)]
+        # but for PA definition blue will be pos step; invert at the end
+        for fac in [1.,-1.]:
+            ended_MA = False
+            while not ended_MA:
+                rMA_tmp += fac * rstep_A
+                xtmp = rMA_tmp * -sPA + center_pixel[0]
+                ytmp = rMA_tmp * cPA  + center_pixel[1]
+                if (xtmp < 0) | (xtmp > mask2D.shape[1]-1) | (ytmp < 0) | (ytmp > mask2D.shape[0]-1):
+                    rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
+                    rMA_tmp = 0
+                    ended_MA = True
+                elif not mask2D[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+                    rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
+                    rMA_tmp = 0
+                    ended_MA = True
+        #nmax = 2. * np.max(np.abs(np.array(rMA_arr)))
+        nmax = None
+        rMA_arr = np.array(rMA_arr)
+
+    if rMA_arr is not None:
+        aper_centers_pix = np.arange(np.sign(rMA_arr[0])*np.floor(np.abs(rMA_arr[0])),
+                                     np.sign(rMA_arr[1])*np.floor(np.abs(rMA_arr[1]))+1., 1.)
+    else:
+        nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
+                                                    # Otherwise, fewer and more spaced out
+        # Make odd
+        if nap % 2 == 0.:
+            if fill_mask:
+                nap -= 1
+            else:
+                nap += 1
+        aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+
+    ######################################
+    ## ORIG: 13 ap, -0.75 to 0.75
+    # if aper_dist is None:
+    #     aper_dist_pix = 1. # pixscale
+    # else:
+    #     aper_dist_pix = aper_dist/pixscale
+    #     #aper_dist_pix = aper_dist
+    #
+    # # Aper centers: pick roughly number fitting into size:
+    # nx = data_cube.shape[2]
+    # ny = data_cube.shape[1]
+    # try:
+    #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+    #                         gal.data.ycenter + gal.model.geometry.yshift.value)
+    # except:
+    #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+    #                     np.int(ny / 2.) + gal.model.geometry.yshift)
+    #
+    # nap = np.int(np.floor((nx/rpix)))
+    # # Make odd
+    # if nap % 2 == 0.:
+    #     nap -= 1
+    #
+    #
+    # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+    # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
+
+    aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
+    return aper_centers_arcsec
 
 
-    # Make odd
-    if nap % 2 == 0.:
-        nap -= 1
+def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
+            slit_width=None, slit_pa=None,
+            aper_dist=None,
+            moment=False, inst_corr=True,
+            fill_mask=False):
 
-    #####
-    # nap = nx
+    # if slit_width is None:
+    #     try:
+    #         slit_width = gal.instrument.beam.major.to(u.arcsec).value
+    #     except:
+    #         slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
+    # if slit_pa is None:
+    #     slit_pa = gal.model.geometry.pa.value
+    #
+    #
+    # if mask is None:
+    #     mask = gal.data.mask.copy()
+    #
+    # pixscale = gal.instrument.pixscale.value
+    #
+    # rpix = slit_width/pixscale/2.
+    #
+    #
+    #
+    # #############################
+    #
+    #
+    # if aper_dist is None:
+    #     # # EVERY PIXEL
+    #     aper_dist_pix = 1. #pixscale #rstep
+    #
+    #     # # EVERY 0.5 PSF FWHM
+    #     # aper_dist_pix = slit_width/2./ pixscale
+    # else:
+    #     aper_dist_pix = aper_dist/pixscale
+    #     #aper_dist_pix = aper_dist
+    #
+    # # Aper centers: pick roughly number fitting into size:
+    # nx = data_cube.shape[2]
+    # ny = data_cube.shape[1]
+    # try:
+    #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+    #                         gal.data.ycenter + gal.model.geometry.yshift.value)
+    # except:
+    #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+    #                     np.int(ny / 2.) + gal.model.geometry.yshift)
+    #
+    # cPA = np.cos(slit_pa * np.pi/180.)
+    # sPA = np.sin(slit_pa * np.pi/180.)
+    # ###################
+    # if fill_mask:
+    #     diag_step = False
+    #     if np.abs(cPA) >= np.abs(sPA):
+    #         nmax = ny / np.abs(cPA)
+    #         if diag_step & (aper_dist_pix == 1.):
+    #             aper_dist_pix *= 1. / np.abs(cPA)
+    #     else:
+    #         nmax = nx / np.abs(sPA)
+    #         if diag_step & (aper_dist_pix == 1.):
+    #             aper_dist_pix *= 1. / np.abs(sPA)
+    #     rMA_arr = None
+    # else:
+    #     # Just use unmasked range:
+    #     maskflat = np.sum(mask, axis=0)
+    #     maskflat[maskflat>0] = 1
+    #     mask2D = np.array(maskflat, dtype=np.bool)
+    #     rstep_A = 0.25
+    #
+    #     rMA_tmp = 0
+    #     rMA_arr = []
+    #     # PA is to Blue; rMA_arr is [Blue (neg), Red (pos)]
+    #     # but for PA definition blue will be pos step; invert at the end
+    #     for fac in [1.,-1.]:
+    #         ended_MA = False
+    #         while not ended_MA:
+    #             rMA_tmp += fac * rstep_A
+    #             xtmp = rMA_tmp * -sPA + center_pixel[0]
+    #             ytmp = rMA_tmp * cPA  + center_pixel[1]
+    #             if (xtmp < 0) | (xtmp > mask2D.shape[1]-1) | (ytmp < 0) | (ytmp > mask2D.shape[0]-1):
+    #                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
+    #                 rMA_tmp = 0
+    #                 ended_MA = True
+    #             elif not mask2D[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+    #                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
+    #                 rMA_tmp = 0
+    #                 ended_MA = True
+    #     #nmax = 2. * np.max(np.abs(np.array(rMA_arr)))
+    #     nmax = None
+    #     rMA_arr = np.array(rMA_arr)
+    #
+    # if rMA_arr is not None:
+    #     aper_centers_pix = np.arange(np.sign(rMA_arr[0])*np.floor(np.abs(rMA_arr[0])),
+    #                                  np.sign(rMA_arr[1])*np.floor(np.abs(rMA_arr[1]))+1., 1.)
+    # else:
+    #     nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
+    #                                                 # Otherwise, fewer and more spaced out
+    #     # Make odd
+    #     if nap % 2 == 0.:
+    #         if fill_mask:
+    #             nap -= 1
+    #         else:
+    #             nap += 1
+    #     aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+    #
+    # ######################################
+    # ## ORIG: 13 ap, -0.75 to 0.75
+    # # if aper_dist is None:
+    # #     aper_dist_pix = 1. # pixscale
+    # # else:
+    # #     aper_dist_pix = aper_dist/pixscale
+    # #     #aper_dist_pix = aper_dist
+    # #
+    # # # Aper centers: pick roughly number fitting into size:
+    # # nx = data_cube.shape[2]
+    # # ny = data_cube.shape[1]
+    # # try:
+    # #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+    # #                         gal.data.ycenter + gal.model.geometry.yshift.value)
+    # # except:
+    # #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+    # #                     np.int(ny / 2.) + gal.model.geometry.yshift)
+    # #
+    # # nap = np.int(np.floor((nx/rpix)))
+    # # # Make odd
+    # # if nap % 2 == 0.:
+    # #     nap -= 1
+    # #
+    # #
+    # # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+    # # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
+    #
+    # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
+    #
+    # ############################################
 
-    aper_centers = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    aper_centers_arcsec = aper_centers*aper_dist_pix*pixscale
+    if slit_width is None:
+        try:
+            slit_width = gal.instrument.beam.major.to(u.arcsec).value
+        except:
+            slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
+    if slit_pa is None:
+        slit_pa = gal.model.geometry.pa.value
+
+    if mask is None:
+        mask = gal.data.mask.copy()
+
+    pixscale = gal.instrument.pixscale.value
+
+    rpix = slit_width/pixscale/2.
+
+    # Aper centers: pick roughly number fitting into size:
+    nx = data_cube.shape[2]
+    ny = data_cube.shape[1]
+    try:
+        center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
+                        gal.data.ycenter + gal.model.geometry.yshift.value)
+    except:
+        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
+                        np.int(ny / 2.) + gal.model.geometry.yshift)
+
+    aper_centers_arcsec = aper_centers_arcsec_from_cube(data_cube, gal, mask=mask,
+                slit_width=slit_width, slit_pa=slit_pa,
+                aper_dist=aper_dist, fill_mask=fill_mask)
 
 
-    #print("nx={}, nap={}, aper_centers_arcsec={}".format(nx, nap, aper_centers_arcsec))
+    #######
 
     vel_arr = data_cube.spectral_axis.to(u.km/u.s).value
 
     apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
-             moment=moment)
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=moment)
 
     data_scaled = data_cube.unmasked_data[:].value
 
-
-    mask = gal.data.mask.copy()
 
     if errcube is not None:
         ecube = errcube.unmasked_data[:].value * mask
@@ -3806,24 +4132,24 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
 
     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
                     cube=data_scaled, mask=mask, err=ecube,
-                    center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+                    center_pixel = center_pixel, pixscale=pixscale)
 
 
-    # # Remove points where the fit was bad
-    # ind = np.isfinite(vel1d) & np.isfinite(disp1d)
-    #
-    # data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
-    #                          vel_disp=disp1d[ind], flux=flux1d[ind],
-    #                          slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
-    # apertures_redo = CircApertures(rarr=aper_centers_pix[ind], slit_PA=slit_pa, rpix=rpix,
-    #                     nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep, moment=moment)
-    # data1d.apertures = apertures_redo
-    # data1d.profile1d_type = 'circ_ap_cube'
+    if not fill_mask:
+        # Remove points where the fit was bad
+        ind = np.isfinite(vel1d) & np.isfinite(disp1d)
 
+        data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
+                                 vel_disp=disp1d[ind], flux=flux1d[ind],
+                                 slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
+        apertures_redo = CircApertures(rarr=aper_centers_arcsec[ind], slit_PA=slit_pa, rpix=rpix,
+                            nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=moment)
+        data1d.apertures = apertures_redo
+    else:
+        data1d = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
+                            slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
+        data1d.apertures = apertures
 
-    data1d = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
-                        slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
-    data1d.apertures = apertures
     data1d.profile1d_type = 'circ_ap_cube'
     data1d.xcenter = gal.data.xcenter
     data1d.ycenter = gal.data.ycenter
@@ -3843,7 +4169,7 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
             ecube = None
         aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
                         cube=data_scaled, mask=mask, err=ecube,
-                        center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
+                        center_pixel = center_pixel, pixscale=pixscale)
         data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
                             slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
 

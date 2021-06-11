@@ -521,7 +521,8 @@ class Report(object):
                     self.add_line( datstr )
 
             if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
-                datstr = '    {: <11}    {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
+                self.add_line( '' )
+                datstr = '    {: <11}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
                 self.add_line( datstr )
 
         ####
@@ -1029,10 +1030,10 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
     if kwargs_galmodel['profile1d_type'] is None:
         kwargs_galmodel['profile1d_type'] = gal.data.profile1d_type
 
-    if (kwargs_galmodel['aperture_radius'] is not None): 
+    if (kwargs_galmodel['aperture_radius'] is not None):
         if (kwargs_galmodel['aperture_radius'] < 0.):
-            kwargs_galmodel['aperture_radius'] = None 
-    if (kwargs_galmodel['aperture_radius'] is None): 
+            kwargs_galmodel['aperture_radius'] = None
+    if (kwargs_galmodel['aperture_radius'] is None):
         try:
             kwargs_galmodel['aperture_radius'] = gal.data.slit_width.value * 0.5
         except:
@@ -1060,7 +1061,7 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
         kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
     except:
         kwargs_galmodel['slit_pa'] = gal.data.slit_pa
-    
+
     if profile1d_type == 'rect_ap_cube':
         f_par = interpolate.interp1d(gal.data.rarr, gal.data.apertures.pix_parallel,
                         kind='slinear', fill_value='extrapolate')
