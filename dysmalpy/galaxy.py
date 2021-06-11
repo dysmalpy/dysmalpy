@@ -244,12 +244,12 @@ class Galaxy:
                    (self.instrument.fov[1] != self.data.shape[1])):
                     wmsg =  "dysmalpy.Galaxy:\n"
                     wmsg += "********************************************************************\n"
-                    wmsg += "*** WARNING ***\n"
+                    wmsg += "*** INFO ***\n"
                     wmsg += "instrument.fov[0,1]="
                     wmsg += "({},{}) is being reset".format(self.instrument.fov[0], self.instrument.fov[1])
                     wmsg += " to match 3D cube ({}, {})\n".format(self.data.shape[2], self.data.shape[1])
                     wmsg += "********************************************************************\n"
-                    logger.warning(wmsg)
+                    logger.info(wmsg)
                     self.instrument.fov = [self.data.shape[2], self.data.shape[1]]
                     # Reset kernel
                     self.instrument._beam_kernel = None
@@ -263,12 +263,12 @@ class Galaxy:
                 if np.abs(self.instrument.pixscale -  self.data.data.wcs.wcs.cdelt[0]*convunit) > pixdifftol:
                     wmsg =  "dysmalpy.Galaxy:\n"
                     wmsg += "********************************************************************\n"
-                    wmsg += "*** WARNING ***\n"
+                    wmsg += "*** INFO ***\n"
                     wmsg += "instrument.pixscale="
                     wmsg += "{} is being reset".format(self.instrument.pixscale)
                     wmsg += "   to match 3D cube ({})\n".format(self.data.data.wcs.wcs.cdelt[0]*convunit)
                     wmsg += "********************************************************************\n"
-                    logger.warning(wmsg)
+                    logger.info(wmsg)
                     self.instrument.pixscale = self.data.data.wcs.wcs.cdelt[0]*convunit
                     # Reset kernel
                     self.instrument._beam_kernel = None
@@ -294,7 +294,7 @@ class Galaxy:
                    (np.abs(self.instrument.spec_step.to(spec_step.unit) - spec_step)>specdifftol) ):
                     wmsg =  "dysmalpy.Galaxy:\n"
                     wmsg += "********************************************************************\n"
-                    wmsg += "*** WARNING ***\n"
+                    wmsg += "*** INFO ***\n"
                     wmsg += "instrument spectral settings are being reset\n"
                     wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(self.instrument.spec_type,
                                     self.instrument.spec_start, self.instrument.spec_step, self.instrument.nspec)
@@ -302,7 +302,7 @@ class Galaxy:
                     wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(spec_type,
                                  spec_start, spec_step, nspec)
                     wmsg += "********************************************************************\n"
-                    logger.warning(wmsg)
+                    logger.info(wmsg)
                     self.instrument.spec_type = spec_type
                     self.instrument.spec_step = spec_step
                     self.instrument.spec_start = spec_start
