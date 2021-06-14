@@ -2639,9 +2639,9 @@ class Sersic(MassModel):
 
     .. math::
 
-        M(r) = M_e \exp \left\{ -b_n \left[ \left( \frac{r}{r_{eff}} \right)^{(1/n)} -1 \right] \right\}
+        M(r) = M_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
 
-    The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
+    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
     mass, and can be solved for numerically.
 
     .. math::

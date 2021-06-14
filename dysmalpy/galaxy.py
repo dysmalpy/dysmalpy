@@ -830,8 +830,11 @@ class Galaxy:
                                  "'wavelength.'")
 
 
-            # Normalize flux:
             if from_data:
+                # Copy data mask:
+                mask = copy.deepcopy(self.data.mask)
+
+                # Normalize flux:
                 if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
                     num = np.sum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
                     den = np.sum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
@@ -843,9 +846,11 @@ class Galaxy:
                     den = np.sum(self.data.mask*(flux**2))
                     scale = num / den
                     flux *= scale
+            else:
+                mask = None
 
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
-                                     vel_disp=disp, flux=flux)
+                                     vel_disp=disp, flux=flux, mask=mask)
 
         elif ndim_final == 1:
 
@@ -952,8 +957,11 @@ class Galaxy:
                             pixscale=rstep)
 
 
-            # Normalize flux:
             if from_data:
+                # Get mask:
+                mask1d = copy.deepcopy(self.data.mask)
+
+                # Normalize flux:
                 if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
                     if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
                         num = np.sum(self.data.mask*(self.data.data['flux']*flux1d)/(self.data.error['flux']**2))
@@ -967,12 +975,13 @@ class Galaxy:
                         den = np.sum(self.data.mask*(flux1d**2))
                         scale = num / den
                         flux1d *= scale
+            else:
+                mask1d = None
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                     vel_disp=disp1d, flux=flux1d,
-                                     slit_width=slit_width,
-                                     slit_pa=slit_pa)
+                                     vel_disp=disp1d, flux=flux1d, mask=mask1d,
+                                     slit_width=slit_width, slit_pa=slit_pa)
             self.model_data.apertures = aper_model
             self.model_data.profile1d_type = profile1d_type
 
@@ -996,7 +1005,7 @@ class Galaxy:
                                      slit_width=self.data.slit_width,
                                      integrate_cube=self.data.integrate_cube)
 
-        #
+        ####                             
         # Reset instrument to orig value
         if skip_downsample:
             rstep *= oversample

@@ -833,7 +833,7 @@ def plot_data_model_comparison_2D(gal,
 
 
 
-        ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+        ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
         if k == 'data':
             ax.set_ylabel(keyytitlearr[0])
@@ -914,7 +914,7 @@ def plot_data_model_comparison_2D(gal,
                              vmin=disp_vmin, vmax=disp_vmax, origin=origin)
 
 
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[1])
@@ -985,7 +985,7 @@ def plot_data_model_comparison_2D(gal,
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=flux_vmin, vmax=flux_vmax, origin=origin)
 
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+            ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
             if k == 'data':
                 ax.set_ylabel(keyytitlearr[2])
@@ -1563,7 +1563,7 @@ def plot_model_multid_base(gal,
 
 
 
-                ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+                ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
                 ####################################
                 # Show a 1arcsec line:
@@ -3352,7 +3352,7 @@ def plot_model_2D_residual(gal,
                 ####################################
 
 
-                ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+                ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
                 if j == 0:
                     ax.set_ylabel(yt)
@@ -4450,8 +4450,6 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
     ####################################
     # Show MAJOR AXIS line, center:
-    center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
-                        gal.data.ycenter + gal.model.geometry.yshift.value)
     try:
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
                             gal.data.ycenter + gal.model.geometry.yshift.value)
