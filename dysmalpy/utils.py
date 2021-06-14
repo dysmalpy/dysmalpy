@@ -60,7 +60,7 @@ def calc_pixel_distance(nx, ny, center_coord):
 
 def create_aperture_mask(nx, ny, center_coord, dr):
     """
-
+    Function to create an aperture mask. NOT USED.
     :param nx:
     :param ny:
     :param center_coord:
@@ -630,35 +630,42 @@ def _gaus_dfunc(coeffs, x, *args):
 
     return np.array([d_amp,d_mean,d_stddev])
 
-def gaus_fit_sp_opt_leastsq(x, y, amp_guess, mean_guess, stddev_guess):
-    # fitparams = gaus_fit_sp_opt_leastsq(x, y, amp_guess, mean_guess, stddev_guess)
+def gaus_fit_sp_opt_leastsq(x, y, flux_guess, mean_guess, stddev_guess):
+    # fitparams = gaus_fit_sp_opt_leastsq(x, y, flux_guess, mean_guess, stddev_guess)
     # x, y: arrays, same length (dep/indep variables)
     # [amp/mean/stddev]_guess: floats containing pre-computed moments from y.
 
-    init_values = np.array([amp_guess/np.sqrt(2*np.pi*(stddev_guess**2)), mean_guess, np.abs(stddev_guess)])
+    init_values = np.array([flux_guess/np.sqrt(2*np.pi*(stddev_guess**2)), mean_guess, np.abs(stddev_guess)])
 
     fitparams, flags = leastsq(_gaus_resid, init_values, args=(x, y), Dfun=_gaus_dfunc, col_deriv=True)
 
     # fitparams: amp, mean, stddev
     return fitparams
 
-## TEMPPPPP: test of the old method
-# def gaus_fit_apy_mod_fitter(x, y, amp_guess, mean_guess, stddev_guess):
-#     # fitparams = gaus_fit_apy_mod_fitter(x, y, amp_guess, mean_guess, stddev_guess)
-#     # x, y: arrays, same length (dep/indep variables)
-#     # [amp/mean/stddev]_guess: floats containing pre-computed moments from y.
-#
-#     # OLD: astropy fitter
-#     mod = apy_mod.models.Gaussian1D(amplitude=amp_guess / np.sqrt(2 * np.pi * np.abs(stddev_guess)),
-#                                     mean=mean_guess,
-#                                     stddev=np.sqrt(np.abs(stddev_guess)))
-#     mod.amplitude.bounds = (0, None)
-#     mod.stddev.bounds = (0, None)
-#     fitter = apy_mod.fitting.LevMarLSQFitter()
-#     best_fit = fitter(mod, x, y)
-#
-#     # fitparams: amp, mean, stddev
-#     return [best_fit.amplitude.value, best_fit.mean.value, best_fit.stddev.value]
+
+def gaus_fit_apy_mod_fitter(x, y, flux_guess, mean_guess, stddev_guess, yerr=None):
+    # fitparams = gaus_fit_apy_mod_fitter(x, y, amp_guess, mean_guess, stddev_guess)
+    # x, y: arrays, same length (dep/indep variables)
+    # [amp/mean/stddev]_guess: floats containing pre-computed moments from y.
+
+    # OLD: astropy fitter
+    mod = apy_mod.models.Gaussian1D(amplitude=flux_guess / (np.sqrt(2 * np.pi) * np.abs(stddev_guess)),
+                                    mean=mean_guess,
+                                    stddev=np.abs(stddev_guess))
+    mod.amplitude.bounds = (0, None)
+    mod.stddev.bounds = (0, None)
+    fitter = apy_mod.fitting.LevMarLSQFitter()
+    if yerr is not None:
+        wgt = 1./yerr
+        wgt[~np.isfinite(wgt)] = 0.
+        #wgt /= wgt.max()
+    else:
+        wgt = None
+    best_fit = fitter(mod, x, y, weights=wgt)
+
+    # fitparams: amp, mean, stddev
+    #return [best_fit.amplitude.value, best_fit.mean.value, best_fit.stddev.value]
+    return [best_fit.amplitude.value, best_fit.mean.value, best_fit.stddev.value, best_fit]
 
 ###########################################################################################
 

@@ -2639,9 +2639,9 @@ class Sersic(MassModel):
 
     .. math::
 
-        M(r)=M_e\exp\left\{-b_n\left[\left(\frac{r}{r_{eff}}\right)^{(1/n)}-1\right]\right\}
+        M(r) = M_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
 
-    The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
+    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
     mass, and can be solved for numerically.
 
     .. math::
@@ -2773,8 +2773,6 @@ class Sersic(MassModel):
         -------
         surf_dens : float or array
             Mass surface density at `r` in units of Msun/kpc^2
-        -------
-
         """
         if self.noord_flat:
             rho = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
@@ -5305,6 +5303,36 @@ class ZHeightGauss(ZHeightProfile):
     def z_scalelength(self):
         return self.sigmaz
 
+
+class ZHeightExp(ZHeightProfile):
+    r"""
+    Exponential flux distribution in the z-direction
+
+    Parameters
+    ----------
+    hz : float
+        Scale length of the exponential in kpc
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        F_z = \exp\left\{\frac{-z}{h_z}\right\}
+    """
+    hz = DysmalParameter(default=1.0, fixed=True, bounds=(0, 10))
+
+    def __init__(self, **kwargs):
+        super(ZHeightExp, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(z, hz):
+        return np.exp(-z/hz)
+
+    @property
+    def z_scalelength(self):
+        return self.hz
 
 
 # ****** Kinematic Options Class **********
