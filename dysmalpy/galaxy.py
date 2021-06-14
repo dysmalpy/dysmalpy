@@ -207,13 +207,14 @@ class Galaxy:
 
     @instrument.setter
     def instrument(self, new_instrument):
-        if not (isinstance(new_instrument, Instrument)):
+        if not (isinstance(new_instrument, Instrument)) | (new_instrument is None):
             raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
         self._instrument = new_instrument
         self._setup_checks()
 
     def _setup_checks(self):
         self._check_1d_datasize()
+        self._check_3d_instrument()
 
     def _check_1d_datasize(self):
         if (self.data is not None) & (self.instrument is not None):
@@ -234,6 +235,81 @@ class Galaxy:
                     raise ValueError(wmsg)
                 # --------------------------------------------------
 
+    def _check_3d_instrument(self):
+        if (self.data is not None) & (self.instrument is not None):
+            if (isinstance(self.data, Data3D)):
+                # --------------------------------------------------
+                # Check FOV on instrument and reset if not matching:
+                if ((self.instrument.fov[0] != self.data.shape[2]) | \
+                   (self.instrument.fov[1] != self.data.shape[1])):
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** INFO ***\n"
+                    wmsg += "instrument.fov[0,1]="
+                    wmsg += "({},{}) is being reset".format(self.instrument.fov[0], self.instrument.fov[1])
+                    wmsg += " to match 3D cube ({}, {})\n".format(self.data.shape[2], self.data.shape[1])
+                    wmsg += "********************************************************************\n"
+                    logger.info(wmsg)
+                    self.instrument.fov = [self.data.shape[2], self.data.shape[1]]
+                    # Reset kernel
+                    self.instrument._beam_kernel = None
+
+
+                # --------------------------------------------------
+                # Check instrument pixel scale and reset if not matching:
+                pixdifftol = 1.e-10 * self.instrument.pixscale.unit
+                convunit = self.data.data.wcs.wcs.cunit[0].to(self.instrument.pixscale.unit) * \
+                            self.instrument.pixscale.unit
+                if np.abs(self.instrument.pixscale -  self.data.data.wcs.wcs.cdelt[0]*convunit) > pixdifftol:
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** INFO ***\n"
+                    wmsg += "instrument.pixscale="
+                    wmsg += "{} is being reset".format(self.instrument.pixscale)
+                    wmsg += "   to match 3D cube ({})\n".format(self.data.data.wcs.wcs.cdelt[0]*convunit)
+                    wmsg += "********************************************************************\n"
+                    logger.info(wmsg)
+                    self.instrument.pixscale = self.data.data.wcs.wcs.cdelt[0]*convunit
+                    # Reset kernel
+                    self.instrument._beam_kernel = None
+                # --------------------------------------------------
+
+
+
+                # --------------------------------------------------
+                # Check instrument spectral array and reset if not matching:
+                spec_ctype = self.data.data.wcs.wcs.ctype[-1]
+                nspec = self.data.shape[0]
+                if spec_ctype == 'WAVE':
+                    spec_type = 'wavelength'
+                elif spec_ctype == 'VOPT':
+                    spec_type = 'velocity'
+                spec_start = self.data.data.spectral_axis[0]
+                spec_step = (self.data.data.spectral_axis[1]-
+                             self.data.data.spectral_axis[0])
+                specdifftol = 1.e-10 * spec_step.unit
+                if ((self.instrument.spec_type != spec_type) | \
+                   (self.instrument.nspec != nspec) | \
+                   (np.abs(self.instrument.spec_start.to(spec_start.unit) - spec_start)>specdifftol) | \
+                   (np.abs(self.instrument.spec_step.to(spec_step.unit) - spec_step)>specdifftol) ):
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** INFO ***\n"
+                    wmsg += "instrument spectral settings are being reset\n"
+                    wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(self.instrument.spec_type,
+                                    self.instrument.spec_start, self.instrument.spec_step, self.instrument.nspec)
+                    wmsg += "   to match 3D cube\n"
+                    wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(spec_type,
+                                 spec_start, spec_step, nspec)
+                    wmsg += "********************************************************************\n"
+                    logger.info(wmsg)
+                    self.instrument.spec_type = spec_type
+                    self.instrument.spec_step = spec_step
+                    self.instrument.spec_start = spec_start
+                    self.instrument.nspec = nspec
+                    # Reset kernel
+                    self.instrument._lsf_kernel = None
+                # --------------------------------------------------
 
 
     # def create_model_data(self, **kwargs):
@@ -754,8 +830,11 @@ class Galaxy:
                                  "'wavelength.'")
 
 
-            # Normalize flux:
             if from_data:
+                # Copy data mask:
+                mask = copy.deepcopy(self.data.mask)
+
+                # Normalize flux:
                 if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
                     num = np.sum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
                     den = np.sum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
@@ -767,9 +846,11 @@ class Galaxy:
                     den = np.sum(self.data.mask*(flux**2))
                     scale = num / den
                     flux *= scale
+            else:
+                mask = None
 
             self.model_data = Data2D(pixscale=rstep, velocity=vel,
-                                     vel_disp=disp, flux=flux)
+                                     vel_disp=disp, flux=flux, mask=mask)
 
         elif ndim_final == 1:
 
@@ -876,8 +957,11 @@ class Galaxy:
                             pixscale=rstep)
 
 
-            # Normalize flux:
             if from_data:
+                # Get mask:
+                mask1d = copy.deepcopy(self.data.mask)
+
+                # Normalize flux:
                 if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
                     if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
                         num = np.sum(self.data.mask*(self.data.data['flux']*flux1d)/(self.data.error['flux']**2))
@@ -891,12 +975,13 @@ class Galaxy:
                         den = np.sum(self.data.mask*(flux1d**2))
                         scale = num / den
                         flux1d *= scale
+            else:
+                mask1d = None
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                     vel_disp=disp1d, flux=flux1d,
-                                     slit_width=slit_width,
-                                     slit_pa=slit_pa)
+                                     vel_disp=disp1d, flux=flux1d, mask=mask1d,
+                                     slit_width=slit_width, slit_pa=slit_pa)
             self.model_data.apertures = aper_model
             self.model_data.profile1d_type = profile1d_type
 
@@ -920,7 +1005,7 @@ class Galaxy:
                                      slit_width=self.data.slit_width,
                                      integrate_cube=self.data.integrate_cube)
 
-        #
+        ####                             
         # Reset instrument to orig value
         if skip_downsample:
             rstep *= oversample

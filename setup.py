@@ -25,7 +25,7 @@ with open('README.rst') as readme_file:
 requirements = ['numpy', 'scipy', 'matplotlib', 'astropy',
                 'emcee', 'corner', 'cython', 'dill',
                 'shapely', 'spectral-cube', 'radio-beam',
-                'h5py', 'pandas', 'six']
+                'h5py', 'pandas', 'six', 'tkinter']
 
 setup_requirements = ['Cython', 'numpy']
 

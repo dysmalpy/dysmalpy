@@ -124,6 +124,12 @@ class ConfigFitBase(ConfigBase):
         self.f_model_bestfit = None
         self.f_cube = None
         self.f_plot_bestfit = None
+
+        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
+        self.f_plot_spaxel = None
+        self.f_plot_aperture = None
+        self.f_plot_channel = None
+
         self.f_results = None
 
         self.f_vel_ascii = None
