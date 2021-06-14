@@ -60,7 +60,7 @@ def calc_pixel_distance(nx, ny, center_coord):
 
 def create_aperture_mask(nx, ny, center_coord, dr):
     """
-
+    Function to create an aperture mask. NOT USED.
     :param nx:
     :param ny:
     :param center_coord:

@@ -2639,7 +2639,7 @@ class Sersic(MassModel):
 
     .. math::
 
-        M(r)=M_e\exp\left\{-b_n\left[\left(\frac{r}{r_{eff}}\right)^{(1/n)}-1\right]\right\}
+        M(r) = M_e \exp \left\{ -b_n \left[ \left( \frac{r}{r_{eff}} \right)^{(1/n)} -1 \right] \right\}
 
     The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
     mass, and can be solved for numerically.
@@ -2773,8 +2773,6 @@ class Sersic(MassModel):
         -------
         surf_dens : float or array
             Mass surface density at `r` in units of Msun/kpc^2
-        -------
-
         """
         if self.noord_flat:
             rho = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
