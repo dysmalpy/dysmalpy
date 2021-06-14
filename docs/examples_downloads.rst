@@ -6,8 +6,7 @@ Example files
 =============
 
 
-Example files for use with DysmalPy tutorials:
-----------------------------------------------
+**Example files for use with DysmalPy tutorials:**
 
 The Jupyter notebooks for the examples can be found in the downloadable source code,
 under `dysmalpy/examples/notebooks`.
