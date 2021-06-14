@@ -1091,14 +1091,15 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
                     partial_weight=partial_weight,
                     moment=moment)
 
+    # Create model:
+    kwargs_galmodel_in = kwargs_galmodel.copy()
+    kwargs_galmodel_in['from_data'] = False
+    kwargs_galmodel_in['from_instrument'] = True
+    kwargs_galmodel_in['ndim_final'] = 1
     if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
-        gal.create_model_data(**kwargs_galmodel)
+        gal.create_model_data(**kwargs_galmodel_in)
     else:
         gal.instrument.slit_width = gal.data.slit_width
-        kwargs_galmodel_in = kwargs_galmodel.copy()
-        kwargs_galmodel_in['from_data'] = False
-        kwargs_galmodel_in['from_instrument'] = True
-        kwargs_galmodel_in['ndim_final'] = 1
         kwargs_galmodel_in['aper_centers'] = aper_centers_interp
         kwargs_galmodel_in['slit_width'] = gal.data.slit_width
         kwargs_galmodel_in['slit_pa'] = gal.data.slit_pa
