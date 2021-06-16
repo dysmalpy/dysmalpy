@@ -15,7 +15,7 @@ ycenter,              None                       # Center position in cube, y co
 
 
 # ***************************** OUTPUT *****************************************
-outdir,           NOSETEST_OUTPUT/GS4_43501_3D_model_cube/         # Full path for output directory
+outdir,           PYTEST_OUTPUT/GS4_43501_3D_model_cube/         # Full path for output directory
 
 
 # ***************************** OBSERVATION SETUP ******************************
@@ -40,21 +40,6 @@ sig_inst_res,     51.0         # Instrumental dispersion in km/s
 psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
 psf_fwhm,         0.55         # PSF FWHM in arcsecs
 psf_beta,         -99.         # Beta parameter for a Moffat PSF
-
-# ## ELLIPTICAL PSF:
-# psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
-# psf_fwhm_major,   0.55         # PSF major axis FWHM in arcsecs
-# psf_fwhm_minor,   0.25         # PSF minor axis FWHM in arcsecs
-# psf_PA,           0.           # PA of PSF major axis, in deg E of N. (0=N, 90=E)
-# psf_beta,         -99.         # Beta parameter for a Moffat PSF
-
-# # DoubleGaussian:  settings instead of psf_fwhm
-# psf_type,         DoubleGaussian
-# psf_fwhm1,        0.16         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.16
-# psf_fwhm2,        0.48         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.48
-# psf_scale1,       0.368        # Flux scaling (*not* peak height) of component 1. SINFONI AO: 0.368
-# psf_scale2,       0.632        # Flux scaling (*not* peak height) of component 2. SINFONI AO: 0.632
-
 
 # **************************** SETUP MODEL *************************************
 
@@ -102,36 +87,6 @@ invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
 r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
 
-
-# # ********************************************************************************
-# # BLACK HOLE
-# # ------------
-#
-# # Initial Values
-# BH_mass,             11.     # log(Msun)
-
-
-
-# # ********************************************************************************
-# # Separate light profile: (Truncated) Sersic profile
-# # ------------
-# # Initial values
-# L_tot_sersic,        1.     # arbitrary units
-# lr_eff,              4.     # kpc
-# lsersic_n,           1.     # Sersic index of light profile
-# lsersic_rinner,      0.     # [kpc] Inner truncation radius of sersic profile. 0   = no truncation
-# lsersic_router,     inf     # [kpc] Outer truncation radius of sersic profile. inf = no truncation
-
-
-# # ********************************************************************************
-# # Separate light profile: Gaussian ring
-# # ------------
-# # Initial values
-# L_tot_gaus_ring,     1.      # arbitrary units
-# r_peak_gaus_ring,    6.      # kpc
-# sigma_r_gaus_ring,   1.      # kpc
-
-
 # ********************************************************************************
 # ********************************************************************************
 # ********************************************************************************
@@ -155,62 +110,6 @@ fdm,                 -99        # Dark matter fraction at r_eff_disk
 fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvirial (+baryons)
 # ********************************************************************************
 
-# # ********************************************************************************
-# #    Two-power halo
-#
-# # Initial Values
-# mvirial,             11.5       # Halo virial mass in log(Msun)
-# halo_conc,           5.0        # Halo concentration parameter
-# fdm,                 0.5        # Dark matter fraction at r_eff_disk
-# alpha,               1.         # TPH: inner slope. NFW has alpha=1
-# beta,                3.         # TPH: outer slope. NFW has beta=3
-#
-# # Tie the parameters?
-# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
-#
-# # ********************************************************************************
-
-# # ********************************************************************************
-# #    Burkert halo
-#
-# # Initial Values
-# mvirial,             11.5       # Halo virial mass in log(Msun)
-# halo_conc,           5.0        # Halo concentration parameter
-# fdm,                 0.5        # Dark matter fraction at r_eff_disk
-# rB,                  10.        # Burkert: Halo core radius, in kpc
-#
-# # Tie the parameters?
-# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
-#
-# # ********************************************************************************
-
-# # ********************************************************************************
-# #    Einasto halo
-# # Initial Values
-# mvirial,             11.5       # Halo virial mass in log(Msun)
-# halo_conc,           5.0        # Halo concentration parameter
-# fdm,                 0.5        # Dark matter fraction at r_eff_disk
-# alphaEinasto,        1.         # Einasto: Halo profile index
-#
-# # Tie the parameters?
-# fdm_tied,           True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
-#
-# # ********************************************************************************
-
-
-# # ********************************************************************************
-# #    Dekel-Zhao halo
-# # Initial Values
-# mvirial,             12.0       # Halo virial mass in log(Msun)
-# s1,                  1.5        # Inner logarithmic slope (at resolution r1=0.01*Rvir)
-# c2,                  25.0       # Concentration parameter (defined relative to c, a)
-# fdm,                 0.5        # Dark matter fraction at r_eff_disk
-#
-# # Tie the parameters?
-# fdm_tied,           True     # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
-#
-# # ********************************************************************************
-
 
 # ********************************************************************************
 # INTRINSIC DISPERSION PROFILE
@@ -219,13 +118,6 @@ fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvir
 # Initial Values
 sigma0,              39.0      # Constant intrinsic dispersion value
 
-
-
-# # ********************************************************************************
-# # UNIFORM RADIAL FLOW
-# # -------------------
-#
-# vr,       0.             # Radial flow [km/s]. Positive: inflow. Negative: Outflow.
 
 
 
