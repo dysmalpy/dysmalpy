@@ -368,6 +368,16 @@ def v_circular(mass_enc, r):
                     (r * 1000. * pc.cgs.value))
     vcirc = vcirc/1e5
 
+    # -------------------------
+    # Test for 0:
+    try:
+        if len(r) >= 1:
+            vcirc[np.array(r) == 0.] = 0.
+    except:
+        if r == 0.:
+            vcirc = 0.
+    # -------------------------
+
     return vcirc
 
 
@@ -554,12 +564,20 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     if table['r'][0] > 0.:
         #print("_sersic_profile_mass_VC_loaded={}".format(_sersic_profile_mass_VC_loaded))
         if _sersic_profile_mass_VC_loaded:
+            # try:
+            #     table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+            #     table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
+            #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
+            # except:
+            #     pass
             try:
-                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
-                        n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
+                table_rad = np.insert(table_rad, 0, 0., axis=0)
+                table_rho = np.insert(table_rho, 0,
+                                sersic_profile_mass_VC_calcs.rho(0.,n=n, total_mass=table_mass,
+                                Reff=table_Reff, q=table['q']), axis=0)
             except:
                 pass
+
 
     r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
     r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
@@ -607,9 +625,13 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     if table['r'][0] > 0.:
         if _sersic_profile_mass_VC_loaded:
             try:
-                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
-                            n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
+                # table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+                # table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
+                #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
+                table_rad = np.insert(table_rad, 0, 0., axis=0)
+                table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
+                                sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
+
             except:
                 pass
 
@@ -1518,15 +1540,18 @@ class ModelSet:
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
-                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
-                        mcomp = self.components[cmp]
+                    mcomp = self.components[cmp]
 
+                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
                         cmpnt_rho = mcomp.rho(r)
                         cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
 
                         whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
-                        if len(whfin) < len(r):
-                            raise ValueError
+                        try:
+                            if len(whfin) < len(r):
+                                raise ValueError
+                        except:
+                            pass
 
                         rhogastot += cmpnt_rho
                         rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
