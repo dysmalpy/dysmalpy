@@ -1,0 +1,255 @@
+# Example parameters file for fitting a single object with 1D data
+# Note: DO NOT CHANGE THE NAMES IN THE 1ST COLUMN AND KEEP THE COMMAS!!
+# See README for a description of each parameter and its available options.
+
+# ******************************* OBJECT INFO **********************************
+galID,    GS4_43501    # Name of your object
+z,        1.613        # Redshift
+
+
+## GALAXY CENTER:
+# IMPORTANT: 0 indexed, so coordinates go from [0, nX-1] and [0, nY-1].
+# So if using QFitsView, will need to subtract 1 from both coords (as QFitsView goes from [1,nX] and [1,nY])
+xcenter,              None                       # Center position in cube, x coord. Default: (nX-1)/2.
+ycenter,              None                       # Center position in cube, y coord. Default: (nY-1)/2.
+
+
+# ***************************** OUTPUT *****************************************
+outdir,           NOSETEST_OUTPUT/GS4_43501_3D_model_cube/         # Full path for output directory
+
+
+# ***************************** OBSERVATION SETUP ******************************
+
+# Instrument Setup
+# ------------------
+pixscale,         0.125        # Pixel scale in arcsec/pixel
+fov_npix,         37           # Number of pixels on a side of model cube
+spec_type,   velocity          # DON'T CHANGE!
+spec_start,     -1000.         # Starting value for spectral axis       // generally don't change
+spec_step,         10.         # Step size for spectral axis in km/s    // generally don't change
+nspec,            201          # Number of spectral steps               // generally don't change
+
+# LSF Setup
+# ---------
+use_lsf,          True         # True/False if using an LSF
+sig_inst_res,     51.0         # Instrumental dispersion in km/s
+
+
+# PSF Setup
+# ---------
+psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
+psf_fwhm,         0.55         # PSF FWHM in arcsecs
+psf_beta,         -99.         # Beta parameter for a Moffat PSF
+
+# ## ELLIPTICAL PSF:
+# psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
+# psf_fwhm_major,   0.55         # PSF major axis FWHM in arcsecs
+# psf_fwhm_minor,   0.25         # PSF minor axis FWHM in arcsecs
+# psf_PA,           0.           # PA of PSF major axis, in deg E of N. (0=N, 90=E)
+# psf_beta,         -99.         # Beta parameter for a Moffat PSF
+
+# # DoubleGaussian:  settings instead of psf_fwhm
+# psf_type,         DoubleGaussian
+# psf_fwhm1,        0.16         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.16
+# psf_fwhm2,        0.48         # FWHM of PSF component 1, in arcsecs. SINFONI AO: 0.48
+# psf_scale1,       0.368        # Flux scaling (*not* peak height) of component 1. SINFONI AO: 0.368
+# psf_scale2,       0.632        # Flux scaling (*not* peak height) of component 2. SINFONI AO: 0.632
+
+
+# **************************** SETUP MODEL *************************************
+
+# Model Settings
+# -------------
+# List of components to use:  SEPARATE WITH SPACES
+## MUST always keep:            geometry   zheight_gaus
+## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof
+components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
+# possible options:
+#       disk+bulge, sersic, blackhole
+#       const_disp_prof,   geometry,   zheight_gaus,  halo,
+#       radial_flow
+
+# List of components that emit light. SEPARATE WITH SPACES
+##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
+##              also:    light_sersic, light_gaussian_ring
+light_components_list,   disk
+# NOTE: if a separate light profile (eg light_sersic) is used,
+#       this MUST be changed to  e.g., 'light_components_list,   light_sersic'
+
+adiabatic_contract,  False     # Apply adiabatic contraction?
+pressure_support,    True      # Apply assymmetric drift correction?
+noord_flat,          True      # Apply Noordermeer flattenning?
+oversample,          3         # Spatial oversample factor
+oversize,            1         # Oversize factor
+
+zcalc_truncate,      True      # Truncate in zgal direction when calculating or not
+n_wholepix_z_min,    3         # Minimum number of whole pixels in zgal dir, if zcalc_truncate=True
+
+
+# ********************************************************************************
+# DISK + BULGE
+# ------------
+
+# Initial Values
+total_mass,           11.0     # Total mass of disk and bulge log(Msun)
+bt,                   0.3     # Bulge-to-Total Ratio
+r_eff_disk,           5.0     # Effective radius of disk in kpc
+n_disk,               1.0      # Sersic index for disk
+invq_disk,            5.0      # disk scale length to zheight ratio for disk
+
+n_bulge,              4.0      # Sersic index for bulge
+invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
+r_eff_bulge,          1.0      # Effective radius of bulge in kpc
+
+
+
+# # ********************************************************************************
+# # BLACK HOLE
+# # ------------
+#
+# # Initial Values
+# BH_mass,             11.     # log(Msun)
+
+
+
+# # ********************************************************************************
+# # Separate light profile: (Truncated) Sersic profile
+# # ------------
+# # Initial values
+# L_tot_sersic,        1.     # arbitrary units
+# lr_eff,              4.     # kpc
+# lsersic_n,           1.     # Sersic index of light profile
+# lsersic_rinner,      0.     # [kpc] Inner truncation radius of sersic profile. 0   = no truncation
+# lsersic_router,     inf     # [kpc] Outer truncation radius of sersic profile. inf = no truncation
+
+
+# # ********************************************************************************
+# # Separate light profile: Gaussian ring
+# # ------------
+# # Initial values
+# L_tot_gaus_ring,     1.      # arbitrary units
+# r_peak_gaus_ring,    6.      # kpc
+# sigma_r_gaus_ring,   1.      # kpc
+
+
+# ********************************************************************************
+# ********************************************************************************
+# ********************************************************************************
+# DARK MATTER HALO
+# ----------------
+
+# Halo type: options: NFW / twopowerhalo / burkert / einasto / dekelzhao
+halo_profile_type,   NFW
+
+# ** NOTE **: Uncomment the section below corresponding to the selected halo type.
+
+# ********************************************************************************
+#    NFW halo
+
+# Initial Values
+mvirial,             11.5       # Halo virial mass in log(Msun)
+halo_conc,           5.0        # Halo concentration parameter
+fdm,                 -99        # Dark matter fraction at r_eff_disk
+
+# Tie the parameters?
+fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvirial (+baryons)
+# ********************************************************************************
+
+# # ********************************************************************************
+# #    Two-power halo
+#
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# alpha,               1.         # TPH: inner slope. NFW has alpha=1
+# beta,                3.         # TPH: outer slope. NFW has beta=3
+#
+# # Tie the parameters?
+# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+#
+# # ********************************************************************************
+
+# # ********************************************************************************
+# #    Burkert halo
+#
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# rB,                  10.        # Burkert: Halo core radius, in kpc
+#
+# # Tie the parameters?
+# fdm_tied,       True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+#
+# # ********************************************************************************
+
+# # ********************************************************************************
+# #    Einasto halo
+# # Initial Values
+# mvirial,             11.5       # Halo virial mass in log(Msun)
+# halo_conc,           5.0        # Halo concentration parameter
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+# alphaEinasto,        1.         # Einasto: Halo profile index
+#
+# # Tie the parameters?
+# fdm_tied,           True      # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+#
+# # ********************************************************************************
+
+
+# # ********************************************************************************
+# #    Dekel-Zhao halo
+# # Initial Values
+# mvirial,             12.0       # Halo virial mass in log(Msun)
+# s1,                  1.5        # Inner logarithmic slope (at resolution r1=0.01*Rvir)
+# c2,                  25.0       # Concentration parameter (defined relative to c, a)
+# fdm,                 0.5        # Dark matter fraction at r_eff_disk
+#
+# # Tie the parameters?
+# fdm_tied,           True     # for non-NFW, fdm_tied=True determines fDM from other halo params (+baryons)
+#
+# # ********************************************************************************
+
+
+# ********************************************************************************
+# INTRINSIC DISPERSION PROFILE
+# ----------------------------
+
+# Initial Values
+sigma0,              39.0      # Constant intrinsic dispersion value
+
+
+
+# # ********************************************************************************
+# # UNIFORM RADIAL FLOW
+# # -------------------
+#
+# vr,       0.             # Radial flow [km/s]. Positive: inflow. Negative: Outflow.
+
+
+
+# ********************************************************************************
+# ZHEIGHT PROFILE
+# ---------------
+
+# Initial Values
+sigmaz,              0.9      # Gaussian width of the galaxy in z, in kpc
+
+# Tie the zheight to the effective radius of the disk?
+# If set to True, make sure sigmaz_fixed is False
+zheight_tied,        True
+
+
+# GEOMETRY
+# --------
+
+# Initial Values
+inc,                 62.   # Inclination of galaxy, 0=face-on, 90=edge-on
+pa,                  142.
+xshift,              0.        # pixels
+yshift,              0.        # pixels
+vel_shift,           0.      # km/s
+
+
+overwrite,         True
