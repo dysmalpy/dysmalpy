@@ -2384,6 +2384,7 @@ def plot_channel_maps_3D_cube(gal,
             delv = 100.,
             vbounds_shift=True,
             cmap=cm.Greys,
+            cmap_resid=cm.seismic,
             fileout=None,
             overwrite=False):
 
@@ -2517,16 +2518,26 @@ def plot_channel_maps_3D_cube(gal,
 
             typ = types[ind_stack]
             flims = flux_lims
+            cmap_tmp = cmap
+            #color_contours='red'
+            residual=False
             if typ == 'data':
                 cube = gal.data.data*gal.data.mask
+                color_contours='blue'
             elif typ == 'model':
                 cube = gal.model_data.data*gal.model_data.mask
+                color_contours='red'
             elif typ == 'residual':
                 cube = gal.data.data*gal.data.mask - gal.model_data.data*gal.model_data.mask
                 flims = flux_lims_resid
+                cmap_tmp = cmap_resid
+                color_contours='black'
+                residual=True
 
             ax = plot_channel_slice(ax=ax,speccube=cube, center=center,
-                        v_slice_lims=v_slice_lims, flux_lims=flims, cmap=cmap)
+                        v_slice_lims=v_slice_lims, flux_lims=flims,
+                        cmap=cmap_tmp,  color_contours=color_contours,
+                        residual=residual)
 
 
             ###########################
@@ -2659,7 +2670,8 @@ def plot_spaxel_fit(specarr, data, mask, err=None,
 
 def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None,
                       center=None, show_pix_coords=False, cmap=cm.Greys,
-                      color_contours='red', color_center='cyan'):
+                      color_contours='red', color_center='cyan',
+                      residual=False):
 
     if ax is None:
         ax = plt.gca()
@@ -2703,6 +2715,8 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
     #################################################
     # Syntax taken from corner/core.py
     imflat = im.flatten()
+    if residual:
+        imflat = np.abs(imflat)
     inds = np.argsort(imflat)[::-1]
     imflat = imflat[inds]
     sm = np.cumsum(imflat)
