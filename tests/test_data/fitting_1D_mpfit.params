@@ -28,7 +28,7 @@ overwrite, True
 linked_posteriors,         total_mass   r_eff_disk   bt   fdm
 
 # ***************************** OUTPUT *****************************************
-outdir,           NOSETEST_OUTPUT/GS4_43501_1D_out_mpfit/         # Full path for output directory
+outdir,           PYTEST_OUTPUT/GS4_43501_1D_out_mpfit/         # Full path for output directory
 
 
 # ***************************** OBSERVATION SETUP ******************************

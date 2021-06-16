@@ -44,7 +44,7 @@ auto_gen_mask_snr_int_flux_thresh,  	3.
 
 
 # ***************************** OUTPUT *****************************************
-outdir,           NOSETEST_OUTPUT/GS4_43501_3D_out_mpfit/         # Full path for output directory
+outdir,           PYTEST_OUTPUT/GS4_43501_3D_out_mpfit/         # Full path for output directory
 
 
 # ***************************** OBSERVATION SETUP ******************************

@@ -34,7 +34,7 @@ ycenter,              None                       # Center position in maps, y co
 
 
 # ***************************** OUTPUT *****************************************
-outdir,           NOSETEST_OUTPUT/GS4_43501_2D_out_mpfit/         # Full path for output directory
+outdir,           PYTEST_OUTPUT/GS4_43501_2D_out_mpfit/         # Full path for output directory
 
 
 # ***************************** OBSERVATION SETUP ******************************
