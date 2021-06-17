@@ -2715,8 +2715,10 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
     #################################################
     # Syntax taken from corner/core.py
     imflat = im.flatten()
+    imtmp = im.copy()
     if residual:
         imflat = np.abs(imflat)
+        imtmp = np.abs(imtmp)
     inds = np.argsort(imflat)[::-1]
     imflat = imflat[inds]
     sm = np.cumsum(imflat)
@@ -2736,7 +2738,7 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
         m = np.diff(contour_levels) == 0
     contour_levels.sort()
 
-    ax.contour(im, contour_levels, **contour_kwargs)
+    ax.contour(imtmp, contour_levels, **contour_kwargs)
 
     #################################################
 
