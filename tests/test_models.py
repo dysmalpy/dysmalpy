@@ -25,8 +25,11 @@ _dir_tests_data = _dir_tests+'test_data/'
 
 
 
+class HelperSetups(object):
 
-class TestModels:
+    def __init__(self):
+        self.z = 1.613
+        self.name = 'GS4_43501'
 
     def setup_diskbulge(self):
         # Baryonic Component: Combined Disk+Bulge
@@ -94,7 +97,7 @@ class TestModels:
 
         return sersic
 
-    def setup_NFW(self, z=None):
+    def setup_NFW(self):
         # NFW Halo component
         mvirial = 12.0
         conc = 5.0
@@ -107,7 +110,7 @@ class TestModels:
                        'conc': (1, 20),
                        'fdm': (0., 1.)}
 
-        halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm,z=z,
+        halo = models.NFW(mvirial=mvirial, conc=conc, fdm=fdm,z=self.z,
                           fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
         halo.fdm.tied = fw_utils_io.tie_fdm
@@ -115,7 +118,7 @@ class TestModels:
 
         return halo
 
-    def setup_TPH(self, z=None):
+    def setup_TPH(self):
         # TPH Halo component
         mvirial = 12.0
         conc = 5.0
@@ -136,7 +139,7 @@ class TestModels:
                        'fdm': (0., 1.)}
 
         halo = models.TwoPowerHalo(mvirial=mvirial, conc=conc,
-                            alpha=alpha, beta=beta, fdm=fdm, z=z,
+                            alpha=alpha, beta=beta, fdm=fdm, z=self.z,
                             fixed=halo_fixed, bounds=halo_bounds, name='halo')
 
         halo.fdm.tied = fw_utils_io.tie_fdm
@@ -190,11 +193,11 @@ class TestModels:
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1):
         # Initialize the Galaxy, Instrument, and Model Set
-        gal = galaxy.Galaxy(z=1.613, name='GS4_43501')
+        gal = galaxy.Galaxy(z=self.z, name=self.name)
         mod_set = models.ModelSet()
 
         bary = self.setup_diskbulge()
-        halo = self.setup_NFW(z=gal.z)
+        halo = self.setup_NFW()
         disp_prof = self.setup_const_dispprof()
         zheight_prof = self.setup_zheight_prof()
         geom = self.setup_geom()
@@ -206,11 +209,10 @@ class TestModels:
         mod_set.add_component(zheight_prof)
         mod_set.add_component(geom)
 
-        # Set some kinematic options for calculating the velocity profile
-        #adiabatic_contract = adiabatic_contract
-        #pressure_support = True
-        #pressure_support_type = 1    #  Exponential derived; Burkert+10
-        ##pressure_support_type = 2    #  Exact nSersic.   For exponential derivation: pressure_support_type = 1
+        ## Set some kinematic options for calculating the velocity profile
+        # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]
+        #                        2 / Exact nSersic, self-grav
+        #                        3 / Pressure gradient
         mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
         mod_set.kinematic_options.pressure_support = pressure_support
         mod_set.kinematic_options.pressure_support_type = pressure_support_type
@@ -251,8 +253,13 @@ class TestModels:
 
         return inst
 
+
+
+class TestModels:
+    helper = HelperSetups()
+
     def test_diskbulge(self):
-        bary = self.setup_diskbulge()
+        bary = self.helper.setup_diskbulge()
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -260,6 +267,7 @@ class TestModels:
         menc = np.array([0., 3.17866553e+10, 6.23735490e+10, 8.60516713e+10, 9.98677462e+10]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(bary.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
 
@@ -269,13 +277,14 @@ class TestModels:
             rho = np.array([3.970102840765826e+17, 399133357.6711784, 117795156.79188688,
                             41725350.996718735, 15703871.592708467]) # msun/kpc^3 ??
             for i, r in enumerate(rarr):
+                # Assert density, dlnrho_dlnr values are the same
                 assert math.isclose(bary.rho(r), rho[i], rel_tol=ftol)
                 assert math.isclose(bary.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
 
 
     def test_sersic(self):
-        sersic = self.setup_sersic(noord_flat=False)
+        sersic = self.helper.setup_sersic(noord_flat=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -285,6 +294,7 @@ class TestModels:
                             71627906617.42969, 84816797558.70425]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
@@ -294,11 +304,12 @@ class TestModels:
             rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
                             144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
             for i, r in enumerate(rarr):
+                # Assert density, dlnrho_dlnr values are the same
                 assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
                 assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_sersic_noord_flat(self):
-        sersic = self.setup_sersic(noord_flat=True)
+        sersic = self.helper.setup_sersic(noord_flat=True)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -308,6 +319,7 @@ class TestModels:
                             84173927151.13939, 102463310604.53976]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
@@ -317,13 +329,15 @@ class TestModels:
             rho = np.array([35133994466.11231, 510439919.6032341, 162957719.18618384,
                                 58502355.720370084, 22099112.430362392]) # msun/kpc^3 ??
             for i, r in enumerate(rarr):
+                # Assert density, dlnrho_dlnr values are the same
                 assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
                 assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_NFW(self):
-        halo = self.setup_NFW(z=1.613)
+        halo = self.helper.setup_NFW()
 
         ftol = 1.e-9
+        # Assert Rvir is the same
         assert math.isclose(halo.calc_rvir(), 113.19184480200144, rel_tol=ftol)
 
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -333,14 +347,16 @@ class TestModels:
                         38918647245.552315, 62033461205.42702, 498218492834.53705]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(halo.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
 
     def test_TPH(self):
-        halo = self.setup_TPH(z=1.613)
+        halo = self.helper.setup_TPH()
 
         ftol = 1.e-9
+        # Assert Rvir is the same
         assert math.isclose(halo.calc_rvir(), 113.19184480200144, rel_tol=ftol)
 
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -350,11 +366,12 @@ class TestModels:
                         10367955836.483051, 20480448580.59536, 393647104816.9644]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(halo.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
     def test_asymm_drift_selfgrav(self):
-        gal = self.setup_fullmodel(pressure_support_type=1)
+        gal = self.helper.setup_fullmodel(pressure_support_type=1)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -362,10 +379,11 @@ class TestModels:
                         252.9804212303498, 243.74423052912974]) #km/s
 
         for i, r in enumerate(rarr):
+            # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
     def test_asymm_drift_exactsersic(self):
-        gal = self.setup_fullmodel(pressure_support_type=2)
+        gal = self.helper.setup_fullmodel(pressure_support_type=2)
         gal.model.set_parameter_value('disk+bulge', 'n_disk', 0.5)
 
         ftol = 1.e-9
@@ -374,22 +392,26 @@ class TestModels:
                         261.186198203435, 242.75798891697548]) #km/s
 
         for i, r in enumerate(rarr):
+            # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
     def test_asymm_drift_pressuregradient(self):
-        gal = self.setup_fullmodel(pressure_support_type=3)
+        if models._sersic_profile_mass_VC_loaded:
+            gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
-        ftol = 1.e-9
-        rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
-                        259.0401697217219, 252.5887167466986]) #km/s
+            ftol = 1.e-9
+            rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
+            vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
+                            259.0401697217219, 252.5887167466986]) #km/s
 
-        for i, r in enumerate(rarr):
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
-
+            for i, r in enumerate(rarr):
+                # Assert vrot values are the same
+                assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+        else:
+            pass
 
     def test_composite_model(self):
-        gal_noAC = self.setup_fullmodel(adiabatic_contract=False)
+        gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -399,12 +421,13 @@ class TestModels:
                         124970318584.0155, 161901207448.951, 598685915680.8903]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(gal_noAC.model.circular_velocity(r), vcirc_noAC[i], rel_tol=ftol)
-            assert math.isclose(gal_noAC.model.enclosed_mass(r)[0], menc_noAC[i], rel_tol=ftol)
+            assert math.isclose(gal_noAC.model.enclosed_mass(r), menc_noAC[i], rel_tol=ftol)
 
 
     def test_adiabatic_contraction(self):
-        gal_AC = self.setup_fullmodel(adiabatic_contract=True)
+        gal_AC = self.helper.setup_fullmodel(adiabatic_contract=True)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -414,13 +437,13 @@ class TestModels:
                         141262539926.01163, 180782046435.46255, 598084452596.9691]) # Msun
 
         for i, r in enumerate(rarr):
+            # Assert vcirc, menc values are the same
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
-            assert math.isclose(gal_AC.model.enclosed_mass(r)[0], menc_AC[i], rel_tol=ftol)
+            assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
 
 
 
 class TestModelsFittingWrappers:
-
     def test_fitting_wrapper_model(self):
         param_filename = 'make_model_3Dcube.params'
         param_filename_full=_dir_tests_data+param_filename
@@ -454,4 +477,5 @@ class TestModelsFittingWrappers:
                           [ 90,15,21, 0.0030971139031998884]]
 
         for arr in arr_pix_values:
+            # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
