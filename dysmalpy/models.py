@@ -380,7 +380,6 @@ def v_circular(mass_enc, r):
 
     return vcirc
 
-
 def menc_from_vcirc(vcirc, r):
     """
     Enclosed mass given a circular velocity and radius
@@ -1420,6 +1419,54 @@ class ModelSet:
         except:
             return None
 
+    def get_dlnrhogas_dlnr(self, r):
+        """
+        Calculate the composite derivative dln(rho,gas) / dlnr
+
+        ** Assumes gas follows same distribution as total baryons.
+           Based on slope, so do not need to rescale for fgas/Mgas under this assumption.**
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii in kpc
+
+        Returns
+        -------
+        dlnrhogas_dlnr : float or array
+
+        """
+        # First check to make sure there is at least one mass component in the model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so a dlnrho/dlnr "
+                                 "can't be calculated.")
+        else:
+            rhogastot = r*0.
+            rho_dlnrhogas_dlnr_sum = r*0.
+
+            for cmp in self.mass_components:
+
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+
+                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
+                        cmpnt_rho = mcomp.rho(r)
+                        cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
+
+                        whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
+                        try:
+                            if len(whfin) < len(r):
+                                raise ValueError
+                        except:
+                            pass
+
+                        rhogastot += cmpnt_rho
+                        rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
+
+        dlnrhogas_dlnr = (1./rhogastot) * rho_dlnrhogas_dlnr_sum
+
+        return dlnrhogas_dlnr
+
     def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
         """
         Calculate the total enclosed mass within the effective radius
@@ -1502,7 +1549,8 @@ class ModelSet:
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
 
-                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, model_key_re=model_key_re, step1d=step1d)
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True,
+                                    model_key_re=model_key_re, step1d=step1d)
                 # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
                 #               (G.cgs.value * Msun.cgs.value))
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
@@ -1512,53 +1560,6 @@ class ModelSet:
         return enc_mass, enc_bary, enc_dm
 
 
-    def get_dlnrhogas_dlnr(self, r):
-        """
-        Calculate the composite derivative dln(rho,gas) / dlnr
-
-        ** Assumes gas follows same distribution as total baryons.
-           Based on slope, so do not need to rescale for fgas/Mgas under this assumption.**
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii in kpc
-
-        Returns
-        -------
-        dlnrhogas_dlnr : float or array
-
-        """
-        # First check to make sure there is at least one mass component in the model set.
-        if len(self.mass_components) == 0:
-            raise AttributeError("There are no mass components so a dlnrho/dlnr "
-                                 "can't be calculated.")
-        else:
-            rhogastot = r*0.
-            rho_dlnrhogas_dlnr_sum = r*0.
-
-            for cmp in self.mass_components:
-
-                if self.mass_components[cmp]:
-                    mcomp = self.components[cmp]
-
-                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
-                        cmpnt_rho = mcomp.rho(r)
-                        cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
-
-                        whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
-                        try:
-                            if len(whfin) < len(r):
-                                raise ValueError
-                        except:
-                            pass
-
-                        rhogastot += cmpnt_rho
-                        rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
-
-        dlnrhogas_dlnr = (1./rhogastot) * rho_dlnrhogas_dlnr_sum
-
-        return dlnrhogas_dlnr
 
 
     def circular_velocity(self, r, compute_baryon=False, compute_dm=False,

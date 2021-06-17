@@ -9,30 +9,19 @@ import shutil
 import math
 
 import numpy as np
-
 import astropy.io.fits as fits
+import astropy.units as u
 
 from dysmalpy.fitting_wrappers import dysmalpy_make_model
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
-from dysmalpy import galaxy, models, parameters
+from dysmalpy import galaxy, models, parameters, instrument
 
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)
 _dir_tests = os.path.dirname(path) + '/'
 _dir_tests_data = _dir_tests+'test_data/'
-
-
-
-
-# def func(x):
-#     """Add one to the argument."""
-#     return x + 1
-#
-# def test_answer():
-#     """Check the return value of func() for an example argument."""
-#     assert func(3) == 5
 
 
 
@@ -230,6 +219,37 @@ class TestModels:
         gal.model = mod_set
 
         return gal
+
+    def setup_instrument(self):
+        inst = instrument.Instrument()
+
+        # Set up the instrument
+        pixscale = 0.125*u.arcsec                # arcsec/pixel
+        fov = [33, 33]                           # (nx, ny) pixels
+        beamsize = 0.55*u.arcsec                 # FWHM of beam
+        spec_type = 'velocity'                   # 'velocity' or 'wavelength'
+        spec_start = -1000*u.km/u.s              # Starting value of spectrum
+        spec_step = 10*u.km/u.s                  # Spectral step
+        nspec = 201                              # Number of spectral pixels
+        sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
+
+        beam = instrument.GaussianBeam(major=beamsize)
+        lsf = instrument.LSF(sig_inst)
+
+        inst.beam = beam
+        inst.lsf = lsf
+        inst.pixscale = pixscale
+        inst.fov = fov
+        inst.spec_type = spec_type
+        inst.spec_step = spec_step
+        inst.spec_start = spec_start
+        inst.nspec = nspec
+
+        # Set the beam kernel so it doesn't have to be calculated every step
+        inst.set_beam_kernel()
+        inst.set_lsf_kernel()
+
+        return inst
 
     def test_diskbulge(self):
         bary = self.setup_diskbulge()
