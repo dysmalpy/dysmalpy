@@ -1494,12 +1494,13 @@ class ModelSet:
         r_eff = comp.parameters[param_i]
         r = r_eff
 
-        vc, vdm = self.circular_velocity(r, compute_dm=True)
+        vc = self.circular_velocity(r)
         menc = menc_from_vcirc(vc, r_eff)
 
         return menc
 
-    def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+    def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False,
+                        model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Calculate the total enclosed mass
 
@@ -1507,6 +1508,12 @@ class ModelSet:
         ----------
         r : float or array
             Radius or radii at which to calculate the enclosed mass in kpc
+
+        compute_baryon : bool
+            If True, also return the enclosed mass of the baryons
+
+        compute_dm : bool
+            If True, also return the enclosed mass of the halo
 
         model_key_re : list, optional
             Two element list which contains the name of the model component
@@ -1518,17 +1525,21 @@ class ModelSet:
 
         Returns
         -------
-        enc_mass, enc_bary, enc_dm : float or array
-            The total, baryonic, and dark matter enclosed masses
+        enc_mass : float or array
+            Total enclosed mass in Msun
+
+        enc_bary : float or array, only if `compute_baryon` = True
+            Enclosed mass of the baryons, in Msun
+
+        enc_dm : float or array, only if `compute_dm` = True
+            Enclosed mass of the halo, in Msun
         """
 
-        # First check to make sure there is at least one mass component in the
-        # model set.
+        # First check to make sure there is at least one mass component in the model set.
         if len(self.mass_components) == 0:
             raise AttributeError("There are no mass components so an enclosed "
                                  "mass can't be calculated.")
         else:
-
             enc_mass = r*0.
             enc_dm = r*0.
             enc_bary = r*0.
@@ -1540,31 +1551,32 @@ class ModelSet:
                     enc_mass += enc_mass_cmp
 
                     if mcomp._subtype == 'dark_matter':
-
                         enc_dm += enc_mass_cmp
 
                     elif mcomp._subtype == 'baryonic':
-
                         enc_bary += enc_mass_cmp
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
-
                 vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True,
                                     model_key_re=model_key_re, step1d=step1d)
-                # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
-                #               (G.cgs.value * Msun.cgs.value))
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
                 enc_mass = enc_mass - enc_dm + enc_dm_adi
                 enc_dm = enc_dm_adi
 
-        return enc_mass, enc_bary, enc_dm
-
+        #return enc_mass, enc_bary, enc_dm
+        if (compute_baryon and compute_dm):
+            return enc_mass, enc_bary, enc_dm
+        elif (compute_dm and (not compute_baryon)):
+            return enc_mass, enc_dm
+        elif (compute_baryon and (not compute_dm)):
+            return enc_mass, enc_bary
+        else:
+            return enc_mass
 
 
 
     def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
-                            model_key_re=['disk+bulge', 'r_eff_disk'],
-                          step1d=0.2):
+                            model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
 
@@ -2396,9 +2408,7 @@ class MassModel(_DysmalFittable1DModel):
         using the standard equation :math:`v(r) = \sqrt(GM(r)/r)`.
         This is only valid for a spherical mass distribution.
         """
-
         mass_enc = self.enclosed_mass(r)
-
         vcirc = v_circular(mass_enc, r)
 
         return vcirc

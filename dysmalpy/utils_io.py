@@ -1114,10 +1114,9 @@ def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None, overwrite=False):
     rmax = 40.   # kpc
     rarr = np.arange(0, rmax+rstep, rstep)
 
-    vcirc_tot, vcirc_bar, vcirc_dm = gal.model.circular_velocity(rarr,
-                                    compute_baryon=True, compute_dm=True)
+    vcirc_tot, vcirc_bar, vcirc_dm = gal.model.circular_velocity(rarr, compute_baryon=True, compute_dm=True)
 
-    menc_tot, menc_bar, menc_dm = gal.model.enclosed_mass(rarr)
+    menc_tot, menc_bar, menc_dm = gal.model.enclosed_mass(rarr, compute_baryon=True, compute_dm=True)
 
     vcirc_bar[~np.isfinite(vcirc_bar)] = 0.
     vcirc_dm[~np.isfinite(vcirc_dm)] = 0.
