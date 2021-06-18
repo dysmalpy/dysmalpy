@@ -42,7 +42,7 @@ logger = logging.getLogger('DysmalPy')
 
 
 class Galaxy:
-    """
+    r"""
     Container for simulating or modelling a galaxy
 
     `Galaxy` holds the observed data, model, observing instrument, and
@@ -74,6 +74,7 @@ class Galaxy:
              Observed 2D data (i.e. velocity and dispersion maps) for the galaxy
     data3d : `~dysmalpy.data_classes.Data3D` object, optional
              Observed 3D data (i.e. cube) for the galaxy
+
     """
 
     def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
@@ -328,7 +329,7 @@ class Galaxy:
                           zcalc_truncate=True,
                           n_wholepix_z_min=3,
                           **kwargs):
-        """
+        r"""
         Function to simulate data for the galaxy
 
         The function will initially generate a data cube that will then be optionally
@@ -485,6 +486,7 @@ class Galaxy:
         n_wholepix_z_min: int
             Minimum number of whole pixels to include in the z direction when trunctating.
             Default: 3
+
         """
         if line_center is None:
             line_center = self.model.line_center
@@ -1005,7 +1007,7 @@ class Galaxy:
                                      slit_width=self.data.slit_width,
                                      integrate_cube=self.data.integrate_cube)
 
-        ####                             
+        ####
         # Reset instrument to orig value
         if skip_downsample:
             rstep *= oversample

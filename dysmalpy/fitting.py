@@ -1854,10 +1854,12 @@ class MCMCResults(FitResults):
         self.analyze_blob_posterior_dist(bestfit=rb_mcmc_param_bestfit, parname='rb', blob_name=blob_name)
 
     def get_uncertainty_ellipse(self, namex=None, namey=None, bins=50):
-        """
+        r"""
         Using component name, get sampler chain for param x and y, and estimate joint uncertainty ellipse
+
         Input:
             name[x,y]:      List: ['flatchain', ind] or ['flatblobs', ind]
+
         """
         try:
             chain_x = self.sampler[namex[0]][:,namex[1]]
