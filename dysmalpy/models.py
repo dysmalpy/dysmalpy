@@ -1840,7 +1840,7 @@ class ModelSet:
                       transform_method='direct',
                       zcalc_truncate=True,
                       n_wholepix_z_min=3):
-        """
+        r"""
         Simulate a line emission cube of this model set
 
         Parameters
@@ -1917,6 +1917,7 @@ class ModelSet:
         spec : 1D array
             Values of the spectral channels as determined by `spec_type`, `spec_start`,
             `spec_step`, `nspec`, and `spec_unit`
+
         """
 
         if transform_method.lower().strip() not in ['direct', 'rotate']:
@@ -2702,12 +2703,13 @@ class Sersic(MassModel):
              s1.n = n
              plt.plot(r, s1(r), color=str(float(n) / 15))
 
-        plt.axis([1e-1, 30, 1e5, 1e11])
-        plt.xlabel('log Radius')
-        plt.ylabel('log Mass Surface Density')
-        plt.text(.25, 10**7.5, 'n=1')
-        plt.text(.25, 1e11, 'n=10')
+        plt.axis([1e-1, 30, 1e5, 1e10])
+        plt.xlabel('log Radius [kpc]')
+        plt.ylabel('log Mass Surface Density [log Msun/kpc^2]')
+        plt.text(.25, 8.e7, 'n=1')
+        plt.text(.25, 3.e9, 'n=10')
         plt.show()
+
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -4600,12 +4602,13 @@ class DekelZhao(DarkMatterHalo):
 
     Notes
     -----
-    The formula for this implementation are given in Freundlich et al. 2020 [1]_
-    Specifically, we use the forms where b=2, gbar=3 (see Eqns 4, 5, 14, 15, )
+    The formula for this implementation are given in Freundlich et al. 2020. [1]_
+    Specifically, we use the forms where b=2, gbar=3 (see Eqns 4, 5, 14, 15)
 
     References
     ----------
     .. [1] https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.2912F/abstract
+
     """
 
     # Powerlaw slopes for the density model
@@ -6113,9 +6116,9 @@ class LightTruncateSersic(LightModel):
 
     .. math::
 
-        I(r)=I_e\exp\left\{-b_n\left[\left(\frac{r}{r_{eff}}\right)^{(1/n)}-1\right]\right\}
+        I(r) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
 
-    The constant :math:`b_n` is defined such that :math:`r_{eff}` contains half the total
+    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
     light, and can be solved for numerically.
 
     .. math::
@@ -6133,23 +6136,24 @@ class LightTruncateSersic(LightModel):
 
         plt.figure()
         plt.subplot(111, xscale='log', yscale='log')
-        l1 = LightTruncateSersic(r_eff=5, n=1, r_inner=3, r_outer=20, L_tot=1.e11)
+        ls1 = LightTruncateSersic(r_eff=5, n=1, r_inner=1, r_outer=20, L_tot=1.e11)
         r=np.arange(0, 100, .01)
 
         for n in range(1, 10):
-             s1.n = n
-             plt.plot(r, l1(r), color=str(float(n) / 15))
+             ls1.n = n
+             plt.plot(r, ls1(r), color=str(float(n) / 15))
 
-        plt.axis([1e-1, 30, 1e5, 1e11])
-        plt.xlabel('log Radius')
-        plt.ylabel('log Intensity Surface Density')
-        plt.text(.25, 10**7.5, 'n=1')
-        plt.text(.25, 1e11, 'n=10')
+        plt.axis([0.8, 27, 1e5, 1e10])
+        plt.xlabel('log Radius [kpc]')
+        plt.ylabel('log Intensity Surface Density [log Lsun/kpc^2]')
+        plt.text(1.1, 7.e8, 'n=1')
+        plt.text(1.1, 3.e9, 'n=10')
         plt.show()
+
     """
 
-    r_eff = DysmalParameter(default=1, bounds=(0, 50))
     L_tot = DysmalParameter(default=1, bounds=(0, 50))
+    r_eff = DysmalParameter(default=1, bounds=(0, 50))
     n = DysmalParameter(default=1, bounds=(0, 8))
     r_inner = DysmalParameter(default=0., bounds=(0, 10))
     r_outer = DysmalParameter(default=np.inf, bounds=(0, np.inf))
@@ -6183,7 +6187,7 @@ class LightTruncateSersic(LightModel):
 
 
 class LightGaussianRing(LightModel):
-    """
+    r"""
     Light distribution following a Gaussian ring profile.
 
     Parameters

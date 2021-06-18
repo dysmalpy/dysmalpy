@@ -35,7 +35,7 @@ import dysmalpy
 # -- Project information -----------------------------------------------------
 
 project = 'dysmalpy'
-copyright = '2020, MPE/IR Group'
+copyright = '2021, MPE/IR Group'
 author = 'Sedona Price and Taro Shimizu'
 
 # The full version, including alpha/beta/rc tags

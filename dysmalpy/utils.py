@@ -546,9 +546,10 @@ def lnlike_truncnorm(params, x):
 
 
 def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
-    """
+    r"""
     Get the uncertainty ellipse of the sample for each photocenter.
     (Modified from code from Jinyi Shangguan to do photocenter uncertainty ellipses)
+
     Parameters
     ----------
     pos_list: 2D array
@@ -562,6 +563,7 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
         stddev_x:   stddev of the "x" axis of the 2D gaussian;
                             double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
         stddev_y:   stddev of the "y" axis of the 2D gaussian
+
     """
 
     nSamp = len(chain_x)

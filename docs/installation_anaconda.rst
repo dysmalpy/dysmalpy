@@ -149,10 +149,10 @@ or for Windows:
 
 
 
-.. _add_channel:
+.. _add_channels:
 
-Adding channel to ``conda``
----------------------------
+Adding channels to ``conda``
+----------------------------
 
 A number of the DysmalPy dependencies are not available in the default Anaconda channels,
 but are instead available in the ``astroconda`` channel.

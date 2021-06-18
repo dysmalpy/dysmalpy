@@ -29,7 +29,7 @@ logger = logging.getLogger('DysmalPy')
 
 
 class Instrument:
-    """
+    r"""
     Base class to define an instrument to observe a model galaxy.
 
     Parameters
