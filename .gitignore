@@ -49,6 +49,7 @@ distribute-*.tar.gz
 
 # Other
 .cache
+.pytest_cache
 .tox
 .*.sw[op]
 *~
@@ -64,6 +65,7 @@ distribute-*.tar.gz
 .__afs*
 
 # Private data
+tests/test_data/PYTEST_OUTPUT/
 examples/example_single_1D/COS3_18434.obs_prof.txt
 examples/example_single_1D/COS3_18434_1D_out/
 examples/example_single_1D/COS3_18434_1D_out.nosymm_accid/
