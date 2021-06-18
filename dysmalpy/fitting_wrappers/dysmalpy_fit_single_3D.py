@@ -24,9 +24,6 @@ import copy
 import numpy as np
 import astropy.units as u
 
-# from dysmalpy.fitting_wrappers import utils_io
-# from dysmalpy.fitting_wrappers.dysmalpy_fit_single import dysmalpy_fit_single
-
 try:
     import utils_io
     from dysmalpy_fit_single import dysmalpy_fit_single

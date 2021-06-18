@@ -368,8 +368,17 @@ def v_circular(mass_enc, r):
                     (r * 1000. * pc.cgs.value))
     vcirc = vcirc/1e5
 
-    return vcirc
+    # -------------------------
+    # Test for 0:
+    try:
+        if len(r) >= 1:
+            vcirc[np.array(r) == 0.] = 0.
+    except:
+        if r == 0.:
+            vcirc = 0.
+    # -------------------------
 
+    return vcirc
 
 def menc_from_vcirc(vcirc, r):
     """
@@ -554,12 +563,20 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     if table['r'][0] > 0.:
         #print("_sersic_profile_mass_VC_loaded={}".format(_sersic_profile_mass_VC_loaded))
         if _sersic_profile_mass_VC_loaded:
+            # try:
+            #     table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+            #     table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
+            #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
+            # except:
+            #     pass
             try:
-                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
-                        n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
+                table_rad = np.insert(table_rad, 0, 0., axis=0)
+                table_rho = np.insert(table_rho, 0,
+                                sersic_profile_mass_VC_calcs.rho(0.,n=n, total_mass=table_mass,
+                                Reff=table_Reff, q=table['q']), axis=0)
             except:
                 pass
+
 
     r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
     r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
@@ -607,9 +624,13 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     if table['r'][0] > 0.:
         if _sersic_profile_mass_VC_loaded:
             try:
-                table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
-                            n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
+                # table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
+                # table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
+                #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
+                table_rad = np.insert(table_rad, 0, 0., axis=0)
+                table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
+                                sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
+
             except:
                 pass
 
@@ -1398,98 +1419,6 @@ class ModelSet:
         except:
             return None
 
-    def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
-        """
-        Calculate the total enclosed mass within the effective radius
-
-        Parameters
-        ----------
-        model_key_re : list
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius.
-            Default is ['disk+bulge', 'r_eff_disk'].
-
-        Returns
-        -------
-        menc : float
-            Total enclosed mass within the specified effective radius
-
-        Notes
-        -----
-        This method uses the total circular velocity to determine the enclosed mass
-        based on v^2 = GM/r.
-        """
-
-        comp = self.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i]
-        r = r_eff
-
-        vc, vdm = self.circular_velocity(r, compute_dm=True)
-        menc = menc_from_vcirc(vc, r_eff)
-
-        return menc
-
-    def enclosed_mass(self, r, model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
-        """
-        Calculate the total enclosed mass
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii at which to calculate the enclosed mass in kpc
-
-        model_key_re : list, optional
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius. Only necessary
-            if adiabatic contraction is used. Default is ['disk+bulge', 'r_eff_disk'].
-
-        step1d : float, optional
-            Step size in kpc to use during adiabatic contraction calculation
-
-        Returns
-        -------
-        enc_mass, enc_bary, enc_dm : float or array
-            The total, baryonic, and dark matter enclosed masses
-        """
-
-        # First check to make sure there is at least one mass component in the
-        # model set.
-        if len(self.mass_components) == 0:
-            raise AttributeError("There are no mass components so an enclosed "
-                                 "mass can't be calculated.")
-        else:
-
-            enc_mass = r*0.
-            enc_dm = r*0.
-            enc_bary = r*0.
-
-            for cmp in self.mass_components:
-                if self.mass_components[cmp]:
-                    mcomp = self.components[cmp]
-                    enc_mass_cmp = mcomp.enclosed_mass(r)
-                    enc_mass += enc_mass_cmp
-
-                    if mcomp._subtype == 'dark_matter':
-
-                        enc_dm += enc_mass_cmp
-
-                    elif mcomp._subtype == 'baryonic':
-
-                        enc_bary += enc_mass_cmp
-
-            if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
-
-                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, model_key_re=model_key_re, step1d=step1d)
-                # enc_dm_adi = ((vhalo_adi*1e5)**2.*(r*1000.*pc.cgs.value) /
-                #               (G.cgs.value * Msun.cgs.value))
-                enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
-                enc_mass = enc_mass - enc_dm + enc_dm_adi
-                enc_dm = enc_dm_adi
-
-        return enc_mass, enc_bary, enc_dm
-
-
     def get_dlnrhogas_dlnr(self, r):
         """
         Calculate the composite derivative dln(rho,gas) / dlnr
@@ -1518,15 +1447,18 @@ class ModelSet:
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
-                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
-                        mcomp = self.components[cmp]
+                    mcomp = self.components[cmp]
 
+                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
                         cmpnt_rho = mcomp.rho(r)
                         cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
 
                         whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
-                        if len(whfin) < len(r):
-                            raise ValueError
+                        try:
+                            if len(whfin) < len(r):
+                                raise ValueError
+                        except:
+                            pass
 
                         rhogastot += cmpnt_rho
                         rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
@@ -1535,10 +1467,116 @@ class ModelSet:
 
         return dlnrhogas_dlnr
 
+    def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
+        """
+        Calculate the total enclosed mass within the effective radius
+
+        Parameters
+        ----------
+        model_key_re : list
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        Returns
+        -------
+        menc : float
+            Total enclosed mass within the specified effective radius
+
+        Notes
+        -----
+        This method uses the total circular velocity to determine the enclosed mass
+        based on v^2 = GM/r.
+        """
+
+        comp = self.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+        r = r_eff
+
+        vc = self.circular_velocity(r)
+        menc = menc_from_vcirc(vc, r_eff)
+
+        return menc
+
+    def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False,
+                        model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+        """
+        Calculate the total enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the enclosed mass in kpc
+
+        compute_baryon : bool
+            If True, also return the enclosed mass of the baryons
+
+        compute_dm : bool
+            If True, also return the enclosed mass of the halo
+
+        model_key_re : list, optional
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius. Only necessary
+            if adiabatic contraction is used. Default is ['disk+bulge', 'r_eff_disk'].
+
+        step1d : float, optional
+            Step size in kpc to use during adiabatic contraction calculation
+
+        Returns
+        -------
+        enc_mass : float or array
+            Total enclosed mass in Msun
+
+        enc_bary : float or array, only if `compute_baryon` = True
+            Enclosed mass of the baryons, in Msun
+
+        enc_dm : float or array, only if `compute_dm` = True
+            Enclosed mass of the halo, in Msun
+        """
+
+        # First check to make sure there is at least one mass component in the model set.
+        if len(self.mass_components) == 0:
+            raise AttributeError("There are no mass components so an enclosed "
+                                 "mass can't be calculated.")
+        else:
+            enc_mass = r*0.
+            enc_dm = r*0.
+            enc_bary = r*0.
+
+            for cmp in self.mass_components:
+                if self.mass_components[cmp]:
+                    mcomp = self.components[cmp]
+                    enc_mass_cmp = mcomp.enclosed_mass(r)
+                    enc_mass += enc_mass_cmp
+
+                    if mcomp._subtype == 'dark_matter':
+                        enc_dm += enc_mass_cmp
+
+                    elif mcomp._subtype == 'baryonic':
+                        enc_bary += enc_mass_cmp
+
+            if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True,
+                                    model_key_re=model_key_re, step1d=step1d)
+                enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
+                enc_mass = enc_mass - enc_dm + enc_dm_adi
+                enc_dm = enc_dm_adi
+
+        #return enc_mass, enc_bary, enc_dm
+        if (compute_baryon and compute_dm):
+            return enc_mass, enc_bary, enc_dm
+        elif (compute_dm and (not compute_baryon)):
+            return enc_mass, enc_dm
+        elif (compute_baryon and (not compute_dm)):
+            return enc_mass, enc_bary
+        else:
+            return enc_mass
+
+
 
     def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
-                            model_key_re=['disk+bulge', 'r_eff_disk'],
-                          step1d=0.2):
+                            model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
 
@@ -2370,9 +2408,7 @@ class MassModel(_DysmalFittable1DModel):
         using the standard equation :math:`v(r) = \sqrt(GM(r)/r)`.
         This is only valid for a spherical mass distribution.
         """
-
         mass_enc = self.enclosed_mass(r)
-
         vcirc = v_circular(mass_enc, r)
 
         return vcirc
