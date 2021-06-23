@@ -6,16 +6,13 @@ Code Structure Overview
 =======================
 
 
-Below is an overview schematic of the key classes and functionality of
-DysmalPy.
-
 Most DysmalPy functionality is built around using ``galaxy`` objects,
 which are instances of the ``Galaxy`` class.
 The key attributes of ``galaxy`` are ``data``, ``instrument``, and ``model``.
 
 The ``data`` object contains information about the observed kinematic data,
 and any specifics of how it was extracted
-(e.g., aperture settings, gaussian or moment extraction). 
+(e.g., aperture settings, gaussian or moment extraction).
 The ``instrument`` object contains ``beam`` and ``lsf``, encoding the
 information to convolve an intrinsic model cube to match the observational data
 (i.e., the PSF and LSF).
@@ -37,5 +34,7 @@ The ``galaxy`` object is then passed as input to
 These fitting routines then return a ``results`` object,
 which is an instance of the ``MCMCResults`` or ``MPFITResults`` class, as appropriate.
 
+Below is an overview schematic of the key classes and functionality of
+DysmalPy.
 
 .. image:: _static/dpy_code_schematic/dysmalpy_code_structure.svg
