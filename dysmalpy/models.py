@@ -561,14 +561,7 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
 
     # Clean up values inside rmin:  Add the value at r=0: menc=0
     if table['r'][0] > 0.:
-        #print("_sersic_profile_mass_VC_loaded={}".format(_sersic_profile_mass_VC_loaded))
         if _sersic_profile_mass_VC_loaded:
-            # try:
-            #     table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-            #     table_rho = np.append(sersic_profile_mass_VC_calcs.rho(r.min()* table_Reff/Reff,
-            #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_rho)
-            # except:
-            #     pass
             try:
                 table_rad = np.insert(table_rad, 0, 0., axis=0)
                 table_rho = np.insert(table_rho, 0,
@@ -624,9 +617,6 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     if table['r'][0] > 0.:
         if _sersic_profile_mass_VC_loaded:
             try:
-                # table_rad = np.append(r.min() * table_Reff/Reff, table_rad)
-                # table_dlnrho_dlnr = np.append(sersic_profile_mass_VC_calcs.dlnrho_dlnr(r.min()* table_Reff/Reff,
-                #             n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), table_dlnrho_dlnr)
                 table_rad = np.insert(table_rad, 0, 0., axis=0)
                 table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
                                 sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
