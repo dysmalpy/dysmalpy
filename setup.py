@@ -5,9 +5,9 @@ import os
 import re
 
 try:
-    from setuptools import setup
+    from setuptools import setup, Extension
 except:
-    from distutils.core import setup
+    from distutils.core import setup, Extension
 
 from Cython.Build import cythonize
 
@@ -53,5 +53,15 @@ setup(
     packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.fitting_wrappers'],
     package_data={'dysmalpy': ['data/noordermeer/*.save']},
     version=__version__,
-    ext_modules=cythonize("dysmalpy/cutils.pyx")
+    ext_modules=cythonize([
+                    "dysmalpy/cutils.pyx", 
+                    Extension("dysmalpy.lensingTransformer", 
+                           sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
+                           language="c++",
+                           include_dirs=["lensing_transformer", "/usr/include", "/usr/local/include"],
+                           libraries=['gsl', 'gslcblas', 'cfitsio'],
+                           lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
+                           depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"]
+                          )
+                 ])
 )

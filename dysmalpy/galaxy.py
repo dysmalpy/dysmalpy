@@ -30,6 +30,9 @@ from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
+# <DZLIU><20210726> ++++++++++
+from dysmalpy.lensing import LensingTransformer
+# <DZLIU><20210726> ----------
 
 __all__ = ['Galaxy']
 
@@ -669,7 +672,14 @@ class Galaxy:
 
         # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
         #                                          **sim_cube_kwargs.dict)
-
+        
+        # <DZLIU><20210726> ++++++++++
+        # Lensing stuff
+        if 'lensing_transformer' in kwargs:
+            xcenter = None
+            ycenter = None
+        # <DZLIU><20210726> ----------
+        
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                   ny_sky=ny_sky,
                                                   dscale=self.dscale,
@@ -722,6 +732,29 @@ class Galaxy:
 
         else:
             sim_cube_final = sim_cube_obs
+
+
+        # <DZLIU><20210726> ++++++++++
+        # Lensing stuff
+        if 'lensing_transformer' in kwargs:
+            logger.debug('Applying lensing transformation')
+            if kwargs['lensing_transformer'].source_plane_data_cube is None:
+                kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final)
+            else:
+                kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final)
+            sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation()
+            sim_cube_final[np.isnan(sim_cube_final)] = 0.0
+            lensing_mask = None
+            if len(self.data.mask.shape) == 2:
+                lensing_mask = self.data.mask.astype(bool)
+                lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
+            elif len(self.data.mask.shape) == 3:
+                lensing_mask = self.data.mask.astype(bool)
+            if lensing_mask is not None:
+                sim_cube_final[~lensing_mask] = 0.0
+            logger.debug('Applied lensing transformation')
+        # <DZLIU><20210726> ----------
+
 
         self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
                                  spec_type=spec_type,
