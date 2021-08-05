@@ -10,6 +10,7 @@ Last updates:
     - 2021-07-25 adding lensing
     - 2021-08-03 xshift yshift can be free
     - 2021-08-04 can save lensing source plane and image plane cubes
+    - 2021-08-05 change logging.DEBUG to logging.INFO
 """
 
 import os, sys, re, copy, json, ast, shutil, operator
@@ -22,7 +23,8 @@ import logging
 #logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 #logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 from dysmalpy import galaxy, models, fitting, instrument, parameters, plotting, config, data_classes
 from dysmalpy.fitting_wrappers import utils_io
@@ -78,7 +80,7 @@ from PyQt5.QtCore import (Qt, QObject, QPoint, QPointF, QRect, QRectF, QSize, QS
 #galaxy.logger.setLevel(logging.DEBUG)
 #models.logger.setLevel(logging.DEBUG)
 #fitting.logger.setLevel(logging.DEBUG)
-logging.getLogger('DysmalPy').setLevel(logging.DEBUG)
+logging.getLogger('DysmalPy').setLevel(logging.getLevelName(logger.level))
 
 
 logger.debug('models._dir_noordermeer: '+str(models._dir_noordermeer))
@@ -1007,6 +1009,7 @@ class QDysmalPyGUI(QMainWindow):
                      default=self.LineEditModelParamsDictForFitting['overwrite'].keyvalue())
         self.CheckBoxModelParamsDict['__overwriting__'].CheckBoxWidget.stateChanged.disconnect()
         self.CheckBoxModelParamsDict['__overwriting__'].CheckBoxWidget.stateChanged.connect(self.onOverWritingCheckStateChangedCall)
+        #self.LineEditModelParamsDictForFitting['overwrite'].ComboBoxWidget.currentTextChanged.connect(self.onOverWritingLineEditTextChangedCall)
         # 
         # 
         self.ButtonInitRandomParams = QPushButton(self.tr("Init Random Params"))
@@ -1365,6 +1368,14 @@ class QDysmalPyGUI(QMainWindow):
                     else:
                         this_dict[this_key].setText('False')
     
+    @pyqtSlot(str)
+    def onOverWritingLineEditTextChangedCall(self, text):
+        self.logger.debug('QWidgetForParamInput::onOverWritingLineEditTextChangedCall()')
+        for this_dict in self.CheckBoxModelParamsDict:
+            for this_key in this_dict:
+                if this_key == 'overwrite':
+                    this_dict[this_key].setText(text, blocksignal=True)
+    
     @pyqtSlot(str, str, type, type)
     def onOutDirParamUpdateCall(self, keyname, keyvalue, datatype, listtype):
         self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall()')
@@ -1466,8 +1477,11 @@ class QDysmalPyGUI(QMainWindow):
                 if key in self.DysmalPyParams:
                     self.LineEditModelParamsDicts[i][key].setText(self.DysmalPyParams[key], blocksignal=True)
         for key in self.CheckBoxModelParamsDict:
+            self.logMessage('CheckBoxModelParamsDict[%r]'%(key))
             if key in self.DysmalPyParams:
                 self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams[key], blocksignal=True)
+            elif key == '__overwriting__' and 'overwrite' in self.DysmalPyParams:
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['overwrite'], blocksignal=True)
         # 
         # check data file data directory, see if we can proceed to load existing best fit result
         errormessages = []
