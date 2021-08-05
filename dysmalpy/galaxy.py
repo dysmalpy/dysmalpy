@@ -31,8 +31,12 @@ from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
 # <DZLIU><20210726> ++++++++++
+import datetime
 from dysmalpy.lensing import LensingTransformer
 # <DZLIU><20210726> ----------
+# <DZLIU><20210805> ++++++++++
+from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
+# <DZLIU><20210805> ----------
 
 __all__ = ['Galaxy']
 
@@ -675,6 +679,7 @@ class Galaxy:
         
         # <DZLIU><20210726> ++++++++++
         # Lensing stuff
+        #logger.debug('Checking lensing transformer in kwargs '+str('lensing_transformer' in kwargs)+' '+str(datetime.datetime.now()))
         if 'lensing_transformer' in kwargs:
             xcenter = None
             ycenter = None
@@ -737,12 +742,12 @@ class Galaxy:
         # <DZLIU><20210726> ++++++++++
         # Lensing stuff
         if 'lensing_transformer' in kwargs:
-            logger.debug('Applying lensing transformation')
+            logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
             if kwargs['lensing_transformer'].source_plane_data_cube is None:
-                kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final)
+                kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final, verbose=False)
             else:
-                kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final)
-            sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation()
+                kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final, verbose=False)
+            sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation(verbose=False)
             sim_cube_final[np.isnan(sim_cube_final)] = 0.0
             lensing_mask = None
             if len(self.data.mask.shape) == 2:
@@ -752,7 +757,7 @@ class Galaxy:
                 lensing_mask = self.data.mask.astype(bool)
             if lensing_mask is not None:
                 sim_cube_final[~lensing_mask] = 0.0
-            logger.debug('Applied lensing transformation')
+            logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
         # <DZLIU><20210726> ----------
 
 
@@ -836,14 +841,35 @@ class Galaxy:
                     flux = np.zeros(mom0.shape)
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
-                    for i in range(mom0.shape[0]):
-                        for j in range(mom0.shape[1]):
-                            best_fit = gaus_fit_sp_opt_leastsq(self.model_cube.data.spectral_axis.to(u.km/u.s).value,
-                                                self.model_cube.data.unmasked_data[:,i,j].value,
-                                                mom0[i,j], mom1[i,j], mom2[i,j])
-                            flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                            vel[i,j] = best_fit[1]
-                            disp[i,j] = best_fit[2]
+                    # <DZLIU><20210805> ++++++++++
+                    my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
+                            self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
+                            self.model_cube.data.unmasked_data[:,:,:].value, 
+                            dataerr = None, 
+                            initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
+                            nthread = 4, 
+                            verbose = False)
+                    if my_least_chi_squares_1d_fitter is not None:
+                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        my_least_chi_squares_1d_fitter.runFitting()
+                        flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
+                        vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
+                        disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
+                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                    else:
+                        for i in range(mom0.shape[0]):
+                            for j in range(mom0.shape[1]):
+                                if i==0 and j==0:
+                                    logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                                best_fit = gaus_fit_sp_opt_leastsq(self.model_cube.data.spectral_axis.to(u.km/u.s).value,
+                                                    self.model_cube.data.unmasked_data[:,i,j].value,
+                                                    mom0[i,j], mom1[i,j], mom2[i,j])
+                                flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                                vel[i,j] = best_fit[1]
+                                disp[i,j] = best_fit[2]
+                                if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
+                                    logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                    # <DZLIU><20210805> ----------
 
             elif spec_type == "wavelength":
 

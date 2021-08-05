@@ -1,7 +1,9 @@
 /*
     This is a library to transform a data cube from source plane to image plane given a lensing model, and convolve with certain point spread function and line spread function.
     
-    Last update: 2021-07-23, Daizhong Liu, MPE.  
+    Last updates: 
+        2021-07-23, first version finished. Daizhong Liu, MPE.
+        2021-08-04, debugging level adjusted. Daizhong Liu, MPE.  
     
  */
 #ifndef LENSINGTRANSFORMER_H

@@ -3,13 +3,17 @@
     This is a Python code to implement lensing tranformation in DysmalPy. 
     This code uses the C++ library "libLensingTransformer.so". 
     
-    Last update: 2021-08-03, Daizhong Liu, MPE. 
+    Last updates: 
+        2021-08-03, finished first version, Daizhong Liu, MPE. 
+        2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE. 
     
 """
 
 # <DZLIU><20210726> ++++++++++
 
 import os, sys
+import logging
+logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level. 
 import ctypes
 from ctypes import cdll, c_void_p, c_char_p, c_double, c_long, c_int, POINTER
 import numpy as np
@@ -19,7 +23,13 @@ mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransforme
 mylib = cdll.LoadLibrary(mylibfile)
 
 class LensingTransformer(object):
-    """docstring for LensingTransformer"""
+    """docstring for LensingTransformer
+    
+    Args:
+        `mesh_file`: String. The "mesh.dat" file from the lensing modeling using Glafic software.
+        `verbose`: Boolean. The verbose level for this Python class.
+        `c_verbose`: Integer. The verbose level for the C program.
+    """
     def __init__(
             self, 
             mesh_file, 
@@ -42,13 +52,19 @@ class LensingTransformer(object):
             image_plane_cenx = None, 
             image_plane_ceny = None, 
             verbose = True, 
+            c_verbose = 0,
         ):
         # 
+        self.logger = logging.getLogger('LensingTransformer')
+        self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.INFO)
+        if verbose:
+            self.printLibInfo()
         self.myobj = None
         self.mesh_file = mesh_file
         self.mesh_ra = mesh_ra
         self.mesh_dec = mesh_dec
         self.source_plane_data_cube = None
+        self.source_plane_data_info = None
         self.source_plane_nx = None
         self.source_plane_ny = None
         self.source_plane_nchan = None
@@ -64,6 +80,8 @@ class LensingTransformer(object):
         self.image_plane_sizey = None
         self.image_plane_cenx = None
         self.image_plane_ceny = None
+        self.image_plane_data_cube = None
+        self.image_plane_data_info = None
         if source_plane_nx is not None:
             self.source_plane_nx = source_plane_nx
         if source_plane_ny is not None:
@@ -123,6 +141,10 @@ class LensingTransformer(object):
         if self.myobj is not None:
             mylib.destroyLensingTransformer(self.myobj)
     
+    def printLibInfo(self):
+        self.logger.info('mylibfile %r'%(mylibfile))
+        self.logger.info('mylib %s'%(mylib))
+    
     def setSourcePlaneDataCube(
             self, 
             source_plane_data_cube, 
@@ -132,6 +154,7 @@ class LensingTransformer(object):
             source_plane_cenx = None, 
             source_plane_ceny = None, 
             verbose = True, 
+            c_verbose = 0, 
         ):
         # 
         self.source_plane_data_cube = source_plane_data_cube
@@ -166,6 +189,11 @@ class LensingTransformer(object):
             ceny = (ny+1.0)/2.0
         else:
             ceny = float(source_plane_ceny)
+        self.source_plane_data_info = {'NAXIS':3, 'NAXIS1':nx, 'NAXIS2':ny, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0, 
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'', 
+                'CRPIX1':cenx, 'CRPIX2':ceny, 'CRPIX3':1.0, 'CRVAL1':cenra, 'CRVAL2':cendec, 'CRVAL3':1.0, 
+                'CDELT1':-pixsc/3600.0, 'CDELT2':pixsc/3600.0, 'CDELT3':1.0, 
+            }
         # 
         if sys.byteorder == 'little':
             data = data.astype('<f8')
@@ -173,7 +201,8 @@ class LensingTransformer(object):
             data = data.astype('>f8')
 
         # createLensingTransformer
-        print('mylib.createLensingTransformer', mylib.createLensingTransformer)
+        if verbose:
+            self.logger.info('mylib.createLensingTransformer %s is called'%(mylib.createLensingTransformer))
         cdata = data.ctypes.data_as(POINTER(c_double))
 
         #                                  args :  mesh_file, mesh_ra, mesh_dec, 
@@ -192,14 +221,16 @@ class LensingTransformer(object):
                                                     cdata, 
                                                     nx, ny, nchan, 
                                                     cenra, cendec, pixsc, 
-                                                    cenx, ceny, int(verbose)))
+                                                    cenx, ceny, c_verbose))
         
-        print('mylib.createLensingTransformer', mylib.createLensingTransformer, 'finished')
+        if verbose:
+            self.logger.info('mylib.createLensingTransformer %s finished'%(mylib.createLensingTransformer))
     
     def updateSourcePlaneDataCube(
             self, 
             source_plane_data_cube, 
             verbose = True, 
+            c_verbose = 0, 
         ):
         
         # 
@@ -215,7 +246,8 @@ class LensingTransformer(object):
             data = data.astype('>f8')
         
         # updateSourcePlaneDataCube
-        print('mylib.updateSourcePlaneDataCube', mylib.updateSourcePlaneDataCube)
+        if verbose:
+            self.logger.info('mylib.updateSourcePlaneDataCube %s is called'%(mylib.updateSourcePlaneDataCube))
         cdata = data.ctypes.data_as(POINTER(c_double))
         
         #                                      args :  ptr, 
@@ -226,9 +258,10 @@ class LensingTransformer(object):
                                                     c_int]
         mylib.updateSourcePlaneDataCube(self.myobj, 
                                         cdata, 
-                                        int(verbose))
+                                        c_verbose)
         
-        print('mylib.updateSourcePlaneDataCube', mylib.updateSourcePlaneDataCube, 'finished')
+        if verbose:
+            self.logger.info('mylib.updateSourcePlaneDataCube %s finished'%(mylib.updateSourcePlaneDataCube))
     
     def performLensingTransformation(
             self, 
@@ -240,6 +273,7 @@ class LensingTransformer(object):
             imcenx = None, 
             imceny = None, 
             verbose = True, 
+            c_verbose = 0, 
         ):
         
         # 
@@ -266,7 +300,7 @@ class LensingTransformer(object):
                 imceny = self.image_plane_ceny
         # 
         if np.any([t is None for t in [imcenra, imcendec, impixsc, imsizex, imsizey]]):
-            print('Error! Incorrect input to performLensingTransformation. Please check imcenra, imcendec, impixsc, imsizex, imsizey. Retunning None.')
+            self.error('Error! Incorrect input to performLensingTransformation. Please check imcenra, imcendec, impixsc, imsizex, imsizey. Retunning None.')
             return None
         # 
         nchan = self.source_plane_data_cube.shape[0]
@@ -280,7 +314,8 @@ class LensingTransformer(object):
             imceny = float(imceny)
         
         # performLensingTransformation
-        print('mylib.performLensingTransformation', mylib.performLensingTransformation)
+        if verbose:
+            self.logger.info('mylib.performLensingTransformation %s is called'%(mylib.performLensingTransformation))
         #                                      args :  ptr, 
         #                                              image_plane_ra, image_plane_dec, image_plane_pixelsize, 
         #                                              image_plane_sizex, image_plane_sizey, 
@@ -293,12 +328,20 @@ class LensingTransformer(object):
         outcdata = mylib.performLensingTransformation(self.myobj, 
                                                       imcenra, imcendec, impixsc, 
                                                       imsizex, imsizey, 
-                                                      imcenx, imceny, int(verbose))
+                                                      imcenx, imceny, c_verbose)
         outdata = np.ctypeslib.as_array(\
                         (ctypes.c_double * imsizex * imsizey * nchan).from_address(ctypes.addressof(outcdata.contents))\
                     )
         
-        print('mylib.performLensingTransformation', mylib.performLensingTransformation, 'finished')
+        self.image_plane_data_cube = outdata
+        self.image_plane_data_info = {'NAXIS':3, 'NAXIS1':imsizex, 'NAXIS2':imsizey, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0, 
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'', 
+                'CRPIX1':imcenx, 'CRPIX2':imceny, 'CRPIX3':1.0, 'CRVAL1':imcenra, 'CRVAL2':imcendec, 'CRVAL3':1.0, 
+                'CDELT1':-impixsc/3600.0, 'CDELT2':impixsc/3600.0, 'CDELT3':1.0, 
+            }
+        
+        if verbose:
+            self.logger.info('mylib.performLensingTransformation %s finished'%(mylib.performLensingTransformation))
         
         return outdata
 

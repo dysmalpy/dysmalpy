@@ -90,6 +90,10 @@ class Config_simulate_cube(ConfigBase):
         self.transform_method = 'direct'
         self.zcalc_truncate = True
         self.n_wholepix_z_min = 3
+        # <DZLIU><20210726> ++++++++++
+        # Lensing stuff
+        self.lensing_transformer = None
+        # <DZLIU><20210726> ----------
 
 
 

@@ -1,10 +1,11 @@
+/*
+    See notes in "lensingTransformer.hpp".
+ */
 #include "lensingTransformer.hpp"
 
 
 LensingTransformer::LensingTransformer()
 {
-    if (this->DebugCode > 0) 
-        std::cout << "LensingTransformer::LensingTransformer() is called." << std::endl;
     this->ErrorCode = 0;
     this->DebugCode = 1;
     this->DeflectionX = NULL;
@@ -33,10 +34,9 @@ LensingTransformer::LensingTransformer()
     this->ImagePlaneMeshGridX2 = NULL;
     this->ImagePlaneMeshGridY1 = NULL;
     this->ImagePlaneMeshGridY2 = NULL;
-    if (this->DebugCode > 0) 
-        std::cout << "LensingTransformer is created." << std::endl;
-    if (this->DebugCode > 0) 
-        std::cout << "LensingTransformer::LensingTransformer() finished." << std::endl;
+    //if (this->DebugCode > 0) {
+    //    std::cout << "LensingTransformer is created." << std::endl;
+    //}
 }
 
 
@@ -1019,9 +1019,7 @@ int LensingTransformer::debugLevel()
 
 void LensingTransformer::setDebugLevel(int DebugLevel)
 {
-    if (DebugLevel > 0) {
-        this->DebugCode = DebugLevel;
-    }
+    this->DebugCode = DebugLevel;
 }
 
 
@@ -1105,6 +1103,8 @@ void *createLensingTransformer(\
     // 
     LensingTransformer *my_lensing_transformer = new LensingTransformer();
     
+    my_lensing_transformer->setDebugLevel(GlobalDebug);
+    
     /* 
     AllLensingTransformerInstances.push_back(ptr);
     */
@@ -1147,8 +1147,6 @@ void *createLensingTransformer(\
         source_plane_ceny,
         verbose);
     if (my_lensing_transformer->errorCode() != 0) { std::cerr << "Error! Seems something failed." << std::endl; return NULL; }
-    
-    my_lensing_transformer->setDebugLevel(GlobalDebug);
     
     if (GlobalDebug > 0) 
         std::cout << "createLensingTransformer my_lensing_transformer addr " << my_lensing_transformer << std::endl;

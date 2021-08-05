@@ -8,6 +8,8 @@ Last updates:
     - 2021-06-28 first version finalized by Daizhong Liu.
     - 2021-07-06 small adjustments, e.g., data points, panel widgets
     - 2021-07-25 adding lensing
+    - 2021-08-03 xshift yshift can be free
+    - 2021-08-04 can save lensing source plane and image plane cubes
 """
 
 import os, sys, re, copy, json, ast, shutil, operator
@@ -15,6 +17,12 @@ import numpy as np
 from enum import Enum
 from pprint import pprint
 from collections import OrderedDict
+
+import logging
+#logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+#logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 from dysmalpy import galaxy, models, fitting, instrument, parameters, plotting, config, data_classes
 from dysmalpy.fitting_wrappers import utils_io
@@ -67,11 +75,10 @@ from PyQt5.QtGui import (QIcon, QFont, QImage, QPixmap, QPolygon, QPolygonF, QPa
                          QRegExpValidator, QKeySequence)
 from PyQt5.QtCore import (Qt, QObject, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QThread, QRegExp, QUrl, pyqtSignal, pyqtSlot)
 
-import logging
-#logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-#logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+#galaxy.logger.setLevel(logging.DEBUG)
+#models.logger.setLevel(logging.DEBUG)
+#fitting.logger.setLevel(logging.DEBUG)
+logging.getLogger('DysmalPy').setLevel(logging.DEBUG)
 
 
 logger.debug('models._dir_noordermeer: '+str(models._dir_noordermeer))
@@ -101,7 +108,7 @@ class QDysmalPyGUI(QMainWindow):
         self.DysmalPyFittingWorker = QDysmalPyFittingWorker()
         self.DysmalPyFittingThread = None
         self.logger = logging.getLogger('QDysmalPyGUI')
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.DEBUG)
         self.initUI(ScreenSize=ScreenSize) # initUI
         # 
         # debug
@@ -528,16 +535,28 @@ class QDysmalPyGUI(QMainWindow):
                     keycomment=self.tr("xshift in pixels"), 
                     datatype=float, 
                     default=0.0)
+        self.LineEditModelParamsDictForGeometry['xshift_fixed'] = QWidgetForParamInput(\
+                    keyname=self.tr('xshift_fixed'), 
+                    keycomment=self.tr(""), 
+                    datatype=bool)
         self.LineEditModelParamsDictForGeometry['yshift'] = QWidgetForParamInput(\
                     keyname=self.tr('yshift'), 
                     keycomment=self.tr("yshift in pixels"), 
                     datatype=float, 
                     default=0.0)
+        self.LineEditModelParamsDictForGeometry['yshift_fixed'] = QWidgetForParamInput(\
+                    keyname=self.tr('yshift_fixed'), 
+                    keycomment=self.tr(""), 
+                    datatype=bool)
         self.LineEditModelParamsDictForGeometry['vel_shift'] = QWidgetForParamInput(\
                     keyname=self.tr('vel_shift'), 
                     keycomment=self.tr("vel_shift in km/s"), 
                     datatype=float, 
                     default=0.0)
+        self.LineEditModelParamsDictForGeometry['vel_shift_fixed'] = QWidgetForParamInput(\
+                    keyname=self.tr('vel_shift_fixed'), 
+                    keycomment=self.tr(""), 
+                    datatype=bool)
         # 
         self.LineEditModelParamsDictForDarkMatterHalo = OrderedDict()
         self.LineEditModelParamsDictForDarkMatterHalo['halo_profile_type'] = QWidgetForParamInput(\
@@ -1315,7 +1334,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(int)
     def onGaussExtractCheckStateChangedCall(self, state):
-        logger.debug('QWidgetForParamInput::onGaussExtractCheckStateChangedCall()')
+        self.logger.debug('QWidgetForParamInput::onGaussExtractCheckStateChangedCall()')
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'moment_calc':
@@ -1323,7 +1342,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(int)
     def onOverSamplingCheckStateChangedCall(self, state):
-        logger.debug('QWidgetForParamInput::onOverSamplingCheckStateChangedCall()')
+        self.logger.debug('QWidgetForParamInput::onOverSamplingCheckStateChangedCall()')
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'oversample':
@@ -1337,7 +1356,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(int)
     def onOverWritingCheckStateChangedCall(self, state):
-        logger.debug('QWidgetForParamInput::onOverWritingCheckStateChangedCall()')
+        self.logger.debug('QWidgetForParamInput::onOverWritingCheckStateChangedCall()')
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'overwrite':
@@ -1348,10 +1367,10 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(str, str, type, type)
     def onOutDirParamUpdateCall(self, keyname, keyvalue, datatype, listtype):
-        logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall()')
+        self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall()')
         if keyname == 'outdir':
             if keyvalue is not None and keyvalue != '':
-                logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall() self.DysmalPyFittingWorker.setDirectory("{}")'.format(keyvalue))
+                self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall() self.DysmalPyFittingWorker.setDirectory("{}")'.format(keyvalue))
                 self.DysmalPyFittingWorker.setDirectory(keyvalue)
     
     @pyqtSlot()
@@ -1377,8 +1396,7 @@ class QDysmalPyGUI(QMainWindow):
 
     def deselectParamFile(self):
         if self.DysmalPyParams is not None:
-            #<TODO># Save param file
-            #self.logger.debug('deselectParamFile: TODO: save param file')
+            # deselect the current param file, pop up a window to ask if the user wants to save it 
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Question)
             msgBox.setText("Parameters changed! Do you want to save current parameters?")
@@ -1658,6 +1676,15 @@ class QDysmalPyGUI(QMainWindow):
         self.ImageViewerC1.fig.savefig(filepath+'_residual_flux_map.pdf', dpi=300, transparent=True)
         self.ImageViewerC2.fig.savefig(filepath+'_residual_vel_map.pdf', dpi=300, transparent=True)
         self.ImageViewerC3.fig.savefig(filepath+'_residual_disp_map.pdf', dpi=300, transparent=True)
+        if self.DysmalPyFittingWorker.LensingTransformer is not None:
+            if self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_cube is not None:
+                self.saveFitsFile(data=self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_cube, 
+                                  header=self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_info, 
+                                  filepath=filepath+'_lensing_image_plane_data_cube.fits')
+            if self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_cube is not None:
+                self.saveFitsFile(data=self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_cube, 
+                                  header=self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_info, 
+                                  filepath=filepath+'_lensing_source_plane_data_cube.fits')
         self.saveParamFile(filepath=filepath+'.params')
     
     def saveFitsFile(self, data, header=None, filepath=None):
@@ -1672,6 +1699,11 @@ class QDysmalPyGUI(QMainWindow):
             self.logger.debug('Found existing FITS file %r. Backing up as %r.'%(filepath, filepath+'.backup'))
             shutil.move(filepath, filepath+'.backup')
         if header is not None:
+            if isinstance(header, (dict, OrderedDict)):
+                header2 = copy.deepcopy(header)
+                header = fits.Header()
+                for key in header2:
+                    header[key] = header2[key]
             hdu = fits.PrimaryHDU(data=data, header=header)
         else:
             hdu = fits.PrimaryHDU(data=data)
@@ -1707,25 +1739,25 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def onGenerateModelCubeCall(self):
-        logger.debug('onGenerateModelCubeCall()')
+        self.logger.debug('onGenerateModelCubeCall()')
         if self.checkDysmalPyParams():
             self.generateModelCubeAsync(clearFitResults=True)
     
     @pyqtSlot()
     def onGenerateMomentMapsCall(self):
-        logger.debug('onGenerateMomentMapsCall()')
+        self.logger.debug('onGenerateMomentMapsCall()')
         if self.checkDysmalPyParams():
             self.generateMomentMapsAsync()
     
     @pyqtSlot()
     def onGenerateRotationCurvesCall(self):
-        logger.debug('onGenerateRotationCurvesCall()')
+        self.logger.debug('onGenerateRotationCurvesCall()')
         if self.checkDysmalPyParams():
             self.generateRotationCurvesAsync()
     
     @pyqtSlot()
     def onHideSlitCall(self):
-        logger.debug('onHideSlitCall()')
+        self.logger.debug('onHideSlitCall()')
         if self.checkDysmalPyParams():
             # hide/show the slit in the image viewer
             if self.DysmalPyFittingWorker.data_flux_map is not None:
@@ -1809,12 +1841,12 @@ class QDysmalPyGUI(QMainWindow):
         clear_plot = True
         has_plot = False
         if self.DysmalPyFittingWorker.data_flux_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.data_flux_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.data_flux_curve')
             self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingWorker.data_flux_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
         if self.DysmalPyFittingWorker.model_flux_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.model_flux_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.model_flux_curve')
             self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingWorker.model_flux_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
@@ -1833,12 +1865,12 @@ class QDysmalPyGUI(QMainWindow):
         clear_plot = True
         has_plot = False
         if self.DysmalPyFittingWorker.data_vel_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.data_vel_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.data_vel_curve')
             self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingWorker.data_vel_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
         if self.DysmalPyFittingWorker.model_vel_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.model_vel_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.model_vel_curve')
             self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingWorker.model_vel_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
@@ -1857,12 +1889,12 @@ class QDysmalPyGUI(QMainWindow):
         clear_plot = True
         has_plot = False
         if self.DysmalPyFittingWorker.data_disp_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.data_disp_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.data_disp_curve')
             self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingWorker.data_disp_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
         if self.DysmalPyFittingWorker.model_disp_curve is not None:
-            logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.model_disp_curve')
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.model_disp_curve')
             self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingWorker.model_disp_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
@@ -2065,18 +2097,18 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def onFitDataCall(self):
-        logger.debug('onFitDataCall()')
+        self.logger.debug('onFitDataCall()')
         if self.checkDysmalPyParams(require_data=True):
             self.fitDataAsync()
     
     @pyqtSlot()
     def onLoadFittingResultCall(self):
-        logger.debug('onLoadFittingResultCall()')
+        self.logger.debug('onLoadFittingResultCall()')
         if self.checkDysmalPyParams(require_data=True):
             self.fitDataAsync(dofit=False, clearFitResults=False)
     
     def checkDysmalPyParams(self, require_data=False, check_limits=True):
-        logger.debug('checkDysmalPyParams()')
+        self.logger.debug('checkDysmalPyParams()')
         checkOK = True
         errormessages = []
         if self.DysmalPyParams is None:
@@ -2119,7 +2151,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def fitDataAsync(self, dofit=True, clearFitResults=True):
-        logger.debug('fitDataAsync(dofit={},clearFitResults={})'.format(dofit, clearFitResults))
+        self.logger.debug('fitDataAsync(dofit={},clearFitResults={})'.format(dofit, clearFitResults))
         # 
         if self.DysmalPyFittingThread is not None:
             if self.DysmalPyFittingThread.isRunning():
@@ -2155,7 +2187,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def generateModelCubeAsync(self, clearFitResults=False):
-        logger.debug('generateModelCubeAsync()')
+        self.logger.debug('generateModelCubeAsync()')
         # 
         if self.DysmalPyFittingThread is not None:
             if self.DysmalPyFittingThread.isRunning():
@@ -2183,7 +2215,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def generateMomentMapsAsync(self, clearFitResults=False):
-        logger.debug('generateMomentMapsAsync()')
+        self.logger.debug('generateMomentMapsAsync()')
         # 
         if self.DysmalPyFittingThread is not None:
             if self.DysmalPyFittingThread.isRunning():
@@ -2210,7 +2242,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def generateRotationCurvesAsync(self, clearFitResults=False):
-        logger.debug('generateRotationCurvesAsync()')
+        self.logger.debug('generateRotationCurvesAsync()')
         # 
         if self.DysmalPyFittingThread is not None:
             if self.DysmalPyFittingThread.isRunning():
@@ -2237,7 +2269,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def onFittingWorkerFinished(self):
-        logger.debug('onFittingWorkerFinished()')
+        self.logger.debug('onFittingWorkerFinished()')
         #<TODO># we can optimize here, no need to update all these things if generateMomentMapsAsync or generateRotationCurvesAsync is run.
         self.plotDataMomentMaps()
         self.plotModelMomentMaps()
@@ -2247,7 +2279,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(str)
     def onFittingWorkerFinishedWithError(self, errormessage):
-        logger.debug('onFittingWorkerFinishedWithError()')
+        self.logger.debug('onFittingWorkerFinishedWithError()')
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Critical)
         msgBox.setText("Error! Failed to run DysmalPyFittingWorker!")
@@ -2259,7 +2291,7 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot(str)
     def onFittingWorkerFinishedWithWarning(self, errormessage):
-        logger.debug('onFittingWorkerFinishedWithWarning()')
+        self.logger.debug('onFittingWorkerFinishedWithWarning()')
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
         msgBox.setText("Warning from DysmalPyFittingWorker:")
@@ -2278,19 +2310,20 @@ class QDysmalPyGUI(QMainWindow):
             bestfit_parameters = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters
             #bestfit_parameters_l68_err = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters_l68_err
             #bestfit_parameters_u68_err = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters_u68_err
-            logger.debug("updateFittingParams() DysmalPyFittingWorker.DysmalPyFitResults -> UI")
-            logger.debug("free_param_names = %s"%(free_param_names))
-            logger.debug("bestfit_parameters = [%s]"%(', '.join(np.array(bestfit_parameters).astype(str))))
+            self.logger.debug("updateFittingParams() DysmalPyFittingWorker.DysmalPyFitResults -> UI")
+            self.logger.debug("free_param_names = %s"%(free_param_names))
+            self.logger.debug("bestfit_parameters = [%s]"%(', '.join(np.array(bestfit_parameters).astype(str))))
             ipar = 0
             for component_name in free_param_names:
                 for param_name in free_param_names[component_name]:
-                    #logger.debug("bestfit %r %r = %r"%(component_name, param_name, bestfit_parameters[ipar]))
+                    #self.logger.debug("bestfit %r %r = %r"%(component_name, param_name, bestfit_parameters[ipar]))
                     for i in range(len(self.LineEditModelParamsDicts)):
                         if param_name in self.LineEditModelParamsDicts[i]:
                             self.LineEditModelParamsDicts[i][param_name].setText(bestfit_parameters[ipar])
                     ipar += 1
             #for key in bestfit_parameters:
-            #    logger.debug("bestfit_parameters[%r] = %r"%(key, bestfit_parameters[key]))
+            #    self.logger.debug("bestfit_parameters[%r] = %r"%(key, bestfit_parameters[key]))
+        return
     
     def getSlitShapeInPixel(self):
         xcenter = None
@@ -2349,7 +2382,7 @@ class QDysmalPyGUI(QMainWindow):
                 #    mask = np.logical_and.reduce((x>=0, y1>=0, y2>=0, x<=nx-1, y1<=ny-1, y2<=ny-1))
                 #slit_shape_in_pixel = {'x':x, 'y1':y1, 'y2':y2, 'where':mask, 'step':'mid', 'alpha':0.445, 'color':'cyan'} 
                 # slit transparency 0.445
-                #logger.debug('slit_shape_in_pixel: '+str(slit_shape_in_pixel))
+                #self.logger.debug('slit_shape_in_pixel: '+str(slit_shape_in_pixel))
                 # 
                 # use rectangle slit
                 dx_pix = fov_npix
@@ -2358,12 +2391,12 @@ class QDysmalPyGUI(QMainWindow):
                              + (dy_pix/2.0*np.sin(np.deg2rad(slit_pa+90.0)))
                 y0 = ycenter - (dx_pix/2.0*np.sin(np.deg2rad(slit_pa+90.0))) \
                              - (dy_pix/2.0*np.cos(np.deg2rad(slit_pa+90.0)))
-                logger.debug('Slit x0 %s y0 %s w %s h %s angle %s'%(x0, y0, dx_pix, dy_pix, slit_pa+90.0))
+                self.logger.debug('Slit x0 %s y0 %s w %s h %s angle %s'%(x0, y0, dx_pix, dy_pix, slit_pa+90.0))
                 slit_shape_in_pixel = Rectangle((x0, y0), dx_pix, dy_pix, angle=slit_pa+90.0, 
                                                 alpha=0.225, facecolor='cyan', edgecolor='cyan')
         # 
         return slit_shape_in_pixel
-        
+    
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -2390,6 +2423,8 @@ class QDysmalPyFittingWorker(QObject):
     
     def __init__(self):
         super(QDysmalPyFittingWorker, self).__init__()
+        self.logger = logging.getLogger('QDysmalPyFittingWorker')
+        self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.DEBUG)
         self.DysmalPyParams = None
         self.DysmalPyGal = None
         self.DysmalPyFitDict = None
@@ -2479,14 +2514,14 @@ class QDysmalPyFittingWorker(QObject):
                     'lensing_imdec', 
                 ]
             for lensing_key in lensing_keys:
-                logger.debug('DysmalPyParams.has_key(%r) %s'%(lensing_key, lensing_key in self.DysmalPyParams))
+                self.logger.debug('DysmalPyParams.has_key(%r) %s'%(lensing_key, lensing_key in self.DysmalPyParams))
             has_lensing_model = np.all([lensing_key in self.DysmalPyParams for lensing_key in lensing_keys])
             if has_lensing_model:
                 for lensing_key in lensing_keys:
-                    logger.debug('DysmalPyParams[%r] = %r'%(lensing_key, self.DysmalPyParams[lensing_key]))
+                    self.logger.debug('DysmalPyParams[%r] = %r'%(lensing_key, self.DysmalPyParams[lensing_key]))
                 has_lensing_model = np.all([self.DysmalPyParams[lensing_key] is not None for lensing_key in lensing_keys])
             if has_lensing_model:
-                logger.debug('Setting LensingTransformer')
+                self.logger.debug('Setting LensingTransformer')
                 self.LensingTransformer = LensingTransformer(\
                         mesh_file = self.DysmalPyParams['datadir'] + os.sep + self.DysmalPyParams['lensing_mesh'], 
                         mesh_ra = self.DysmalPyParams['lensing_ra'], 
@@ -2540,6 +2575,7 @@ class QDysmalPyFittingWorker(QObject):
         # <DZLIU><20210726> ++++++++++
         # setup LensingTransformer if needed
         if self.LensingTransformer is not None:
+            self.logger.debug('Setting lensing_transformer in kwargs')
             kwargs_galmodel['lensing_transformer'] = self.LensingTransformer
         # <DZLIU><20210726> ----------
         kwargs_all = {**kwargs_galmodel, **self.DysmalPyFitDict}
@@ -2657,7 +2693,7 @@ class QDysmalPyFittingWorker(QObject):
                             **kwargs_galmodel, 
                             )
         #if self.model_cube is not None:
-        #    logger.debug('DEBUG DEBUG old model cube %s vs new model cube %s'%(self.model_cube[:,25,25], self.DysmalPyGal.model_cube.data[:,25,25]))
+        #    self.logger.debug('DEBUG DEBUG old model cube %s vs new model cube %s'%(self.model_cube[:,25,25], self.DysmalPyGal.model_cube.data[:,25,25]))
         self.model_cube = copy.copy(self.DysmalPyGal.model_cube.data)
         # 
         self.generateMomentMaps(blocksignal=True)
@@ -2722,7 +2758,7 @@ class QDysmalPyFittingWorker(QObject):
             self.computeMomentMapsFromCube(self.DysmalPyGal.model_cube.data)
         # 
         #if self.model_flux_map is not None:
-        #    logger.debug('DEBUG DEBUG old model flux map %s \nvs new model flux map %s'%(\
+        #    self.logger.debug('DEBUG DEBUG old model flux map %s \nvs new model flux map %s'%(\
         #        self.model_flux_map[20:30,20:30], \
         #        model_flux_map[20:30,20:30]))
         # 
@@ -2840,26 +2876,26 @@ class QDysmalPyFittingWorker(QObject):
             if this_DysmalPyGal.data is not None:
                 this_DysmalPyGal.data.aper_center_pix_shift = None
             self.logMessage(self.tr('Computing rotation velocity profile along the assumed slit at PA ')+str(slit_pa))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.model.line_center = '+str(this_DysmalPyGal.model.line_center))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_type = '+str(this_DysmalPyGal.instrument.spec_type))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_start.value = '+str(this_DysmalPyGal.instrument.spec_start.value))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_step.value = '+str(this_DysmalPyGal.instrument.spec_step.value))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_start.unit = '+str(this_DysmalPyGal.instrument.spec_start.unit))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.pixscale.value (rstep) = '+str(this_DysmalPyGal.instrument.pixscale.value))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.nspec = '+str(this_DysmalPyGal.instrument.nspec))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.fov[0] = '+str(this_DysmalPyGal.instrument.fov[0]))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.fov[1] = '+str(this_DysmalPyGal.instrument.fov[1]))
-            #logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.slit_width = '+str(this_DysmalPyGal.instrument.slit_width))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.dscale = '+str(this_DysmalPyGal.dscale))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.slit_width = '+str(slit_width))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.slit_pa = '+str(slit_pa))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.profile1d_type = '+str(profile1d_type))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.aperture_radius = '+str(aperture_radius))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.aper_centers = '+str(aper_centers))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.oversample = '+str(oversample))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.oversize = '+str(oversize))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.xcenter = '+str(xcenter))
-            logger.debug('generateRotationCurves: this_DysmalPyGal.ycenter = '+str(ycenter))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.model.line_center = '+str(this_DysmalPyGal.model.line_center))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_type = '+str(this_DysmalPyGal.instrument.spec_type))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_start.value = '+str(this_DysmalPyGal.instrument.spec_start.value))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_step.value = '+str(this_DysmalPyGal.instrument.spec_step.value))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_start.unit = '+str(this_DysmalPyGal.instrument.spec_start.unit))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.pixscale.value (rstep) = '+str(this_DysmalPyGal.instrument.pixscale.value))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.nspec = '+str(this_DysmalPyGal.instrument.nspec))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.fov[0] = '+str(this_DysmalPyGal.instrument.fov[0]))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.fov[1] = '+str(this_DysmalPyGal.instrument.fov[1]))
+            #self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.slit_width = '+str(this_DysmalPyGal.instrument.slit_width))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.dscale = '+str(this_DysmalPyGal.dscale))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.slit_width = '+str(slit_width))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.slit_pa = '+str(slit_pa))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.profile1d_type = '+str(profile1d_type))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.aperture_radius = '+str(aperture_radius))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.aper_centers = '+str(aper_centers))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.oversample = '+str(oversample))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.oversize = '+str(oversize))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.xcenter = '+str(xcenter))
+            self.logger.debug('generateRotationCurves: this_DysmalPyGal.ycenter = '+str(ycenter))
             this_DysmalPyGal.create_model_data(ndim_final=1, from_data=False, from_instrument=True, 
                                                slit_width = slit_width, 
                                                slit_pa = slit_pa, 
@@ -2979,10 +3015,12 @@ class QDysmalPyFittingWorker(QObject):
         hdu = fits.PrimaryHDU(data=self.model_disp_map) #<TODO># header
         hdu.writeto(filepath)
         self.logMessage(self.tr('Saved model vel. disp. to FITS file: ')+str(filepath))
+        return
     
     
 
 
+# 
 
 class QWidgetForParamInput(QWidget):
     """QWidget for a param input.
