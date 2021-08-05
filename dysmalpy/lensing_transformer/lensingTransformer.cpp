@@ -1064,7 +1064,7 @@ bool checkPointInMeshGridCell(double testx, double testy, MeshGridCell cell)
 }
 int checkPointInPolygon(double testx, double testy, long nvert, double *vertx, double *verty)
 {
-    int i, j, c;
+    int i = 0, j = 0, c = 0;
     for (i = 0, j = nvert-1; i < nvert; j = i++) {
         if ( ((verty[i]>testy) != (verty[j]>testy)) &&
             (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) ) {
@@ -1127,7 +1127,7 @@ void *createLensingTransformer(\
         std::cout << "createLensingTransformer source_plane_data_cube first 8 bytes";
         //std::cout << " " << std::hex << std::setfill('0') << std::setw(2) << source_plane_data_cube[0];
         uint64_t rawBytes;
-        memcpy(&rawBytes, source_plane_data_cube, sizeof(double));
+        std::memcpy(&rawBytes, source_plane_data_cube, sizeof(double));
         std::cout << " " << std::hex << std::setfill('0') << std::setw(2) << rawBytes << std::dec; 
         std::cout << " IsLittleEndian? " << isLittleEndian();
         //for (int k=0; k<8; k++) { std::cout << " " << std::hex << std::setfill('0') << std::setw(2) << rawBytes; }

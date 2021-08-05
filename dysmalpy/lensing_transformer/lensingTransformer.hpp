@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <vector> // for std::vector
 #include <cmath> // for std::nan
+#include <cstring> // for std::memcpy
 #include <thread>
 #include "fitsio.h"
 #include "gsl/gsl_matrix.h"

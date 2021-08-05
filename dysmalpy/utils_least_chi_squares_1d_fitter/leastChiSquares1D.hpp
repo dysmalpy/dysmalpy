@@ -20,6 +20,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <iterator>
 #include <vector> // for std::vector
 #include <cmath> // for std::nan
 #include <thread>
