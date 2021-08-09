@@ -21,7 +21,6 @@ import warnings
 from os import path
 
 import sphinx
-#import sphinx_rtd_theme
 from distutils.version import LooseVersion
 
 from pkg_resources import DistributionNotFound, get_distribution
@@ -146,7 +145,6 @@ extensions = [
     'sphinx_automodapi.smart_resolver',
 #    'numpydoc',
     'nbsphinx',
-    'sphinx_rtd_theme'
 #    'astropy_helpers.extern.numpydoc',
 #    'astropy_helpers.extern.automodapi.automodapi',
 #    'astropy_helpers.extern.automodapi.smart_resolver',
