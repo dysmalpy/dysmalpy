@@ -681,8 +681,9 @@ class Galaxy:
         # Lensing stuff
         #logger.debug('Checking lensing transformer in kwargs '+str('lensing_transformer' in kwargs)+' '+str(datetime.datetime.now()))
         if 'lensing_transformer' in kwargs:
-            xcenter = None
-            ycenter = None
+            if kwargs['lensing_transformer'] is not None:
+                xcenter = None
+                ycenter = None
         # <DZLIU><20210726> ----------
         
         sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
@@ -742,22 +743,23 @@ class Galaxy:
         # <DZLIU><20210726> ++++++++++
         # Lensing stuff
         if 'lensing_transformer' in kwargs:
-            logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
-            if kwargs['lensing_transformer'].source_plane_data_cube is None:
-                kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final, verbose=False)
-            else:
-                kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final, verbose=False)
-            sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation(verbose=False)
-            sim_cube_final[np.isnan(sim_cube_final)] = 0.0
-            lensing_mask = None
-            if len(self.data.mask.shape) == 2:
-                lensing_mask = self.data.mask.astype(bool)
-                lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
-            elif len(self.data.mask.shape) == 3:
-                lensing_mask = self.data.mask.astype(bool)
-            if lensing_mask is not None:
-                sim_cube_final[~lensing_mask] = 0.0
-            logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
+            if kwargs['lensing_transformer'] is not None:
+                logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
+                if kwargs['lensing_transformer'].source_plane_data_cube is None:
+                    kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final, verbose=False)
+                else:
+                    kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final, verbose=False)
+                sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation(verbose=False)
+                sim_cube_final[np.isnan(sim_cube_final)] = 0.0
+                lensing_mask = None
+                if len(self.data.mask.shape) == 2:
+                    lensing_mask = self.data.mask.astype(bool)
+                    lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
+                elif len(self.data.mask.shape) == 3:
+                    lensing_mask = self.data.mask.astype(bool)
+                if lensing_mask is not None:
+                    sim_cube_final[~lensing_mask] = 0.0
+                logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
         # <DZLIU><20210726> ----------
 
 
