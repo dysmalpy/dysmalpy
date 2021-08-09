@@ -857,6 +857,7 @@ class Galaxy:
                         flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
                         vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
                         disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
+                        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug 
                         logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
                     else:
                         for i in range(mom0.shape[0]):
@@ -899,14 +900,14 @@ class Galaxy:
 
                 # Normalize flux:
                 if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
-                    num = np.sum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
-                    den = np.sum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
+                    num = np.nansum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
+                    den = np.nansum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
 
                     scale = num / den
                     flux *= scale
                 elif (self.data.data['flux'] is not None):
-                    num = np.sum(self.data.mask*(self.data.data['flux']*flux))
-                    den = np.sum(self.data.mask*(flux**2))
+                    num = np.nansum(self.data.mask*(self.data.data['flux']*flux))
+                    den = np.nansum(self.data.mask*(flux**2))
                     scale = num / den
                     flux *= scale
             else:
