@@ -38,10 +38,18 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
     Output:
             Saves fitting results to outdir (specifed in call to `dysmalpy_fit_single` or in parameters file).
     """
-    
+
     # Only load full imports later to speed up usage from command line.
     import matplotlib
-    matplotlib.use('agg')
+    # Check if there is a display for plotting, or if there is an SSH/TMUX session.
+    # If no display, or if SSH/TMUX, use the matplotlib "agg" backend for plotting.
+    havedisplay = "DISPLAY" in os.environ
+    if havedisplay:
+        exitval = os.system('python -c "import matplotlib.pyplot as plt; plt.figure()"')
+        skipconds = (("SSH_CLIENT" in os.environ) | ("TMUX" in os.environ) | ("SSH_CONNECTION" in os.environ) | (os.environ["TERM"].lower().strip()=='screen') | (exitval != 0))
+        havedisplay = not skipconds
+    if not havedisplay:
+        matplotlib.use('agg')
 
     from dysmalpy import fitting
     from dysmalpy import config
@@ -120,13 +128,13 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
 
         # Check if you can find filename; if not open datadir interface:
         datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=ndim,
-                        param_filename=param_filename)
+                                                        param_filename=param_filename)
 
         fitting.ensure_dir(outdir)
 
         # Copy paramfile that is OS independent
         utils_io.preserve_param_file(param_filename, params=params,
-                    datadir=datadir, outdir=outdir)
+                                     datadir=datadir, outdir=outdir)
 
         # Cleanup if overwriting:
         if fit_exists:

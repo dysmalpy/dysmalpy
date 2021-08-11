@@ -18,7 +18,16 @@ import numpy as np
 import six
 import astropy.units as u
 import matplotlib as mpl
-mpl.use('agg')
+
+# Check if there is a display for plotting, or if there is an SSH/TMUX session.
+# If no display, or if SSH/TMUX, use the matplotlib "agg" backend for plotting.
+havedisplay = "DISPLAY" in os.environ
+if havedisplay:
+    exitval = os.system('python -c "import matplotlib.pyplot as plt; plt.figure()"')
+    skipconds = (("SSH_CLIENT" in os.environ) | ("TMUX" in os.environ) | ("SSH_CONNECTION" in os.environ) | (os.environ["TERM"].lower().strip()=='screen') | (exitval != 0))
+    havedisplay = not skipconds
+if not havedisplay:
+    mpl.use('agg')
 
 
 import astropy.modeling as apy_mod
@@ -2548,7 +2557,7 @@ def plot_channel_maps_3D_cube(gal,
                 else:
                     label_str = typ.capitalize()
             elif ((not show_multi) & (k == 0)):
-                label_str = "{}: {}".format(typ.capitalize())
+                label_str = "{}: {}".format(gal.name, typ.capitalize())
             if label_str is not None:
                 ax.set_title(label_str, fontsize=14)
             ###########################
@@ -2667,6 +2676,111 @@ def plot_spaxel_fit(specarr, data, mask, err=None,
 
 
 #############################################################
+
+def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
+            fname=None,
+            vbounds = [-450., 450.],
+            delv = 100.,
+            cmap=cm.Greys,
+            cmap_resid=cm.seismic,
+            fileout=None,
+            overwrite=False):
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    if ((cube is None) | (hdr is None)) and (fname is None):
+        raise ValueError("Either 'fname' must be specified,"
+                         "or both 'cube' and 'hdr' must be set!")
+
+    import astropy.units as u
+    from astropy.wcs import WCS
+    from spectral_cube import SpectralCube
+
+    if ((cube is None) | (hdr is None)):
+        datcube = SpectralCube.read(fname)
+    else:
+        if (hdr['SPEC_TYPE'] == 'VOPT'):
+            spec_unit = u.km/u.s
+        elif (hdr['SPEC_TYPE'] == 'WAVE'):
+            spec_unit = u.Angstrom
+        w = WCS(header.hdr)
+        datcube = SpectralCube(data=cube, wcs=w, mask=mask).with_spectral_unit(spec_unit)
+
+    vbounds = np.array(vbounds)
+
+    v_slice_lims_arr = np.arange(vbounds[0], vbounds[1]+delv, delv)
+
+
+    #################################################
+    # center slice: flux limits:
+    ind = np.int(np.round((len(v_slice_lims_arr)-2)/2.))
+    v_slice_lims = v_slice_lims_arr[ind:ind+2]
+    subcube = datcube.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+    im = subcube.moment0().value
+    flux_lims = [im.min(), im.max()]
+    fac = 1.
+    immax = np.max(np.abs(im))
+    flux_lims_resid = [-fac*immax, fac*immax]
+    #################################################
+
+    f = plt.figure()
+    scale = 3.
+
+    n_cols = np.int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
+    n_rows = np.int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
+
+    wspace_outer = 0.
+    wspace = 0.1 #0.25
+    hspace = 0.1 #0.25
+    padfac = 0.1 #0.15
+    fac = 1.
+    f.set_size_inches(fac*scale*n_cols+(n_cols-1)*scale*padfac,scale*n_rows+(n_rows-1)*scale*padfac)
+
+    gs =  gridspec.GridSpec(n_rows,n_cols, wspace=wspace, hspace=hspace)
+
+    axes = []
+    for j in range(n_rows):
+        for i in range(n_cols):
+            axes.append(plt.subplot(gs[j,i]))
+
+
+    center = np.array([(datcube.shape[2]-1.)/2., (datcube.shape[1]-1.)/2.])
+
+    k = -1
+    for ii in range(n_rows):
+        for j in range(n_cols):
+            k += 1
+            ax = axes[k]
+            if k > (len(v_slice_lims_arr)-2):
+                ax.set_axis_off()
+            else:
+                v_slice_lims = v_slice_lims_arr[k:k+2]
+                flims = flux_lims
+                cmap_tmp = cmap
+                color_contours='red' # 'blue'
+
+                ax = plot_channel_slice(ax=ax,speccube=datcube, center=center,
+                            v_slice_lims=v_slice_lims, flux_lims=flims,
+                            cmap=cmap_tmp,  color_contours=color_contours,
+                            residual=False)
+
+
+    #############################################################
+    # Save to file:
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
 
 def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None,
                       center=None, show_pix_coords=False, cmap=cm.Greys,

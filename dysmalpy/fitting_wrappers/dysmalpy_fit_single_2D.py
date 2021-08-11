@@ -10,7 +10,15 @@ import sys
 import shutil
 
 import matplotlib
-matplotlib.use('agg')
+# Check if there is a display for plotting, or if there is an SSH/TMUX session.
+# If no display, or if SSH/TMUX, use the matplotlib "agg" backend for plotting.
+havedisplay = "DISPLAY" in os.environ
+if havedisplay:
+    exitval = os.system('python -c "import matplotlib.pyplot as plt; plt.figure()"')
+    skipconds = (("SSH_CLIENT" in os.environ) | ("TMUX" in os.environ) | ("SSH_CONNECTION" in os.environ) | (os.environ["TERM"].lower().strip()=='screen') | (exitval != 0))
+    havedisplay = not skipconds
+if not havedisplay:
+    matplotlib.use('agg')
 
 from dysmalpy import galaxy
 from dysmalpy import models
