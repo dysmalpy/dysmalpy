@@ -117,16 +117,13 @@ class LensingTransformer(object):
                 source_plane_cenra, 
                 source_plane_cendec, 
                 source_plane_pixsc]]):
-                raise Exception('Error! source_plane_data_cube is not None but one of source_plane_nx/ny/nchan/cenra/cendec/pixsc is None! Please input all of them.')
+                raise Exception('Error! source_plane_data_cube is not None but one of source_plane_cenra/cendec/pixsc is None! Please input all of them.')
             # 
-            source_plane_nx = source_plane_data_cube.shape[2]
-            source_plane_ny = source_plane_data_cube.shape[1]
-            source_plane_nchan = source_plane_data_cube.shape[0]
+            self.source_plane_nx = source_plane_data_cube.shape[2]
+            self.source_plane_ny = source_plane_data_cube.shape[1]
+            self.source_plane_nchan = source_plane_data_cube.shape[0]
             self.setSourcePlaneDataCube(\
                     source_plane_data_cube, 
-                    source_plane_nx, 
-                    source_plane_ny, 
-                    source_plane_nchan, 
                     source_plane_cenra, 
                     source_plane_cendec, 
                     source_plane_pixsc, 
@@ -160,6 +157,10 @@ class LensingTransformer(object):
         self.source_plane_data_cube = source_plane_data_cube
         if len(self.source_plane_data_cube.shape) != 3:
             raise Exception('Error! The input data cube should have 3 dimensions!')
+        # 
+        self.source_plane_nx = source_plane_data_cube.shape[2]
+        self.source_plane_ny = source_plane_data_cube.shape[1]
+        self.source_plane_nchan = source_plane_data_cube.shape[0]
         # 
         if source_plane_cenra is None:
             source_plane_cenra = self.source_plane_cenra

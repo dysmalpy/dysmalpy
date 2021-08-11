@@ -677,32 +677,77 @@ class Galaxy:
         # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
         #                                          **sim_cube_kwargs.dict)
         
-        # <DZLIU><20210726> ++++++++++
-        # Lensing stuff
-        #logger.debug('Checking lensing transformer in kwargs '+str('lensing_transformer' in kwargs)+' '+str(datetime.datetime.now()))
+        
+        # Apply lensing transformation if necessary
+        this_lensing_transformer = None
         if 'lensing_transformer' in kwargs:
             if kwargs['lensing_transformer'] is not None:
-                xcenter = None
-                ycenter = None
-        # <DZLIU><20210726> ----------
+                this_lensing_transformer = kwargs['lensing_transformer']
+                if not hasattr(this_lensing_transformer, 'source_plane_nx'):
+                    raise Exception('Error! The input lensing_transformer does not have source_plane_nx?')
+                if not hasattr(this_lensing_transformer, 'source_plane_ny'):
+                    raise Exception('Error! The input lensing_transformer does not have source_plane_ny?')
+                if not hasattr(this_lensing_transformer, 'source_plane_nchan'):
+                    raise Exception('Error! The input lensing_transformer does not have source_plane_nchan?')
+                if not hasattr(this_lensing_transformer, 'source_plane_pixsc'):
+                    raise Exception('Error! The input lensing_transformer does not have source_plane_pixsc?')
         
-        sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
-                                                  ny_sky=ny_sky,
-                                                  dscale=self.dscale,
-                                                  rstep=rstep,
-                                                  spec_type=spec_type,
-                                                  spec_step=spec_step,
-                                                  nspec=nspec,
-                                                  spec_start=spec_start,
-                                                  spec_unit=spec_unit,
-                                                  oversample=oversample,
-                                                  oversize=oversize,
-                                                  xcenter=xcenter,
-                                                  ycenter=ycenter,
-                                                  transform_method=transform_method,
-                                                  zcalc_truncate=zcalc_truncate,
-                                                  n_wholepix_z_min=n_wholepix_z_min)
-
+        if this_lensing_transformer is not None:
+            
+            sim_cube, spec = self.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,
+                                                      ny_sky=this_lensing_transformer.source_plane_ny,
+                                                      dscale=self.dscale,
+                                                      rstep=this_lensing_transformer.source_plane_pixsc,
+                                                      spec_type=spec_type,
+                                                      spec_step=spec_step,
+                                                      nspec=this_lensing_transformer.source_plane_nchan,
+                                                      spec_start=spec_start,
+                                                      spec_unit=spec_unit,
+                                                      oversample=1,
+                                                      oversize=1,
+                                                      xcenter=None,
+                                                      ycenter=None,
+                                                      transform_method=transform_method,
+                                                      zcalc_truncate=zcalc_truncate,
+                                                      n_wholepix_z_min=n_wholepix_z_min)
+            
+            logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
+            if this_lensing_transformer.source_plane_data_cube is None:
+                this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
+            else:
+                this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
+            sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
+            sim_cube[np.isnan(sim_cube)] = 0.0
+            lensing_mask = None
+            if len(self.data.mask.shape) == 2:
+                lensing_mask = self.data.mask.astype(bool)
+                lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
+            elif len(self.data.mask.shape) == 3:
+                lensing_mask = self.data.mask.astype(bool)
+            if lensing_mask is not None:
+                sim_cube[~lensing_mask] = 0.0
+            logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
+            
+        else:
+            
+            sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
+                                                      ny_sky=ny_sky,
+                                                      dscale=self.dscale,
+                                                      rstep=rstep,
+                                                      spec_type=spec_type,
+                                                      spec_step=spec_step,
+                                                      nspec=nspec,
+                                                      spec_start=spec_start,
+                                                      spec_unit=spec_unit,
+                                                      oversample=oversample,
+                                                      oversize=oversize,
+                                                      xcenter=xcenter,
+                                                      ycenter=ycenter,
+                                                      transform_method=transform_method,
+                                                      zcalc_truncate=zcalc_truncate,
+                                                      n_wholepix_z_min=n_wholepix_z_min)
+        
+        
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample):
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
@@ -738,29 +783,6 @@ class Galaxy:
 
         else:
             sim_cube_final = sim_cube_obs
-
-
-        # <DZLIU><20210726> ++++++++++
-        # Lensing stuff
-        if 'lensing_transformer' in kwargs:
-            if kwargs['lensing_transformer'] is not None:
-                logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
-                if kwargs['lensing_transformer'].source_plane_data_cube is None:
-                    kwargs['lensing_transformer'].setSourcePlaneDataCube(sim_cube_final, verbose=False)
-                else:
-                    kwargs['lensing_transformer'].updateSourcePlaneDataCube(sim_cube_final, verbose=False)
-                sim_cube_final = kwargs['lensing_transformer'].performLensingTransformation(verbose=False)
-                sim_cube_final[np.isnan(sim_cube_final)] = 0.0
-                lensing_mask = None
-                if len(self.data.mask.shape) == 2:
-                    lensing_mask = self.data.mask.astype(bool)
-                    lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
-                elif len(self.data.mask.shape) == 3:
-                    lensing_mask = self.data.mask.astype(bool)
-                if lensing_mask is not None:
-                    sim_cube_final[~lensing_mask] = 0.0
-                logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
-        # <DZLIU><20210726> ----------
 
 
         self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
@@ -844,13 +866,30 @@ class Galaxy:
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
                     # <DZLIU><20210805> ++++++++++
-                    my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                            self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
-                            self.model_cube.data.unmasked_data[:,:,:].value, 
-                            dataerr = None, 
-                            initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
-                            nthread = 4, 
-                            verbose = False)
+                    my_least_chi_squares_1d_fitter = None
+                    if 'gauss_extract_with_c' in kwargs:
+                        if kwargs['gauss_extract_with_c'] is not None and \
+                           kwargs['gauss_extract_with_c'] is not False:
+                            # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
+                            # but note that if a spectrum has data all too close to zero, it will fail. 
+                            # try to prevent this by excluding too low data
+                            if from_data:
+                                this_fitting_mask = copy.copy(self.data.mask)
+                            else:
+                                this_fitting_mask = 'auto'
+                            if logger.level == logging.DEBUG:
+                                this_fitting_verbose = True
+                            else:
+                                this_fitting_verbose = False
+                            # do the least chisquares fitting
+                            my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
+                                    x = self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
+                                    data = self.model_cube.data.unmasked_data[:,:,:].value, 
+                                    dataerr = None, 
+                                    datamask = this_fitting_mask, 
+                                    initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
+                                    nthread = 4, 
+                                    verbose = this_fitting_verbose)
                     if my_least_chi_squares_1d_fitter is not None:
                         logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
                         my_least_chi_squares_1d_fitter.runFitting()

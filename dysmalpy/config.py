@@ -94,6 +94,10 @@ class Config_simulate_cube(ConfigBase):
         # Lensing stuff
         self.lensing_transformer = None
         # <DZLIU><20210726> ----------
+        # <DZLIU><20210805> ++++++++++
+        # LeastChiSquares1D stuff
+        self.gauss_extract_with_c = None
+        # <DZLIU><20210805> ----------
 
 
 
