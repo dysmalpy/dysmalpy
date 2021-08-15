@@ -514,12 +514,12 @@ void LensingTransformer::linkSourcePlaneToImagePlane(double ra, double dec, doub
         std::cerr << "Error! SourcePlanePixelSize is not initialized before calling linkSourcePlaneToImagePlane()." << std::endl;
         return;
     }
-    if (sizex<=50) {
+    if (sizex<4) {
         this->ErrorCode = 255; 
         std::cerr << "Error! sizex " << sizex << " is not a positive long integer or too small for linkSourcePlaneToImagePlane()." << std::endl;
         return;
     }
-    if (sizey<=50) {
+    if (sizey<4) {
         this->ErrorCode = 255; 
         std::cerr << "Error! sizey " << sizey << " is not a positive long integer or too small for linkSourcePlaneToImagePlane()." << std::endl;
         return;

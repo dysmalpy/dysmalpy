@@ -30,13 +30,10 @@ from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
-# <DZLIU><20210726> ++++++++++
 import datetime
+from dysmalpy.lensing import setup_lensing_transformer_from_params
 from dysmalpy.lensing import LensingTransformer
-# <DZLIU><20210726> ----------
-# <DZLIU><20210805> ++++++++++
 from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
-# <DZLIU><20210805> ----------
 
 __all__ = ['Galaxy']
 
@@ -103,7 +100,7 @@ class Galaxy:
         self._instrument = instrument
 
         self._cosmo = cosmo
-
+        
         #self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self.model_data = None
@@ -682,25 +679,28 @@ class Galaxy:
         this_lensing_transformer = None
         if 'lensing_transformer' in kwargs:
             if kwargs['lensing_transformer'] is not None:
-                this_lensing_transformer = kwargs['lensing_transformer']
-                if not hasattr(this_lensing_transformer, 'source_plane_nx'):
-                    raise Exception('Error! The input lensing_transformer does not have source_plane_nx?')
-                if not hasattr(this_lensing_transformer, 'source_plane_ny'):
-                    raise Exception('Error! The input lensing_transformer does not have source_plane_ny?')
-                if not hasattr(this_lensing_transformer, 'source_plane_nchan'):
-                    raise Exception('Error! The input lensing_transformer does not have source_plane_nchan?')
-                if not hasattr(this_lensing_transformer, 'source_plane_pixsc'):
-                    raise Exception('Error! The input lensing_transformer does not have source_plane_pixsc?')
+                this_lensing_transformer = kwargs['lensing_transformer']['0']
+        
+        this_lensing_transformer = setup_lensing_transformer_from_params(\
+                params = kwargs, 
+                source_plane_nchan = nspec, 
+                image_plane_sizex = nx_sky * oversample * oversize, 
+                image_plane_sizey = ny_sky * oversample * oversize, 
+                image_plane_pixsc = rstep / oversample, 
+                reuse_lensing_transformer = this_lensing_transformer, 
+                cache_lensing_transformer = True, 
+                reuse_cached_lensing_transformer = True, 
+                verbose = (logger.level >= logging.DEBUG), 
+            )
         
         if this_lensing_transformer is not None:
-            
             sim_cube, spec = self.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,
                                                       ny_sky=this_lensing_transformer.source_plane_ny,
                                                       dscale=self.dscale,
                                                       rstep=this_lensing_transformer.source_plane_pixsc,
                                                       spec_type=spec_type,
                                                       spec_step=spec_step,
-                                                      nspec=this_lensing_transformer.source_plane_nchan,
+                                                      nspec=nspec,
                                                       spec_start=spec_start,
                                                       spec_unit=spec_unit,
                                                       oversample=1,
@@ -718,14 +718,27 @@ class Galaxy:
                 this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
             sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
             sim_cube[np.isnan(sim_cube)] = 0.0
-            lensing_mask = None
-            if len(self.data.mask.shape) == 2:
-                lensing_mask = self.data.mask.astype(bool)
-                lensing_mask = np.repeat(lensing_mask[np.newaxis, :, :], nspec, axis=0)
-            elif len(self.data.mask.shape) == 3:
-                lensing_mask = self.data.mask.astype(bool)
-            if lensing_mask is not None:
-                sim_cube[~lensing_mask] = 0.0
+            
+            # store back
+            if 'lensing_transformer' in kwargs:
+                if kwargs['lensing_transformer'] is None:
+                    kwargs['lensing_transformer'] = {'0': None}
+                kwargs['lensing_transformer']['0'] = this_lensing_transformer
+            
+            # mask by data mask if available
+            if self.data is not None:
+                if hasattr(self.data, 'mask'):
+                    if hasattr(self.data.mask, 'shape'):
+                        this_lensing_mask = None
+                        if len(self.data.mask.shape) == 2:
+                            this_lensing_mask = self.data.mask.astype(bool)
+                            this_lensing_mask = np.repeat(this_lensing_mask[np.newaxis, :, :], nspec, axis=0)
+                        elif len(self.data.mask.shape) == 3:
+                            this_lensing_mask = self.data.mask.astype(bool)
+                        if this_lensing_mask is not None:
+                            if this_lensing_mask.shape == sim_cube.shape:
+                                sim_cube[~this_lensing_mask] = 0.0
+            # oversample oversize
             logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
             
         else:

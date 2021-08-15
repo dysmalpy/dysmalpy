@@ -1,0 +1,130 @@
+galID,                     galID                                                          # Name of your object 
+z,                         2.259                                                          # Redshift 
+data_inst_corr,            True                                                           # Is the dispersion corrected for instrumental broadening? 
+symmetrize_data,           False                                                          # Symmetrize data before fitting? 
+slit_width,                0.5                                                            # arcsecs 
+slit_pa,                   42                                                             # Degrees from N towards blue 
+profile1d_type,            circ_ap_cube                                                   # Default 1D aperture extraction shape 
+aperture_radius,           0.2                                                            # Circular aperture radius, in ARCSEC. Have used half slit width in past 
+smoothing_type,            median                                                         # Is the data median smoothed before extracting maps? 
+smoothing_npix,            3.0                                                            # Number of pixels for smoothing aperture 
+xcenter,                   None                                                           # Galaxy center in pixel coordinate, starting from 0 to NX-1. Need +1 for QFitsView. None means using image center. 
+ycenter,                   None                                                           # Galaxy center in pixel coordinate, starting from 0 to NY-1. Need +1 for QFitsView. None means using image center. 
+linked_posteriors,         total_mass r_eff_disk bt fdm sigma0                            
+pixscale,                  0.02                                                           # Pixel scale in arcsec/pixel 
+fov_npix,                  200                                                            # Number of pixels on a side of model cube 
+spec_type,                 velocity                                                       # Spectral type, must be velocity. 
+spec_start,                -1000.                                                         # Starting value for spectral axis 
+spec_step,                 25.                                                            # Step size for spectral axis in km/s 
+nspec,                     80                                                             # Number of spectral steps 
+use_lsf,                   False                                                          # True/False if using an LSF 
+sig_inst_res,              5.                                                             # Instrumental dispersion in km/s 
+psf_type,                  Gaussian                                                       # PSF type, Gaussian or Moffat or DoubleGaussian. 
+psf_fwhm,                  None                                                           # PSF FWHM in arcsecs 
+psf_beta,                  None                                                           # Beta parameter for a Moffat PSF 
+lensing_ra,                None                                                           # Lensing model reference WCS RA. 
+lensing_dec,               None                                                           # Lensing model reference WCS Dec. 
+lensing_sra,               None                                                           # Source plane map center RA. 
+lensing_sdec,              None                                                           # Source plane map center Dec. 
+lensing_ssizex,            None                                                           # Source plane map size in pixels. 
+lensing_ssizey,            None                                                           # Source plane map size in pixels. 
+lensing_spixsc,            None                                                           # Source plane map pixel size in units of arcsec. 
+lensing_imra,              None                                                           # Image plane map center RA. 
+lensing_imdec,             None                                                           # Image plane map center Dec. 
+total_mass,                11.0                                                           # Total mass of disk and bulge log(Msun) 
+total_mass_fixed,          True                                                           
+bt,                        0.1                                                            # Bulge-to-Total Ratio 
+bt_fixed,                  True                                                           # Fix bulge-to-total ratio? 
+r_eff_disk,                12                                                             # Effective radius of disk in kpc 
+r_eff_disk_fixed,          True                                                           # Fix R_eff? 
+n_disk,                    1                                                              # Sersic index for disk 
+n_disk_fixed,              True                                                           # Fix n_disk? 
+invq_disk,                 5.0                                                            # disk scale length to zheight ratio for disk 
+r_eff_bulge,               1                                                              # Effective radius of bulge in kpc 
+r_eff_bulge_fixed,         True                                                           # Fix R_eff and bulge-to-total? 
+n_bulge,                   3                                                              # Sersic index for bulge 
+n_bulge_fixed,             True                                                           # Fix n_disk and bulge-to-total? 
+invq_bulge,                2.0                                                            # disk scale length to zheight ratio for bulge 
+halo_profile_type,         NFW                                                            # Halo type 
+mvirial,                   12.5                                                           # Halo virial mass in log(Msun) 
+mvirial_fixed,             True                                                           
+halo_conc,                 6                                                              # Halo concentration parameter 
+halo_conc_fixed,           True                                                           
+fdm,                       0.2                                                            # Dark matter fraction at Reff 
+fdm_fixed,                 True                                                           
+sigma0,                    50                                                             # Constant intrinsic dispersion value 
+sigma0_fixed,              True                                                           
+inc,                       9                                                              # Inclination of galaxy, 0=face-on, 90=edge-on 
+inc_fixed,                 True                                                           
+pa,                        42                                                             # Position angle of galaxy. 
+pa_fixed,                  True                                                           
+xshift,                    0.0                                                            # xshift in pixels 
+xshift_fixed,              True                                                           
+yshift,                    0.0                                                            # yshift in pixels 
+yshift_fixed,              True                                                           
+vel_shift,                 34.25                                                          # vel_shift in km/s 
+vel_shift_fixed,           True                                                           
+sigmaz,                    0.5                                                            # Gaussian width of the galaxy in z 
+sigmaz_fixed,              True                                                           
+total_mass_bounds,         10.0 13.0                                                      
+total_mass_prior,          flat                                                           
+total_mass_stddev,         1.0                                                            
+bt_bounds,                 0.0 1.0                                                        
+bt_prior,                  flat                                                           
+bt_stddev,                 0.1                                                            
+r_eff_disk_bounds,         0.1 30.0                                                       
+r_eff_disk_prior,          flat                                                           
+r_eff_disk_stddev,         1.0                                                            
+n_disk_bounds,             1.0 8.0                                                        
+n_disk_prior,              flat                                                           
+n_disk_stddev,             0.1                                                            
+r_eff_bulge_bounds,        1.0 5.0                                                        
+r_eff_bulge_prior,         flat                                                           
+r_eff_bulge_stddev,        1.0                                                            
+n_bulge_bounds,            1.0 8.0                                                        
+n_bulge_prior,             flat                                                           
+n_bulge_stddev,            0.1                                                            
+sigma0_bounds,             5.0 300.0                                                      
+sigma0_prior,              flat                                                           
+sigma0_stddev,             25.0                                                           
+sigmaz_bounds,             0.1 1.0                                                        
+sigmaz_prior,              flat                                                           
+sigmaz_stddev,             0.1                                                            
+inc_bounds,                0.0 90.0                                                       
+inc_prior,                 flat                                                           
+inc_stddev,                0.1                                                            
+pa_bounds,                 -180.0 180.0                                                   
+pa_prior,                  flat                                                           
+pa_stddev,                 0.1                                                            
+mvirial_bounds,            10.0 14.0                                                      
+mvirial_prior,             flat                                                           
+mvirial_stddev,            0.5                                                            
+halo_conc_bounds,          1.0 20.0                                                       
+halo_conc_prior,           flat                                                           
+halo_conc_stddev,          0.5                                                            
+fdm_bounds,                0.0 0.99                                                       
+fdm_prior,                 flat                                                           
+fdm_stddev,                1.0                                                            
+fit_method,                mpfit                                                          # mcmc or mpfit 
+moment_calc,               False                                                          # If False, observed maps fit with GAUSSIANS 
+fitdispersion,             True                                                           # Simultaneously fit the velocity and dispersion? 
+fitflux,                   False                                                          # Simultaneously fit the flux? 
+do_plotting,               True                                                           # Produce all output plots? 
+oversample,                1                                                              # Oversampling the model cube 
+oversize,                  1                                                              # Oversize of the model cube 
+nWalkers,                  1                                                              # Number of walkers. Must be even and >= 2x the number of free parameters. 
+nCPUs,                     1                                                              # Number of CPUs to use for parallelization 
+nBurn,                     1                                                              # Number of steps during burn-in 
+nSteps,                    1                                                              # Number of steps for sampling 
+scale_param_a,             3.0                                                            
+minAF,                     None                                                           # Minimum acceptance fraction 
+maxAF,                     None                                                           # Maximum acceptance fraction 
+nEff,                      10                                                             # Number of auto-correlation times before convergence 
+maxiter,                   200                                                            # Maximum number of iterations before mpfit quits 
+overwrite,                 False                                                          # Overwrite outputs 
+include_halo,              True                                                           # Include the halo as a component in fitting? 
+adiabatic_contract,        False                                                          # Apply adiabatic contraction? 
+pressure_support,          True                                                           # Apply assymmetric drift correction? 
+noord_flat,                True                                                           # Apply Noordermeer 2008 flattenning for the velocity field of Sersic profile? (Need "$SERSIC_PROFILE_MASS_VC_DATADIR/mass_VC_profile_sersic_n*.fits") 
+zheight_tied,              True                                                           # Tie the zheight to the effective radius of the disk? 
+fdm_tied,                  True                                                           # For NFW, fdm_tied=True determines fDM from Mvirial (+baryons). 

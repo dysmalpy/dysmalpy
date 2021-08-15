@@ -157,6 +157,10 @@ def setup_single_object_1D(params=None, data=None):
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=1)
 
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
+
     return gal, fit_dict
 
 
@@ -177,6 +181,10 @@ def setup_single_object_2D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=2)
+
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
 
     return gal, fit_dict
 
@@ -218,6 +226,10 @@ def setup_single_object_3D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=3)
+
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
 
     return gal, fit_dict
 
@@ -1437,6 +1449,17 @@ def setup_fit_dict(params=None, ndim_data=None):
         fit_dict = setup_mpfit_dict(params=params, ndim_data=ndim_data)
 
     return fit_dict
+
+
+def setup_lensing_dict(params=None, append_to_dict=None):
+    lensing_dict = {}
+    if append_to_dict is not None:
+        if isinstance(append_to_dict, dict):
+            lensing_dict = append_to_dict
+    for key in params.keys(): 
+        if key.startswith('lensing') or key == 'datadir': 
+            lensing_dict[key] = params[key]
+    return lensing_dict
 
 
 def setup_mcmc_dict(params=None, ndim_data=None):

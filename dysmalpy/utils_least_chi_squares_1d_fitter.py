@@ -13,6 +13,8 @@
 import os, sys, copy, timeit
 import logging
 logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level. 
+if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
+    logger.setLevel(logging.getLogger('__main__').level)
 import ctypes
 from ctypes import cdll, c_void_p, c_char_p, c_double, c_long, c_int, POINTER
 import numpy as np
@@ -44,7 +46,7 @@ class LeastChiSquares1D(object):
             c_verbose = 0,
         ):
         # 
-        self.logger = logging.getLogger('LensingTransformer')
+        self.logger = logging.getLogger('LeastChiSquares1D')
         self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.INFO)
         if verbose:
             self.printLibInfo()
@@ -71,23 +73,22 @@ class LeastChiSquares1D(object):
         ##flux_guess = flux_guess * np.sqrt(2*np.pi*(stddev_guess**2))
         #initparams = np.array([flux_guess/np.sqrt(2*np.pi*(stddev_guess**2)), mean_guess, np.abs(stddev_guess)])
         
-        
         # Do masking
         if datamask is not None:
             if isinstance(datamask, str):
                 if datamask == 'auto':
                     this_fitting_data_max2d = np.nanmax(self.data, axis=0) # max along spectral axis
-                    this_fitting_data_max = self.data.max() # global max value in the data cube
-                    this_fitting_dynamic_range = 3000. # dynamic range
+                    this_fitting_data_max = np.nanmax(this_fitting_data_max2d) # global max value in the data cube
+                    this_fitting_dynamic_range = 10000. # dynamic range
                     if verbose:
-                        self.logger.info('auto masking cube spectral fitting with dynamic range '+\
-                                          str(this_fitting_dynamic_range)+\
-                                          ', pixel value '+\
-                                          str(this_fitting_data_max / this_fitting_dynamic_range))
+                        self.logMessage('auto masking cube spectral fitting with dynamic range '+\
+                                   str(this_fitting_dynamic_range)+\
+                                   ', pixel value '+\
+                                   str(this_fitting_data_max / this_fitting_dynamic_range))
                     if this_fitting_data_max > 0:
-                        self.datamask = (this_fitting_data_max2d > (this_fitting_data_max / this_fitting_dynamic_range)) # mask in 2D
+                        datamask = (this_fitting_data_max2d > (this_fitting_data_max / this_fitting_dynamic_range)) # mask in 2D
                     else:
-                        self.datamask = (this_fitting_data_max2d < (this_fitting_data_max / this_fitting_dynamic_range)) # mask in 2D
+                        datamask = (this_fitting_data_max2d < (this_fitting_data_max / this_fitting_dynamic_range)) # mask in 2D
             if isinstance(datamask, np.ndarray):
                 if len(datamask.shape) == 3:
                     self.datamask = datamask
@@ -96,7 +97,7 @@ class LeastChiSquares1D(object):
                 else:
                     raise Exception('Error! datamask should be a 2D or 3D array!')
         if self.datamask is not None:
-            self.data[np.invert(self.datamask)] = np.nan # will not fit spectra with nan
+            self.data[np.invert(self.datamask.astype(bool))] = np.nan # will not fit spectra with nan
 
         # Create carrays
         if sys.byteorder == 'little':
@@ -105,7 +106,7 @@ class LeastChiSquares1D(object):
                 self.dataerr = self.dataerr.astype('<f8')
             self.x = self.x.astype('<f8')
             self.initparams = self.initparams.astype('<f8')
-        else:
+        else: # pragma: no cover
             self.data = self.data.astype('>f8')
             if self.dataerr is not None:
                 self.dataerr = self.dataerr.astype('>f8')
@@ -127,15 +128,23 @@ class LeastChiSquares1D(object):
         self.c_verbose = c_verbose
         self.nthread = nthread
     
+    def logMessage(self, text):
+        """Print message with logger.info() or logger.debug() depending on current logging level.
+        """
+        if self.logger.level == logging.DEBUG: # pragma: no cover
+            self.logger.debug(text)
+        else:
+            self.logger.info(text)
+    
     def printLibInfo(self):
-        self.logger.info('mylibfile %r'%(mylibfile))
-        self.logger.info('mylib %s'%(mylib))
+        self.logMessage('mylibfile %r'%(mylibfile))
+        self.logMessage('mylib %s'%(mylib))
     
     def runFitting(self):
         """Run the fitting by calling the C library functions.
         """
         if self.verbose:
-            self.logger.info('running least chi-squares 1d fitting to data cube with dimension %d x %d x %d'%(self.nx, self.ny, self.nchan))
+            self.logMessage('running least chi-squares 1d fitting to data cube with dimension %d x %d x %d'%(self.nx, self.ny, self.nchan))
         
         time_begin = timeit.default_timer()
         #print('mylib.fitLeastChiSquares1DForDataCubeWithMultiThread', mylib.fitLeastChiSquares1DForDataCubeWithMultiThread)
@@ -184,7 +193,7 @@ class LeastChiSquares1D(object):
         time_finish = timeit.default_timer()
         
         if self.verbose:
-            self.logger.info('elasped %s seconds'%(time_finish - time_begin))
+            self.logMessage('elapsed %s seconds'%(time_finish - time_begin))
         
         #print('outdata.shape', outdata.shape)
         #print('np.count_nonzero(np.any(np.isnan(outdata),axis=0))', np.count_nonzero(np.any(np.isnan(outdata),axis=0)))
