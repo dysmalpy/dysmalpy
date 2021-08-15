@@ -11,39 +11,84 @@ Last updates:
     - 2021-08-03 xshift yshift can be free
     - 2021-08-04 can save lensing source plane and image plane cubes
     - 2021-08-05 change logging.DEBUG to logging.INFO
+    - 2021-08-12 substantially rewriting to use multiprocessing as scipy.linalg.inv breaks in QThread
+    
+Issues:
+    - 2021-08-12 (solved) 3D cube fitting breaks, tracing the error to
+                 astropy.modeling.fitting.LevMarLSQFitter `optimize.leastsq`,
+                 scipy.optimize.minpack.leastsq `cov_x = inv(dot(transpose(R), R))`,
+                 scipy.linalg.inv,
+                 scipy.linalg.basic `getrf`. Have to use multiprocessing and "spawn".
+    - 2021-08-12 for 3D cube fitting, plot_spaxel_compare_3D_cubes for a 100x100x80 cube took
+                 nearly 1 hour!
+    
 """
 
-import os, sys, re, copy, json, ast, shutil, operator
+import os, sys, re, copy, json, time, datetime, ast, shutil, operator
 import numpy as np
 from enum import Enum
 from pprint import pprint
 from collections import OrderedDict
 
 import logging
+#from logutils.queue import QueueHandler, QueueListener
+from logging.handlers import QueueHandler, QueueListener
 #logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 #logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+#print('__name__', __name__)
+logging.basicConfig()
+#import multiprocessing_logging
+#multiprocessing_logging.install_mp_handler()
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 logger.setLevel(logging.INFO)
+
+import multiprocessing
+from multiprocessing import Process, Queue, Pipe
+from queue import Empty as QueueEmpty
+if sys.version_info >= (3, 9):
+    from multiprocessing.managers import SharedMemoryManager
+elif sys.version_info >= (3, 8):
+    from multiprocessing.managers import SharedMemoryManager
+    from multiprocessing.managers import Server, SharedMemoryServer
+    def create(self, c, typeid, *args, **kwargs):
+        if hasattr(self.registry[typeid][-1], "_shared_memory_proxy"):
+            kwargs['shared_memory_context'] = self.shared_memory_context
+        return Server.create(self, c, typeid, *args, **kwargs)
+    SharedMemoryServer.create = create
+    # see https://stackoverflow.com/questions/59172691/why-do-we-get-a-nameerror-when-trying-to-use-the-sharedmemorymanager-python-3-8
+else:
+    from multiprocessing.managers import BaseManager as SharedMemoryManager
+import threading
+from threading import Thread
 
 from dysmalpy import galaxy, models, fitting, instrument, parameters, plotting, config, data_classes
 from dysmalpy.fitting_wrappers import utils_io
 from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D
 from dysmalpy.fitting_wrappers.dysmalpy_fit_single import dysmalpy_fit_single
-from dysmalpy.fitting_wrappers.setup_gal_models import setup_gal_model_base, setup_single_object_1D, setup_single_object_2D, setup_single_object_3D, setup_fit_dict
+from dysmalpy.fitting_wrappers.setup_gal_models import (setup_gal_model_base,
+        setup_single_object_1D, setup_single_object_2D, setup_single_object_3D,
+        setup_fit_dict, setup_lensing_dict)
 from dysmalpy.fitting_wrappers import data_io
 from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 
 # <DZLIU><20210726> ++++++++++
+from dysmalpy import lensing
 from dysmalpy.lensing import LensingTransformer
 # <DZLIU><20210726> ----------
+
+# <DZLIU><20210805> ++++++++++
+from dysmalpy import utils_least_chi_squares_1d_fitter
+from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
+# <DZLIU><20210805> ----------
 
 import astropy.units as u
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.visualization import SqrtStretch, AsinhStretch, MinMaxInterval, ImageNormalize
 
-from regions import (DS9Parser, read_ds9, write_ds9, RectangleSkyRegion, PixelRegion, PolygonPixelRegion, CirclePixelRegion, RegionMask, PixCoord, ds9_objects_to_string)
+from regions import (DS9Parser, read_ds9, write_ds9, RectangleSkyRegion, PixelRegion, PolygonPixelRegion,
+                     CirclePixelRegion, RegionMask, PixCoord, ds9_objects_to_string)
 
 from spectral_cube import SpectralCube
 
@@ -68,19 +113,25 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import PyQt5
 from PyQt5 import QtWidgets, QtCore, uic
-from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QAction, qApp, QTabWidget, QFrame, QSpacerItem, QTabBar, QCheckBox, 
-                             QWidget, QToolTip, QLabel, QLineEdit, QTextEdit, QPushButton, QRadioButton, QButtonGroup, QGroupBox, 
-                             QSplitter, QHBoxLayout, QVBoxLayout, QGridLayout, QFormLayout, QSizePolicy, QApplication, 
-                             QFileDialog, QDialog, QDialogButtonBox, QMessageBox, QScrollArea, QComboBox, QLayout, 
+from PyQt5.QtWidgets import (QWidget, QMainWindow, QApplication, QAction, qApp, QTabWidget, QFrame, QSpacerItem,
+                             QTabBar, QCheckBox, QMenuBar, QMenu, QToolTip, QLabel, QLineEdit, QTextEdit,
+                             QPushButton, QRadioButton, QButtonGroup, QGroupBox, QSplitter,
+                             QHBoxLayout, QVBoxLayout, QGridLayout, QFormLayout,
+                             QSizePolicy, QFileDialog, QDialog, QDialogButtonBox, QMessageBox,
+                             QScrollArea, QComboBox, QLayout,
                              QShortcut)
-from PyQt5.QtGui import (QIcon, QFont, QImage, QPixmap, QPolygon, QPolygonF, QPainter, QPen, QTransform, 
+from PyQt5.QtGui import (QIcon, QFont, QImage, QPixmap, QPolygon, QPolygonF, QPainter, QPen, QTransform,
                          QRegExpValidator, QKeySequence)
-from PyQt5.QtCore import (Qt, QObject, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QThread, QRegExp, QUrl, pyqtSignal, pyqtSlot)
+from PyQt5.QtCore import (Qt, QObject, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QThread,
+                          QRegExp, QUrl, pyqtSignal, pyqtSlot, pyqtBoundSignal)
+
+#import warnings
+#warnings.simplefilter("error")
 
 #galaxy.logger.setLevel(logging.DEBUG)
 #models.logger.setLevel(logging.DEBUG)
 #fitting.logger.setLevel(logging.DEBUG)
-logging.getLogger('DysmalPy').setLevel(logging.getLevelName(logger.level))
+logging.getLogger('DysmalPy').setLevel(logger.level)
 
 
 logger.debug('models._dir_noordermeer: '+str(models._dir_noordermeer))
@@ -103,16 +154,41 @@ class QDysmalPyGUI(QMainWindow):
     """A PyQt5 based DysmalPy GUI."""
     
     def __init__(self, ScreenSize=None):
+        #
         super(QDysmalPyGUI, self).__init__()
+        #
         self.DysmalPyParamFile = ''
         self.DysmalPyParams = {}
         self.DefaultDirectory = os.getcwd()
-        self.DysmalPyFittingWorker = QDysmalPyFittingWorker()
-        self.DysmalPyFittingThread = None
+        #
+        # set self.logger
         self.logger = logging.getLogger('QDysmalPyGUI')
-        self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.getLogger(__name__).level)
+        #
+        self.logger.debug('proc id: %s, thread: %s, gui'%(str(multiprocessing.current_process().pid),
+                                                          str(hex(threading.currentThread().ident))))
+        #
+        # Create a QDysmalPyFittingTower object that lives in another thread
+        # and communicates between the main GUI thread and a QDysmalPyFittingStarship
+        # process so that the main GUI thread will not be jammed.
+        self.DysmalPyFittingTower = QDysmalPyFittingTower()
+        self.DysmalPyFittingStarship = QDysmalPyFittingStarship()
+        self.DysmalPyFittingTower.addStarship(self.DysmalPyFittingStarship)
+        #
+        self.logger.debug('self.initUI()')
         self.initUI(ScreenSize=ScreenSize) # initUI
-        # 
+        #
+        self.DysmalPyFittingTower.finished.connect(self.onFittingWorkerFinished)
+        self.DysmalPyFittingTower.finishedWithError.connect(self.onFittingWorkerFinishedWithError)
+        self.DysmalPyFittingTower.finishedWithWarning.connect(self.onFittingWorkerFinishedWithWarning)
+        #
+        self.logger.debug('self.DysmalPyFittingTower.start()')
+        self.DysmalPyFittingTower.start()
+        time.sleep(0.5)
+        self.logger.debug('self.DysmalPyFittingStarship.start()')
+        self.DysmalPyFittingStarship.start()
+        time.sleep(0.5)
+        #
         # debug
         #self.selectParamFile('outdir/fitting_1D_mpfit.params')
     
@@ -122,7 +198,7 @@ class QDysmalPyGUI(QMainWindow):
     #    pass
     
     def initUI(self, ScreenSize=None):
-        # 
+        #
         self.CentralWidget = QWidget()
         self.PanelLeft = QWidget()
         self.PanelMiddle = QWidget()
@@ -130,7 +206,7 @@ class QDysmalPyGUI(QMainWindow):
         self.PanelLeft.setMinimumWidth(400)
         self.PanelMiddle.setMinimumWidth(180)
         self.PanelRight.setMinimumWidth(400)
-        # 
+        #
         # Panel Left widgets
         self.LabelForTabWidgetA = QLabel(self.tr('Data'))
         self.LabelForTabWidgetB = QLabel(self.tr('Model'))
@@ -204,398 +280,399 @@ class QDysmalPyGUI(QMainWindow):
         self.ButtonForLineEditParamFile.clicked.connect(self.onOpenParamFileCall)
         self.LineEditParamFile = QLineEdit()
         self.LineEditParamFile.setToolTip(self.tr('Input a Dysmal params file.'))
-        # 
+        #
         self.LineEditDataParamsDict = OrderedDict()
         self.LineEditDataParamsDict['datadir'] = QWidgetForParamInput(\
-                    keyname=self.tr('datadir'), 
-                    keycomment=self.tr('Input data directory.'), 
-                    datatype=str, 
+                    keyname=self.tr('datadir'),
+                    keycomment=self.tr('Input data directory.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatadir=True, defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata'), 
-                    keycomment=self.tr('1D data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata'),
+                    keycomment=self.tr('1D data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('1D data file (*.txt *.dat *.*)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_flux'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_flux'), 
-                    keycomment=self.tr('2D flux map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_flux'),
+                    keycomment=self.tr('2D flux map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_ferr'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_ferr'), 
-                    keycomment=self.tr('2D flux error map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_ferr'),
+                    keycomment=self.tr('2D flux error map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_vel'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_vel'), 
-                    keycomment=self.tr('2D velocity map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_vel'),
+                    keycomment=self.tr('2D velocity map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_verr'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_verr'), 
-                    keycomment=self.tr('2D velocity map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_verr'),
+                    keycomment=self.tr('2D velocity map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_disp'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_disp'), 
-                    keycomment=self.tr('2D dispersion map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_disp'),
+                    keycomment=self.tr('2D dispersion map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_derr'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_derr'), 
-                    keycomment=self.tr('2D dispersion error map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_derr'),
+                    keycomment=self.tr('2D dispersion error map data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_mask'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_mask'), 
-                    keycomment=self.tr('2D mask map data file.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_mask'),
+                    keycomment=self.tr('2D or 3D mask data file.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['fdata_cube'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdata_cube'), 
-                    keycomment=self.tr('3D data cube.'), 
-                    datatype=str, 
+                    keyname=self.tr('fdata_cube'),
+                    keycomment=self.tr('3D data cube.'),
+                    datatype=str,
                     fullwidth=True,
                     isdatafile=True, namefilter=self.tr('FITS file (*.fits *.fits.gz)'), defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['outdir'] = QWidgetForParamInput(\
-                    keyname=self.tr('outdir'), 
-                    keycomment=self.tr('Output directory.'), 
-                    datatype=str, 
+                    keyname=self.tr('outdir'),
+                    keycomment=self.tr('Output directory.'),
+                    datatype=str,
                     fullwidth=True,
                     isoutdir=True, defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditDataParamsDict['galID'] = QWidgetForParamInput(\
-                    keyname=self.tr('galID'), 
-                    keycomment=self.tr('Name of your object'), 
+                    keyname=self.tr('galID'),
+                    keycomment=self.tr('Name of your object'),
                     datatype=str)
         self.LineEditDataParamsDict['z'] = QWidgetForParamInput(\
-                    keyname=self.tr('z'), 
-                    keycomment=self.tr('Redshift'), 
+                    keyname=self.tr('z'),
+                    keycomment=self.tr('Redshift'),
                     datatype=float)
         self.LineEditDataParamsDict['data_inst_corr'] = QWidgetForParamInput(\
-                    keyname=self.tr('data_inst_corr'), 
-                    keycomment=self.tr('Is the dispersion corrected for instrumental broadening?'), 
+                    keyname=self.tr('data_inst_corr'),
+                    keycomment=self.tr('Is the dispersion corrected for instrumental broadening?'),
                     datatype=bool)
         self.LineEditDataParamsDict['symmetrize_data'] = QWidgetForParamInput(\
-                    keyname=self.tr('symmetrize_data'), 
-                    keycomment=self.tr('Symmetrize data before fitting?'), 
+                    keyname=self.tr('symmetrize_data'),
+                    keycomment=self.tr('Symmetrize data before fitting?'),
                     datatype=bool)
         self.LineEditDataParamsDict['slit_width'] = QWidgetForParamInput(\
-                    keyname=self.tr('slit_width'), 
-                    keycomment=self.tr('arcsecs'), 
+                    keyname=self.tr('slit_width'),
+                    keycomment=self.tr('arcsecs'),
                     datatype=float)
         self.LineEditDataParamsDict['slit_pa'] = QWidgetForParamInput(\
-                    keyname=self.tr('slit_pa'), 
-                    keycomment=self.tr('Degrees from N towards blue'), 
+                    keyname=self.tr('slit_pa'),
+                    keycomment=self.tr('Degrees from N towards blue'),
                     datatype=float)
         self.LineEditDataParamsDict['profile1d_type'] = QWidgetForParamInput(\
-                    keyname=self.tr('profile1d_type'), 
-                    keycomment=self.tr('Default 1D aperture extraction shape'), 
+                    keyname=self.tr('profile1d_type'),
+                    keycomment=self.tr('Default 1D aperture extraction shape'),
                     datatype=str,
-                    options=['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'circ_ap_pv', 'single_pix_pv'])
+                    options=['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'circ_ap_pv', 'single_pix_pv'],
+                    default='circ_ap_pv')
         self.LineEditDataParamsDict['aperture_radius'] = QWidgetForParamInput(\
                     keyname=self.tr('aperture_radius'),
-                    keycomment=self.tr('Circular aperture radius, in ARCSEC. Have used half slit width in past'), 
+                    keycomment=self.tr('Circular aperture radius, in ARCSEC. Have used half slit width in past'),
                     datatype=float,
                     default=0.2)
         self.LineEditDataParamsDict['smoothing_type'] = QWidgetForParamInput(\
-                    keyname=self.tr('smoothing_type'), 
-                    keycomment=self.tr('Is the data median smoothed before extracting maps?'), 
+                    keyname=self.tr('smoothing_type'),
+                    keycomment=self.tr('Is the data median smoothed before extracting maps?'),
                     datatype=str,
                     options=['median'])
         self.LineEditDataParamsDict['smoothing_npix'] = QWidgetForParamInput(\
-                    keyname=self.tr('smoothing_npix'), 
-                    keycomment=self.tr('Number of pixels for smoothing aperture'), 
+                    keyname=self.tr('smoothing_npix'),
+                    keycomment=self.tr('Number of pixels for smoothing aperture'),
                     datatype=float,
                     default=3.0)
         self.LineEditDataParamsDict['xcenter'] = QWidgetForParamInput(\
-                    keyname=self.tr('xcenter'), 
-                    keycomment=self.tr('Galaxy center in pixel coordinate, starting from 0 to NX-1. Need +1 for QFitsView. None means using image center.'), 
+                    keyname=self.tr('xcenter'),
+                    keycomment=self.tr('Galaxy center in pixel coordinate, starting from 0 to NX-1. Need +1 for QFitsView. None means using image center.'),
                     datatype=float,
                     default='None')
         self.LineEditDataParamsDict['ycenter'] = QWidgetForParamInput(\
-                    keyname=self.tr('ycenter'), 
-                    keycomment=self.tr('Galaxy center in pixel coordinate, starting from 0 to NY-1. Need +1 for QFitsView. None means using image center.'), 
+                    keyname=self.tr('ycenter'),
+                    keycomment=self.tr('Galaxy center in pixel coordinate, starting from 0 to NY-1. Need +1 for QFitsView. None means using image center.'),
                     datatype=float,
                     default='None')
         self.LineEditDataParamsDict['linked_posteriors'] = QWidgetForParamInput(\
-                    keyname=self.tr('linked_posteriors'), 
-                    keycomment=self.tr(''), 
-                    datatype=str, 
+                    keyname=self.tr('linked_posteriors'),
+                    keycomment=self.tr(''),
+                    datatype=str,
                     listtype=list,
-                    default="['total_mass', 'r_eff_disk', 'bt', 'fdm', 'sigma0']", 
+                    default="['total_mass', 'r_eff_disk', 'bt', 'fdm', 'sigma0']",
                     fullwidth=True)
         self.LineEditDataParamsDict['pixscale'] = QWidgetForParamInput(\
-                    keyname=self.tr('pixscale'), 
-                    keycomment=self.tr('Pixel scale in arcsec/pixel'), 
+                    keyname=self.tr('pixscale'),
+                    keycomment=self.tr('Pixel scale in arcsec/pixel'),
                     datatype=float)
         self.LineEditDataParamsDict['fov_npix'] = QWidgetForParamInput(\
-                    keyname=self.tr('fov_npix'), 
-                    keycomment=self.tr('Number of pixels on a side of model cube'), 
+                    keyname=self.tr('fov_npix'),
+                    keycomment=self.tr('Number of pixels on a side of model cube'),
                     datatype=int)
         self.LineEditDataParamsDict['spec_type'] = QWidgetForParamInput(\
-                    keyname=self.tr('spec_type'), 
-                    keycomment=self.tr('Spectral type, must be velocity.'), 
-                    datatype=str, 
+                    keyname=self.tr('spec_type'),
+                    keycomment=self.tr('Spectral type, must be velocity.'),
+                    datatype=str,
                     options=['velocity'])
         self.LineEditDataParamsDict['spec_start'] = QWidgetForParamInput(\
-                    keyname=self.tr('spec_start'), 
-                    keycomment=self.tr('Starting value for spectral axis'), 
+                    keyname=self.tr('spec_start'),
+                    keycomment=self.tr('Starting value for spectral axis'),
                     datatype=float)
         self.LineEditDataParamsDict['spec_step'] = QWidgetForParamInput(\
-                    keyname=self.tr('spec_step'), 
-                    keycomment=self.tr('Step size for spectral axis in km/s'), 
+                    keyname=self.tr('spec_step'),
+                    keycomment=self.tr('Step size for spectral axis in km/s'),
                     datatype=float)
         self.LineEditDataParamsDict['nspec'] = QWidgetForParamInput(\
-                    keyname=self.tr('nspec'), 
-                    keycomment=self.tr('Number of spectral steps'), 
+                    keyname=self.tr('nspec'),
+                    keycomment=self.tr('Number of spectral steps'),
                     datatype=int)
         self.LineEditDataParamsDict['use_lsf'] = QWidgetForParamInput(\
-                    keyname=self.tr('use_lsf'), 
-                    keycomment=self.tr('True/False if using an LSF'), 
+                    keyname=self.tr('use_lsf'),
+                    keycomment=self.tr('True/False if using an LSF'),
                     datatype=bool)
         self.LineEditDataParamsDict['sig_inst_res'] = QWidgetForParamInput(\
-                    keyname=self.tr('sig_inst_res'), 
-                    keycomment=self.tr('Instrumental dispersion in km/s'), 
+                    keyname=self.tr('sig_inst_res'),
+                    keycomment=self.tr('Instrumental dispersion in km/s'),
                     datatype=float)
         self.LineEditDataParamsDict['psf_type'] = QWidgetForParamInput(\
-                    keyname=self.tr('psf_type'), 
-                    keycomment=self.tr('PSF type, Gaussian or Moffat or DoubleGaussian.'), 
-                    datatype=str, 
+                    keyname=self.tr('psf_type'),
+                    keycomment=self.tr('PSF type, Gaussian or Moffat or DoubleGaussian.'),
+                    datatype=str,
                     options=['Gaussian','Moffat', 'DoubleGaussian'])
         self.LineEditDataParamsDict['psf_fwhm'] = QWidgetForParamInput(\
-                    keyname=self.tr('psf_fwhm'), 
-                    keycomment=self.tr('PSF FWHM in arcsecs'), 
+                    keyname=self.tr('psf_fwhm'),
+                    keycomment=self.tr('PSF FWHM in arcsecs'),
                     datatype=float)
         self.LineEditDataParamsDict['psf_beta'] = QWidgetForParamInput(\
-                    keyname=self.tr('psf_beta'), 
-                    keycomment=self.tr('Beta parameter for a Moffat PSF'), 
+                    keyname=self.tr('psf_beta'),
+                    keycomment=self.tr('Beta parameter for a Moffat PSF'),
                     datatype=float)
-        # 
+        #
         #self.LineEditInstrumentParamsDict = OrderedDict()
         #self.LineEditInstrumentParamsDict['datadir'] = QWidgetForParamInput(\
         #            TODO
-        # 
+        #
         self.LineEditLensingParamsDict = OrderedDict()
         self.LineEditLensingParamsDict['lensing_mesh'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_mesh'), 
-                    keycomment=self.tr('Glafic lensing model mesh.dat file.'), 
-                    datatype=str, 
+                    keyname=self.tr('lensing_mesh'),
+                    keycomment=self.tr('Glafic lensing model mesh.dat file.'),
+                    datatype=str,
                     fullwidth=True,
-                    isdatafile=True, namefilter=self.tr('Glafic lensing model mesh.dat file (*.dat)'), 
+                    isdatafile=True, namefilter=self.tr('Glafic lensing model mesh.dat file (*.dat)'),
                     defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditLensingParamsDict['lensing_ra'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_ra'), 
-                    keycomment=self.tr('Lensing model reference WCS RA.'), 
+                    keyname=self.tr('lensing_ra'),
+                    keycomment=self.tr('Lensing model reference WCS RA.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_dec'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_dec'), 
-                    keycomment=self.tr('Lensing model reference WCS Dec.'), 
+                    keyname=self.tr('lensing_dec'),
+                    keycomment=self.tr('Lensing model reference WCS Dec.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_sra'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_sra'), 
-                    keycomment=self.tr('Source plane map center RA.'), 
+                    keyname=self.tr('lensing_sra'),
+                    keycomment=self.tr('Source plane map center RA.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_sdec'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_sdec'), 
-                    keycomment=self.tr('Source plane map center Dec.'), 
+                    keyname=self.tr('lensing_sdec'),
+                    keycomment=self.tr('Source plane map center Dec.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_ssizex'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_ssizex'), 
-                    keycomment=self.tr('Source plane map size in pixels.'), 
+                    keyname=self.tr('lensing_ssizex'),
+                    keycomment=self.tr('Source plane map size in pixels.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_ssizey'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_ssizey'), 
-                    keycomment=self.tr('Source plane map size in pixels.'), 
+                    keyname=self.tr('lensing_ssizey'),
+                    keycomment=self.tr('Source plane map size in pixels.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_spixsc'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_spixsc'), 
-                    keycomment=self.tr('Source plane map pixel size in units of arcsec.'), 
+                    keyname=self.tr('lensing_spixsc'),
+                    keycomment=self.tr('Source plane map pixel size in units of arcsec.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_imra'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_imra'), 
-                    keycomment=self.tr('Image plane map center RA.'), 
+                    keyname=self.tr('lensing_imra'),
+                    keycomment=self.tr('Image plane map center RA.'),
                     datatype=float)
         self.LineEditLensingParamsDict['lensing_imdec'] = QWidgetForParamInput(\
-                    keyname=self.tr('lensing_imdec'), 
-                    keycomment=self.tr('Image plane map center Dec.'), 
+                    keyname=self.tr('lensing_imdec'),
+                    keycomment=self.tr('Image plane map center Dec.'),
                     datatype=float)
-        # 
+        #
         self.LineEditModelParamsDictForBulgeDisk = OrderedDict()
         self.LineEditModelParamsDictForBulgeDisk['total_mass'] = QWidgetForParamInput(\
-                    keyname=self.tr('total_mass'), 
-                    keycomment=self.tr("Total mass of disk and bulge log(Msun)"), 
+                    keyname=self.tr('total_mass'),
+                    keycomment=self.tr("Total mass of disk and bulge log(Msun)"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['total_mass_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('total_mass_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('total_mass_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['bt'] = QWidgetForParamInput(\
-                    keyname=self.tr('bt'), 
-                    keycomment=self.tr("Bulge-to-Total Ratio"), 
+                    keyname=self.tr('bt'),
+                    keycomment=self.tr("Bulge-to-Total Ratio"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['bt_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr("bt_fixed"), 
-                    keycomment=self.tr("Fix bulge-to-total ratio?"), 
+                    keyname=self.tr("bt_fixed"),
+                    keycomment=self.tr("Fix bulge-to-total ratio?"),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['r_eff_disk'] = QWidgetForParamInput(\
-                    keyname=self.tr('r_eff_disk'), 
-                    keycomment=self.tr("Effective radius of disk in kpc"), 
+                    keyname=self.tr('r_eff_disk'),
+                    keycomment=self.tr("Effective radius of disk in kpc"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['r_eff_disk_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr("r_eff_disk_fixed"), 
-                    keycomment=self.tr("Fix R_eff?"), 
+                    keyname=self.tr("r_eff_disk_fixed"),
+                    keycomment=self.tr("Fix R_eff?"),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['n_disk'] = QWidgetForParamInput(\
-                    keyname=self.tr('n_disk'), 
-                    keycomment=self.tr("Sersic index for disk"), 
+                    keyname=self.tr('n_disk'),
+                    keycomment=self.tr("Sersic index for disk"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['n_disk_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr("n_disk_fixed"), 
-                    keycomment=self.tr("Fix n_disk?"), 
+                    keyname=self.tr("n_disk_fixed"),
+                    keycomment=self.tr("Fix n_disk?"),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['invq_disk'] = QWidgetForParamInput(\
-                    keyname=self.tr('invq_disk'), 
-                    keycomment=self.tr("disk scale length to zheight ratio for disk"), 
-                    datatype=float, 
+                    keyname=self.tr('invq_disk'),
+                    keycomment=self.tr("disk scale length to zheight ratio for disk"),
+                    datatype=float,
                     default=5.0)
         self.LineEditModelParamsDictForBulgeDisk['invq_disk_NULL'] = QWidgetForParamInput(\
-                    keyname=self.tr('NULL'), 
+                    keyname=self.tr('NULL'),
                     keycomment=self.tr(""))
         self.LineEditModelParamsDictForBulgeDisk['r_eff_bulge'] = QWidgetForParamInput(\
-                    keyname=self.tr('r_eff_bulge'), 
-                    keycomment=self.tr("Effective radius of bulge in kpc"), 
+                    keyname=self.tr('r_eff_bulge'),
+                    keycomment=self.tr("Effective radius of bulge in kpc"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['r_eff_bulge_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr("r_eff_bulge_fixed"), 
-                    keycomment=self.tr("Fix R_eff and bulge-to-total?"), 
+                    keyname=self.tr("r_eff_bulge_fixed"),
+                    keycomment=self.tr("Fix R_eff and bulge-to-total?"),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['n_bulge'] = QWidgetForParamInput(\
-                    keyname=self.tr('n_bulge'), 
-                    keycomment=self.tr("Sersic index for bulge"), 
+                    keyname=self.tr('n_bulge'),
+                    keycomment=self.tr("Sersic index for bulge"),
                     datatype=float)
         self.LineEditModelParamsDictForBulgeDisk['n_bulge_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr("n_bulge_fixed"), 
-                    keycomment=self.tr("Fix n_disk and bulge-to-total?"), 
+                    keyname=self.tr("n_bulge_fixed"),
+                    keycomment=self.tr("Fix n_disk and bulge-to-total?"),
                     datatype=bool)
         self.LineEditModelParamsDictForBulgeDisk['invq_bulge'] = QWidgetForParamInput(\
-                    keyname=self.tr('invq_bulge'), 
-                    keycomment=self.tr("disk scale length to zheight ratio for bulge"), 
-                    datatype=float, 
+                    keyname=self.tr('invq_bulge'),
+                    keycomment=self.tr("disk scale length to zheight ratio for bulge"),
+                    datatype=float,
                     default=2.0)
         self.LineEditModelParamsDictForBulgeDisk['invq_bulge_NULL'] = QWidgetForParamInput(\
-                    keyname=self.tr('NULL'), 
+                    keyname=self.tr('NULL'),
                     keycomment=self.tr(""))
-        # 
+        #
         self.LineEditModelParamsDictForDispersion = OrderedDict()
         self.LineEditModelParamsDictForDispersion['sigma0'] = QWidgetForParamInput(\
-                    keyname=self.tr('sigma0'), 
-                    keycomment=self.tr("Constant intrinsic dispersion value"), 
+                    keyname=self.tr('sigma0'),
+                    keycomment=self.tr("Constant intrinsic dispersion value"),
                     datatype=float)
         self.LineEditModelParamsDictForDispersion['sigma0_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('sigma0_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('sigma0_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
-        # 
+        #
         self.LineEditModelParamsDictForZHeight = OrderedDict()
         self.LineEditModelParamsDictForZHeight['sigmaz'] = QWidgetForParamInput(\
-                    keyname=self.tr('sigmaz'), 
-                    keycomment=self.tr("Gaussian width of the galaxy in z"), 
+                    keyname=self.tr('sigmaz'),
+                    keycomment=self.tr("Gaussian width of the galaxy in z"),
                     datatype=float)
         self.LineEditModelParamsDictForZHeight['sigmaz_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('sigmaz_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('sigmaz_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
-        # 
+        #
         self.LineEditModelParamsDictForGeometry = OrderedDict()
         self.LineEditModelParamsDictForGeometry['inc'] = QWidgetForParamInput(\
-                    keyname=self.tr('inc'), 
-                    keycomment=self.tr("Inclination of galaxy, 0=face-on, 90=edge-on"), 
+                    keyname=self.tr('inc'),
+                    keycomment=self.tr("Inclination of galaxy, 0=face-on, 90=edge-on"),
                     datatype=float)
         self.LineEditModelParamsDictForGeometry['inc_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('inc_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('inc_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForGeometry['pa'] = QWidgetForParamInput(\
-                    keyname=self.tr('pa'), 
-                    keycomment=self.tr("Position angle of galaxy."), 
+                    keyname=self.tr('pa'),
+                    keycomment=self.tr("Position angle of galaxy."),
                     datatype=float)
         self.LineEditModelParamsDictForGeometry['pa_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('pa_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('pa_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForGeometry['xshift'] = QWidgetForParamInput(\
-                    keyname=self.tr('xshift'), 
-                    keycomment=self.tr("xshift in pixels"), 
-                    datatype=float, 
+                    keyname=self.tr('xshift'),
+                    keycomment=self.tr("xshift in pixels"),
+                    datatype=float,
                     default=0.0)
         self.LineEditModelParamsDictForGeometry['xshift_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('xshift_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('xshift_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForGeometry['yshift'] = QWidgetForParamInput(\
-                    keyname=self.tr('yshift'), 
-                    keycomment=self.tr("yshift in pixels"), 
-                    datatype=float, 
+                    keyname=self.tr('yshift'),
+                    keycomment=self.tr("yshift in pixels"),
+                    datatype=float,
                     default=0.0)
         self.LineEditModelParamsDictForGeometry['yshift_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('yshift_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('yshift_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForGeometry['vel_shift'] = QWidgetForParamInput(\
-                    keyname=self.tr('vel_shift'), 
-                    keycomment=self.tr("vel_shift in km/s"), 
-                    datatype=float, 
+                    keyname=self.tr('vel_shift'),
+                    keycomment=self.tr("vel_shift in km/s"),
+                    datatype=float,
                     default=0.0)
         self.LineEditModelParamsDictForGeometry['vel_shift_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('vel_shift_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('vel_shift_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
-        # 
+        #
         self.LineEditModelParamsDictForDarkMatterHalo = OrderedDict()
         self.LineEditModelParamsDictForDarkMatterHalo['halo_profile_type'] = QWidgetForParamInput(\
-                    keyname=self.tr('halo_profile_type'), 
+                    keyname=self.tr('halo_profile_type'),
                     keycomment=self.tr("Halo type"),
-                    datatype=str, 
+                    datatype=str,
                     options=['NFW', 'twopowerhalo', 'burkert', 'einasto', 'dekelzhao'])
         self.LineEditModelParamsDictForDarkMatterHalo['halo_profile_type_NULL'] = QWidgetForParamInput(\
-                    keyname=self.tr('NULL'), 
+                    keyname=self.tr('NULL'),
                     keycomment=self.tr(""))
         self.LineEditModelParamsDictForDarkMatterHalo['mvirial'] = QWidgetForParamInput(\
-                    keyname=self.tr('mvirial'), 
-                    keycomment=self.tr("Halo virial mass in log(Msun)"), 
+                    keyname=self.tr('mvirial'),
+                    keycomment=self.tr("Halo virial mass in log(Msun)"),
                     datatype=float)
         self.LineEditModelParamsDictForDarkMatterHalo['mvirial_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('mvirial_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('mvirial_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForDarkMatterHalo['halo_conc'] = QWidgetForParamInput(\
-                    keyname=self.tr('halo_conc'), 
-                    keycomment=self.tr("Halo concentration parameter"), 
+                    keyname=self.tr('halo_conc'),
+                    keycomment=self.tr("Halo concentration parameter"),
                     datatype=float)
         self.LineEditModelParamsDictForDarkMatterHalo['halo_conc_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('halo_conc_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('halo_conc_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
         self.LineEditModelParamsDictForDarkMatterHalo['fdm'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdm'), 
-                    keycomment=self.tr("Dark matter fraction at Reff"), 
+                    keyname=self.tr('fdm'),
+                    keycomment=self.tr("Dark matter fraction at Reff"),
                     datatype=float)
         self.LineEditModelParamsDictForDarkMatterHalo['fdm_fixed'] = QWidgetForParamInput(\
-                    keyname=self.tr('fdm_fixed'), 
-                    keycomment=self.tr(""), 
+                    keyname=self.tr('fdm_fixed'),
+                    keycomment=self.tr(""),
                     datatype=bool)
-        # 
+        #
         initial_param_bounds = {}
-        initial_param_bounds['total_mass']   = [10.0, 13.0]
+        initial_param_bounds['total_mass']   = [9.0, 13.0]
         initial_param_bounds['bt']           = [0.0, 1.0]
         initial_param_bounds['r_eff_disk']   = [0.1, 30.0]
         initial_param_bounds['n_disk']       = [1.0, 8.0]
@@ -605,7 +682,7 @@ class QDysmalPyGUI(QMainWindow):
         initial_param_bounds['sigmaz']       = [0.1, 1.0]
         initial_param_bounds['inc']          = [0.0, 90.0]
         initial_param_bounds['pa']           = [-180.0, 180.0]
-        initial_param_bounds['mvirial']      = [10.0, 14.0]
+        initial_param_bounds['mvirial']      = [9.0, 14.0]
         initial_param_bounds['halo_conc']    = [1.0, 20.0]
         initial_param_bounds['fdm']          = [0.0, 0.99]
         initial_param_stddev = {}
@@ -622,119 +699,119 @@ class QDysmalPyGUI(QMainWindow):
         initial_param_stddev['mvirial']      = 0.5
         initial_param_stddev['halo_conc']    = 0.5
         initial_param_stddev['fdm']          = 1.0
-        # 
+        #
         self.LineEditModelParamsDictForLimits = OrderedDict()
-        for key in ['total_mass', 'bt', 'r_eff_disk', 'n_disk', 'r_eff_bulge', 'n_bulge', 
-                    'sigma0', 'sigmaz', 'inc', 'pa', 
+        for key in ['total_mass', 'bt', 'r_eff_disk', 'n_disk', 'r_eff_bulge', 'n_bulge',
+                    'sigma0', 'sigmaz', 'inc', 'pa',
                     'mvirial', 'halo_conc', 'fdm']:
             self.LineEditModelParamsDictForLimits[key+'_bounds'] = QWidgetForParamInput(\
-                    keyname=self.tr(key+'_bounds'), 
-                    keycomment=self.tr(""), 
-                    datatype=float, 
-                    listtype=list, 
+                    keyname=self.tr(key+'_bounds'),
+                    keycomment=self.tr(""),
+                    datatype=float,
+                    listtype=list,
                     default=str(initial_param_bounds[key]),
                     fullwidth=True)
             self.LineEditModelParamsDictForLimits[key+'_prior'] = QWidgetForParamInput(\
-                    keyname=self.tr(key+'_prior'), 
-                    keycomment=self.tr(""), 
-                    datatype=str, 
+                    keyname=self.tr(key+'_prior'),
+                    keycomment=self.tr(""),
+                    datatype=str,
                     options=['flat','gaussian'])
             self.LineEditModelParamsDictForLimits[key+'_stddev'] = QWidgetForParamInput(\
-                    keyname=self.tr(key+'_stddev'), 
-                    keycomment=self.tr(""), 
-                    datatype=float, 
+                    keyname=self.tr(key+'_stddev'),
+                    keycomment=self.tr(""),
+                    datatype=float,
                     default=initial_param_stddev[key])
-        # 
+        #
         self.LineEditModelParamsDictForFitting = OrderedDict()
         self.LineEditModelParamsDictForFitting['fit_method'] = QWidgetForParamInput(\
-                    keyname=self.tr('fit_method'), 
-                    keycomment=self.tr("mcmc or mpfit"), 
-                    datatype=str, 
+                    keyname=self.tr('fit_method'),
+                    keycomment=self.tr("mcmc or mpfit"),
+                    datatype=str,
                     options=['mpfit', 'mcmc'])
         self.LineEditModelParamsDictForFitting['moment_calc'] = QWidgetForParamInput(\
-                    keyname=self.tr('moment_calc'), 
-                    keycomment=self.tr('If False, observed maps fit with GAUSSIANS'), 
-                    datatype=bool, 
+                    keyname=self.tr('moment_calc'),
+                    keycomment=self.tr('If False, observed maps fit with GAUSSIANS'),
+                    datatype=bool,
                     default=False)
         self.LineEditModelParamsDictForFitting['fitdispersion'] = QWidgetForParamInput(\
-                    keyname=self.tr('fitdispersion'), 
-                    keycomment=self.tr("Simultaneously fit the velocity and dispersion?"), 
+                    keyname=self.tr('fitdispersion'),
+                    keycomment=self.tr("Simultaneously fit the velocity and dispersion?"),
                     datatype=bool)
         self.LineEditModelParamsDictForFitting['fitflux'] = QWidgetForParamInput(\
-                    keyname=self.tr('fitflux'), 
-                    keycomment=self.tr("Simultaneously fit the flux?"), 
-                    datatype=bool, 
+                    keyname=self.tr('fitflux'),
+                    keycomment=self.tr("Simultaneously fit the flux?"),
+                    datatype=bool,
                     default=False)
         self.LineEditModelParamsDictForFitting['do_plotting'] = QWidgetForParamInput(\
-                    keyname=self.tr('do_plotting'), 
-                    keycomment=self.tr("Produce all output plots?"), 
+                    keyname=self.tr('do_plotting'),
+                    keycomment=self.tr("Produce all output plots?"),
                     datatype=bool)
         self.LineEditModelParamsDictForFitting['do_plotting_NULL'] = QWidgetForParamInput(\
-                    keyname=self.tr('do_plotting_NULL'), 
-                    keycomment=self.tr("NULL"), 
-                    datatype=bool, 
+                    keyname=self.tr('do_plotting_NULL'),
+                    keycomment=self.tr("NULL"),
+                    datatype=bool,
                     default=False)
         self.LineEditModelParamsDictForFitting['oversample'] = QWidgetForParamInput(\
-                    keyname=self.tr('oversample'), 
-                    keycomment=self.tr("Oversampling the model cube"), 
-                    datatype=int, 
+                    keyname=self.tr('oversample'),
+                    keycomment=self.tr("Oversampling the model cube"),
+                    datatype=int,
                     default=3)
         self.LineEditModelParamsDictForFitting['oversize'] = QWidgetForParamInput(\
-                    keyname=self.tr('oversize'), 
-                    keycomment=self.tr("Oversize of the model cube"), 
-                    datatype=int, 
+                    keyname=self.tr('oversize'),
+                    keycomment=self.tr("Oversize of the model cube"),
+                    datatype=int,
                     default=1)
         self.LineEditModelParamsDictForFitting['nWalkers'] = QWidgetForParamInput(\
-                    keyname=self.tr('nWalkers'), 
-                    keycomment=self.tr("Number of walkers. Must be even and >= 2x the number of free parameters."), 
-                    datatype=int, 
-                    default=1)
+                    keyname=self.tr('nWalkers'),
+                    keycomment=self.tr("Number of walkers. Must be even and >= 2x the number of free parameters."),
+                    datatype=int,
+                    default=10)
         self.LineEditModelParamsDictForFitting['nCPUs'] = QWidgetForParamInput(\
-                    keyname=self.tr('nCPUs'), 
-                    keycomment=self.tr("Number of CPUs to use for parallelization"), 
-                    datatype=int, 
+                    keyname=self.tr('nCPUs'),
+                    keycomment=self.tr("Number of CPUs to use for parallelization"),
+                    datatype=int,
                     default=1)
         self.LineEditModelParamsDictForFitting['nBurn'] = QWidgetForParamInput(\
-                    keyname=self.tr('nBurn'), 
-                    keycomment=self.tr("Number of steps during burn-in"), 
-                    datatype=int, 
+                    keyname=self.tr('nBurn'),
+                    keycomment=self.tr("Number of steps during burn-in"),
+                    datatype=int,
                     default=1)
         self.LineEditModelParamsDictForFitting['nSteps'] = QWidgetForParamInput(\
-                    keyname=self.tr('nSteps'), 
-                    keycomment=self.tr("Number of steps for sampling"), 
-                    datatype=int, 
-                    default=1)
+                    keyname=self.tr('nSteps'),
+                    keycomment=self.tr("Number of steps for sampling"),
+                    datatype=int,
+                    default=100)
         self.LineEditModelParamsDictForFitting['scale_param_a'] = QWidgetForParamInput(\
-                    keyname=self.tr('scale_param_a'), 
-                    keycomment=self.tr(""), 
-                    datatype=float, 
+                    keyname=self.tr('scale_param_a'),
+                    keycomment=self.tr(""),
+                    datatype=float,
                     default=3.0)
         self.LineEditModelParamsDictForFitting['minAF'] = QWidgetForParamInput(\
-                    keyname=self.tr('minAF'), 
-                    keycomment=self.tr("Minimum acceptance fraction"), 
-                    datatype=float, 
+                    keyname=self.tr('minAF'),
+                    keycomment=self.tr("Minimum acceptance fraction"),
+                    datatype=float,
                     default='None')
         self.LineEditModelParamsDictForFitting['maxAF'] = QWidgetForParamInput(\
-                    keyname=self.tr('maxAF'), 
-                    keycomment=self.tr("Maximum acceptance fraction"), 
-                    datatype=float, 
+                    keyname=self.tr('maxAF'),
+                    keycomment=self.tr("Maximum acceptance fraction"),
+                    datatype=float,
                     default='None')
         self.LineEditModelParamsDictForFitting['nEff'] = QWidgetForParamInput(\
-                    keyname=self.tr('nEff'), 
-                    keycomment=self.tr("Number of auto-correlation times before convergence"), 
-                    datatype=int, 
+                    keyname=self.tr('nEff'),
+                    keycomment=self.tr("Number of auto-correlation times before convergence"),
+                    datatype=int,
                     default=10)
         self.LineEditModelParamsDictForFitting['maxiter'] = QWidgetForParamInput(\
-                    keyname=self.tr('maxiter'), 
-                    keycomment=self.tr("Maximum number of iterations before mpfit quits"), 
-                    datatype=int, 
+                    keyname=self.tr('maxiter'),
+                    keycomment=self.tr("Maximum number of iterations before mpfit quits"),
+                    datatype=int,
                     default=200)
         self.LineEditModelParamsDictForFitting['overwrite'] = QWidgetForParamInput(\
-                    keyname=self.tr('overwrite'), 
-                    keycomment=self.tr("Overwrite outputs"), 
-                    datatype=bool, 
+                    keyname=self.tr('overwrite'),
+                    keycomment=self.tr("Overwrite outputs"),
+                    datatype=bool,
                     default='False')
-        # 
+        #
         self.LineEditModelParamsDicts = []
         self.LineEditModelParamsDicts.append(self.LineEditModelParamsDictForBulgeDisk)
         self.LineEditModelParamsDicts.append(self.LineEditModelParamsDictForDarkMatterHalo)
@@ -743,7 +820,7 @@ class QDysmalPyGUI(QMainWindow):
         self.LineEditModelParamsDicts.append(self.LineEditModelParamsDictForZHeight)
         self.LineEditModelParamsDicts.append(self.LineEditModelParamsDictForLimits)
         self.LineEditModelParamsDicts.append(self.LineEditModelParamsDictForFitting)
-        # 
+        #
         self.TabWidgetA.addTab(self.ScrollAreaForTabPageA1, self.tr('Data'))
         self.TabWidgetA.addTab(self.ScrollAreaForTabPageA2, self.tr('Data 2D'))
         self.TabWidgetA.addTab(self.ScrollAreaForTabPageA3, self.tr('Data 3D'))
@@ -752,7 +829,7 @@ class QDysmalPyGUI(QMainWindow):
         self.TabWidgetA.setTabToolTip(0, self.tr('Data setup'))
         self.TabWidgetA.setTabToolTip(1, self.tr('Instrument setup'))
         self.TabWidgetA.setTabToolTip(2, self.tr('Lensing transformation'))
-        # 
+        #
         self.TabWidgetB.addTab(self.ScrollAreaForTabPageB1, self.tr('Disk+Bulge'))
         self.TabWidgetB.addTab(self.ScrollAreaForTabPageB2, self.tr('Halo'))
         self.TabWidgetB.addTab(self.ScrollAreaForTabPageB3, self.tr('Disp'))
@@ -767,21 +844,21 @@ class QDysmalPyGUI(QMainWindow):
         self.TabWidgetB.setTabToolTip(4, self.tr('Z-direction parameters'))
         self.TabWidgetB.setTabToolTip(5, self.tr('All parameter limits'))
         self.TabWidgetB.setTabToolTip(6, self.tr('Parameters related to the fitting'))
-        # 
+        #
         self.TabWidgetA.setStyleSheet("""
             QTabWidget::tab-bar {
-                left: 0; 
+                left: 0;
             }""")
         self.TabWidgetB.setStyleSheet("""
             QTabWidget::tab-bar {
-                left: 0; 
+                left: 0;
             }""")
         #self.PanelSpecA = QWidget()
         #self.PanelSpecB = QWidget()
-        # 
+        #
         for keyname in ['fdata', 'fdata_flux', 'fdata_ferr', 'fdata_vel', 'fdata_verr', 'fdata_disp', 'fdata_derr', 'fdata_mask', 'fdata_cube']:
             self.LineEditDataParamsDict['datadir'].ParamUpdateSignal.connect(self.LineEditDataParamsDict[keyname].onDataDirParamUpdateCall)
-        # 
+        #
         # Panel Left layout
         self.LayoutForLineEditParamFile = QHBoxLayout()
         self.LayoutForLineEditParamFile.setContentsMargins(0, 0, 0, 0)
@@ -810,7 +887,7 @@ class QDysmalPyGUI(QMainWindow):
         self.LayoutForTabPageA1.addItem(self.LayoutForLineEditDataParams)
         self.LayoutForTabPageA1.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self.TabPageA1.setLayout(self.LayoutForTabPageA1)
-        # 
+        #
         self.LayoutForLineEditLensingParams = QGridLayout()
         self.LayoutForLineEditLensingParams.setHorizontalSpacing(30)
         self.LayoutForLineEditLensingParams.setVerticalSpacing(5)
@@ -831,7 +908,7 @@ class QDysmalPyGUI(QMainWindow):
         self.LayoutForTabPageA5.addItem(self.LayoutForLineEditLensingParams)
         self.LayoutForTabPageA5.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self.TabPageA5.setLayout(self.LayoutForTabPageA5)
-        # 
+        #
         for idict in range(len(self.LineEditModelParamsDicts)):
             this_layout = QGridLayout()
             this_layout.setHorizontalSpacing(30)
@@ -853,7 +930,7 @@ class QDysmalPyGUI(QMainWindow):
             this_tabpage_layout.addItem(this_layout)
             this_tabpage_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
             getattr(self, 'TabPageB%d'%(idict+1)).setLayout(this_tabpage_layout)
-        # 
+        #
         #self.LayoutForLineEditModelParams2 = QGridLayout()
         #self.LayoutForLineEditModelParams2.setHorizontalSpacing(30)
         #self.LayoutForLineEditModelParams2.setVerticalSpacing(5)
@@ -874,7 +951,7 @@ class QDysmalPyGUI(QMainWindow):
         #self.LayoutForTabPageB2.addItem(self.LayoutForLineEditModelParams2)
         #self.LayoutForTabPageB2.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         #self.TabPageB2.setLayout(self.LayoutForTabPageB2)
-        # 
+        #
         #self.LayoutForLineEditModelParams3 = QGridLayout()
         #self.LayoutForLineEditModelParams3.setHorizontalSpacing(30)
         #self.LayoutForLineEditModelParams3.setVerticalSpacing(5)
@@ -895,7 +972,7 @@ class QDysmalPyGUI(QMainWindow):
         #self.LayoutForTabPageB3.addItem(self.LayoutForLineEditModelParams3)
         #self.LayoutForTabPageB3.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         #self.TabPageB3.setLayout(self.LayoutForTabPageB3)
-        # 
+        #
         #self.LayoutForLineEditModelParams4 = QGridLayout()
         #self.LayoutForLineEditModelParams4.setHorizontalSpacing(30)
         #self.LayoutForLineEditModelParams4.setVerticalSpacing(5)
@@ -916,7 +993,7 @@ class QDysmalPyGUI(QMainWindow):
         #self.LayoutForTabPageB4.addItem(self.LayoutForLineEditModelParams4)
         #self.LayoutForTabPageB4.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         #self.TabPageB4.setLayout(self.LayoutForTabPageB4)
-        # 
+        #
         self.LayoutForTabWidgetHolderA = QVBoxLayout()
         self.LayoutForTabWidgetHolderA.addWidget(self.LabelForTabWidgetA)
         self.LayoutForTabWidgetHolderA.addWidget(self.TabWidgetA)
@@ -935,83 +1012,99 @@ class QDysmalPyGUI(QMainWindow):
                 width: 20px;
                 margin-top: 2px;
                 margin-bottom: 2px;
-                border-radius: 4px; 
+                border-radius: 4px;
             }""")
         self.LayoutForPanelLeft = QVBoxLayout()
         self.LayoutForPanelLeft.addWidget(self.SplitterForTabWidgets)
         self.LayoutForPanelLeft.setContentsMargins(0, 0, 0, 0)
         self.PanelLeft.setLayout(self.LayoutForPanelLeft)
-        # 
+        #
         # Panel Middle widgets
         self.LabelForControlButtons = QLabel(self.tr("Control"))
         self.LabelComponents = QLabel(self.tr("Components"))
-        # 
+        #
         self.CheckBoxModelParamsDict = OrderedDict()
         self.CheckBoxModelParamsDict['include_halo'] = QWidgetForParamInput(\
-                     keyname=self.tr("include_halo"), 
-                     keycomment=self.tr("Include the halo as a component in fitting?"), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr("include_halo"),
+                     keycomment=self.tr("Include the halo as a component in fitting?"),
+                     datatype=bool,
+                     checkbox=True,
                      default='True')
         self.CheckBoxModelParamsDict['adiabatic_contract'] = QWidgetForParamInput(\
-                     keyname=self.tr("adiabatic_contract"), 
-                     keycomment=self.tr("Apply adiabatic contraction?"), 
-                     datatype=bool, 
+                     keyname=self.tr("adiabatic_contract"),
+                     keycomment=self.tr("Apply adiabatic contraction?"),
+                     datatype=bool,
                      checkbox=True)
         self.CheckBoxModelParamsDict['pressure_support'] = QWidgetForParamInput(\
-                     keyname=self.tr("pressure_support"), 
-                     keycomment=self.tr("Apply assymmetric drift correction?"), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr("pressure_support"),
+                     keycomment=self.tr("Apply assymmetric drift correction?"),
+                     datatype=bool,
+                     checkbox=True,
                      default='True')
         self.CheckBoxModelParamsDict['noord_flat'] = QWidgetForParamInput(\
-                     keyname=self.tr("noord_flat"), 
-                     keycomment=self.tr("Apply Noordermeer 2008 flattenning for the velocity field of Sersic profile? (Need \"$SERSIC_PROFILE_MASS_VC_DATADIR/mass_VC_profile_sersic_n*.fits\")"), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr("noord_flat"),
+                     keycomment=self.tr("Apply Noordermeer 2008 flattenning for the velocity field of Sersic profile? (Need \"$SERSIC_PROFILE_MASS_VC_DATADIR/mass_VC_profile_sersic_n*.fits\")"),
+                     datatype=bool,
+                     checkbox=True,
                      default='True')
         self.CheckBoxModelParamsDict['zheight_tied'] = QWidgetForParamInput(\
-                     keyname=self.tr('zheight_tied'), 
-                     keycomment=self.tr("Tie the zheight to the effective radius of the disk?"), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr('zheight_tied'),
+                     keycomment=self.tr("Tie the zheight to the effective radius of the disk?"),
+                     datatype=bool,
+                     checkbox=True,
                      default='True')
         self.CheckBoxModelParamsDict['fdm_tied'] = QWidgetForParamInput(\
-                     keyname=self.tr('fdm_tied'), 
-                     keycomment=self.tr("For NFW, fdm_tied=True determines fDM from Mvirial (+baryons)."), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr('fdm_tied'),
+                     keycomment=self.tr("For NFW, fdm_tied=True determines fDM from Mvirial (+baryons)."),
+                     datatype=bool,
+                     checkbox=True,
                      default='False')
-        # 
+        self.CheckBoxModelParamsDict['zcalc_truncate'] = QWidgetForParamInput(\
+                     keyname=self.tr('zcalc_truncate'),
+                     keycomment=self.tr("If True, the cube is only filled with flux to within +- 2 * scale length thickness above and below the galaxy midplane"),
+                     datatype=bool,
+                     checkbox=True,
+                     default='True')
+        #
         self.CheckBoxModelParamsDict['__gauss_extract__'] = QWidgetForParamInput(\
-                     keyname=self.tr('__gauss_extract__'), 
-                     keycomment=self.tr("Using Gaussian line profile fitting instead of moment to extract the velocity field. Inverse of moment_calc."), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr('__gauss_extract__'),
+                     keycomment=self.tr("Using Gaussian line profile fitting instead of moment to extract the velocity field. Inverse of moment_calc."),
+                     datatype=bool,
+                     checkbox=True,
                      default='True')
         self.CheckBoxModelParamsDict['__gauss_extract__'].CheckBoxWidget.stateChanged.disconnect()
         self.CheckBoxModelParamsDict['__gauss_extract__'].CheckBoxWidget.stateChanged.connect(self.onGaussExtractCheckStateChangedCall)
-        # 
+        #
+        self.CheckBoxModelParamsDict['gauss_extract_with_c'] = QWidgetForParamInput(\
+                     keyname=self.tr('gauss_extract_with_c'),
+                     keycomment=self.tr("Using C++-based Gaussian line profile fitting to speed up. "),
+                     datatype=bool,
+                     checkbox=True,
+                     default='True')
+        #self.CheckBoxModelParamsDict['gauss_extract_with_c'].CheckBoxWidget.stateChanged.disconnect() # do not disconnect here, so that onParamUpdate will also be called
+        self.CheckBoxModelParamsDict['gauss_extract_with_c'].CheckBoxWidget.stateChanged.connect(self.onGaussExtractCheckStateChangedCall)
+        self.LineEditModelParamsDictForFitting['moment_calc'].ComboBoxWidget.currentTextChanged.connect(self.onMomentCalcLineEditTextChangedCall)
+        #
         self.CheckBoxModelParamsDict['__oversampling__'] = QWidgetForParamInput(\
-                     keyname=self.tr('__oversampling__'), 
-                     keycomment=self.tr("Oversampling the model cube. See also the oversample input box."), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr('__oversampling__'),
+                     keycomment=self.tr("Oversampling the model cube. See also the oversample input box."),
+                     datatype=bool,
+                     checkbox=True,
                      default=str(self.LineEditModelParamsDictForFitting['oversample'].keyvalue()>1))
         self.CheckBoxModelParamsDict['__oversampling__'].CheckBoxWidget.stateChanged.disconnect()
         self.CheckBoxModelParamsDict['__oversampling__'].CheckBoxWidget.stateChanged.connect(self.onOverSamplingCheckStateChangedCall)
-        # 
+        #
         self.CheckBoxModelParamsDict['__overwriting__'] = QWidgetForParamInput(\
-                     keyname=self.tr('__overwriting__'), 
-                     keycomment=self.tr("Overwriting the fitting. See also the overwrite check box."), 
-                     datatype=bool, 
-                     checkbox=True, 
+                     keyname=self.tr('__overwriting__'),
+                     keycomment=self.tr("Overwriting the fitting. See also the overwrite check box."),
+                     datatype=bool,
+                     checkbox=True,
                      default=self.LineEditModelParamsDictForFitting['overwrite'].keyvalue())
         self.CheckBoxModelParamsDict['__overwriting__'].CheckBoxWidget.stateChanged.disconnect()
         self.CheckBoxModelParamsDict['__overwriting__'].CheckBoxWidget.stateChanged.connect(self.onOverWritingCheckStateChangedCall)
-        #self.LineEditModelParamsDictForFitting['overwrite'].ComboBoxWidget.currentTextChanged.connect(self.onOverWritingLineEditTextChangedCall)
-        # 
-        # 
+        self.LineEditModelParamsDictForFitting['overwrite'].ComboBoxWidget.currentTextChanged.connect(self.onOverWritingLineEditTextChangedCall)
+        #
+        #
         self.ButtonInitRandomParams = QPushButton(self.tr("Init Random Params"))
         self.ButtonInitRandomParams.setMinimumWidth(160)
         self.ButtonInitRandomParams.clicked.connect(self.onInitRandomParamsCall)
@@ -1046,7 +1139,7 @@ class QDysmalPyGUI(QMainWindow):
         self.ButtonExit = QPushButton(self.tr("Exit"))
         self.ButtonExit.setMinimumWidth(160)
         self.ButtonExit.clicked.connect(self.onExitCall)
-        # 
+        #
         # Panel Middle layout
         self.LayoutForCheckBoxModelParams = QGridLayout()
         self.LayoutForCheckBoxModelParams.setContentsMargins(0, 0, 0, 0)
@@ -1061,6 +1154,7 @@ class QDysmalPyGUI(QMainWindow):
                 self.CheckBoxModelParamsDict[key].ParamUpdateSignal.connect(self.onParamUpdateCall)
                 if self.CheckBoxModelParamsDict[key].isEnabled():
                     self.DysmalPyParams[key] = self.CheckBoxModelParamsDict[key].keyvalue()
+                    logger.debug('self.DysmalPyParams[\'%s\'] = self.CheckBoxModelParamsDict[\'%s\'].keyvalue() = %s'%(key, key, self.CheckBoxModelParamsDict[key].keyvalue()))
                 icount, irow, icol, rowSpan, colSpan = self.CheckBoxModelParamsDict[key].getPositionInQGridLayout(icount, ncolumn)
                 self.LayoutForCheckBoxModelParams.addWidget(self.CheckBoxModelParamsDict[key], irow, icol, rowSpan, colSpan)
             else:
@@ -1095,7 +1189,7 @@ class QDysmalPyGUI(QMainWindow):
                 max-width: 100px;
             }
             """)
-        # 
+        #
         # Panel Right widgets
         self.LabelForSpecViewerA = QLabel(self.tr("Rotation Curves"))
         self.LabelForImageViewerA = QLabel(self.tr("Data Images"))
@@ -1125,7 +1219,7 @@ class QDysmalPyGUI(QMainWindow):
         self.SpecViewerA1.ChannelSelectedSignal.connect(self.selectChannelInSpecViewers)
         self.SpecViewerA2.ChannelSelectedSignal.connect(self.selectChannelInSpecViewers)
         self.SpecViewerA3.ChannelSelectedSignal.connect(self.selectChannelInSpecViewers)
-        # 
+        #
         # Panel Right layout
         self.LayoutForSpecViewerA = QHBoxLayout()
         self.LayoutForSpecViewerA.setContentsMargins(0, 0, 0, 0)
@@ -1171,7 +1265,7 @@ class QDysmalPyGUI(QMainWindow):
         self.LayoutForPanelRight.addItem(self.LayoutForImageViewerWithLabelC)
         self.LayoutForPanelRight.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self.PanelRight.setLayout(self.LayoutForPanelRight)
-        # 
+        #
         #self.SplitterA = QSplitter(Qt.Horizontal)
         #self.SplitterB = QSplitter(Qt.Horizontal)
         #self.SplitterA.addWidget(self.PanelImageA)
@@ -1184,7 +1278,7 @@ class QDysmalPyGUI(QMainWindow):
         #self.SplitterB.setStretchFactor(1, 3)
         #self.SplitterA.splitterMoved.connect(self.moveSplitterAB)
         #self.SplitterB.splitterMoved.connect(self.moveSplitterAB)
-        # 
+        #
         self.SplitterForCentralWidget = QSplitter(Qt.Horizontal)
         self.SplitterForCentralWidget.addWidget(self.PanelLeft)
         self.SplitterForCentralWidget.addWidget(self.PanelMiddle)
@@ -1200,12 +1294,12 @@ class QDysmalPyGUI(QMainWindow):
                 width: 20px;
                 margin-top: 2px;
                 margin-bottom: 2px;
-                border-radius: 4px; 
+                border-radius: 4px;
             }""")
         self.PanelLeft.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.PanelMiddle.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.PanelRight.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        # 
+        #
         # set main layout
         self.LayoutForCentralWidget = QHBoxLayout()
         self.LayoutForCentralWidget.addWidget(self.SplitterForCentralWidget)
@@ -1213,12 +1307,12 @@ class QDysmalPyGUI(QMainWindow):
         self.LayoutForCentralWidget.setSpacing(0)
         self.CentralWidget.setLayout(self.LayoutForCentralWidget)
         self.setCentralWidget(self.CentralWidget)
-        # 
+        #
         #self.adjustSize()
-        # 
+        #
         # set status bar
         self.logMessage(self.tr('Initializing...'))
-        # 
+        #
         # set menu actions
         exitAct = QAction(self.tr('&Exit'), self)
         exitAct.setShortcut('Ctrl+Q')
@@ -1229,7 +1323,7 @@ class QDysmalPyGUI(QMainWindow):
         openParamFileAct.setShortcut('Ctrl+O')
         openParamFileAct.setStatusTip(self.tr('Open a *.params file'))
         openParamFileAct.triggered.connect(self.onOpenParamFileCall)
-        # 
+        #
         # set menu
         menubar = QMenuBar(self)
         menubar.setNativeMenuBar(False)
@@ -1238,29 +1332,30 @@ class QDysmalPyGUI(QMainWindow):
         fileMenu.addAction(exitAct)
         menubar.addMenu(fileMenu)
         self.setMenuBar(menubar)
-        # 
+        #
         # set fitting worker qobject
-        self.DysmalPyFittingWorker.LogMessageUpdateSignal.connect(self.onLogMessageUpdateCall)
+        self.DysmalPyFittingTower.LogMessageUpdateSignal.connect(self.onLogMessageUpdateCall)
         self.LineEditDataParamsDict['outdir'].ParamUpdateSignal.connect(self.onOutDirParamUpdateCall)
-        # 
+        #
         # set status bar
         self.logMessage(self.tr('Ready'))
-        # 
+        #
         # set main window geometry size to 95% x 85% of the screen size
         if ScreenSize is not None:
-            self.setGeometry(ScreenSize.width() * (1.0-0.95)/2.0, ScreenSize.height() * (1.0-0.85)/2.0, 
-                             ScreenSize.width() * 0.95, ScreenSize.height() * 0.85) # make it centered on screen, 75% screen width and 85% screen height.
+            self.setGeometry(ScreenSize.width() * (1.0-0.95)/2.0, ScreenSize.height() * (1.0-0.85)/2.0,
+                             ScreenSize.width() * 0.95, ScreenSize.height() * 0.85)
+            # make it centered on screen, 75% screen width and 85% screen height.
         #self.setWindowTitle('Icon')
         #self.setWindowIcon(QIcon('web.png'))
         self.SplitterForCentralWidget.setSizes([9, 1, 9])
-        # 
+        #
         self.setButtonsEnabledDisabled()
-        # 
+        #
         #self.ShortCutOpenParamFile = QShortcut(QKeySequence('Alt+O'), self)
         #self.ShortCutOpenParamFile.activated.connect(self.onOpenParamFileCall)
-        # 
+        #
         self.setAcceptDrops(True)
-        # 
+        #
         self.show()
 
     def moveSplitterAB(self, index, pos):
@@ -1272,13 +1367,20 @@ class QDysmalPyGUI(QMainWindow):
         self.SplitterB.blockSignals(False)
 
     def closeEvent(self, event):
+        if self.DysmalPyFittingTower is not None:
+            if self.DysmalPyFittingTower.BaseQueue is not None:
+                self.DysmalPyFittingTower.BaseQueue.put( ('signal', 'exit') )
+            time.sleep(0.5) #<TODO># check child thread cleared?
+            del self.DysmalPyFittingTower
+            self.DysmalPyFittingTower = None
         self.logger.debug('Closing... Bye.')
         super(QDysmalPyGUI, self).closeEvent(event)
 
     @pyqtSlot()
     def onExitCall(self):
-        self.logger.debug('Closing... Bye.')
-        qApp.quit()
+        self.logger.debug('Closing on Exit call.')
+        self.close()
+        # qApp.quit()
 
     def logMessage(self, message):
         if self.statusBar():
@@ -1321,16 +1423,17 @@ class QDysmalPyGUI(QMainWindow):
                     self.logMessage(self.tr('Could not update DysmalPyParams key ')+str(keyname)+self.tr(' value ')+'"'+str(keyvalue)+'"'+self.tr(' as type ')+str(datatype)+self.tr('. Current value '+str(self.DysmalPyParams[keyname])))
                     return
         
+        # for data related keys, if keyvalue is set to None, then we delete the key in the dict DysmalPyParams
         if keyname in ['fdata', 'fdata_flux', 'fdata_ferr', 'fdata_vel', 'fdata_verr', 'fdata_disp', 'fdata_derr', 'fdata_mask', 'fdata_cube'] and \
            keyname in self.DysmalPyParams and \
            keyvalue is None:
             del self.DysmalPyParams[keyname]
             self.logMessage(self.tr('Deleted DysmalPyParams key ')+str(keyname))
+        # for lensing related keys, if any item is changed, then we reset lensing_transformer
         elif keyname.startswith('lensing_') and \
-             self.DysmalPyFittingWorker.LensingTransformer is not None:
-            del self.DysmalPyFittingWorker.LensingTransformer
-            self.DysmalPyFittingWorker.LensingTransformer = None
-            self.logMessage(self.tr('Cleared DysmalPyFittingWorker.LensingTransformer due to changing key ')+str(keyname))
+             keyvalue != self.DysmalPyParams[keyname]:
+            self.clearLensingTransformer()
+            self.logMessage(self.tr('Cleared DysmalPyFittingTower lensing_transformer due to changing key ')+str(keyname))
         else:
             self.DysmalPyParams[keyname] = keyvalue
             self.logMessage(self.tr('Updated DysmalPyParams key ')+str(keyname)+self.tr(' value ')+str(keyvalue)+self.tr(' type ')+str(datatype))
@@ -1338,14 +1441,37 @@ class QDysmalPyGUI(QMainWindow):
     @pyqtSlot(int)
     def onGaussExtractCheckStateChangedCall(self, state):
         self.logger.debug('QWidgetForParamInput::onGaussExtractCheckStateChangedCall()')
+        #for this_dict in self.LineEditModelParamsDicts:
+        #    for this_key in this_dict:
+        #        if this_key == 'moment_calc':
+        #            this_dict[this_key].setText(str(np.invert(state>0)))
+        state_str = str(self.CheckBoxModelParamsDict['__gauss_extract__'].keyvalue() == False and \
+                        self.CheckBoxModelParamsDict['gauss_extract_with_c'].keyvalue() == False)
+        is_changed = False
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'moment_calc':
-                    this_dict[this_key].setText(str(np.invert(state>0)))
+                    this_dict[this_key].setText(state_str)
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
+    
+    @pyqtSlot(str)
+    def onMomentCalcLineEditTextChangedCall(self, text):
+        self.logger.debug('QWidgetForParamInput::onMomentCalcLineEditTextChangedCall()')
+        state_str = (text != 'True') # if moment_calc is true, then we set checkbox to false
+        for this_key in self.CheckBoxModelParamsDict:
+            if this_key == '__gauss_extract__':
+                self.CheckBoxModelParamsDict[this_key].setText(state_str, blocksignal=True)
+            if this_key == 'gauss_extract_with_c':
+                self.CheckBoxModelParamsDict[this_key].setText(state_str, blocksignal=True)
     
     @pyqtSlot(int)
     def onOverSamplingCheckStateChangedCall(self, state):
         self.logger.debug('QWidgetForParamInput::onOverSamplingCheckStateChangedCall()')
+        is_changed = False
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'oversample':
@@ -1356,10 +1482,16 @@ class QDysmalPyGUI(QMainWindow):
                         this_dict[this_key].ParamValue = this_dict[this_key].keyvalue()
                         this_dict[this_key].setText('1')
                         this_dict[this_key].setEnabled(False)
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
     
     @pyqtSlot(int)
     def onOverWritingCheckStateChangedCall(self, state):
         self.logger.debug('QWidgetForParamInput::onOverWritingCheckStateChangedCall()')
+        is_changed = False
         for this_dict in self.LineEditModelParamsDicts:
             for this_key in this_dict:
                 if this_key == 'overwrite':
@@ -1367,22 +1499,27 @@ class QDysmalPyGUI(QMainWindow):
                         this_dict[this_key].setText('True')
                     else:
                         this_dict[this_key].setText('False')
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
     
     @pyqtSlot(str)
     def onOverWritingLineEditTextChangedCall(self, text):
         self.logger.debug('QWidgetForParamInput::onOverWritingLineEditTextChangedCall()')
-        for this_dict in self.CheckBoxModelParamsDict:
-            for this_key in this_dict:
-                if this_key == 'overwrite':
-                    this_dict[this_key].setText(text, blocksignal=True)
+        for this_key in self.CheckBoxModelParamsDict:
+            if this_key == 'overwrite':
+                self.CheckBoxModelParamsDict[this_key].setText(text, blocksignal=True)
+                break
     
     @pyqtSlot(str, str, type, type)
     def onOutDirParamUpdateCall(self, keyname, keyvalue, datatype, listtype):
         self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall()')
-        if keyname == 'outdir':
-            if keyvalue is not None and keyvalue != '':
-                self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall() self.DysmalPyFittingWorker.setDirectory("{}")'.format(keyvalue))
-                self.DysmalPyFittingWorker.setDirectory(keyvalue)
+        #if keyname == 'outdir':
+        #    if keyvalue is not None and keyvalue != '':
+        #        self.logger.debug('QWidgetForParamInput::onOutDirParamUpdateCall() self.DysmalPyFittingTower.setDirectory("{}")'.format(keyvalue))
+        #        self.DysmalPyFittingTower.setDirectory(keyvalue)
     
     @pyqtSlot()
     def onOpenParamFileCall(self):
@@ -1407,7 +1544,7 @@ class QDysmalPyGUI(QMainWindow):
 
     def deselectParamFile(self):
         if self.DysmalPyParams is not None:
-            # deselect the current param file, pop up a window to ask if the user wants to save it 
+            # deselect the current param file, pop up a window to ask if the user wants to save it
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Question)
             msgBox.setText("Parameters changed! Do you want to save current parameters?")
@@ -1418,7 +1555,7 @@ class QDysmalPyGUI(QMainWindow):
         self.LineEditParamFile.setText('')
     
     def readParamFile(self, filepath):
-        # 
+        #
         #if self.DysmalPyParamFile is not None:
         #    self.logMessage(self.tr('Selecting Dysmal param file: ')+str(filepath))
         #    if filepath == self.DysmalPyParamFile:
@@ -1445,14 +1582,14 @@ class QDysmalPyGUI(QMainWindow):
             #msgBox.buttonClicked.connect(msgButtonClick)
             msgBox.exec()
             return
-        # 
+        #
         self.DysmalPyParamFile = filepath
         self.DysmalPyParams = params
         for keyname in ['fdata', 'fdata_flux', 'fdata_ferr', 'fdata_vel', 'fdata_verr', 'fdata_disp', 'fdata_derr', 'fdata_mask', 'fdata_cube']:
             if keyname not in params:
                 self.LineEditDataParamsDict[keyname].setText('', blocksignal=True)
                 self.LineEditDataParamsDict[keyname].setEnabled(False)
-        # 
+        #
         if 'datadir' not in self.DysmalPyParams:
             self.DysmalPyParams['datadir'] = None
         if self.DysmalPyParams['datadir'] is not None and self.DysmalPyParams['datadir'] != '':
@@ -1461,10 +1598,10 @@ class QDysmalPyGUI(QMainWindow):
             self.DysmalPyParams['outdir'] = None
         if self.DysmalPyParams['outdir'] is not None and self.DysmalPyParams['outdir'] != '':
             self.DysmalPyParams['outdir'] = utils_io.ensure_path_trailing_slash(self.DysmalPyParams['outdir'])
-        # 
+        #
         #self.logger.debug("self.DysmalPyParams['datadir']: "+str(self.DysmalPyParams['datadir']))
         #self.logger.debug("self.DysmalPyParams['outdir']: "+str(self.DysmalPyParams['outdir']))
-        # 
+        #
         # fill in GUI LineEdit
         for key in self.LineEditDataParamsDict:
             if key in self.DysmalPyParams:
@@ -1477,16 +1614,27 @@ class QDysmalPyGUI(QMainWindow):
                 if key in self.DysmalPyParams:
                     self.LineEditModelParamsDicts[i][key].setText(self.DysmalPyParams[key], blocksignal=True)
         for key in self.CheckBoxModelParamsDict:
-            self.logMessage('CheckBoxModelParamsDict[%r]'%(key))
             if key in self.DysmalPyParams:
+                self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams[key]))
                 self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams[key], blocksignal=True)
+            # overwrite checkbox depends on the 'overwrite' key
             elif key == '__overwriting__' and 'overwrite' in self.DysmalPyParams:
+                self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['overwrite']))
                 self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['overwrite'], blocksignal=True)
-        # 
+            # gauss_extract checkbox depends on the 'moment_calc' key
+            elif key == '__gauss_extract__' and 'moment_calc' in self.DysmalPyParams:
+                self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['moment_calc']==False))
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False, blocksignal=True)
+            # gauss_extract_with_c checkbox depends on the 'moment_calc' key
+            elif key == 'gauss_extract_with_c' and 'moment_calc' in self.DysmalPyParams:
+                self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['moment_calc']==False))
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False, blocksignal=True)
+                self.DysmalPyParams['gauss_extract_with_c'] = self.CheckBoxModelParamsDict[key].keyvalue()
+        #
         # check data file data directory, see if we can proceed to load existing best fit result
         errormessages = []
         if self.DysmalPyParams['datadir'] is None or self.DysmalPyParams['datadir'] == '':
-            errormessages.append('datadir is None')
+            pass # errormessages.append('datadir is None')
         elif not os.path.isdir(self.DysmalPyParams['datadir']):
             errormessages.append('datadir is not found on disk: '+self.DysmalPyParams['datadir'])
         if self.DysmalPyParams['outdir'] is None or self.DysmalPyParams['outdir'] == '':
@@ -1495,7 +1643,7 @@ class QDysmalPyGUI(QMainWindow):
         for keyname in ['fdata', 'fdata_flux', 'fdata_ferr', 'fdata_vel', 'fdata_verr', 'fdata_disp', 'fdata_derr', 'fdata_mask', 'fdata_cube']:
             if keyname in self.DysmalPyParams:
                 hasdata = True
-                if self.DysmalPyParams['datadir'] is None or self.DysmalPyParams['datadir'] == '': 
+                if self.DysmalPyParams['datadir'] is None or self.DysmalPyParams['datadir'] == '':
                     filepath_check = self.DysmalPyParams[keyname]
                 else:
                     filepath_check = os.path.join(self.DysmalPyParams['datadir'], self.DysmalPyParams[keyname])
@@ -1503,7 +1651,15 @@ class QDysmalPyGUI(QMainWindow):
                     errormessages.append(keyname+' is not found on disk: '+self.DysmalPyParams[keyname])
         if not hasdata:
             errormessages.append('No fdata* key set!')
-        # 
+        #
+        if not ('moment_calc' in self.DysmalPyParams):
+            errormessages.append('No moment_calc key set!')
+        #
+        if ('fitflux' in self.DysmalPyParams):
+            if (self.DysmalPyParams['fitflux']):
+                if not ('fdata_flux' in self.DysmalPyParams and 'fdata_ferr' in self.DysmalPyParams):
+                    errormessages.append('No fdata_flux and fdata_ferr keys when fitflux is set!')
+        #
         if len(errormessages) > 0:
             self.logMessage(self.tr('Found errors in the Dysmal param file: ')+str(filepath))
             msgBox = QMessageBox()
@@ -1516,9 +1672,9 @@ class QDysmalPyGUI(QMainWindow):
             msgBox.exec()
             self.setButtonsEnabledDisabled()
             return
-        # 
+        #
         self.logMessage(self.tr('Successfully loaded Dysmal param file: ')+str(self.DysmalPyParamFile))
-        # 
+        #
         # check if there are already best fit file
         output_pickle_file = os.path.join(self.DysmalPyParams['outdir'], self.DysmalPyParams['galID']+'_'+self.DysmalPyParams['fit_method']+'_results.pickle')
         if os.path.exists(output_pickle_file):
@@ -1529,10 +1685,11 @@ class QDysmalPyGUI(QMainWindow):
             msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             clickedButton = msgBox.exec()
             if clickedButton == QMessageBox.Yes:
-                self.fitDataAsync(dofit=False, clearFitResults=False)
+                self.fitDataAsync(doFit=False, clearFitResults=False)
         self.setButtonsEnabledDisabled()
     
-    def writeOneLineToParamFile(self, fp, keyname, keyvalue, keycomment, datatype, listtype, ensure_path_trailing_slash=False):
+    def writeOneLineToParamFile(self, fp, keyname, keyvalue, keycomment, datatype, listtype,
+                                ensure_path_trailing_slash = False):
         if keyname.find('NULL')>=0 or keyname.startswith('__'):
             return
         if keycomment is None:
@@ -1591,7 +1748,7 @@ class QDysmalPyGUI(QMainWindow):
                                                  self.LineEditLensingParamsDict[key].dataType(),\
                                                  self.LineEditLensingParamsDict[key].listType()\
                                                  )
-            for i in range(len(self.LineEditModelParamsDicts)): 
+            for i in range(len(self.LineEditModelParamsDicts)):
                 for key in self.LineEditModelParamsDicts[i]:
                     if self.LineEditModelParamsDicts[i][key].isEnabled():
                         self.writeOneLineToParamFile(fp, key, \
@@ -1616,68 +1773,83 @@ class QDysmalPyGUI(QMainWindow):
     
     @pyqtSlot()
     def onSaveModelCubeCall(self, filepath=None):
-        if self.DysmalPyFittingWorker.model_cube is None:
+        if self.DysmalPyFittingTower.model_cube is None:
             self.logMessage(self.tr('Error! No valid model cube! Could not save to FITS file.'))
             return
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_cube)
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube)
     
     @pyqtSlot()
     def onSaveModelFluxCall(self):
-        if self.DysmalPyFittingWorker.model_flux_map is None:
+        if self.DysmalPyFittingTower.model_flux_map is None:
             self.logMessage(self.tr('Error! No valid model flux map! Could not save to FITS file.'))
             return
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_flux_map)
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_flux_map)
     
     @pyqtSlot()
     def onSaveModelVelCall(self):
-        if self.DysmalPyFittingWorker.model_vel_map is None:
+        if self.DysmalPyFittingTower.model_vel_map is None:
             self.logMessage(self.tr('Error! No valid model vel map! Could not save to FITS file.'))
             return
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_vel_map)
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_vel_map)
     
     @pyqtSlot()
     def onSaveModelVdispCall(self):
-        if self.DysmalPyFittingWorker.model_disp_map is None:
+        if self.DysmalPyFittingTower.model_disp_map is None:
             self.logMessage(self.tr('Error! No valid model disp map! Could not save to FITS file.'))
             return
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_disp_map)
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_disp_map)
+    
+    def hasLensingTransformer(self):
+        """Check if a lensing transformer exists in the DysmalPyFittingTower class.
+        """
+        return self.DysmalPyFittingTower.lensing_transformer is not None
+    
+    def clearLensingTransformer(self):
+        """Clear a lensing transformer in the DysmalPyFittingTower class.
+        """
+        self.DysmalPyFittingTower.BaseQueue.put(
+            ( 'command', 'clear_lensing_transformer' )
+        )
     
     @pyqtSlot()
     def onSaveModelFilesCall(self, filepath=None):
+        """Save all model cube, moment maps and figures.
+        """
         errormessages = []
-        if self.DysmalPyFittingWorker.model_cube is None:
+        if self.DysmalPyFittingTower.model_cube is None:
             errormessages.append(self.tr('Error! No valid model cube! Could not save the FITS file.'))
-        if self.DysmalPyFittingWorker.model_flux_map is None:
+        if self.DysmalPyFittingTower.model_flux_map is None:
             errormessages.append(self.tr('Error! No valid model flux map! Could not save the FITS file.'))
-        if self.DysmalPyFittingWorker.model_vel_map is None:
+        if self.DysmalPyFittingTower.model_vel_map is None:
             errormessages.append(self.tr('Error! No valid model vel map! Could not save the FITS file.'))
-        if self.DysmalPyFittingWorker.model_disp_map is None:
+        if self.DysmalPyFittingTower.model_disp_map is None:
             errormessages.append(self.tr('Error! No valid model disp map! Could not save the FITS file.'))
         if len(errormessages) != 0:
             return
-        # 
+        #
         defaultpath = self.DefaultDirectory
-        if self.DysmalPyParams['outdir'] is not None:
-            defaultpath = self.DysmalPyParams['outdir']
+        if 'outdir' in self.DysmalPyParams:
+            if self.DysmalPyParams['outdir'] is not None:
+                defaultpath = self.DysmalPyParams['outdir']
         filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving model files'), defaultpath, self.tr('Base name for output (*.*)'))
         if filepath is None or filepath == '':
             self.logMessage(self.tr('No file selected. No file saved.'))
             return
         filepath = re.sub(r'^(.*)\.fits$', r'\1', filepath)
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_cube, filepath=filepath+'_model_cube.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_flux_map, filepath=filepath+'_model_flux_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_vel_map, filepath=filepath+'_model_vel_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.model_disp_map, filepath=filepath+'_model_disp_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.residual_flux_map, filepath=filepath+'_residual_flux_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.residual_vel_map, filepath=filepath+'_residual_vel_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.residual_disp_map, filepath=filepath+'_residual_disp_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.data_flux_map, filepath=filepath+'_data_flux_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.data_vel_map, filepath=filepath+'_data_vel_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.data_disp_map, filepath=filepath+'_data_disp_map.fits')
-        self.saveFitsFile(data=self.DysmalPyFittingWorker.data_mask_map.astype(int), filepath=filepath+'_data_mask_map.fits')
-        self.saveJsonFile(data=self.DysmalPyFittingWorker.model_flux_curve, filepath=filepath+'_model_flux_curve.json')
-        self.saveJsonFile(data=self.DysmalPyFittingWorker.model_vel_curve, filepath=filepath+'_model_vel_curve.json')
-        self.saveJsonFile(data=self.DysmalPyFittingWorker.model_disp_curve, filepath=filepath+'_model_disp_curve.json')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube, filepath=filepath+'_model_cube.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_flux_map, filepath=filepath+'_model_flux_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_vel_map, filepath=filepath+'_model_vel_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_disp_map, filepath=filepath+'_model_disp_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.residual_flux_map, filepath=filepath+'_residual_flux_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.residual_vel_map, filepath=filepath+'_residual_vel_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.residual_disp_map, filepath=filepath+'_residual_disp_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.data_flux_map, filepath=filepath+'_data_flux_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.data_vel_map, filepath=filepath+'_data_vel_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.data_disp_map, filepath=filepath+'_data_disp_map.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.data_mask_map, filepath=filepath+'_data_mask_map.fits')
+        self.saveJsonFile(data=self.DysmalPyFittingTower.model_flux_curve, filepath=filepath+'_model_flux_curve.json')
+        self.saveJsonFile(data=self.DysmalPyFittingTower.model_vel_curve, filepath=filepath+'_model_vel_curve.json')
+        self.saveJsonFile(data=self.DysmalPyFittingTower.model_disp_curve, filepath=filepath+'_model_disp_curve.json')
         self.SpecViewerA1.fig.savefig(filepath+'_model_flux_curve.pdf', dpi=300, transparent=True)
         self.SpecViewerA2.fig.savefig(filepath+'_model_vel_curve.pdf', dpi=300, transparent=True)
         self.SpecViewerA3.fig.savefig(filepath+'_model_disp_curve.pdf', dpi=300, transparent=True)
@@ -1690,20 +1862,22 @@ class QDysmalPyGUI(QMainWindow):
         self.ImageViewerC1.fig.savefig(filepath+'_residual_flux_map.pdf', dpi=300, transparent=True)
         self.ImageViewerC2.fig.savefig(filepath+'_residual_vel_map.pdf', dpi=300, transparent=True)
         self.ImageViewerC3.fig.savefig(filepath+'_residual_disp_map.pdf', dpi=300, transparent=True)
-        if self.DysmalPyFittingWorker.LensingTransformer is not None:
-            if self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_cube is not None:
-                self.saveFitsFile(data=self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_cube, 
-                                  header=self.DysmalPyFittingWorker.LensingTransformer.image_plane_data_info, 
-                                  filepath=filepath+'_lensing_image_plane_data_cube.fits')
-            if self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_cube is not None:
-                self.saveFitsFile(data=self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_cube, 
-                                  header=self.DysmalPyFittingWorker.LensingTransformer.source_plane_data_info, 
-                                  filepath=filepath+'_lensing_source_plane_data_cube.fits')
+        if self.DysmalPyFittingTower.lensing_transformer_image_plane_data_cube is not None:
+            self.saveFitsFile(data=self.DysmalPyFittingTower.lensing_transformer_image_plane_data_cube,
+                              header=self.DysmalPyFittingTower.lensing_transformer_image_plane_data_info,
+                              filepath=filepath+'_lensing_image_plane_data_cube.fits')
+        if self.DysmalPyFittingTower.lensing_transformer_source_plane_data_cube is not None:
+            self.saveFitsFile(data=self.DysmalPyFittingTower.lensing_transformer_source_plane_data_cube,
+                              header=self.DysmalPyFittingTower.lensing_transformer_source_plane_data_info,
+                              filepath=filepath+'_lensing_source_plane_data_cube.fits')
         self.saveParamFile(filepath=filepath+'.params')
     
     def saveFitsFile(self, data, header=None, filepath=None):
         if data is None:
             return
+        if hasattr(data, 'dtype'):
+            if data.dtype == bool:
+                data = data.astype(int) # if data dtype is boolean, convert to int so as to save as a FITS file.
         if filepath is None or filepath == '':
             filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving as FITS file'), self.DefaultDirectory, self.tr('FITS file (*.fits)'))
             if filepath is None or filepath == '':
@@ -1714,7 +1888,7 @@ class QDysmalPyGUI(QMainWindow):
             shutil.move(filepath, filepath+'.backup')
         if header is not None:
             if isinstance(header, (dict, OrderedDict)):
-                header2 = copy.deepcopy(header)
+                header2 = copy.copy(header)
                 header = fits.Header()
                 for key in header2:
                     header[key] = header2[key]
@@ -1774,50 +1948,56 @@ class QDysmalPyGUI(QMainWindow):
         self.logger.debug('onHideSlitCall()')
         if self.checkDysmalPyParams():
             # hide/show the slit in the image viewer
-            if self.DysmalPyFittingWorker.data_flux_map is not None:
-                if self.ImageViewerA1.slit.get_visible() == True:
-                    self.ImageViewerA1.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerA1.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.data_vel_map is not None:
-                if self.ImageViewerA2.slit.get_visible() == True:
-                    self.ImageViewerA2.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerA2.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.data_disp_map is not None:
-                if self.ImageViewerA3.slit.get_visible() == True:
-                    self.ImageViewerA3.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerA3.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            # 
-            if self.DysmalPyFittingWorker.model_flux_map is not None:
-                if self.ImageViewerB1.slit.get_visible() == True:
-                    self.ImageViewerB1.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerB1.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.model_vel_map is not None:
-                if self.ImageViewerB2.slit.get_visible() == True:
-                    self.ImageViewerB2.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerB2.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.model_disp_map is not None:
-                if self.ImageViewerB3.slit.get_visible() == True:
-                    self.ImageViewerB3.hideSlit()
-                    self.ButtonHideSlit.setText(self.tr('Show Slit'))
-                else:
-                    self.ImageViewerB3.showSlit()
-                    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            # 
+            if self.DysmalPyFittingTower.data_flux_map is not None:
+                if self.ImageViewerA1.slit is not None:
+                    if self.ImageViewerA1.slit.get_visible() == True:
+                        self.ImageViewerA1.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerA1.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            if self.DysmalPyFittingTower.data_vel_map is not None:
+                if self.ImageViewerA2.slit is not None:
+                    if self.ImageViewerA2.slit.get_visible() == True:
+                        self.ImageViewerA2.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerA2.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            if self.DysmalPyFittingTower.data_disp_map is not None:
+                if self.ImageViewerA3.slit is not None:
+                    if self.ImageViewerA3.slit.get_visible() == True:
+                        self.ImageViewerA3.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerA3.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            #
+            if self.DysmalPyFittingTower.model_flux_map is not None:
+                if self.ImageViewerB1.slit is not None:
+                    if self.ImageViewerB1.slit.get_visible() == True:
+                        self.ImageViewerB1.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerB1.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            if self.DysmalPyFittingTower.model_vel_map is not None:
+                if self.ImageViewerB2.slit is not None:
+                    if self.ImageViewerB2.slit.get_visible() == True:
+                        self.ImageViewerB2.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerB2.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            if self.DysmalPyFittingTower.model_disp_map is not None:
+                if self.ImageViewerB3.slit is not None:
+                    if self.ImageViewerB3.slit.get_visible() == True:
+                        self.ImageViewerB3.hideSlit()
+                        self.ButtonHideSlit.setText(self.tr('Show Slit'))
+                    else:
+                        self.ImageViewerB3.showSlit()
+                        self.ButtonHideSlit.setText(self.tr('Hide Slit'))
+            #
             #if self.ButtonHideSlit.text() == self.tr('Show Slit'):
             #    self.ButtonHideSlit.setText(self.tr('Hide Slit'))
             #else:
@@ -1825,43 +2005,43 @@ class QDysmalPyGUI(QMainWindow):
     
     def plotDataMomentMaps(self):
         self.logMessage(self.tr('Computing and displaying data cube moment maps'))
-        if self.DysmalPyFittingWorker.data_flux_map is not None:
-            self.ImageViewerA1.showImage(self.DysmalPyFittingWorker.data_flux_map, with_colorbar=True)
-        if self.DysmalPyFittingWorker.data_vel_map is not None:
-            self.ImageViewerA2.showImage(self.DysmalPyFittingWorker.data_vel_map, with_colorbar=True, cmap='RdYlBu_r')
-        if self.DysmalPyFittingWorker.data_disp_map is not None:
-            self.ImageViewerA3.showImage(self.DysmalPyFittingWorker.data_disp_map, with_colorbar=True, cmap='plasma')
+        if self.DysmalPyFittingTower.data_flux_map is not None:
+            self.ImageViewerA1.showImage(self.DysmalPyFittingTower.data_flux_map, with_colorbar=True)
+        if self.DysmalPyFittingTower.data_vel_map is not None:
+            self.ImageViewerA2.showImage(self.DysmalPyFittingTower.data_vel_map, with_colorbar=True, cmap='RdYlBu_r')
+        if self.DysmalPyFittingTower.data_disp_map is not None:
+            self.ImageViewerA3.showImage(self.DysmalPyFittingTower.data_disp_map, with_colorbar=True, cmap='plasma')
         self.logMessage(self.tr('Successfully computed and displayed data cube moment maps'))
 
     def plotModelMomentMaps(self):
         self.logMessage(self.tr('Computing and displaying model cube moment maps'))
-        if self.DysmalPyFittingWorker.model_flux_map is not None:
-            self.ImageViewerB1.showImage(self.DysmalPyFittingWorker.model_flux_map, with_colorbar=True)
-        if self.DysmalPyFittingWorker.model_vel_map is not None:
-            self.ImageViewerB2.showImage(self.DysmalPyFittingWorker.model_vel_map, with_colorbar=True, cmap='RdYlBu_r')
-        if self.DysmalPyFittingWorker.model_disp_map is not None:
-            self.ImageViewerB3.showImage(self.DysmalPyFittingWorker.model_disp_map, with_colorbar=True, cmap='plasma')
-        if self.DysmalPyFittingWorker.residual_flux_map is not None: 
-            self.ImageViewerC1.showImage(self.DysmalPyFittingWorker.residual_flux_map, with_colorbar=True)
-        if self.DysmalPyFittingWorker.residual_vel_map is not None: 
-            self.ImageViewerC2.showImage(self.DysmalPyFittingWorker.residual_vel_map, with_colorbar=True, cmap='RdYlBu_r')
-        if self.DysmalPyFittingWorker.residual_disp_map is not None: 
-            self.ImageViewerC3.showImage(self.DysmalPyFittingWorker.residual_disp_map, with_colorbar=True, cmap='RdYlBu_r')
+        if self.DysmalPyFittingTower.model_flux_map is not None:
+            self.ImageViewerB1.showImage(self.DysmalPyFittingTower.model_flux_map, with_colorbar=True)
+        if self.DysmalPyFittingTower.model_vel_map is not None:
+            self.ImageViewerB2.showImage(self.DysmalPyFittingTower.model_vel_map, with_colorbar=True, cmap='RdYlBu_r')
+        if self.DysmalPyFittingTower.model_disp_map is not None:
+            self.ImageViewerB3.showImage(self.DysmalPyFittingTower.model_disp_map, with_colorbar=True, cmap='plasma')
+        if self.DysmalPyFittingTower.residual_flux_map is not None:
+            self.ImageViewerC1.showImage(self.DysmalPyFittingTower.residual_flux_map, with_colorbar=True)
+        if self.DysmalPyFittingTower.residual_vel_map is not None:
+            self.ImageViewerC2.showImage(self.DysmalPyFittingTower.residual_vel_map, with_colorbar=True, cmap='RdYlBu_r')
+        if self.DysmalPyFittingTower.residual_disp_map is not None:
+            self.ImageViewerC3.showImage(self.DysmalPyFittingTower.residual_disp_map, with_colorbar=True, cmap='RdYlBu_r')
         self.logMessage(self.tr('Successfully computed and displayed model cube moment maps'))
     
     def plotModelRotationCurves(self):
         self.logMessage(self.tr('Computing and displaying model rotation curve'))
-        # 
+        #
         clear_plot = True
         has_plot = False
-        if self.DysmalPyFittingWorker.data_flux_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.data_flux_curve')
-            self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingWorker.data_flux_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
+        if self.DysmalPyFittingTower.data_flux_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingTower.data_flux_curve')
+            self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingTower.data_flux_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
-        if self.DysmalPyFittingWorker.model_flux_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingWorker.model_flux_curve')
-            self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingWorker.model_flux_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
+        if self.DysmalPyFittingTower.model_flux_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA1.plotSpectrum self.DysmalPyFittingTower.model_flux_curve')
+            self.SpecViewerA1.plotSpectrum(**(self.DysmalPyFittingTower.model_flux_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
         if has_plot:
@@ -1869,23 +2049,23 @@ class QDysmalPyGUI(QMainWindow):
             self.SpecViewerA1.axes.legend(loc='upper left')
             self.SpecViewerA1.draw()
             # also show a slit as a line
-            if self.DysmalPyFittingWorker.data_flux_map is not None:
+            if self.DysmalPyFittingTower.data_flux_map is not None:
                 self.ImageViewerA1.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.model_flux_map is not None:
+            if self.DysmalPyFittingTower.model_flux_map is not None:
                 self.ImageViewerB1.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-        # 
+        #
         clear_plot = True
         has_plot = False
-        if self.DysmalPyFittingWorker.data_vel_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.data_vel_curve')
-            self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingWorker.data_vel_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
+        if self.DysmalPyFittingTower.data_vel_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingTower.data_vel_curve')
+            self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingTower.data_vel_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
-        if self.DysmalPyFittingWorker.model_vel_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingWorker.model_vel_curve')
-            self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingWorker.model_vel_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
+        if self.DysmalPyFittingTower.model_vel_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA2.plotSpectrum self.DysmalPyFittingTower.model_vel_curve')
+            self.SpecViewerA2.plotSpectrum(**(self.DysmalPyFittingTower.model_vel_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
         if has_plot:
@@ -1893,23 +2073,23 @@ class QDysmalPyGUI(QMainWindow):
             self.SpecViewerA2.axes.legend(loc='upper left')
             self.SpecViewerA2.draw()
             # also show a slit as a line
-            if self.DysmalPyFittingWorker.data_vel_map is not None:
+            if self.DysmalPyFittingTower.data_vel_map is not None:
                 self.ImageViewerA2.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.model_vel_map is not None:
+            if self.DysmalPyFittingTower.model_vel_map is not None:
                 self.ImageViewerB2.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-        # 
+        #
         clear_plot = True
         has_plot = False
-        if self.DysmalPyFittingWorker.data_disp_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.data_disp_curve')
-            self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingWorker.data_disp_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
+        if self.DysmalPyFittingTower.data_disp_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingTower.data_disp_curve')
+            self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingTower.data_disp_curve), clear_plot=clear_plot, label='data', color='k', zorder=90)
             clear_plot = False
             has_plot = True
-        if self.DysmalPyFittingWorker.model_disp_curve is not None:
-            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingWorker.model_disp_curve')
-            self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingWorker.model_disp_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
+        if self.DysmalPyFittingTower.model_disp_curve is not None:
+            self.logger.debug('plotModelRotationCurves() self.SpecViewerA3.plotSpectrum self.DysmalPyFittingTower.model_disp_curve')
+            self.SpecViewerA3.plotSpectrum(**(self.DysmalPyFittingTower.model_disp_curve), clear_plot=clear_plot, label='model', color='red', zorder=99)
             clear_plot = False
             has_plot = True
         if has_plot:
@@ -1917,99 +2097,99 @@ class QDysmalPyGUI(QMainWindow):
             self.SpecViewerA3.axes.legend(loc='upper left')
             self.SpecViewerA3.draw()
             # also show a slit as a line
-            if self.DysmalPyFittingWorker.data_disp_map is not None:
+            if self.DysmalPyFittingTower.data_disp_map is not None:
                 self.ImageViewerA3.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-            if self.DysmalPyFittingWorker.model_disp_map is not None:
+            if self.DysmalPyFittingTower.model_disp_map is not None:
                 self.ImageViewerB3.showSlit(self.getSlitShapeInPixel())
                 self.ButtonHideSlit.setText(self.tr('Hide Slit'))
-        # 
+        #
         self.logMessage(self.tr('Successfully computed and displayed model rotation curve'))
     
     @pyqtSlot(PixCoord)
     def selectPixelInImageViewers(self, pixel:PixCoord = None):
         if pixel is not None:
-            # 
-            if self.DysmalPyFittingWorker.data_flux_map is not None:
+            #
+            if self.DysmalPyFittingTower.data_flux_map is not None:
                 self.ImageViewerA1.blockSignals(True)
-            if self.DysmalPyFittingWorker.data_vel_map is not None:
+            if self.DysmalPyFittingTower.data_vel_map is not None:
                 self.ImageViewerA2.blockSignals(True)
-            if self.DysmalPyFittingWorker.data_disp_map is not None:
+            if self.DysmalPyFittingTower.data_disp_map is not None:
                 self.ImageViewerA3.blockSignals(True)
-            if self.DysmalPyFittingWorker.model_flux_map is not None:
+            if self.DysmalPyFittingTower.model_flux_map is not None:
                 self.ImageViewerB1.blockSignals(True)
-            if self.DysmalPyFittingWorker.model_vel_map is not None:
+            if self.DysmalPyFittingTower.model_vel_map is not None:
                 self.ImageViewerB2.blockSignals(True)
-            if self.DysmalPyFittingWorker.model_disp_map is not None:
+            if self.DysmalPyFittingTower.model_disp_map is not None:
                 self.ImageViewerB3.blockSignals(True)
-            if self.DysmalPyFittingWorker.residual_flux_map is not None:
+            if self.DysmalPyFittingTower.residual_flux_map is not None:
                 self.ImageViewerC1.blockSignals(True)
-            if self.DysmalPyFittingWorker.residual_vel_map is not None:
+            if self.DysmalPyFittingTower.residual_vel_map is not None:
                 self.ImageViewerC2.blockSignals(True)
-            if self.DysmalPyFittingWorker.residual_disp_map is not None:
+            if self.DysmalPyFittingTower.residual_disp_map is not None:
                 self.ImageViewerC3.blockSignals(True)
-            # 
-            if self.DysmalPyFittingWorker.data_flux_map is not None:
+            #
+            if self.DysmalPyFittingTower.data_flux_map is not None:
                 self.ImageViewerA1.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.data_vel_map is not None:
+            if self.DysmalPyFittingTower.data_vel_map is not None:
                 self.ImageViewerA2.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.data_disp_map is not None:
+            if self.DysmalPyFittingTower.data_disp_map is not None:
                 self.ImageViewerA3.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.model_flux_map is not None:
+            if self.DysmalPyFittingTower.model_flux_map is not None:
                 self.ImageViewerB1.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.model_vel_map is not None:
+            if self.DysmalPyFittingTower.model_vel_map is not None:
                 self.ImageViewerB2.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.model_disp_map is not None:
+            if self.DysmalPyFittingTower.model_disp_map is not None:
                 self.ImageViewerB3.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.residual_flux_map is not None:
+            if self.DysmalPyFittingTower.residual_flux_map is not None:
                 self.ImageViewerC1.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.residual_vel_map is not None:
+            if self.DysmalPyFittingTower.residual_vel_map is not None:
                 self.ImageViewerC2.setSelectedPixel(pixel.x, pixel.y)
-            if self.DysmalPyFittingWorker.residual_disp_map is not None:
+            if self.DysmalPyFittingTower.residual_disp_map is not None:
                 self.ImageViewerC3.setSelectedPixel(pixel.x, pixel.y)
-            # 
-            if self.DysmalPyFittingWorker.data_flux_map is not None:
+            #
+            if self.DysmalPyFittingTower.data_flux_map is not None:
                 self.ImageViewerA1.blockSignals(False)
-            if self.DysmalPyFittingWorker.data_vel_map is not None:
+            if self.DysmalPyFittingTower.data_vel_map is not None:
                 self.ImageViewerA2.blockSignals(False)
-            if self.DysmalPyFittingWorker.data_disp_map is not None:
+            if self.DysmalPyFittingTower.data_disp_map is not None:
                 self.ImageViewerA3.blockSignals(False)
-            if self.DysmalPyFittingWorker.model_flux_map is not None:
+            if self.DysmalPyFittingTower.model_flux_map is not None:
                 self.ImageViewerB1.blockSignals(False)
-            if self.DysmalPyFittingWorker.model_vel_map is not None:
+            if self.DysmalPyFittingTower.model_vel_map is not None:
                 self.ImageViewerB2.blockSignals(False)
-            if self.DysmalPyFittingWorker.model_disp_map is not None:
+            if self.DysmalPyFittingTower.model_disp_map is not None:
                 self.ImageViewerB3.blockSignals(False)
-            if self.DysmalPyFittingWorker.residual_flux_map is not None:
+            if self.DysmalPyFittingTower.residual_flux_map is not None:
                 self.ImageViewerC1.blockSignals(False)
-            if self.DysmalPyFittingWorker.residual_vel_map is not None:
+            if self.DysmalPyFittingTower.residual_vel_map is not None:
                 self.ImageViewerC2.blockSignals(False)
-            if self.DysmalPyFittingWorker.residual_disp_map is not None:
+            if self.DysmalPyFittingTower.residual_disp_map is not None:
                 self.ImageViewerC3.blockSignals(False)
     
     @pyqtSlot(int)
     def selectChannelInSpecViewers(self, ichan:int = None):
         if ichan is not None:
-            # 
-            if (self.DysmalPyFittingWorker.data_flux_curve is not None or self.DysmalPyFittingWorker.model_flux_curve is not None):
+            #
+            if (self.DysmalPyFittingTower.data_flux_curve is not None or self.DysmalPyFittingTower.model_flux_curve is not None):
                 self.SpecViewerA1.blockSignals(True)
-            if (self.DysmalPyFittingWorker.data_vel_curve is not None or self.DysmalPyFittingWorker.model_vel_curve is not None):
+            if (self.DysmalPyFittingTower.data_vel_curve is not None or self.DysmalPyFittingTower.model_vel_curve is not None):
                 self.SpecViewerA2.blockSignals(True)
-            if (self.DysmalPyFittingWorker.data_disp_curve is not None or self.DysmalPyFittingWorker.model_disp_curve is not None):
+            if (self.DysmalPyFittingTower.data_disp_curve is not None or self.DysmalPyFittingTower.model_disp_curve is not None):
                 self.SpecViewerA3.blockSignals(True)
-            # 
-            if (self.DysmalPyFittingWorker.data_flux_curve is not None or self.DysmalPyFittingWorker.model_flux_curve is not None):
+            #
+            if (self.DysmalPyFittingTower.data_flux_curve is not None or self.DysmalPyFittingTower.model_flux_curve is not None):
                 self.SpecViewerA1.setSelectedChannel(ichan)
-            if (self.DysmalPyFittingWorker.data_vel_curve is not None or self.DysmalPyFittingWorker.model_vel_curve is not None):
+            if (self.DysmalPyFittingTower.data_vel_curve is not None or self.DysmalPyFittingTower.model_vel_curve is not None):
                 self.SpecViewerA2.setSelectedChannel(ichan)
-            if (self.DysmalPyFittingWorker.data_disp_curve is not None or self.DysmalPyFittingWorker.model_disp_curve is not None):
+            if (self.DysmalPyFittingTower.data_disp_curve is not None or self.DysmalPyFittingTower.model_disp_curve is not None):
                 self.SpecViewerA3.setSelectedChannel(ichan)
-            # 
-            if (self.DysmalPyFittingWorker.data_flux_curve is not None or self.DysmalPyFittingWorker.model_flux_curve is not None):
+            #
+            if (self.DysmalPyFittingTower.data_flux_curve is not None or self.DysmalPyFittingTower.model_flux_curve is not None):
                 self.SpecViewerA1.blockSignals(False)
-            if (self.DysmalPyFittingWorker.data_vel_curve is not None or self.DysmalPyFittingWorker.model_vel_curve is not None):
+            if (self.DysmalPyFittingTower.data_vel_curve is not None or self.DysmalPyFittingTower.model_vel_curve is not None):
                 self.SpecViewerA2.blockSignals(False)
-            if (self.DysmalPyFittingWorker.data_disp_curve is not None or self.DysmalPyFittingWorker.model_disp_curve is not None):
+            if (self.DysmalPyFittingTower.data_disp_curve is not None or self.DysmalPyFittingTower.model_disp_curve is not None):
                 self.SpecViewerA3.blockSignals(False)
     
     @pyqtSlot()
@@ -2055,24 +2235,24 @@ class QDysmalPyGUI(QMainWindow):
             self.LineEditDataParamsDict['slit_width'].setText('0.5') # arcsec
         if self.LineEditDataParamsDict['slit_pa'].text() == '':
             self.LineEditDataParamsDict['slit_pa'].setText(str(np.round(np.random.uniform(low=0.0, high=180.0, size=(1))[0], 3)))
-        # 
+        #
         self.LineEditModelParamsDictForBulgeDisk['total_mass'].setText(str(np.round(np.random.uniform(low=10.5, high=13.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForBulgeDisk['bt'].setText(str(np.round(np.random.uniform(low=0.0, high=1.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForBulgeDisk['r_eff_disk'].setText(str(np.round(np.random.uniform(low=5.0, high=27.0, size=(1))[0], 3)))
-        self.LineEditModelParamsDictForBulgeDisk['n_disk'].setText(str(np.round(np.random.uniform(low=0.5, high=4.0, size=(1))[0], 3)))
-        self.LineEditModelParamsDictForBulgeDisk['r_eff_bulge'].setText(str(np.round(np.random.uniform(low=0.3, high=4.5, size=(1))[0], 3))) # must be smaller than r_eff_disk and 5 kpc.
+        self.LineEditModelParamsDictForBulgeDisk['n_disk'].setText(str(np.round(np.random.uniform(low=1.0, high=4.0, size=(1))[0], 3)))
+        self.LineEditModelParamsDictForBulgeDisk['r_eff_bulge'].setText(str(np.round(np.random.uniform(low=1.0, high=4.5, size=(1))[0], 3))) # must be smaller than r_eff_disk and 5 kpc.
         self.LineEditModelParamsDictForBulgeDisk['n_bulge'].setText(str(np.round(np.random.uniform(low=2.0, high=4.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForDispersion['sigma0'].setText(str(np.round(np.random.uniform(low=10.0, high=100.0, size=(1))[0], 3)))
-        self.LineEditModelParamsDictForZHeight['sigmaz'].setText(str(np.round(np.random.uniform(low=0.0, high=0.5, size=(1))[0], 3)))
+        self.LineEditModelParamsDictForZHeight['sigmaz'].setText(str(np.round(np.random.uniform(low=0.1, high=0.5, size=(1))[0], 3)))
         self.LineEditModelParamsDictForGeometry['inc'].setText(str(np.round(np.random.uniform(low=15.0, high=65.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForGeometry['pa'].setText(str(np.round(np.random.uniform(low=-180.0, high=180.0, size=(1))[0], 3)))
-        # 
+        #
         self.LineEditModelParamsDictForDarkMatterHalo['mvirial'].setText(str(np.round(self.LineEditModelParamsDictForBulgeDisk['total_mass'].keyvalue()+np.random.uniform(low=0.5, high=1.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForDarkMatterHalo['halo_conc'].setText(str(np.round(np.random.uniform(low=3.0, high=6.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForDarkMatterHalo['fdm'].setText(str(np.round(np.random.uniform(low=0.1, high=0.6, size=(1))[0], 3)))
-        # 
+        #
         self.setButtonsEnabledDisabled()
-        # 
+        #
         self.logMessage(self.tr('Initialized DysmalPyParams with some values'))
     
     def setButtonsEnabledDisabled(self, allDisabled=None):
@@ -2088,15 +2268,16 @@ class QDysmalPyGUI(QMainWindow):
         elif has_par:
             if np.any([t in self.DysmalPyParams for t in ['fdata', 'fdata_vel', 'fdata_cube']]):
                 has_data = True
-            if np.all([self.DysmalPyParams[t] is not None for t in ['total_mass', 'bt', 'r_eff_disk', 
-                        'n_disk', 'r_eff_bulge', 'n_bulge', 'sigma0', 'sigmaz', 'inc', 'pa', 
+            if np.all([((t in self.DysmalPyParams) and (self.DysmalPyParams[t] is not None)) for t in [
+                        'total_mass', 'bt', 'r_eff_disk',
+                        'n_disk', 'r_eff_bulge', 'n_bulge', 'sigma0', 'sigmaz', 'inc', 'pa',
                         'mvirial', 'halo_conc', 'fdm']]):
                 has_validpar = True
-            if self.DysmalPyFittingWorker is not None:
-                if self.DysmalPyFittingWorker.DysmalPyFitResultFile is not None:
-                    if os.path.exists(self.DysmalPyFittingWorker.DysmalPyFitResultFile):
+            if self.DysmalPyFittingTower is not None:
+                if self.DysmalPyFittingTower.DysmalPyFitResultFile is not None:
+                    if os.path.exists(self.DysmalPyFittingTower.DysmalPyFitResultFile):
                         has_bestfit = True
-                if self.DysmalPyFittingWorker.model_cube is not None:
+                if self.DysmalPyFittingTower.model_cube is not None:
                     has_model = True
         self.ButtonInitRandomParams.setEnabled(has_gui)
         self.ButtonOpenParamsFile.setEnabled(has_gui)
@@ -2119,7 +2300,7 @@ class QDysmalPyGUI(QMainWindow):
     def onLoadFittingResultCall(self):
         self.logger.debug('onLoadFittingResultCall()')
         if self.checkDysmalPyParams(require_data=True):
-            self.fitDataAsync(dofit=False, clearFitResults=False)
+            self.fitDataAsync(doFit=False, clearFitResults=False)
     
     def checkDysmalPyParams(self, require_data=False, check_limits=True):
         self.logger.debug('checkDysmalPyParams()')
@@ -2164,122 +2345,98 @@ class QDysmalPyGUI(QMainWindow):
         return checkOK
     
     @pyqtSlot()
-    def fitDataAsync(self, dofit=True, clearFitResults=True):
-        self.logger.debug('fitDataAsync(dofit={},clearFitResults={})'.format(dofit, clearFitResults))
-        # 
-        if self.DysmalPyFittingThread is not None:
-            if self.DysmalPyFittingThread.isRunning():
-                self.logMessage(self.tr('Current thread is still running.'))
+    def fitDataAsync(self, doFit=True, clearFitResults=True):
+        self.logger.debug('fitDataAsync(doFit={},clearFitResults={})'.format(doFit, clearFitResults))
+        #
+        if self.DysmalPyFittingTower.CurrentStarship is not None:
+            if self.DysmalPyFittingTower.CurrentStarship.busy:
+                self.logMessage(self.tr('Current subprocess is still running.'))
                 return
-            #else:
-            #    del self.DysmalPyFittingThread
-            #    self.DysmalPyFittingThread = None
+        # 
         self.setButtonsEnabledDisabled(allDisabled=True)
-        self.DysmalPyFittingWorker.DysmalPyParams = self.DysmalPyParams
-        self.DysmalPyFittingWorker.dofit = dofit
-        self.DysmalPyFittingWorker.overwrite = self.DysmalPyParams['overwrite']
-        if clearFitResults:
-            self.DysmalPyFittingWorker.DysmalPyFitResults = None
-            #self.DysmalPyFittingWorker.DysmalPyFitResultFile = None
-        if self.DysmalPyFittingThread is None:
-            self.DysmalPyFittingThread = QThread()
-            self.DysmalPyFittingWorker.moveToThread(self.DysmalPyFittingThread)
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.fitData)
-            self.DysmalPyFittingWorker.finished.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finished.connect(self.onFittingWorkerFinished)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.onFittingWorkerFinishedWithError)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.onFittingWorkerFinishedWithWarning)
-            #self.DysmalPyFittingWorker.finished.connect(self.DysmalPyFittingWorker.deleteLater)
-            #self.DysmalPyFittingThread.finished.connect(self.DysmalPyFittingThread.deleteLater)
-            #self.DysmalPyFittingWorker.progress.connect(self.reportProgress)
-        else:
-            self.DysmalPyFittingThread.started.disconnect()
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.fitData)
-        self.DysmalPyFittingThread.start()
+        # pass data to DysmalPyFittingTower, which will be redirected to DysmalPyFittingStarship
+        # self.DysmalPyFittingTower.BaseQueue.put( ('command', 'selectStarshipName', 'M66') )
+        # self.DysmalPyFittingTower.BaseQueue.put( ('data', 'params', self.DysmalPyParams) )
+        self.logger.debug('self.DysmalPyFittingTower.BaseQueue.put command fit_data')
+        self.DysmalPyFittingTower.BaseQueue.put(
+            (
+                'command',
+                'fit_data',
+                ( self.DysmalPyParams, ),
+                { 'do_fit': doFit,
+                  'overwrite': self.DysmalPyParams['overwrite'] }
+            )
+        )
     
     @pyqtSlot()
     def generateModelCubeAsync(self, clearFitResults=False):
         self.logger.debug('generateModelCubeAsync()')
-        # 
-        if self.DysmalPyFittingThread is not None:
-            if self.DysmalPyFittingThread.isRunning():
-                self.logMessage(self.tr('Current thread is still running.'))
+        #
+        if self.DysmalPyFittingTower.CurrentStarship is not None:
+            if self.DysmalPyFittingTower.CurrentStarship.busy:
+                self.logMessage(self.tr('Current subprocess is still running.'))
                 return
+        #
         self.setButtonsEnabledDisabled(allDisabled=True)
-        self.DysmalPyFittingWorker.DysmalPyParams = self.DysmalPyParams
-        if clearFitResults:
-            self.DysmalPyFittingWorker.DysmalPyFitResults = None
-            #self.DysmalPyFittingWorker.DysmalPyFitResultFile = None
-        if self.DysmalPyFittingThread is None:
-            self.DysmalPyFittingThread = QThread()
-            self.DysmalPyFittingWorker.moveToThread(self.DysmalPyFittingThread)
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateModelCube)
-            self.DysmalPyFittingWorker.finished.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finished.connect(self.onFittingWorkerFinished)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.onFittingWorkerFinishedWithError)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.onFittingWorkerFinishedWithWarning)
-        else:
-            self.DysmalPyFittingThread.started.disconnect()
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateModelCube)
-        self.DysmalPyFittingThread.start()
+        # pass data to DysmalPyFittingTower, which will be redirected to DysmalPyFittingStarship
+        # self.DysmalPyFittingTower.BaseQueue.put( ('command', 'selectStarshipName', 'M66') )
+        # self.logger.debug('self.DysmalPyFittingTower.BaseQueue.put data DysmalPyParams')
+        # self.DysmalPyFittingTower.BaseQueue.put( ('data', 'DysmalPyParams', self.DysmalPyParams) )
+        self.logger.debug('self.DysmalPyFittingTower.BaseQueue.put command fit_data')
+        self.DysmalPyFittingTower.BaseQueue.put(
+            (
+                'command',
+                'generate_model_cube',
+                ( self.DysmalPyParams, ),
+                { }
+            )
+        )
     
     @pyqtSlot()
     def generateMomentMapsAsync(self, clearFitResults=False):
         self.logger.debug('generateMomentMapsAsync()')
-        # 
-        if self.DysmalPyFittingThread is not None:
-            if self.DysmalPyFittingThread.isRunning():
-                self.logMessage(self.tr('Current thread is still running.'))
+        #
+        if self.DysmalPyFittingTower.CurrentStarship is not None:
+            if self.DysmalPyFittingTower.CurrentStarship.busy:
+                self.logMessage(self.tr('Current subprocess is still running.'))
                 return
-        self.DysmalPyFittingWorker.DysmalPyParams = self.DysmalPyParams
-        if clearFitResults:
-            self.DysmalPyFittingWorker.DysmalPyFitResults = None
-            #self.DysmalPyFittingWorker.DysmalPyFitResultFile = None
-        if self.DysmalPyFittingThread is None:
-            self.DysmalPyFittingThread = QThread()
-            self.DysmalPyFittingWorker.moveToThread(self.DysmalPyFittingThread)
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateMomentMaps)
-            self.DysmalPyFittingWorker.finished.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finished.connect(self.onFittingWorkerFinished)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.onFittingWorkerFinishedWithError)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.onFittingWorkerFinishedWithWarning)
-        else:
-            self.DysmalPyFittingThread.started.disconnect()
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateMomentMaps)
-        self.DysmalPyFittingThread.start()
+        #
+        self.setButtonsEnabledDisabled(allDisabled=True)
+        # pass data to DysmalPyFittingTower, which will be redirected to DysmalPyFittingStarship
+        # self.DysmalPyFittingTower.BaseQueue.put( ('command', 'selectStarshipName', 'M66') )
+        # self.DysmalPyFittingTower.BaseQueue.put( ('data', 'DysmalPyParams', self.DysmalPyParams) )
+        self.DysmalPyFittingTower.BaseQueue.put(
+            (
+                'command',
+                'generate_moment_maps',
+                ( self.DysmalPyFittingTower.DysmalPyParams,
+                  self.DysmalPyFittingTower.DysmalPyGal ),
+                { }
+            )
+        )
     
     @pyqtSlot()
     def generateRotationCurvesAsync(self, clearFitResults=False):
         self.logger.debug('generateRotationCurvesAsync()')
-        # 
-        if self.DysmalPyFittingThread is not None:
-            if self.DysmalPyFittingThread.isRunning():
-                self.logMessage(self.tr('Current thread is still running.'))
+        #
+        if self.DysmalPyFittingTower.CurrentStarship is not None:
+            if self.DysmalPyFittingTower.CurrentStarship.busy:
+                self.logMessage(self.tr('Current subprocess is still running.'))
                 return
-        self.DysmalPyFittingWorker.DysmalPyParams = self.DysmalPyParams
-        if clearFitResults:
-            self.DysmalPyFittingWorker.DysmalPyFitResults = None
-            #self.DysmalPyFittingWorker.DysmalPyFitResultFile = None
-        if self.DysmalPyFittingThread is None:
-            self.DysmalPyFittingThread = QThread()
-            self.DysmalPyFittingWorker.moveToThread(self.DysmalPyFittingThread)
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateRotationCurves)
-            self.DysmalPyFittingWorker.finished.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finished.connect(self.onFittingWorkerFinished)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithError.connect(self.onFittingWorkerFinishedWithError)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.DysmalPyFittingThread.quit)
-            self.DysmalPyFittingWorker.finishedWithWarning.connect(self.onFittingWorkerFinishedWithWarning)
-        else:
-            self.DysmalPyFittingThread.started.disconnect()
-            self.DysmalPyFittingThread.started.connect(self.DysmalPyFittingWorker.generateRotationCurves)
-        self.DysmalPyFittingThread.start()
+        #
+        self.setButtonsEnabledDisabled(allDisabled=True)
+        # pass data to DysmalPyFittingTower, which will be redirected to DysmalPyFittingStarship
+        # self.DysmalPyFittingTower.BaseQueue.put( ('command', 'selectStarshipName', 'M66') )
+        self.DysmalPyFittingTower.BaseQueue.put( ('data', 'DysmalPyParams', self.DysmalPyParams) )
+        self.DysmalPyFittingTower.BaseQueue.put(
+            (
+                'command',
+                'generate_rotation_curves',
+                ( self.DysmalPyFittingTower.DysmalPyParams,
+                  self.DysmalPyFittingTower.DysmalPyGal ),
+                { }
+            )
+        )
     
     @pyqtSlot()
     def onFittingWorkerFinished(self):
@@ -2319,11 +2476,12 @@ class QDysmalPyGUI(QMainWindow):
         pass
     
     def updateFittingParams(self):
-        if self.DysmalPyFittingWorker.DysmalPyFitResults is not None:
-            free_param_names = self.DysmalPyFittingWorker.DysmalPyFitResults.free_param_names
-            bestfit_parameters = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters
-            #bestfit_parameters_l68_err = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters_l68_err
-            #bestfit_parameters_u68_err = self.DysmalPyFittingWorker.DysmalPyFitResults.bestfit_parameters_u68_err
+        if self.DysmalPyFittingTower.DysmalPyFitResults is not None:
+            # self.DysmalPyFittingTower.BaseQueue( ('command', 'sendDataToBase', 'DysmalPyFitResults') )
+            free_param_names = self.DysmalPyFittingTower.DysmalPyFitResults.free_param_names
+            bestfit_parameters = self.DysmalPyFittingTower.DysmalPyFitResults.bestfit_parameters
+            #bestfit_parameters_l68_err = self.DysmalPyFittingTower.DysmalPyFitResults.bestfit_parameters_l68_err
+            #bestfit_parameters_u68_err = self.DysmalPyFittingTower.DysmalPyFitResults.bestfit_parameters_u68_err
             self.logger.debug("updateFittingParams() DysmalPyFittingWorker.DysmalPyFitResults -> UI")
             self.logger.debug("free_param_names = %s"%(free_param_names))
             self.logger.debug("bestfit_parameters = [%s]"%(', '.join(np.array(bestfit_parameters).astype(str))))
@@ -2355,7 +2513,7 @@ class QDysmalPyGUI(QMainWindow):
                 if 'fov_npix' in self.DysmalPyParams:
                     if self.DysmalPyParams['fov_npix'] is not None:
                         xcenter = (self.DysmalPyParams['fov_npix']-1.0)/2.0
-            # 
+            #
             if 'ycenter' in self.DysmalPyParams:
                 if self.DysmalPyParams['ycenter'] is not None:
                     ycenter = self.DysmalPyParams['ycenter']
@@ -2363,23 +2521,23 @@ class QDysmalPyGUI(QMainWindow):
                 if 'fov_npix' in self.DysmalPyParams:
                     if self.DysmalPyParams['fov_npix'] is not None:
                         ycenter = (self.DysmalPyParams['fov_npix']-1.0)/2.0
-            # 
+            #
             if 'fov_npix' in self.DysmalPyParams:
                 if self.DysmalPyParams['fov_npix'] is not None:
                     fov_npix = self.DysmalPyParams['fov_npix']
-            # 
+            #
             if 'slit_width' in self.DysmalPyParams:
                 if self.DysmalPyParams['slit_width'] is not None:
                     slit_width = self.DysmalPyParams['slit_width']
-            # 
+            #
             if 'slit_pa' in self.DysmalPyParams:
                 if self.DysmalPyParams['slit_pa'] is not None:
                     slit_pa = self.DysmalPyParams['slit_pa']
-            # 
+            #
             if 'pixscale' in self.DysmalPyParams:
                 if self.DysmalPyParams['pixscale'] is not None:
                     pixscale = self.DysmalPyParams['pixscale']
-            # 
+            #
             if np.all([t is not None for t in [xcenter, ycenter, fov_npix, slit_width, slit_pa, pixscale]]):
                 nx = fov_npix
                 ny = fov_npix
@@ -2394,10 +2552,10 @@ class QDysmalPyGUI(QMainWindow):
                 #    y1 = y - np.abs(slit_width/pixscale/2.0*np.cos(np.deg2rad(slit_pa+90.0)))
                 #    y2 = y + np.abs(slit_width/pixscale/2.0*np.cos(np.deg2rad(slit_pa+90.0)))
                 #    mask = np.logical_and.reduce((x>=0, y1>=0, y2>=0, x<=nx-1, y1<=ny-1, y2<=ny-1))
-                #slit_shape_in_pixel = {'x':x, 'y1':y1, 'y2':y2, 'where':mask, 'step':'mid', 'alpha':0.445, 'color':'cyan'} 
+                #slit_shape_in_pixel = {'x':x, 'y1':y1, 'y2':y2, 'where':mask, 'step':'mid', 'alpha':0.445, 'color':'cyan'}
                 # slit transparency 0.445
                 #self.logger.debug('slit_shape_in_pixel: '+str(slit_shape_in_pixel))
-                # 
+                #
                 # use rectangle slit
                 dx_pix = fov_npix
                 dy_pix = slit_width/pixscale
@@ -2406,9 +2564,9 @@ class QDysmalPyGUI(QMainWindow):
                 y0 = ycenter - (dx_pix/2.0*np.sin(np.deg2rad(slit_pa+90.0))) \
                              - (dy_pix/2.0*np.cos(np.deg2rad(slit_pa+90.0)))
                 self.logger.debug('Slit x0 %s y0 %s w %s h %s angle %s'%(x0, y0, dx_pix, dy_pix, slit_pa+90.0))
-                slit_shape_in_pixel = Rectangle((x0, y0), dx_pix, dy_pix, angle=slit_pa+90.0, 
+                slit_shape_in_pixel = Rectangle((x0, y0), dx_pix, dy_pix, angle=slit_pa+90.0,
                                                 alpha=0.225, facecolor='cyan', edgecolor='cyan')
-        # 
+        #
         return slit_shape_in_pixel
     
     def dragEnterEvent(self, event):
@@ -2428,27 +2586,72 @@ class QDysmalPyGUI(QMainWindow):
 
 
 
-class QDysmalPyFittingWorker(QObject):
+class QDysmalPyFittingTower(QObject, Thread):
+    """A control tower that communicates the worker subprocess with the main GUI.
+    
+    It lives in its own thread, thus can not respond any pyqt signal, but it can emit pyqt signal
+    to the main GUI.
+    
+    The main GUI needs to send a command to the queue of this class, e.g., in main GUI,
+    
+    ```
+    tower.queue.send( ( 'message', 'hello' ) )
+    tower.queue.send( ( 'data', 'flux_map', np.zeros((100,100)) ) )
+    tower.queue.send( ( 'command', 'start fitting', tuple(), dict({}) ) )
+    ```
+    """
     
     LogMessageUpdateSignal = pyqtSignal(str)
+    started = pyqtSignal()
     finished = pyqtSignal()
     finishedWithWarning = pyqtSignal(str)
     finishedWithError = pyqtSignal(str)
     
-    def __init__(self):
-        super(QDysmalPyFittingWorker, self).__init__()
-        self.logger = logging.getLogger('QDysmalPyFittingWorker')
-        self.logger.setLevel(logging.getLevelName(logging.getLogger(__name__).level)) # self.logger.setLevel(logging.DEBUG)
+    def __init__(self, parent=None):
+        #
+        QObject.__init__(self, parent)
+        Thread.__init__(self)
+        #
+        self.logger = logging.getLogger('QDysmalPyFittingTower')
+        self.logger.setLevel(logging.getLogger(__name__).level)
+        #
+        self.logger.debug('proc id: %s, thread: %s, init'%(str(multiprocessing.current_process().pid),
+                                                           str(hex(threading.currentThread().ident))))
+        #
+        self.MultiProcManager = multiprocessing.Manager()
+        self.BaseQueue = self.MultiProcManager.Queue()
+        self.logger.debug('BaseQueue ' + str(hex(id(self.BaseQueue))))
+        # self.QueueForStarship = self.MultiProcManager.Queue()
+        # self.logger.debug('self.QueueForStarship ' + str(hex(id(self.QueueForStarship))))
+        #
+        self.SharedMemoryManager = None
+        # self.SharedMemoryManager = SharedMemoryManager()
+        # self.SharedMemoryManager.start() # use MultiProcManager.dict instead
+        #
+        self.starships = OrderedDict()
+        self.queues = OrderedDict()
+        self.shares = OrderedDict()
+        self.queues['base'] = self.BaseQueue
+        self.shares['base'] = self.MultiProcManager.dict()
+        self.vacancies = OrderedDict()
+        self.queue_logging = None
+        self.logging_listener = None
+        self.queue_waiting_interval_for_base = 0.0 # taking turn to listen to base/starships with this interval in seconds
+        self.queue_waiting_interval_for_starships = 0.0 # taking turn to listen to base/starships with this interval in seconds
+        self.queue_max_waiting_interval_for_base = 10.0 # we can stay longer on listening to base
+        self.queue_max_waiting_interval_for_starships = 3.0 # stay shorter on listening to ships
+        #
+        self.CurrentStarship = None
+        self.CurrentStarshipId = ''
+        #
+        self.LastLogMessage = ''
+        #
         self.DysmalPyParams = None
         self.DysmalPyGal = None
         self.DysmalPyFitDict = None
         self.DysmalPyFitResults = None
         self.DysmalPyFitResultFile = None
-        self.DefaultDirectory = os.getcwd()
-        self.LastLogMessage = ''
-        self.LensingTransformer = None
-        self.dofit = True
-        self.overwrite = False
+        #
         self.data_cube = None
         self.data_flux_map = None
         self.data_vel_map = None
@@ -2473,213 +2676,990 @@ class QDysmalPyFittingWorker(QObject):
         self.residual_vel_curve = None
         self.residual_disp_curve = None
         self.residual_rotation_curve = None
+        #
+        self.lensing_transformer_image_plane_data_cube = None
+        self.lensing_transformer_image_plane_data_info = None
+        self.lensing_transformer_source_plane_data_cube = None
+        self.lensing_transformer_source_plane_data_info = None
+        #
+        self.list_of_data_attr = [
+            'data_cube', 'data_flux_map', 'data_vel_map', 'data_disp_map', 'data_mask_map',
+            'data_flux_curve', 'data_vel_curve', 'data_disp_curve', 'data_rotation_curve',
+            'model_cube', 'model_flux_map', 'model_vel_map', 'model_disp_map',
+            'model_flux_curve', 'model_vel_curve', 'model_disp_curve', 'model_rotation_curve',
+            'residual_flux_map', 'residual_vel_map', 'residual_disp_map',
+            'residual_flux_curve', 'residual_vel_curve', 'residual_disp_curve', 'residual_rotation_curve',
+            'lensing_transformer_image_plane_data_cube', 'lensing_transformer_image_plane_data_info',
+            'lensing_transformer_source_plane_data_cube', 'lensing_transformer_source_plane_data_info',
+        ]
+    
+    def __del__(self):
+        if self.logging_listener is not None:
+            self.logging_listener.stop()
+        if self.SharedMemoryManager is not None:
+            self.SharedMemoryManager.shutdown()
+    
+    def addStarship(self, this_ship, queue_in = None, queue_out = None, queue_logging = None, shared_dict = None):
+        self.logger.debug('addStarship ' + str(hex(id(this_ship))))
+        if queue_in is None:
+            self.logger.debug('addStarship creating queue_in')
+            queue_in = self.MultiProcManager.Queue() # create a communication queue
+        else:
+            self.logger.debug('addStarship using queue_in from input')
+        self.logger.debug('StarshipQueue queue_in ' + str(hex(id(queue_in))))
+        if queue_out is None:
+            self.logger.debug('addStarship creating queue_out')
+            queue_out = self.MultiProcManager.Queue() # create a communication queue
+        else:
+            self.logger.debug('addStarship using queue_out from input')
+        if queue_logging is None:
+            self.logger.debug('addStarship creating queue_logging and starting logging_listener')
+            queue_logging = self.MultiProcManager.Queue() # create a communication queue for logging
+            if self.logging_listener is not None:
+                self.logging_listener.stop()
+                del self.logging_listener
+                self.logging_listener = None
+            logging_streamhandler = logging.StreamHandler()
+            # logging_streamhandler = logging.StreamHandler(sys.stdout)
+            # logging_streamhandler.setLevel(self.logger.level)
+            logging_streamhandler.setFormatter(logging.Formatter('%(levelname)s:%(name)s:%(processName)s:%(message)s'))
+            # logging_filehandler =
+            self.logging_listener = QueueListener(queue_logging, logging_streamhandler, respect_handler_level = True)
+            self.logging_listener.start()
+        else:
+            self.logger.debug('addStarship using queue_logging from input')
+        if shared_dict is None:
+            self.logger.debug('addStarship creating shared_dict')
+            shared_dict = self.MultiProcManager.dict() # create a shared memory dict
+        else:
+            self.logger.debug('addStarship using shared_dict from input')
+        self.logger.debug('StarshipQueue queue_out ' + str(hex(id(queue_out))))
+        this_ship.connect_to_tower(self)
+        this_ship.connect_to_queue(queue_in = queue_in, queue_out = queue_out, queue_logging = queue_logging)
+        this_ship.connect_to_shared_memory(self.SharedMemoryManager)
+        this_ship.connect_to_shared_dict(shared_dict)
+        self.CurrentStarshipId = this_ship.ship_id
+        self.starships[self.CurrentStarshipId] = this_ship
+        self.queues[self.CurrentStarshipId] = queue_out
+        self.shares[self.CurrentStarshipId] = shared_dict
+        self.vacancies[self.CurrentStarshipId] = True
+        self.queue_logging = queue_logging
+        self.CurrentStarship = self.starships[self.CurrentStarshipId]
+    
+    def selectCurrentStarshipId(self, this_ship_id):
+        if this_ship_id in self.starships:
+            self.CurrentStarshipId = this_ship_id
+            self.CurrentStarship = self.starships[self.CurrentStarshipId]
+        else:
+            self.CurrentStarshipId = None
+            self.CurrentStarship = None
+    
+    def selectCurrentStarshipName(self, this_ship_name):
+        self.CurrentStarshipId = None
+        self.CurrentStarship = None
+        for this_ship_id in self.starships:
+            if this_ship_name == str(self.starships[this_ship_id].name):
+                self.CurrentStarshipId = this_ship_name
+                self.CurrentStarship = self.starships[self.CurrentStarshipId]
+                break
     
     def logMessage(self, message):
         self.LastLogMessage = message
         self.LogMessageUpdateSignal.emit(message)
     
-    def setDirectory(self, directory):
-        self.DefaultDirectory = directory
+    def copyDataFromSharedDict(self, data_type, this_ship_id):
+        if data_type in self.list_of_data_attr:
+            if this_ship_id in self.starships:
+                if data_type in self.shares[this_ship_id]:
+                    setattr(self, data_type, self.shares[this_ship_id][data_type])
+                else:
+                    setattr(self, data_type, None)
+            else:
+                setattr(self, data_type, None)
     
-    def getDysmalPyGal(self):
-        self.logMessage(self.tr('Getting DysmalPyGal and DysmalPyFitDict from DysmalPyParams.'))
-        if self.DysmalPyParams is None:
-            self.logMessage(self.tr('Error! DysmalPyParams is invalid! Could not get a DysmalPyGal.'))
+    def run(self):
+        #
+        self.logger.debug('proc id: %s, thread: %s, run'%(str(multiprocessing.current_process().pid),
+                                                          str(hex(threading.currentThread().ident))))
+        #
+        if len(self.starships) <= 0:
+            self.logMessage(self.tr('Error! No starship connected to the control tower!'))
             return
+        #
+        waiting_interval = 0.0
+        marked_exit = False
+        while not marked_exit:
+            # listening to all starships and base,
+            # taking turn in a loop of 2.5 second interval
+            had_news = True
+            for sender_id in self.queues.keys():
+                try:
+                    if sender_id == 'base':
+                        waiting_interval = self.queue_waiting_interval_for_base
+                    else:
+                        waiting_interval = self.queue_waiting_interval_for_starships
+                    self.logger.debug('queues[\'' + str(sender_id) + '\'].get (timeout = ' +
+                                      str(waiting_interval) + ')')
+                    queue_package = self.queues[sender_id].get(True, waiting_interval)
+                    # self.logger.debug('queues[\'' + str(sender_id) + '\'].get_nowait')
+                    # queue_package = self.queues[sender_id].get_nowait()
+                except QueueEmpty:
+                    # self.logger.debug('queue is empty. continue.')
+                    # had_news = False
+                    # if had_news:
+                    #     pass # time.sleep(0.05) # if using get_nowait, we sleep for a while here
+                    # else:
+                    #     self.logger.debug('queue get waiting for 2.5 secs.')
+                    #     time.sleep(2.5)  # if using get_nowait, we sleep for a while here
+                    #
+                    # if we did not get a query package for the inquiry waiting time,
+                    # the next inquiry will have a longer waiting time,
+                    # but no more than 3 seconds
+                    if sender_id == 'base':
+                        self.queue_waiting_interval_for_base = min(
+                            waiting_interval + 1.0, 
+                            self.queue_max_waiting_interval_for_base
+                        )
+                    else:
+                        self.queue_waiting_interval_for_starships = min(
+                            waiting_interval + 0.5, 
+                            self.queue_max_waiting_interval_for_starships
+                        )
+                    continue
+                else:
+                    # self.logger.debug('queue_package: ' + str(queue_package))
+                    # if we successfully got a query package, the next inquiry will have no waiting time
+                    if sender_id == 'base':
+                        self.queue_waiting_interval_for_base = 0.0
+                        self.queue_waiting_interval_for_starships = 0.0
+                        self.logger.debug('queue_package received from base: ' + str(queue_package)[0:50])
+                    else:
+                        self.queue_waiting_interval_for_base = 0.0
+                        self.queue_waiting_interval_for_starships = 1.0
+                        self.logger.debug('queue_package received from starship ' + sender_id + ': ' + str(queue_package)[0:50])
+                    if isinstance(queue_package, tuple):
+                        # the first element of a queue_package should be a queue_package_type
+                        # it can be 'command', 'data', 'message', or 'signal'
+                        queue_package_type = 'none'
+                        if isinstance(queue_package, (tuple, list)):
+                            queue_package_type = queue_package[0]
+                        elif isinstance(queue_package, str):
+                            queue_package_type = queue_package
+                        #
+                        if queue_package_type == 'command':
+                            # receiving a command,
+                            # pass the queue_package to a starship to let it start a fitting process
+                            command_name = ''
+                            command_args = tuple()
+                            command_kwargs = dict({ })
+                            try:
+                                _, command_name, command_args, command_kwargs = queue_package
+                            except ValueError:
+                                try:
+                                    _, command_name, command_args = queue_package
+                                except ValueError:
+                                    try:
+                                        _, command_name = queue_package
+                                    except ValueError:
+                                        self.logger.debug('queue_package is an invalid command, discarding it!')
+                            #
+                            if command_name != '':
+                                if sender_id == 'base':
+                                    # for the command from base, let some starship to do it
+                                    # currently we use the lastly added one
+                                    self.logger.debug('queue_package is a command, sending it to starship ' +
+                                                      str(self.CurrentStarshipId) + ' queue ' +
+                                                      str(hex(id(self.starships[self.CurrentStarshipId].queue_in))))
+                                    self.starships[self.CurrentStarshipId].queue_in.put(queue_package)
+                                    time.sleep(0.25)
+                                else:
+                                    # for the command from starships,
+                                    # we process the 'copyDataFromSharedDict' command
+                                    if command_name == 'copyDataFromSharedDict':
+                                        # this command needs two args: data_type, this_ship_id
+                                        if len(command_args) >= 1:
+                                            self.logger.debug('queue_package is a command from starship, ' +
+                                                              str(queue_package))
+                                            for command_arg in command_args:
+                                                self.copyDataFromSharedDict(command_arg, sender_id)
+                                        else:
+                                            self.logger.debug('queue_package is a command from starship, ' +
+                                                              str(queue_package) + ', ' +
+                                                              'but args number is incorrect, ' +
+                                                              'discarding it!')
+                                    else:
+                                        # for other commands from some starship, we discard them
+                                        self.logger.debug('queue_package is a command from starship, ' +
+                                                          str(queue_package) + ', ' +
+                                                          'discarding it.')
+                                        pass
+                                #
+                        elif queue_package_type == 'data':
+                            # receiving a data,
+                            # store it in this class
+                            queue_package_data_type = ''
+                            queue_package_data_content = None
+                            try:
+                                _, queue_package_data_type, queue_package_data_content = queue_package
+                            except ValueError:
+                                self.logger.error('queue_package is an invalid data, discarding it!')
+                            else:
+                                if sender_id == 'base':
+                                    # for data from base, pass them to some starship
+                                    # currently we use the lastly added one
+                                    self.queues[self.CurrentStarshipId].put(queue_package)
+                                else:
+                                    # for data from some starship, store in this class
+                                    if hasattr(self, queue_package_data_type):
+                                        self.logger.debug('queue_package is data, storing it into '+\
+                                                          str(queue_package_data_type))
+                                        setattr(self, queue_package_data_type, queue_package_data_content)
+                                    else:
+                                        self.logger.error('queue_package is data but not recognized '+\
+                                                          str(queue_package_data_type))
+                        #
+                        elif queue_package_type == 'message':
+                            # the child process sends a message to this class,
+                            # this class sends the message to the GUI.
+                            message_content = None
+                            try:
+                                _, message_content = queue_package
+                            except ValueError:
+                                self.logger.error('queue_package is an invalid message, discarding it!')
+                            else:
+                                self.logger.debug('queue_package is a message')
+                                self.logMessage(message_content)
+                        #
+                        elif queue_package_type == 'signal':
+                            # the child process sends a signal to this class,
+                            # this class emits pyqtSignal to the main GUI.
+                            signal_name = ''
+                            signal_content = tuple()
+                            try:
+                                _, signal_name, signal_content = queue_package
+                            except ValueError:
+                                try:
+                                    _, signal_name = queue_package
+                                except ValueError:
+                                    self.logger.error('queue_package is an invalid signal, discarding it!')
+                            #
+                            if signal_name != '':
+                                self.logger.debug('queue_package is a signal')
+                                if sender_id == 'base' and signal_name == 'exit':
+                                    marked_exit = True
+                                    for starship_id in self.starships.keys():
+                                        self.starships[starship_id].queue_in.put( ('signal', 'exit') )
+                                    self.logger.debug('queue break signal received. break now.')
+                                    break # break out of the for loop, and ends the while loop
+                                #
+                                elif hasattr(self, signal_name):
+                                    this_signal = getattr(self, signal_name)
+                                    self.logger.debug('queue signal ' + signal_name)
+                                    # self.logger.debug('this_signal ' + str(this_signal))
+                                    if hasattr(this_signal, 'emit'):
+                                        if signal_name == 'started':
+                                            self.vacancies[sender_id] = False
+                                        elif signal_name.startswith('finished'):
+                                            self.vacancies[sender_id] = True
+                                        self.logger.debug('queue signal ' + signal_name +
+                                                          ' emitted as pyqtSignal')
+                                        this_signal.emit(*signal_content)
+                            else:
+                                self.logger.error('queue_package is a signal with no name? discarding it!')
+                        #
+                        else:
+                            self.logger.debug('queue_package is of an unknown type ' + str(queue_package))
+                        #
+                        # end if queue_package_type
+                    #
+                    else:
+                        self.logger.debug('queue_package is not a tuple!')
+                    #
+                    # end if isinstance(queue_package, tuple)
+                #
+                # end if queue_package is not None
+            #
+            # end for queues
+        #
+        # end while
+
+
+
+class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
+# class QDysmalPyFittingStarship(Process):
+    """A class to run DysmalPy data model fitting.
+    
+    It lives in its own subprocess, and keeps listening messages from multiprocessing.Queue.
+    
+    It has a child process for data model fitting, because some functions like scipy.linalg.inv
+    break and cause SIGSEGV or SIGBUS error in a QThread, but not in a separate process (as tested
+    by the author).
+    
+    This is a pure Python class, so we try to follow the PEP 8 syntax.
+    """
+    
+    def __init__(self, tower = None, queue_in = None, queue_out = None, queue_logging = None, ship_name = None):
+        #
+        # super(QDysmalPyFittingStarship, self).__init__()
+        Process.__init__(self)
+        #
+        import logging
+        logging.basicConfig()
+        self.logger = logging.getLogger('QDysmalPyFittingStarship')
+        self.logger.setLevel(logging.getLogger(__name__).level)
+        #
+        # debug logging
+        # print('QDysmalPyFittingStarship init logging.getLevelName(logging.getLogger(__name__).level) = ' + 
+        #       str(logging.getLevelName(logging.getLogger(__name__).level)))
+        # print('hex(id(self.logger))', hex(id(self.logger)))
+        # self.logger.setLevel(logging.DEBUG)
+        #
+        # logging in multiprocessing has an issue
+        # see https://github.com/jruere/multiprocessing-logging/blob/master/multiprocessing_logging.py
+        # see https://stackoverflow.com/questions/20332359/logging-with-multiprocessing-madness
+        # see https://rob-blackbourn.medium.com/how-to-use-python-logging-queuehandler-with-dictconfig-1e8b1284e27a
+        self.logger_queue_handler = None
+        self.logger_logging_level = self.logger.level
+        if queue_logging is not None:
+            #
+            # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+            # for i, orig_handler in enumerate(list(self.logger.handlers)):
+            #     print('handler i %s handler %s'%(i, orig_handler))
+            #     orig_handler.close()
+            #     self.logger.removeHandler(orig_handler)
+            #
+            for i, orig_handler in enumerate(list(self.logger.handlers)):
+                print('handler i %s handler %s'%(i, orig_handler))
+                orig_handler.close()
+                self.logger.removeHandler(orig_handler)
+            #
+            logger_queue_handler = QueueHandler(queue_logging)
+            logger_queue_handler.setLevel(self.logger.level)
+            self.logger.addHandler(logger_queue_handler)
+            #
+            # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+            # for i, orig_handler in enumerate(list(self.logger.handlers)):
+            #     print('handler i %s handler %s'%(i, orig_handler))
+        #
+        self.logger.debug('proc id: %s, thread: %s, init'%(str(multiprocessing.current_process().pid),
+                                                           str(hex(threading.currentThread().ident)))) # may not work
+        #
+        self.daemon = True
+        #
+        if ship_name is not None:
+            self.ship_name = str(ship_name)
+        else:
+            self.ship_name = ''
+        self.ship_id = str(multiprocessing.current_process().pid)
+        self.tower = None # can't pickle QDysmalPyFittingTower objects
+        self.queue_in = None
+        self.queue_out = None
+        self.queue_logging = None
+        self.shared_memory = None
+        self.shared_dict = None
+        self.busy = False
+        #
+        # self.params = None
+        # self.gal = None
+        self.DysmalPyFitResults = None
+        self.DysmalPyFitResultFile = None
+        #
+        self.lensing_transformer = {'0': None} # use this to hold a pointer and pass to functions
+        #
+        self.do_fit = True # do a fitting or just trying to load previous best-fit results
+        self.overwrite = False
+        #
+        self.data_cube = None
+        self.data_flux_map = None
+        self.data_vel_map = None
+        self.data_disp_map = None
+        self.data_mask_map = None
+        self.data_flux_curve = None
+        self.data_vel_curve = None
+        self.data_disp_curve = None
+        self.data_rotation_curve = None
+        self.model_cube = None
+        self.model_flux_map = None
+        self.model_vel_map = None
+        self.model_disp_map = None
+        self.model_flux_curve = None
+        self.model_vel_curve = None
+        self.model_disp_curve = None
+        self.model_rotation_curve = None
+        self.residual_flux_map = None
+        self.residual_vel_map = None
+        self.residual_disp_map = None
+        self.residual_flux_curve = None
+        self.residual_vel_curve = None
+        self.residual_disp_curve = None
+        self.residual_rotation_curve = None
+        #
+        if queue_in is not None:
+            self.connect_to_queue(queue_in = queue_in)
+        if queue_out is not None:
+            self.connect_to_queue(queue_out = queue_out)
+        if queue_logging is not None:
+            self.connect_to_queue(queue_logging = queue_logging)
+        #
+        if tower is not None:
+            tower.addStarship(self, queue_in = queue_in, queue_out = queue_out, queue_logging = queue_logging)
+    
+    def __str__(self):
+        this_str = 'Starship '
+        if self.ship_name != '':
+            this_str += 'name ' + self.ship_name + ', '
+        this_str += 'proc id ' + str(self.ship_id) + ', '
+        this_str += 'thread ' + str(hex(threading.currentThread().ident)) + ', '
+        this_str += 'queue in ' + str(hex(id(self.queue_in))) + ', '
+        this_str += 'queue out ' + str(hex(id(self.queue_out))) + ', '
+        this_str = this_str.rstrip(', ')
+        return this_str
+    
+    def connect_to_tower(self, tower):
+        # self.tower = tower
+        # self.tower.addStarship(self) # be careful about recursion
+        pass
+    
+    def connect_to_queue(self, queue_in = None, queue_out = None, queue_logging = None):
+        if queue_in is not None:
+            self.queue_in = queue_in
+        if queue_out is not None:
+            self.queue_out = queue_out
+        if queue_logging is not None:
+            self.queue_logging = queue_logging
+            #
+            # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+            # for i, orig_handler in enumerate(list(self.logger.handlers)):
+            #     print('handler i %s handler %s'%(i, orig_handler))
+            #
+            for i, orig_handler in enumerate(list(self.logger.handlers)):
+                orig_handler.close()
+                self.logger.removeHandler(orig_handler)
+            #
+            # print('QDysmalPyFittingStarship connect_to_queue logging.getLevelName(logging.getLogger(__name__).level) = ' + 
+            #       str(logging.getLevelName(logging.getLogger(__name__).level)))
+            logger_queue_handler = QueueHandler(queue_logging)
+            logger_queue_handler.setLevel(logging.getLogger(__name__).level)
+            self.logger.setLevel(logging.getLogger(__name__).level)
+            self.logger.addHandler(logger_queue_handler)
+            #
+            # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+            # for i, orig_handler in enumerate(list(self.logger.handlers)):
+            #     print('handler i %s handler %s'%(i, orig_handler))
+    
+    def connect_to_shared_memory(self, shared_memory):
+        # self.shared_memory = shared_memory # I guess it can't be pickled for spawned processes
+        pass
+    
+    def connect_to_shared_dict(self, shared_dict):
+        self.shared_dict = shared_dict # use multiprocess.manager.Manager().dict()
+        pass
+    
+    def log_message(self, message):
+        self.last_log_message = message
+        if self.queue_out is not None:
+            self.logger.debug('queue_out.put message '+str(message)[0:50])
+            self.queue_out.put( ('message', message) )
+    
+    def clear_lensing_transformer(self):
+        if self.lensing_transformer['0'] is not None:
+            del self.lensing_transformer['0']
+        self.lensing_transformer['0'] = None
+    
+    def run(self):
+        #
+        # Deal with logging issue in multiprocessing with start method spawn
+        # In my current environment -- python 3.7.9 multiprocessing,
+        # after spawning this class in a new subprocess,
+        # the self.logger states are all cleared somehow.
+        # We have to do something here -- using a QueueHandler here,
+        # and starting a QueueListener in the main process.
         # 
-        # debug print
-        #logger.debug("self.DysmalPyParams['total_mass_bounds']: "+str(self.DysmalPyParams['total_mass_bounds'])+" "+str(type(self.DysmalPyParams['total_mass_bounds'])))
+        # Try this
+        #   self.logger.setLevel(logging.getLogger(__name__).level) 
+        # this does not work because __name__ becomes '__mp_main__'
         # 
-        self.DysmalPyGal = None
-        self.DysmalPyFitDict = None
-        if 'fdata' in self.DysmalPyParams.keys():
+        self.logger.setLevel(self.logger_logging_level)
+        # self.logger.debug('logging.root.manager.loggerDict = ' + str(logging.root.manager.loggerDict))
+        for logger_name in logging.root.manager.loggerDict:
+            if logger_name.lower().startswith('dysmalpy'):
+                logging.getLogger(logger_name).setLevel(self.logger_logging_level)
+        #
+        # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+        # for i, orig_handler in enumerate(list(self.logger.handlers)):
+        #     print('handler i %s handler %s' % (i, orig_handler))
+        #
+        # Seems no need to set the QueueHandler again here after spawn.
+        # It seems although self.logger.handlers is empty, 
+        # the QueueHandler set in addStarship() still works. 
+        # if len(self.logger.handlers) == 0:
+        #     # spawn will somehow reset logger.. not sure why...
+        #     # logging.basicConfig()
+        #     logger_queue_handler = QueueHandler(self.queue_logging)
+        #     logger_queue_handler.setLevel(self.logger_logging_level)
+        #     self.logger.addHandler(logger_queue_handler)
+        #     # logger_stream_handler = logging.StreamHandler()
+        #     # self.logger.addHandler(logger_stream_handler)
+        #     self.logger.debug('spwaned multiprocessing reset logger, we add queue handler back')
+        #
+        # print('len(self.logger.handlers) %s' % (len(self.logger.handlers)))
+        # for i, orig_handler in enumerate(list(self.logger.handlers)):
+        #     print('handler i %s handler %s' % (i, orig_handler))
+        #
+        # print proc id and thread info
+        self.logger.debug('proc id: %s, thread: %s, run'%(str(multiprocessing.current_process().pid),
+                                                          str(hex(threading.currentThread().ident))))
+        # print('QDysmalPyFittingStarship proc id: %s, thread: %s, run'%(str(multiprocessing.current_process().pid),
+        #                                                                str(hex(threading.currentThread().ident))))
+        #
+        if self.queue_out is None:
+            self.logger.debug('No tower queue connected. ' +
+                              'Please connect to a control tower and setup the queue_in and queue_out first.')
+            return
+        #
+        marked_exit = False
+        while not marked_exit:
+            try:
+                # print('QDysmalPyFittingStarship queue_in.get')
+                self.logger.debug('queue_in.get')
+                queue_package = self.queue_in.get()
+                # queue_package = self.queue_in.get(True, 1.5)
+            except QueueEmpty:
+                self.logger.debug('queue_in is empty. break now')
+                break
+            else:
+                #self.logger.debug('queue_package: '+str(queue_package))
+                self.logger.debug('queue_package received: ' + str(queue_package)[0:50])
+                if isinstance(queue_package, tuple):
+                    # the first element of a queue_package should be a queue_package_type
+                    # it can be 'command', 'data', 'message', or 'signal'
+                    queue_package_type = 'none'
+                    if isinstance(queue_package, (tuple, list)):
+                        queue_package_type = queue_package[0]
+                    elif isinstance(queue_package, str):
+                        queue_package_type = queue_package
+                    #
+                    if queue_package_type == 'command':
+                        command_name = ''
+                        command_args = tuple()
+                        command_kwargs = dict({})
+                        try:
+                            _, command_name, command_args, command_kwargs = queue_package
+                        except:
+                            try:
+                                _, command_name, command_args = queue_package
+                            except:
+                                try:
+                                    _, command_name = queue_package
+                                except:
+                                    self.logger.debug('queue_package is an invalid command, discarding it!')
+                        #
+                        # start a fitting process
+                        if hasattr(self, command_name):
+                            self.logger.debug('queue_package is a command, executing ' +
+                                              str(command_name))
+                            #
+                            # here we call the fitting function, it will run for a while,
+                            # and it should send a finished signal to the queue in the final.
+                            getattr(self, command_name)(*command_args, **command_kwargs)
+                        else:
+                            self.logger.error('queue_package is a command but not recognized in this class ' +
+                                              str(command_name))
+                    #
+                    elif queue_package_type == 'data':
+                        # receiving a data,
+                        # store it in this class
+                        queue_package_data_type = ''
+                        queue_package_data_content = None
+                        try:
+                            _, queue_package_data_type, queue_package_data_content = queue_package
+                        except ValueError:
+                            self.logger.error('queue_package is an invalid data, discarding it!')
+                        else:
+                            if hasattr(self, queue_package_data_type):
+                                self.logger.debug('queue_package is data, storing it into ' +
+                                                  str(queue_package_data_type))
+                                setattr(self, queue_package_data_type, queue_package_data_content)
+                            else:
+                                self.logger.error('queue_package is data but not recognized in this class ' +
+                                                  str(queue_package_data_type))
+                    #
+                    elif queue_package_type == 'message':
+                        # the child process sent a message to this class,
+                        # this class send the message to the GUI.
+                        message_content = None
+                        try:
+                            _, message_content = queue_package
+                        except ValueError:
+                            self.logger.error('queue_package is an invalid message, discarding it!')
+                        else:
+                            self.logger.debug('queue_package is a message')
+                            self.log_message(message_content)
+                    #
+                    elif queue_package_type == 'signal':
+                        # receive some signal from a tower object.
+                        signal_name = ''
+                        signal_content = tuple()
+                        try:
+                            _, signal_name, signal_content = queue_package
+                        except ValueError:
+                            try:
+                                _, signal_name = queue_package
+                            except ValueError:
+                                self.logger.error('queue_package is an invalid signal, discarding it!')
+                        #
+                        if signal_name != '':
+                            self.logger.debug('queue_package is a signal')
+                            if str(signal_name) == 'exit':
+                                marked_exit = True
+                                self.logger.debug('queue break signal recieved. break now.')
+                                break  # break out, ends the while loop
+                        else:
+                            self.logger.error('queue_package is a signal with no name? discarding it!')
+                    #
+                    else:
+                        self.logger.debug('queue_package is of an unknown type ' + str(queue_package))
+                else:
+                    self.logger.debug('queue_package is not a tuple!')
+                # end if
+            # end try
+        # end while
+    #
+    
+    def emit_started(self):
+        self.busy = True
+        if self.queue_out is not None:
+            self.logger.debug('queue_out.put signal started')
+            self.queue_out.put( ('signal', 'started') )
+    
+    def emit_finished(self):
+        if self.queue_out is not None:
+            self.logger.debug('queue_out.put signal finished')
+            self.queue_out.put( ('signal', 'finished') )
+        self.busy = False
+    
+    def emit_finished_with_error(self):
+        if self.queue_out is not None:
+            self.logger.debug('queue_out.put signal finishedWithError')
+            self.queue_out.put( ('signal', 'finishedWithError') )
+        self.busy = False
+    
+    def emit_finished_with_warning(self):
+        if self.queue_out is not None:
+            self.logger.debug('queue_out.put signal finishedWithWarning')
+            self.queue_out.put( ('signal', 'finishedWithWarning') )
+        self.busy = False
+    
+    def send_data_to_queue(self, list_of_data_name, list_of_data_content = None):
+        """Send a list of data to queue_out. 
+        
+        If self.shared_dict exists, which is a multiprocessing.manager.Manager().dict(), 
+        we copy data from self. variables into self.shared_dict, then send a command 
+        to queue_out to let the receiver know that it is the time to copy data out of 
+        self.shared_dict from the receiver side. 
+        
+        If self.shared_dict does not exist, that is, there is no shared memory stuff, 
+        then we send the whole data content via queue_out, which is a 
+        multiprocessing.manager.Queue() tunnel. This is slower than the former. 
+        
+        We can pass a `list_of_data_content` list of whole data content together with 
+        the name list `list_of_data_name`. When it is `None`, we assume that self 
+        has a variable with this data name, and get the data content via
+        `getattr(self, data_name)`. 
+        """
+        if self.queue_out is None:
+            return
+        if self.shared_dict is not None:
+            for i, data_name in enumerate(list_of_data_name):
+                if list_of_data_content is None:
+                    self.shared_dict[data_name] = getattr(self, data_name)
+                else:
+                    self.shared_dict[data_name] = list_of_data_content[i]
+            self.logger.debug('queue_out.put command copyDataFromSharedDict ' +
+                              ' '.join(list_of_data_name))
+            self.queue_out.put(
+                ('command',
+                 'copyDataFromSharedDict',
+                 tuple(list_of_data_name),
+                 dict({})
+                )
+            )
+        else:
+            for i, data_name in enumerate(list_of_data_name):
+                if list_of_data_content is None:
+                    data_content = getattr(self, data_name)
+                else:
+                    data_content = list_of_data_content[i]
+                self.logger.debug('queue_out.put data ' +
+                                  data_name)
+                self.queue_out.put( ('data', data_name, data_content) )
+    
+    def send_lensing_data_to_queue(self, send_null_data = False):
+        """Try to send the lensing image plane source plane data to queue. 
+        
+        If there is no lensing transformer, of course we do nothing. 
+        """
+        has_lensing_data = False
+        if self.lensing_transformer['0'] is not None:
+            self.lensing_transformer_source_plane_data_cube = self.lensing_transformer['0'].source_plane_data_cube
+            self.lensing_transformer_source_plane_data_info = self.lensing_transformer['0'].source_plane_data_info
+            self.lensing_transformer_image_plane_data_cube = self.lensing_transformer['0'].image_plane_data_cube
+            self.lensing_transformer_image_plane_data_info = self.lensing_transformer['0'].image_plane_data_info
+            has_lensing_data = True
+        else:
+            self.lensing_transformer_source_plane_data_cube = None
+            self.lensing_transformer_source_plane_data_info = None
+            self.lensing_transformer_image_plane_data_cube = None
+            self.lensing_transformer_image_plane_data_info = None
+        # 
+        if has_lensing_data or send_null_data:
+            self.send_data_to_queue(
+                    ['lensing_transformer_source_plane_data_cube',
+                     'lensing_transformer_source_plane_data_info',
+                     'lensing_transformer_image_plane_data_cube',
+                     'lensing_transformer_image_plane_data_info']
+                )
+    
+    def get_dysmalpy_gal(self, params, block_signal = False):
+        """ Function to call dysmalpy functions and prepare a galaxy object.
+        """
+        if not block_signal:
+            self.emit_started()
+        self.log_message('Getting dysmalpy galaxy object and fit dict from params.')
+        if params is None:
+            self.log_message('Error! dysmalpy params is invalid!')
+            if not block_signal:
+                self.emit_finished_with_error()
+            return
+        #
+        gal = None
+        fit_dict = None
+        if 'fdata' in params.keys():
             ndim_fit = 1
-            self.DysmalPyGal, self.DysmalPyFitDict = setup_single_object_1D(params=self.DysmalPyParams, data=None)
-        elif 'fdata_vel' in self.DysmalPyParams.keys():
+            gal, fit_dict = setup_single_object_1D(params=params, data=None)
+        elif 'fdata_vel' in params.keys():
             ndim_fit = 2
-            self.DysmalPyGal, self.DysmalPyFitDict = setup_single_object_2D(params=self.DysmalPyParams, data=None)
-        elif 'fdata_cube' in self.DysmalPyParams.keys():
+            gal, fit_dict = setup_single_object_2D(params=params, data=None)
+        elif 'fdata_cube' in params.keys():
             ndim_fit = 3
-            self.DysmalPyGal, self.DysmalPyFitDict = setup_single_object_3D(params=self.DysmalPyParams, data=None)
+            gal, fit_dict = setup_single_object_3D(params=params, data=None)
         else:
-            self.logMessage(self.tr('Warning! No data defined in DysmalPyParams. Please check the \'fdata\', \'fdata_vel\' or \'fdata_cube\' keys.'))
-            self.logMessage(self.tr('Setting up galaxy model base...'))
-            self.DysmalPyGal = setup_gal_model_base(params=self.DysmalPyParams)
-            #self.DysmalPyGal.data = data_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params, datadir=datadir)
-            #self.DysmalPyGal.data = data_classes.Data1D(...)
-            #self.DysmalPyGal.data.filename_velocity = datadir+params['fdata']
+            self.log_message('Warning! No data defined in DysmalPyParams. '+
+                             'Please check the \'fdata\', \'fdata_vel\' or \'fdata_cube\' keys.')
+            self.log_message('Setting up galaxy model base...')
+            if params['psf_fwhm'] is None or params['psf_fwhm'] == '' or params['psf_fwhm'] == 'None':
+                # allow user to set psf_fwhm to None, and here we do some tricks to skip the convolution with a psf
+                copy_psf_fwhm = params['psf_fwhm']
+                params['psf_fwhm'] = 0.1
+                gal = setup_gal_model_base(params=params)
+                gal.instrument.beam = None
+                gal.instrument._beam_kernel = None
+                params['psf_fwhm'] = copy_psf_fwhm
+            else:
+                gal = setup_gal_model_base(params=params)
+            #gal.data = data_io.load_single_object_1D_data(fdata=params['fdata'], fdata_mask=fdata_mask, params=params, datadir=datadir)
+            #gal.data = data_classes.Data1D(...)
+            #gal.data.filename_velocity = datadir+params['fdata']
             #if (params['profile1d_type'] != 'circ_ap_pv') & (params['profile1d_type'] != 'single_pix_pv'):
-            #self.DysmalPyGal.data.apertures = setup_basic_aperture_types(gal=self.DysmalPyGal, params=self.DysmalPyParams)
-            #self.DysmalPyGal.data.profile1d_type = self.DysmalPyParams['profile1d_type']
-            #self.DysmalPyFitDict = setup_fit_dict(params=self.DysmalPyParams, ndim_data=1)
-        # 
-        # <DZLIU><20210726> ++++++++++
-        if self.LensingTransformer is None:
-            lensing_keys = [\
-                    'lensing_mesh', 
-                    'lensing_ra', 
-                    'lensing_dec', 
-                    'lensing_sra', 
-                    'lensing_sdec', 
-                    'lensing_ssizex', 
-                    'lensing_ssizey', 
-                    'lensing_spixsc', 
-                    'lensing_imra', 
-                    'lensing_imdec', 
-                ]
-            for lensing_key in lensing_keys:
-                self.logger.debug('DysmalPyParams.has_key(%r) %s'%(lensing_key, lensing_key in self.DysmalPyParams))
-            has_lensing_model = np.all([lensing_key in self.DysmalPyParams for lensing_key in lensing_keys])
-            if has_lensing_model:
-                for lensing_key in lensing_keys:
-                    self.logger.debug('DysmalPyParams[%r] = %r'%(lensing_key, self.DysmalPyParams[lensing_key]))
-                has_lensing_model = np.all([self.DysmalPyParams[lensing_key] is not None for lensing_key in lensing_keys])
-            if has_lensing_model:
-                self.logger.debug('Setting LensingTransformer')
-                self.LensingTransformer = LensingTransformer(\
-                        mesh_file = self.DysmalPyParams['datadir'] + os.sep + self.DysmalPyParams['lensing_mesh'], 
-                        mesh_ra = self.DysmalPyParams['lensing_ra'], 
-                        mesh_dec = self.DysmalPyParams['lensing_dec'], 
-                        source_plane_nx = self.DysmalPyParams['lensing_ssizex'], 
-                        source_plane_ny = self.DysmalPyParams['lensing_ssizey'], 
-                        source_plane_nchan = self.DysmalPyParams['nspec'], 
-                        source_plane_cenra = self.DysmalPyParams['lensing_sra'], 
-                        source_plane_cendec = self.DysmalPyParams['lensing_sdec'], 
-                        source_plane_pixsc = self.DysmalPyParams['lensing_spixsc'], 
-                        image_plane_cenra = self.DysmalPyParams['lensing_imra'], 
-                        image_plane_cendec = self.DysmalPyParams['lensing_imdec'], 
-                        image_plane_pixsc = self.DysmalPyParams['pixscale'], 
-                        image_plane_sizex = self.DysmalPyParams['fov_npix'], 
-                        image_plane_sizey = self.DysmalPyParams['fov_npix'], 
-                    )
-        # <DZLIU><20210726> ----------
-        # 
-        return
+            #gal.data.apertures = setup_basic_aperture_types(gal=gal, params=params)
+            #gal.data.profile1d_type = params['profile1d_type']
+            #fit_dict = setup_fit_dict(params=params, ndim_data=1)
+        #
+        return gal, fit_dict
     
-    @pyqtSlot()
-    def fitData(self):
-        if self.dofit:
-            self.logMessage(self.tr('Preparing to fit the data...'))
+    def fit_data(self, params, do_fit = True, overwrite = False, block_signal = False):
+        #
+        if not block_signal:
+            self.emit_started()
+        #
+        if do_fit:
+            self.log_message('Preparing to fit the data...')
         else:
-            self.logMessage(self.tr('Preparing to load fitting result...'))
-        if self.DysmalPyParams is None:
-            self.logMessage(self.tr('Error! DysmalPyParams is invalid! Could not proceed to fit the data.'))
-            self.finishedWithError.emit(self.LastLogMessage)
+            self.log_message('Preparing to load fitting result...')
+        if params is None:
+            self.log_message('Error! dysmalpy params is invalid! Could not proceed to fit the data!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        # 
-        self.getDysmalPyGal()
-        if self.DysmalPyGal is None or self.DysmalPyFitDict is None:
-            self.logMessage(self.tr('Error! Could not set DysmalPyGal and DysmalPyFitDict from DysmalPyParams?!'))
-            self.finishedWithError.emit(self.LastLogMessage)
+        #
+        gal, fit_dict = self.get_dysmalpy_gal(params)
+        #
+        if gal is None or fit_dict is None:
+            self.log_message('Error! Could not get DysmalPyGal and DysmalPyFitDict from DysmalPyParams?!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
+        #
+        check_fixed_pars = []
+        check_tied_pars = []
+        check_free_pars = []
+        check_str = ''
+        check_free_par_counter = 0
+        self.logger.debug('gal.model.param_names ' + str(gal.model.param_names) + 
+                          ' (' + str(len(gal.model.param_names)) + ')')
+        self.logger.debug('gal.model.nparams_free ' + str(gal.model.nparams_free))
+        self.logger.debug('gal.model.fixed ' + str(gal.model.fixed))
+        self.logger.debug('gal.model.tied ' + str(gal.model.tied))
+        for check_key in gal.model.fixed:
+            check_str += '  %-13s'%(check_key)
+            check_first_line = True
+            for check_subkey in gal.model.tied[check_key]:
+                if check_first_line:
+                    check_first_line = False
+                else:
+                    check_str += '  %-13s'%(' ')
+                # 
+                if gal.model.fixed[check_key][check_subkey] != False:
+                    check_str += ' %-13s'%(check_subkey) + ' fixed'
+                elif gal.model.tied[check_key][check_subkey] != False:
+                    check_str += ' %-13s'%(check_subkey) + ' tied'
+                else:
+                    check_free_par_counter += 1
+                    check_str += ' %-13s'%(check_subkey) + ' free (' + str(check_free_par_counter) + ')'
+                check_str += '\n'
+        self.logger.debug('gal.model pars: \n' + check_str)
         # 
-        if self.DysmalPyFitDict['fit_method'] == 'mcmc':
-            output_pickle_file = os.path.join(self.DysmalPyParams['outdir'], self.DysmalPyParams['galID']+'_mcmc_results.pickle')
-        elif self.DysmalPyFitDict['fit_method'] == 'mpfit':
-            output_pickle_file = os.path.join(self.DysmalPyParams['outdir'], self.DysmalPyParams['galID']+'_mpfit_results.pickle')
+        if fit_dict['fit_method'] == 'mcmc':
+            output_pickle_file = os.path.join(params['outdir'], params['galID']+'_mcmc_results.pickle')
+        elif fit_dict['fit_method'] == 'mpfit':
+            output_pickle_file = os.path.join(params['outdir'], params['galID']+'_mpfit_results.pickle')
         else:
-            self.logMessage(self.tr('Error! fit_method must be \'mcmc\' or \'mpfit\'! Could not do the fitting!'))
-            self.finishedWithError.emit(self.LastLogMessage)
+            self.log_message('Error! fit_method must be \'mcmc\' or \'mpfit\'! Could not do the fitting!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        self.logMessage(self.tr('Fitting with fit_method '+self.DysmalPyFitDict['fit_method']+'.'))
-        # 
-        config_c_m_data = config.Config_create_model_data(**self.DysmalPyFitDict)
-        config_sim_cube = config.Config_simulate_cube(**self.DysmalPyFitDict)
+        self.log_message('Setting fit_method to '+fit_dict['fit_method']+'.')
+        #
+        config_c_m_data = config.Config_create_model_data(**fit_dict)
+        config_sim_cube = config.Config_simulate_cube(**fit_dict)
         kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-        # <DZLIU><20210726> ++++++++++
-        # setup LensingTransformer if needed
-        if self.LensingTransformer is not None:
-            self.logger.debug('Setting lensing_transformer in kwargs')
-            kwargs_galmodel['lensing_transformer'] = self.LensingTransformer
-        # <DZLIU><20210726> ----------
-        kwargs_all = {**kwargs_galmodel, **self.DysmalPyFitDict}
-        # 
-        if ((not os.path.isfile(output_pickle_file)) or self.overwrite) and self.dofit:
+        kwargs_galmodel['lensing_transformer'] = self.lensing_transformer
+        kwargs_all = {**kwargs_galmodel, **fit_dict}
+        #
+        fit_results = None
+        #
+        if ((not os.path.isfile(output_pickle_file)) or overwrite) and do_fit:
             # check DysmalPy param limits
             #self.checkDysmalPyParams()
+            # log message
+            self.log_message('Fitting with fit_method ' + fit_dict['fit_method'] + '...')
             # run the DysmalPy fitting
-            if self.DysmalPyFitDict['fit_method'] == 'mcmc':
-                self.DysmalPyFitResults = fitting.fit_mcmc(self.DysmalPyGal, **kwargs_all)
-            elif self.DysmalPyFitDict['fit_method'] == 'mpfit':
-                self.DysmalPyFitResults = fitting.fit_mpfit(self.DysmalPyGal, **kwargs_all)
+            if fit_dict['fit_method'] == 'mcmc':
+                fit_results = fitting.fit_mcmc(gal, **kwargs_all)
+                self.log_message('fit_mcmc done')
+            elif fit_dict['fit_method'] == 'mpfit':
+                fit_results = fitting.fit_mpfit(gal, **kwargs_all)
+                self.log_message('fit_mpfit done')
             else:
-                self.logMessage(self.tr('Error! fit_method must be \'mcmc\' or \'mpfit\'! Could not do the fitting!'))
-                self.finishedWithError.emit(self.LastLogMessage)
+                self.log_message('Error! fit_method must be \'mcmc\' or \'mpfit\'! Could not do the fitting!')
+                if not block_signal:
+                    self.emit_finished_with_error()
                 return
             # check output file
             if not os.path.isfile(output_pickle_file):
-                self.logMessage(self.tr('Error! Output file not produced?! ')+str(output_pickle_file))
-                self.finishedWithError.emit(self.LastLogMessage)
+                self.log_message('Error! Output file not produced?! ')+str(output_pickle_file)
+                if not block_signal:
+                    self.emit_finished_with_error()
                 return
             else:
-                self.logMessage(self.tr('Successfully fitted the data.'))
+                self.log_message('Successfully fitted the data.')
         elif os.path.isfile(output_pickle_file):
             # load existing fitting result
-            self.logMessage(self.tr('Loading previous fitting...'))
-            self.DysmalPyGal, self.DysmalPyFitResults = fitting.reload_all_fitting(\
-                                        filename_galmodel=self.DysmalPyFitDict['f_model'],
-                                        filename_results=self.DysmalPyFitDict['f_results'],
-                                        fit_method=self.DysmalPyParams['fit_method'])
-            self.logMessage(self.tr('Successfully loaded previous fitting.'))
+            self.log_message('Loading previous fitting...')
+            gal, fit_results = fitting.reload_all_fitting(\
+                                        filename_galmodel=fit_dict['f_model'],
+                                        filename_results=fit_dict['f_results'],
+                                        fit_method=params['fit_method'])
+            self.log_message('Successfully loaded previous fitting.')
         else:
-            #self.logMessage(self.tr('Warning! Previous fitting result not found and not doing a fitting. Please click the "Fit Data" button and try again.'))
-            self.logMessage(self.tr('Warning! Previous fitting result not found. Please click the "Fit Data" button to run a fit.'))
-            self.finishedWithWarning.emit(self.LastLogMessage)
+            self.log_message('Warning! Previous fitting result not found. Please click the "Fit Data" button to run a fit.')
+            if not block_signal:
+                self.emit_finished_with_warning()
             return
-        self.model_cube = copy.copy(self.DysmalPyGal.model_cube.data)
+        #
+        self.data_cube = None
+        if hasattr(gal, 'data'):
+            if hasattr(gal.data, 'data'):
+                if gal.data.ndim == 3:
+                    self.data_cube = copy.copy(gal.data.data)
+        self.model_cube = copy.copy(gal.model_cube.data)
+        # self.params = params
+        # self.gal = gal
+        self.DysmalPyFitResults = fit_results
         self.DysmalPyFitResultFile = output_pickle_file
         # 
-        self.generateMomentMaps(blocksignal=True)
-        if self.LastLogMessage.find(self.tr('Error!')) >= 0:
-            self.finishedWithError.emit(self.LastLogMessage)
+        self.send_data_to_queue(
+                ['data_cube', 'model_cube', 'DysmalPyFitResults', 'DysmalPyFitResultFile']
+            )
         # 
-        self.generateRotationCurves(blocksignal=True)
-        if self.LastLogMessage.find(self.tr('Error!')) >= 0:
-            self.finishedWithError.emit(self.LastLogMessage)
-        # 
-        if self.dofit:
-            self.logMessage(self.tr('Successfully generated the model cube, moment maps and rotation curves.'))
-        # 
-        self.finished.emit()
+        self.send_lensing_data_to_queue()
+        #
+        self.generate_moment_maps(params, gal, block_signal = True)
+        if self.last_log_message.startswith('Error!'):
+            if not block_signal:
+                self.emit_finished_with_error()
+        #
+        self.generate_rotation_curves(params, gal, block_signal = True)
+        if self.last_log_message.startswith('Error!'):
+            if not block_signal:
+                self.emit_finished_with_error()
+        #
+        if do_fit:
+            self.log_message('Successfully generated the model cube, moment maps and rotation curves.')
+        #
+        if not block_signal:
+            self.emit_finished()
     
-    @pyqtSlot()
-    def generateModelCube(self):
-        self.logMessage(self.tr('Generating model cube...'))
-        if self.DysmalPyParams is None:
-            self.logMessage(self.tr('Error! DysmalPyParams is invalid! Could not proceed to generate the model cube.'))
-            self.finishedWithError.emit(self.LastLogMessage)
+    def generate_model_cube(self, params, block_signal = False):
+        #
+        if not block_signal:
+            self.emit_started()
+        #
+        self.log_message('Generating model cube...')
+        if params is None:
+            self.log_message('Error! DysmalPyParams is invalid!' +
+                             'Could not proceed to generate the model cube.')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        # 
-        self.getDysmalPyGal()
-        if self.DysmalPyGal is None:
-            self.logMessage(self.tr('Error! Could not set DysmalPyGal from DysmalPyParams?!'))
-            self.finishedWithError.emit(self.LastLogMessage)
+        #
+        gal, fit_dict = self.get_dysmalpy_gal(params)
+        #
+        if gal is None:
+            self.log_message('Error! Could not set DysmalPyGal from DysmalPyParams?!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        if self.DysmalPyGal.instrument is None:
-            self.logMessage(self.tr('Error! DysmalPyGal.instrument is invalid! Could not proceed to generate the model cube.'))
-            self.finishedWithError.emit(self.LastLogMessage)
+        if gal.instrument is None:
+            self.log_message('Error! DysmalPyGal.instrument is invalid! ' +
+                             'Could not proceed to generate the model cube.')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        # 
-        #config_c_m_data = config.Config_create_model_data(**self.DysmalPyFitDict)
-        #config_sim_cube = config.Config_simulate_cube(**self.DysmalPyFitDict)
-        #kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-        #self.DysmalPyGal.create_model_data(**kwargs_galmodel)
-        # 
-        # from_instrument: nx_sky, ny_sky, spec_type, spec_start, spec_step, spec_unit, nspec, rstep will be read from gal.instrument
+        #
+        # create model cube from_instrument:
+        # nx_sky, ny_sky, spec_type, spec_start, spec_step, spec_unit, nspec, rstep
+        # will be read from gal.instrument
         # xcenter ycenter are needed only if the center is not at the cube center.
         # line_center is needed only if spec_type is 'wavelength'
         ndim_final = 3
-        profile1d_type = self.DysmalPyParams['profile1d_type']
-        oversample = self.DysmalPyParams['oversample']
-        oversize = self.DysmalPyParams['oversize']
-        aperture_radius = self.DysmalPyParams['aperture_radius'] # if profile1d_type == 'circ_ap_cube'
-        pixscale = self.DysmalPyParams['pixscale']
-        fov_npix = self.DysmalPyParams['fov_npix']
-        xcenter = self.DysmalPyParams['xcenter']
-        ycenter = self.DysmalPyParams['ycenter']
-        #aper_centers = np.linspace(-np.abs(fov_npix/pixscale/2.0), +np.abs(fov_npix/pixscale/2.0), num=30, endpoint=True) #<TODO># 
+        if 'profile1d_type' in params:
+            profile1d_type = params['profile1d_type']
+        else:
+            profile1d_type = 'circ_ap_pv'
+        if 'aperture_radius' in params:
+            aperture_radius = params['aperture_radius'] # if profile1d_type == 'circ_ap_cube'
+        else:
+            aperture_radius = 0.1
+        oversample = params['oversample']
+        oversize = params['oversize']
+        pixscale = params['pixscale']
+        fov_npix = params['fov_npix']
+        xcenter = params['xcenter']
+        ycenter = params['ycenter']
+        #aper_centers = np.linspace(-np.abs(fov_npix/pixscale/2.0), +np.abs(fov_npix/pixscale/2.0), num=30, endpoint=True) #<TODO>#
         aper_centers = np.linspace(-np.abs(fov_npix*pixscale/2.0), +np.abs(fov_npix*pixscale/2.0), num=30, endpoint=True) # in arcsec
-        kwargs_galmodel = {}
+        #kwargs_galmodel = {}
         #if profile1d_type == 'circ_ap_cube':
         #    kwargs_galmodel['aperture_radius'] = 0.1
         #elif profile1d_type == 'rect_ap_cube':
@@ -2687,46 +3667,54 @@ class QDysmalPyFittingWorker(QObject):
         #    kwargs_galmodel['pix_parallel'] = 20
         #elif profile1d_type == 'square_ap_cube':
         #    kwargs_galmodel['pix_length'] = 20
-        # <DZLIU><20210726> ++++++++++
-        # setup LensingTransformer if needed
-        if self.LensingTransformer is not None:
-            kwargs_galmodel['lensing_transformer'] = self.LensingTransformer
-        # <DZLIU><20210726> ----------
-        self.DysmalPyGal.create_model_data(\
-                            ndim_final = ndim_final, 
-                            profile1d_type = profile1d_type, 
-                            aperture_radius = aperture_radius, 
+        kwargs_galmodel = setup_lensing_dict(params)
+        kwargs_galmodel['lensing_transformer'] = self.lensing_transformer
+        from_data = False # must set from_data = False to let the input ndim_final = 3 in effect
+        self.logger.debug("self.lensing_transformer " + str(self.lensing_transformer))
+        self.logger.debug("kwargs_galmodel['lensing_transformer'] " + str(kwargs_galmodel['lensing_transformer']))
+        gal.create_model_data(\
+                            ndim_final = ndim_final,
+                            profile1d_type = profile1d_type,
+                            aperture_radius = aperture_radius,
                             aper_centers = aper_centers,
-                            from_instrument = True, 
-                            from_data = False,
-                            oversample = oversample, 
+                            from_instrument = True,
+                            from_data = from_data,
+                            oversample = oversample,
                             oversize = oversize,
-                            xcenter = xcenter, 
+                            xcenter = xcenter,
                             ycenter = ycenter,
-                            skip_downsample = False, 
-                            **kwargs_galmodel, 
+                            **kwargs_galmodel,
                             )
-        #if self.model_cube is not None:
-        #    self.logger.debug('DEBUG DEBUG old model cube %s vs new model cube %s'%(self.model_cube[:,25,25], self.DysmalPyGal.model_cube.data[:,25,25]))
-        self.model_cube = copy.copy(self.DysmalPyGal.model_cube.data)
+        self.logger.debug("self.lensing_transformer " + str(self.lensing_transformer))
+        self.logger.debug("kwargs_galmodel['lensing_transformer'] " + str(kwargs_galmodel['lensing_transformer']))
+        #
+        self.model_cube = copy.copy(gal.model_cube.data)
         # 
-        self.generateMomentMaps(blocksignal=True)
-        if self.LastLogMessage.find(self.tr('Error!')) >= 0:
-            self.finishedWithError.emit(self.LastLogMessage)
+        self.send_data_to_queue(['model_cube'])
         # 
-        self.generateRotationCurves(blocksignal=True)
-        if self.LastLogMessage.find(self.tr('Error!')) >= 0:
-            self.finishedWithError.emit(self.LastLogMessage)
-        # 
-        self.logMessage(self.tr('Successfully generated the model cube, moment maps and rotation curves.'))
-        # 
-        self.finished.emit()
-        return
+        self.send_lensing_data_to_queue()
+        #
+        self.generate_moment_maps(params, gal, block_signal = True)
+        if self.last_log_message.startswith('Error!'):
+            if not block_signal:
+                self.emit_finished_with_error()
+            return
+        #
+        self.generate_rotation_curves(params, gal, block_signal = True)
+        if self.last_log_message.startswith('Error!'):
+            if not block_signal:
+                self.emit_finished_with_error()
+            return
+        #
+        self.logger.debug('generateModelCube: done')
+        self.log_message('Successfully generated the model cube, moment maps and rotation curves.')
+        if not block_signal:
+            self.emit_finished()
     
-    def computeMomentMapsFromCube(self, data_cube):
-        # see "galaxy.py"
+    def compute_moment_maps_from_cube(self, params, data_cube, data_mask = None):
+        # see dysmalpy "galaxy.py"
         if not isinstance(data_cube, SpectralCube):
-            self.logMessage(self.tr('Error! The input data cube to generateMomentMapsFromCube is not a SpectralCube!'))
+            self.log_message('Error! The input data cube to compute_moment_maps_from_cube is not a SpectralCube!')
             return None, None, None
         mom0 = data_cube.moment0().to(u.km/u.s).value
         mom1 = data_cube.moment1().to(u.km/u.s).value
@@ -2734,107 +3722,249 @@ class QDysmalPyFittingWorker(QObject):
         flux = np.zeros(mom0.shape)
         vel = np.zeros(mom0.shape)
         disp = np.zeros(mom0.shape)
-        for i in range(mom0.shape[0]):
-            for j in range(mom0.shape[1]):
-                best_fit = gaus_fit_sp_opt_leastsq(\
-                                    data_cube.spectral_axis.to(u.km/u.s).value,
-                                    data_cube.unmasked_data[:,i,j].value,
-                                    mom0[i,j], mom1[i,j], mom2[i,j])
-                flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                vel[i,j] = best_fit[1]
-                disp[i,j] = best_fit[2]
+        
+        # <DZLIU><20210805> ++++++++++
+        #logger.debug('data_cube.spectral_axis.to(u.km/u.s).value: '+str(data_cube.spectral_axis.to(u.km/u.s).value))
+        my_least_chi_squares_1d_fitter = None
+        if 'gauss_extract_with_c' in params:
+            #logger.debug('params[\'gauss_extract_with_c\'] = ' +str(params['gauss_extract_with_c']))
+            if params['gauss_extract_with_c'] is not None and \
+               params['gauss_extract_with_c'] is not False:
+                this_fitting_mask = 'auto'
+                if data_mask is not None:
+                    if hasattr(data_mask, 'shape'):
+                        if len(data_mask.shape) in [2, 3]:
+                            this_fitting_mask = copy.copy(data_mask)
+                if logger.level == logging.DEBUG:
+                    this_fitting_verbose = True
+                else:
+                    this_fitting_verbose = False
+                my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
+                        x = data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = data_cube.unmasked_data[:,:,:].value,
+                        dataerr = None,
+                        datamask = this_fitting_mask,
+                        initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
+                        nthread = 4,
+                        verbose = this_fitting_verbose)
+        if my_least_chi_squares_1d_fitter is not None:
+            self.logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+            my_least_chi_squares_1d_fitter.runFitting()
+            flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
+            vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
+            disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
+            flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
+            self.logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+        else:
+            for i in range(mom0.shape[0]):
+                for j in range(mom0.shape[1]):
+                    if i==0 and j==0:
+                        self.logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                    best_fit = gaus_fit_sp_opt_leastsq(data_cube.spectral_axis.to(u.km/u.s).value,
+                                        data_cube.unmasked_data[:,i,j].value,
+                                        mom0[i,j], mom1[i,j], mom2[i,j])
+                    flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                    vel[i,j] = best_fit[1]
+                    disp[i,j] = best_fit[2]
+                    if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
+                        self.logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+        # <DZLIU><20210805> ----------
         return flux, vel, disp
     
-    @pyqtSlot()
-    def generateMomentMaps(self, blocksignal=False):
-        self.logMessage(self.tr('Generating moment maps...'))
-        if self.DysmalPyParams is None:
-            self.logMessage(self.tr('Error! DysmalPyParams is invalid! Could not proceed to generate the moment maps. Please set DysmalPyFittingWorker.DysmalPyParams first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+    def generate_moment_maps(self, params, gal, block_signal = False):
+        if not block_signal:
+            self.emit_started()
+        #
+        self.log_message('Generating moment maps...')
+        #
+        if params is None:
+            self.log_message('Error! DysmalPyParams is invalid! ' +
+                             'Could not proceed to generate the moment maps. ' +
+                             'Please set dysmalpy params first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        if self.DysmalPyGal is None:
-            self.logMessage(self.tr('Error! DysmalPyGal is invalid! Could not proceed to generate the moment maps. Please run DysmalPyFittingWorker.generateModelCube first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+        if gal is None:
+            self.log_message('Error! DysmalPyGal is invalid! ' +
+                             'Could not proceed to generate the moment maps. ' +
+                             'Please run generate_model_cube first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        if self.DysmalPyGal.model_cube is None:
-            self.logMessage(self.tr('Error! DysmalPyGal.model_cube is invalid! Could not proceed to generate the moment maps. Please run DysmalPyFittingWorker.generateModelCube first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+        if gal.model_cube is None:
+            self.log_message('Error! DysmalPyGal.model_cube is invalid! ' +
+                             'Could not proceed to generate the moment maps. ' +
+                             'Please run generate_model_cube first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        # 
+        #
         model_flux_map = None
         model_vel_map = None
         model_disp_map = None
-        # 
+        #
+        data_mask = None
+        if hasattr(gal, 'data'):
+            if hasattr(gal.data, 'ndim'):
+                if gal.data.ndim in [2, 3]:
+                    data_mask = gal.data.mask
+        #
         model_flux_map, model_vel_map, model_disp_map = \
-            self.computeMomentMapsFromCube(self.DysmalPyGal.model_cube.data)
-        # 
-        #if self.model_flux_map is not None:
-        #    self.logger.debug('DEBUG DEBUG old model flux map %s \nvs new model flux map %s'%(\
-        #        self.model_flux_map[20:30,20:30], \
-        #        model_flux_map[20:30,20:30]))
-        # 
+            self.compute_moment_maps_from_cube(params, gal.model_cube.data, data_mask)
+        #
         self.model_flux_map = model_flux_map
         self.model_vel_map = model_vel_map
         self.model_disp_map = model_disp_map
         # 
-        if hasattr(self.DysmalPyGal, 'data'):
-            if self.DysmalPyGal.data is not None:
-                if self.DysmalPyGal.data.ndim == 2:
-                    self.data_flux_map = self.DysmalPyGal.data.data['flux']
-                    self.data_vel_map = self.DysmalPyGal.data.data['velocity']
-                    self.data_disp_map = self.DysmalPyGal.data.data['dispersion']
-                    self.data_mask_map = self.DysmalPyGal.data.mask
-                    if self.data_flux_map is not None:
-                        nan_mask = np.invert(self.data_mask_map) # (self.data_flux_map < -9.99999e5)
-                        if np.count_nonzero(nan_mask)>0:
-                            self.data_flux_map[nan_mask] = np.nan
-                    if self.data_vel_map is not None:
-                        nan_mask = np.invert(self.data_mask_map) # (self.data_vel_map < -9.99999e5)
-                        if np.count_nonzero(nan_mask)>0:
-                            self.data_vel_map[nan_mask] = np.nan
-                    if self.data_disp_map is not None:
-                        nan_mask = np.invert(self.data_mask_map) # (self.data_disp_map < -9.99999e5)
-                        if np.count_nonzero(nan_mask)>0:
-                            self.data_disp_map[nan_mask] = np.nan
-                    if self.data_flux_map is not None:
-                        if self.data_flux_map.shape == self.model_flux_map.shape:
-                            self.residual_flux_map = self.data_flux_map - self.model_flux_map
-                    if self.data_vel_map is not None:
-                        if self.data_vel_map.shape == self.model_vel_map.shape:
-                            self.residual_vel_map = self.data_vel_map - self.model_vel_map
-                    if self.data_disp_map is not None:
-                        if self.data_disp_map.shape == self.model_disp_map.shape:
-                            self.residual_disp_map = self.data_disp_map - self.model_disp_map
+        self.send_data_to_queue(['model_flux_map', 'model_vel_map', 'model_disp_map'])
         # 
-        self.logMessage(self.tr('Successfully generated moment maps.'))
-        # 
-        # emit finish signal
-        if not blocksignal:
-            self.finished.emit()
-        return
+        if hasattr(gal, 'data'):
+            if gal.data is not None:
+                self.data_flux_map = None
+                self.data_vel_map = None
+                self.data_disp_map = None
+                self.data_mask_map = None
+                self.residual_flux_map = None
+                self.residual_vel_map = None
+                self.residual_disp_map = None
+                if gal.data.ndim == 3:
+                    if hasattr(gal, 'data2d') and gal.data2d is not None:
+                        self.data_flux_map = gal.data2d.data['flux']
+                        self.data_vel_map = gal.data2d.data['velocity']
+                        self.data_disp_map = gal.data2d.data['dispersion']
+                    else:
+                        # The input data is 3d, we need to extract 2d data.
+                        # We can use the
+                        # `dysmalpy.plotting.extract_1D_2D_data_gausfit_from_cube`
+                        # or `dysmalpy.plotting.extract_1D_2D_data_moments_from_cube`
+                        # function which extracted 2d data into `gal.data2d`.
+                        #
+                        # gal = extract_1D_2D_data_gausfit_from_cube(gal)
+                        # gal = extract_1D_2D_data_moments_from_cube(gal)
+                        #
+                        # These functions use following code to extract the 2d data:
+                        # gal.data2d = plotting.extract_2D_gausfit_from_cube(
+                        #     gal.data.data, gal, errcube=gal.data.error, inst_corr=inst_corr)
+                        # gal.data2d = plotting.extract_2D_moments_from_cube(
+                        #     gal.data.data, gal, inst_corr=inst_corr)
+                        #
+                        # however, the above method can be time consuming.
+                        # Here we use our own method.
+                        flux, vel, disp = self.compute_moment_maps_from_cube(
+                            params,
+                            gal.data.data,
+                            data_mask = gal.data.mask,
+                        )
+                        if flux is None or vel is None or disp is None:
+                            self.log_message('Error! Could not run compute_moment_maps_from_cube ' +
+                                             'to generate the moment maps for the data cube in 3D.')
+                            if not block_signal:
+                                self.emit_finished_with_error()
+                        # print('QDysmalPyFittingStarship generate_moment_maps '+
+                        #       'flux.shape '+str(flux.shape)+
+                        #       'vel.shape '+str(vel.shape)+
+                        #       'disp.shape '+str(disp.shape)+
+                        #       'gal.data.mask is None '+str(gal.data.mask))
+                        # self.logger.debug('flux.shape '+str(flux.shape))
+                        # self.logger.debug('vel.shape '+str(vel.shape))
+                        # self.logger.debug('disp.shape '+str(disp.shape))
+                        data_mask2d = None
+                        if gal.data.mask is not None:
+                            if len(gal.data.mask.shape) == 3:
+                                data_mask2d = np.any(gal.data.mask>0, axis=0).astype(int)
+                        gal.data2d = data_classes.Data2D(
+                            pixscale = gal.instrument.pixscale.value,
+                            flux = flux, velocity = vel, vel_disp = disp, mask = data_mask2d,
+                            vel_err = None, vel_disp_err = None, flux_err = None,
+                            smoothing_type = gal.data.smoothing_type,
+                            smoothing_npix = gal.data.smoothing_npix,
+                            inst_corr = False, moment = False,
+                            xcenter = gal.data.xcenter,
+                            ycenter = gal.data.ycenter,
+                        )
+                    #
+                    if hasattr(gal, 'data1d') and gal.data1d is not None:
+                        self.data_flux_map = gal.data2d.data['flux']
+                        self.data_vel_map = gal.data2d.data['velocity']
+                        self.data_disp_map = gal.data2d.data['dispersion']
+                    else:
+                        # gal.data1d = extract_1D_from_cube(
+                        #     gal.data.data, gal,
+                        #     errcube = gal.data.error,
+                        #     slit_width = slit_width, slit_pa = slit_pa,
+                        #     aper_dist = aper_dist,
+                        #     moment = False, inst_corr = inst_corr, fill_mask = fill_mask)
+                        # gal.data1d = plotting.extract_1D_from_cube(
+                        #     gal.data.data, gal, slit_width = slit_width,
+                        #     slit_pa = slit_pa, aper_dist = aper_dist, moment = True,
+                        #     inst_corr = inst_corr, fill_mask = fill_mask)
+                        pass
+                elif gal.data.ndim == 2:
+                    self.data_flux_map = gal.data.data['flux']
+                    self.data_vel_map = gal.data.data['velocity']
+                    self.data_disp_map = gal.data.data['dispersion']
+                    self.data_mask_map = gal.data.mask
+                if self.data_flux_map is not None:
+                    nan_mask = np.invert(self.data_mask_map) # (self.data_flux_map < -9.99999e5)
+                    if np.count_nonzero(nan_mask)>0:
+                        self.data_flux_map[nan_mask] = np.nan
+                if self.data_vel_map is not None:
+                    nan_mask = np.invert(self.data_mask_map) # (self.data_vel_map < -9.99999e5)
+                    if np.count_nonzero(nan_mask)>0:
+                        self.data_vel_map[nan_mask] = np.nan
+                if self.data_disp_map is not None:
+                    nan_mask = np.invert(self.data_mask_map) # (self.data_disp_map < -9.99999e5)
+                    if np.count_nonzero(nan_mask)>0:
+                        self.data_disp_map[nan_mask] = np.nan
+                if self.data_flux_map is not None:
+                    if self.data_flux_map.shape == self.model_flux_map.shape:
+                        self.residual_flux_map = self.data_flux_map - self.model_flux_map
+                if self.data_vel_map is not None:
+                    if self.data_vel_map.shape == self.model_vel_map.shape:
+                        self.residual_vel_map = self.data_vel_map - self.model_vel_map
+                if self.data_disp_map is not None:
+                    if self.data_disp_map.shape == self.model_disp_map.shape:
+                        self.residual_disp_map = self.data_disp_map - self.model_disp_map
+                #
+                self.send_data_to_queue(
+                        ['data_flux_map', 'data_vel_map', 'data_disp_map', 'data_mask_map', 
+                         'residual_flux_map', 'residual_vel_map', 'residual_disp_map']
+                    )
+        #
+        self.logger.debug('generateMomentMaps: done')
+        self.log_message('Successfully generated moment maps.')
+        if not block_signal:
+            self.emit_finished()
     
-    @pyqtSlot()
-    def generateRotationCurves(self, blocksignal=False):
-        self.logMessage(self.tr('Generating rotation curves...'))
-        if self.DysmalPyParams is None:
-            self.logMessage(self.tr('Error! DysmalPyParams is invalid! Could not proceed to generate the rotation curve. Please set DysmalPyFittingWorker.DysmalPyParams first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+    #
+    def generate_rotation_curves(self, params, gal, block_signal = False):
+        if not block_signal:
+            self.emit_started()
+        #
+        self.log_message('Generating rotation curves...')
+        #
+        if params is None:
+            self.log_message('Error! DysmalPyParams is invalid! ' +
+                             'Could not proceed to generate the rotation curve. ' +
+                             'Please set DysmalPyFittingWorker.DysmalPyParams first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        if self.DysmalPyGal is None:
-            self.logMessage(self.tr('Error! DysmalPyGal is invalid! Could not proceed to generate the rotation curve. Please run DysmalPyFittingWorker.generateModelCube first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+        if gal is None:
+            self.log_message('Error! DysmalPyGal is invalid! ' +
+                             'Could not proceed to generate the rotation curve. ' +
+                             'Please run DysmalPyFittingWorker.generateModelCube first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        if self.DysmalPyGal.model_cube is None:
-            self.logMessage(self.tr('Error! DysmalPyGal.model_cube is invalid! Could not proceed to generate the rotation curve. Please run DysmalPyFittingWorker.generateModelCube first!'))
-            if not blocksignal:
-                self.finishedWithError.emit(self.LastLogMessage)
+        if gal.model_cube is None:
+            self.log_message('Error! DysmalPyGal.model_cube is invalid! ' +
+                             'Could not proceed to generate the rotation curve. ' +
+                             'Please run DysmalPyFittingWorker.generateModelCube first!')
+            if not block_signal:
+                self.emit_finished_with_error()
             return
-        # 
+        #
         self.data_flux_curve = None
         self.data_vel_curve = None
         self.data_disp_curve = None
@@ -2842,54 +3972,84 @@ class QDysmalPyFittingWorker(QObject):
         self.model_vel_curve = None
         self.model_disp_curve = None
         inst_corr = True
-        # 
-        if 'fdata' in self.DysmalPyParams:
-            self.logMessage(self.tr('Computing rotation velocity profile along the data slit at PA ')+str(self.DysmalPyGal.data.slit_pa))
-            self.DysmalPyGal.create_model_data(ndim_final=1, from_data=True)
-            self.data_flux_curve  = {'x':self.DysmalPyGal.data.rarr, 
-                                     'y':self.DysmalPyGal.data.data['flux'], 
-                                     'yerr':self.DysmalPyGal.data.error['flux'], 
-                                     'marker':'o', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7, 'capsize':2}
-            self.data_vel_curve   = {'x':self.DysmalPyGal.data.rarr, 
-                                     'y':self.DysmalPyGal.data.data['velocity'], 
-                                     'yerr':self.DysmalPyGal.data.error['velocity'], 
-                                     'marker':'o', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7, 'capsize':2}
-            self.data_disp_curve  = {'x':self.DysmalPyGal.data.rarr, 
-                                     'y':self.DysmalPyGal.data.data['dispersion'], 
-                                    'yerr':self.DysmalPyGal.data.error['dispersion'], 
-                                    'marker':'o', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7, 'capsize':2}
-            self.model_flux_curve = {'x':self.DysmalPyGal.model_data.rarr, 
-                                     'y':self.DysmalPyGal.model_data.data['flux'], 
-                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
-            self.model_vel_curve  = {'x':self.DysmalPyGal.model_data.rarr, 
-                                     'y':self.DysmalPyGal.model_data.data['velocity'], 
-                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
-            self.model_disp_curve = {'x':self.DysmalPyGal.model_data.rarr, 
-                                     'y':self.DysmalPyGal.model_data.data['dispersion'], 
-                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
-            if 'inst_corr' in self.DysmalPyGal.data.data.keys():
-                inst_corr = self.DysmalPyGal.data.data['inst_corr']
+        #
+        kwargs_galmodel = setup_lensing_dict(params)
+        kwargs_galmodel['lensing_transformer'] = self.lensing_transformer
+        #
+        # Get 1d flux, vel and disp from model.
+        # If input data is 1d, i.e., having 'fdata' in params, then we can directly use the
+        #   dymalpy.galaxy.create_model_data(ndim_final=1, from_data=True)
+        # funcion,
+        # otherwise we create a copy of dymalpy.galaxy object, then use the
+        #   dymalpy.galaxy.create_model_data(ndim_final=1, from_data=False, from_instrument=True)
+        # function.
+        if 'fdata' in params:
+            self.log_message('Computing rotation velocity profile along the data slit at PA ')+str(gal.data.slit_pa)
+            gal.create_model_data(ndim_final=1,
+                                  from_data=True,
+                                  **kwargs_galmodel,
+                                 )
+            self.data_flux_curve  = {'x':gal.data.rarr,
+                                     'y':gal.data.data['flux'],
+                                     'yerr':gal.data.error['flux'],
+                                     'marker':'o', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7, 'capsize':2}
+            self.data_vel_curve   = {'x':gal.data.rarr,
+                                     'y':gal.data.data['velocity'],
+                                     'yerr':gal.data.error['velocity'],
+                                     'marker':'o', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7, 'capsize':2}
+            self.data_disp_curve  = {'x':gal.data.rarr,
+                                     'y':gal.data.data['dispersion'],
+                                    'yerr':gal.data.error['dispersion'],
+                                    'marker':'o', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7, 'capsize':2}
+            self.model_flux_curve = {'x':gal.model_data.rarr,
+                                     'y':gal.model_data.data['flux'],
+                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7}
+            self.model_vel_curve  = {'x':gal.model_data.rarr,
+                                     'y':gal.model_data.data['velocity'],
+                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7}
+            self.model_disp_curve = {'x':gal.model_data.rarr,
+                                     'y':gal.model_data.data['dispersion'],
+                                     'marker':'s', 'markersize':5, 'markeredgecolor':'none',
+                                     'linestyle':'none', 'alpha':0.7}
+            if 'inst_corr' in gal.data.data.keys():
+                inst_corr = gal.data.data['inst_corr']
         else:
-            slit_width = self.DysmalPyParams['slit_width']
-            slit_pa = self.DysmalPyParams['slit_pa']
-            oversample = self.DysmalPyParams['oversample']
-            oversize = self.DysmalPyParams['oversize']
+            if 'slit_width' not in params:
+                params['slit_width'] = 0.2 #<TODO>#
+            if 'slit_pa' not in params:
+                params['slit_pa'] = 45. #<TODO>#
+            slit_width = params['slit_width']
+            slit_pa = params['slit_pa']
+            oversample = params['oversample']
+            oversize = params['oversize']
             if slit_pa is None or slit_width is None:
-                self.logMessage(self.tr('Error! Invalid slit_width or slit_pa. Could not proceed to generate the rotation curves.'))
-                if not blocksignal:
-                    self.finishedWithError.emit(self.LastLogMessage)
+                self.log_message('Error! Invalid slit_width or slit_pa. ' +
+                                'Could not proceed to generate the rotation curves.')
+                if not block_signal:
+                    self.emit_finished_with_error()
                 return
-            profile1d_type = self.DysmalPyParams['profile1d_type']
-            aperture_radius = self.DysmalPyParams['aperture_radius'] # if profile1d_type == 'circ_ap_cube'
-            pixscale = self.DysmalPyParams['pixscale']
-            fov_npix = self.DysmalPyParams['fov_npix']
-            xcenter = self.DysmalPyParams['xcenter']
-            ycenter = self.DysmalPyParams['ycenter']
+            if 'profile1d_type' in params:
+                profile1d_type = params['profile1d_type']
+            else:
+                profile1d_type = 'circ_ap_pv'
+            if 'aperture_radius' in params:
+                aperture_radius = params['aperture_radius'] # if profile1d_type == 'circ_ap_cube'
+            else:
+                aperture_radius = 0.1
+            pixscale = params['pixscale']
+            fov_npix = params['fov_npix']
+            xcenter = params['xcenter']
+            ycenter = params['ycenter']
             aper_centers = np.linspace(-np.abs(fov_npix*pixscale/2.0), +np.abs(fov_npix*pixscale/2.0), num=35, endpoint=True) # in arcsec
-            this_DysmalPyGal = copy.deepcopy(self.DysmalPyGal)
+            this_DysmalPyGal = copy.copy(gal)
             if this_DysmalPyGal.data is not None:
                 this_DysmalPyGal.data.aper_center_pix_shift = None
-            self.logMessage(self.tr('Computing rotation velocity profile along the assumed slit at PA ')+str(slit_pa))
+            self.log_message('Computing rotation velocity profile along the assumed slit at PA '+str(slit_pa))
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.model.line_center = '+str(this_DysmalPyGal.model.line_center))
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_type = '+str(this_DysmalPyGal.instrument.spec_type))
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.instrument.spec_start.value = '+str(this_DysmalPyGal.instrument.spec_start.value))
@@ -2910,17 +4070,17 @@ class QDysmalPyFittingWorker(QObject):
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.oversize = '+str(oversize))
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.xcenter = '+str(xcenter))
             self.logger.debug('generateRotationCurves: this_DysmalPyGal.ycenter = '+str(ycenter))
-            this_DysmalPyGal.create_model_data(ndim_final=1, from_data=False, from_instrument=True, 
-                                               slit_width = slit_width, 
-                                               slit_pa = slit_pa, 
-                                               profile1d_type = profile1d_type, 
-                                               aperture_radius = aperture_radius, 
-                                               aper_centers = aper_centers, 
-                                               oversample = oversample, 
-                                               oversize = oversize, 
-                                               skip_downsample = False, 
-                                               xcenter = xcenter, 
-                                               ycenter = ycenter, 
+            this_DysmalPyGal.create_model_data(ndim_final=1, from_data=False, from_instrument=True,
+                                               slit_width = slit_width,
+                                               slit_pa = slit_pa,
+                                               profile1d_type = profile1d_type,
+                                               aperture_radius = aperture_radius,
+                                               aper_centers = aper_centers,
+                                               oversample = oversample,
+                                               oversize = oversize,
+                                               xcenter = xcenter,
+                                               ycenter = ycenter,
+                                               **kwargs_galmodel,
                                                )
             #logger.debug('this_DysmalPyGal.model_data.rarr: '+str(this_DysmalPyGal.model_data.rarr))
             #logger.debug('this_DysmalPyGal.model_data.data: '+str(this_DysmalPyGal.model_data.data))
@@ -2941,117 +4101,59 @@ class QDysmalPyFittingWorker(QObject):
             #self.model_data = Data1D(r=aper_centers, velocity=vel1d,
             #                         vel_disp=disp1d, flux=flux1d, mask=None,
             #                         slit_width=slit_width, slit_pa=slit_pa)
-            self.model_flux_curve = {'x':this_DysmalPyGal.model_data.rarr, 
-                                     'y':this_DysmalPyGal.model_data.data['flux'], 
+            self.model_flux_curve = {'x':this_DysmalPyGal.model_data.rarr,
+                                     'y':this_DysmalPyGal.model_data.data['flux'],
                                      'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
-            self.model_vel_curve  = {'x':this_DysmalPyGal.model_data.rarr, 
-                                     'y':this_DysmalPyGal.model_data.data['velocity'], 
+            self.model_vel_curve  = {'x':this_DysmalPyGal.model_data.rarr,
+                                     'y':this_DysmalPyGal.model_data.data['velocity'],
                                      'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
-            self.model_disp_curve = {'x':this_DysmalPyGal.model_data.rarr, 
-                                     'y':this_DysmalPyGal.model_data.data['dispersion'], 
+            self.model_disp_curve = {'x':this_DysmalPyGal.model_data.rarr,
+                                     'y':this_DysmalPyGal.model_data.data['dispersion'],
                                      'marker':'s', 'markersize':5, 'markeredgecolor':'none', 'linestyle':'none', 'alpha':0.7}
         if inst_corr:
-            try: 
+            try:
                 lsf_dispersion = this_DysmalPyGal.instrument.lsf.dispersion
             except:
-                self.logMessage(self.tr('LSF dispersion not defined. Will not do inst_corr.'))
+                self.log_message('LSF dispersion not defined. Will not do inst_corr.')
                 inst_corr = False
         if inst_corr:
-            self.model_disp_curve['y'] = np.sqrt( self.model_disp_curve['y']**2 - lsf_dispersion.to(u.km/u.s).value**2 ) # see "dysmalpy/plotting.py" def plot_data_model_comparison_1D
-        # 
-        self.logMessage(self.tr('Successfully generated rotation curves.'))
-        # 
-        # emit finish signal
-        if not blocksignal:
-            self.finished.emit()
-        return
-    
-    def saveModelCube(self, filepath=None):
-        if self.model_cube is None:
-            self.logMessage(self.tr('Error! No valid model cube! Could not save the model cube.'))
-            return
-        if filepath is None or filepath == '':
-            filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving mode flux as a FITS file'), self.DefaultDirectory, self.tr('FITS cube (*.fits)')) # QFileDialog::DontConfirmOverwrite
-            if filepath is None or filepath == '':
-                self.logMessage(self.tr('No file selected.'))
-                return
-        if os.path.isfile(filepath):
-            self.logger.debug('Found existing param file %r. Backing up as %r.'%(filepath, filepath+'.backup'))
-            shutil.move(filepath, filepath+'.backup')
-        hdu = fits.PrimaryHDU(data=self.model_cube) #<TODO># header
-        hdu.writeto(filepath)
-        self.logMessage(self.tr('Saved model flux to FITS file: ')+str(filepath))
-
-    def saveModelFlux(self, filepath=None):
-        if self.model_flux_map is None:
-            self.logMessage(self.tr('Error! No valid model cube! Could not save the model flux.'))
-            return
-        if filepath is None or filepath == '':
-            filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving mode flux as a FITS file'), self.DefaultDirectory, self.tr('FITS image (*.fits)')) # QFileDialog::DontConfirmOverwrite
-            if filepath is None or filepath == '':
-                self.logMessage(self.tr('No file selected.'))
-                return
-        if os.path.isfile(filepath):
-            self.logger.debug('Found existing param file %r. Backing up as %r.'%(filepath, filepath+'.backup'))
-            shutil.move(filepath, filepath+'.backup')
-        hdu = fits.PrimaryHDU(data=self.model_flux_map) #<TODO># header
-        hdu.writeto(filepath)
-        self.logMessage(self.tr('Saved model flux to FITS file: ')+str(filepath))
-    
-    def saveModelVel(self, filepath=None):
-        if self.model_vel_map is None:
-            self.logMessage(self.tr('Error! No valid model cube! Could not save the model vel. map.'))
-            return
-        if filepath is None or filepath == '':
-            filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving mode vel. map as a FITS file'), self.DefaultDirectory, self.tr('FITS image (*.fits)')) # QFileDialog::DontConfirmOverwrite
-            if filepath is None or filepath == '':
-                self.logMessage(self.tr('No file selected.'))
-                return
-        if os.path.isfile(filepath):
-            self.logger.debug('Found existing param file %r. Backing up as %r.'%(filepath, filepath+'.backup'))
-            shutil.move(filepath, filepath+'.backup')
-        hdu = fits.PrimaryHDU(data=self.model_vel_map) #<TODO># header
-        hdu.writeto(filepath)
-        self.logMessage(self.tr('Saved model vel. map to FITS file: ')+str(filepath))
-        
-    def saveModelVdisp(self, filepath=None):
-        if self.model_disp_map is None:
-            self.logMessage(self.tr('Error! No valid model vel. disp.! Could not save the model vel. disp.'))
-            return
-        if filepath is None or filepath == '':
-            filepath, _ = QFileDialog.getSaveFileName(self, self.tr('Saving mode vel. disp. as a FITS file'), self.DefaultDirectory, self.tr('FITS image (*.fits)')) # QFileDialog::DontConfirmOverwrite
-            if filepath is None or filepath == '':
-                self.logMessage(self.tr('No file selected.'))
-                return
-        if os.path.isfile(filepath):
-            self.logger.debug('Found existing param file %r. Backing up as %r.'%(filepath, filepath+'.backup'))
-            shutil.move(filepath, filepath+'.backup')
-        hdu = fits.PrimaryHDU(data=self.model_disp_map) #<TODO># header
-        hdu.writeto(filepath)
-        self.logMessage(self.tr('Saved model vel. disp. to FITS file: ')+str(filepath))
-        return
-    
+            self.model_disp_curve['y'] = np.sqrt( self.model_disp_curve['y']**2 - lsf_dispersion.to(u.km/u.s).value**2 )
+            # see "dysmalpy/plotting.py" def plot_data_model_comparison_1D
+        #
+        self.send_data_to_queue(
+                ['data_flux_curve', 'data_vel_curve', 'data_disp_curve', 
+                 'model_flux_curve', 'model_vel_curve', 'model_disp_curve']
+            )
+        #
+        self.logger.debug('generateRotationCurves: done')
+        self.log_message('Successfully generated rotation curves.')
+        if not block_signal:
+            self.emit_finished()
     
 
 
-# 
+
+    
+
+
+#
 
 class QWidgetForParamInput(QWidget):
     """QWidget for a param input.
     
-    The widget can be a QCheckBox, if the parameter has a boolean data type, 
-    or QComboBox, if the parameter has multiple options or is a boolean data type 
-    but with checkbox = False, or more commonly, the widget is a QLineEdit, 
-    and parameter data type can be a list or a str or a int or a float. 
+    The widget can be a QCheckBox, if the parameter has a boolean data type,
+    or QComboBox, if the parameter has multiple options or is a boolean data type
+    but with checkbox = False, or more commonly, the widget is a QLineEdit,
+    and parameter data type can be a list or a str or a int or a float.
     """
     
     ParamUpdateSignal = pyqtSignal(str, str, type, type)
     
-    def __init__(self, 
-            keyname, keyvalue=None, keycomment='', datatype=str, listtype=str, 
-            default=None, options=None, checkbox=False, readonly=False, 
-            fullwidth=False, isdatadir=False, defaultdir=None, isdatafile=False, namefilter=None, isoutdir=False, 
-            enabled=True, 
+    def __init__(self,
+            keyname, keyvalue=None, keycomment='', datatype=str, listtype=str,
+            default=None, options=None, checkbox=False, readonly=False,
+            fullwidth=False, isdatadir=False, defaultdir=None, isdatafile=False, namefilter=None, isoutdir=False,
+            enabled=True,
             parent=None
         ):
         super(QWidgetForParamInput, self).__init__()
@@ -3155,7 +4257,7 @@ class QWidgetForParamInput(QWidget):
                 }
                 """)
             self.LineEditWidget.textChanged.connect(self.onLineEditTextChangedCall)
-            # 
+            #
             if self.IsDataDir or self.IsDataFile or self.IsOutDir:
                 self.ButtonToOpen = QPushButton(self.tr('...'))
                 self.ButtonToEdit = QPushButton(self.tr('✓'))
@@ -3175,22 +4277,22 @@ class QWidgetForParamInput(QWidget):
                 self.Layout.addWidget(self.ButtonToEdit)
                 self.Layout.addWidget(self.ButtonToClose)
                 self.setAcceptDrops(True)
-            # 
+            #
         self.setLayout(self.Layout)
-        # 
+        #
         if self.ParamDefaultValue is not None:
             self.setText(self.ParamDefaultValue)
-        # 
+        #
         if not enabled:
             self.setEnabled(enabled)
 
     def getPositionInQGridLayout(self, icount, ncolumn):
-        """Return a position to add this widget to a QGridLayout. 
+        """Return a position to add this widget to a QGridLayout.
         
         The input is the searlized index `icount` in the QGridLayout and the grid column width `ncolumn`.
         
-        The output is the incremented searlized index for the next widget in the QGridLayout, 
-        the row index, column index, row span and column span of this widget, which are to be 
+        The output is the incremented searlized index for the next widget in the QGridLayout,
+        the row index, column index, row span and column span of this widget, which are to be
         used when calling the QGridLayout.addWidget() function.
         """
         irow = int(icount / ncolumn)
@@ -3300,7 +4402,7 @@ class QWidgetForParamInput(QWidget):
                 self.CheckBoxWidget.setChecked(True)
             if blocksignal:
                 self.CheckBoxWidget.blockSignals(False)
-
+    
     def setChecked(self, checked, blocksignal=False):
         if self.CheckBoxWidget is not None:
             if blocksignal:
@@ -3345,7 +4447,7 @@ class QWidgetForParamInput(QWidget):
         #logger.debug('QWidgetForParamInput::onLineEditTextChangedCall')
         if self.LineEditWidget is not None:
             self.ParamUpdateSignal.emit(self.ParamName, updatedtext, self.ParamDataType, self.ParamListType)
-
+    
     @pyqtSlot(int)
     def onComboBoxIndexChangedCall(self, state):
         if self.ComboBoxWidget is not None:
@@ -3445,7 +4547,7 @@ class QWidgetForParamInput(QWidget):
             for url in event.mimeData().urls():
                 filepath = url.toLocalFile()
                 if self.IsDataFile:
-                    filepath = os.path.basename(filepath) # only take file basename 
+                    filepath = os.path.basename(filepath) # only take file basename
                 elif not filepath.endswith(os.sep):
                     filepath += os.sep # append trailing os.sep to datadir or outdir
                 self.LineEditWidget.setText(filepath)
@@ -3615,14 +4717,14 @@ class QCheckBoxForParamInput(QWidget):
 
 
 
-# 
-# 
-# 
-class QInputDialogSetColorBarLimits(QDialog):
+#
+#
+#
+class QInputDialogSetLimits(QDialog):
     
-    def __init__(self, vmin=None, vmax=None, parent = None):
-        logger.debug('QInputDialogSetColorBarLimits::__init__()')
-        super(QInputDialogSetColorBarLimits, self).__init__(parent)
+    def __init__(self, vmin=None, vmax=None, title=None, parent=None):
+        #logger.debug('QInputDialogSetLimits::__init__()')
+        super(QInputDialogSetLimits, self).__init__(parent)
         layout = QFormLayout()
         self.Label1 = QLabel(self.tr('vmin'))
         self.Label2 = QLabel(self.tr('vmax'))
@@ -3648,12 +4750,15 @@ class QInputDialogSetColorBarLimits(QDialog):
         self.LineEdit1.setValidator(QRegExpValidator(QRegExp(r'^([0-9eE .+-]+)$')))
         self.LineEdit2.setValidator(QRegExpValidator(QRegExp(r'^([0-9eE .+-]+)$')))
         self.setLayout(layout)
-        self.setWindowTitle(self.tr('Set Color Bar Limits'))
+        if title is None:
+            self.setWindowTitle(self.tr('Set Color Bar Limits'))
+        else:
+            self.setWindowTitle(title)
         self.setMinimumWidth(400)
         self.setMinimumHeight(100)
     
     def getResults(self):
-        logger.debug('QInputDialogSetColorBarLimits::getResults()')
+        #logger.debug('QInputDialogSetLimits::getResults()')
         if self.exec_() == QDialog.Accepted:
             # get all values
             val1 = float(self.LineEdit1.text())
@@ -3671,10 +4776,10 @@ class QInputDialogSetColorBarLimits(QDialog):
 
 
 
-# 
+#
 # class QFitsImageWidget
 # for ImageA, ImageB, ImageC, ImageD, ImageE
-# 
+#
 class QFitsImageWidget(FigureCanvasQTAgg):
     
     PixelSelectedSignal = pyqtSignal(PixCoord)
@@ -3719,7 +4824,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
         self.StoredRegions = []
         self.StoredPositionVelocityRidges = []
         self.SelectingMode = self.PixelMode
-        self.PreviouslySelectedPixelCoord = None # 
+        self.PreviouslySelectedPixelCoord = None #
         self.PreviouslySelectedPixels = None # for adding pixels in polygon selection mode
         self.PlottedImshow = None
         self.PlottedContour = None
@@ -3743,7 +4848,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
             self.cax.tick_params(labelsize='small')
             #self.cax.yaxis.set_major_formatter(ticker.FuncFormatter(self.__colorbar_number_formatter__))
             self.caxorientation = "vertical"
-        # 
+        #
         super(QFitsImageWidget, self).__init__(self.fig)
         self.mpl_connect('button_press_event', self.mplMousePressEvent)
         self.mpl_connect('motion_notify_event', self.mplMouseMoveEvent)
@@ -3752,14 +4857,14 @@ class QFitsImageWidget(FigureCanvasQTAgg):
         self.setCursor(Qt.CrossCursor)
         #self.setStyleSheet('.QWidget{border: 2px solid black; border-radius: 2px; background-color: rgb(0, 0, 0);}')
         self.setMinimumSize(50, 50)
-        # 
+        #
         self.ContextMenu = QMenu()
         self.ActionSetColorBarLimits = QAction('Set Color Bar limits')
         self.ActionSetColorBarLimits.triggered.connect(self.onActionSetColorBarLimits)
         self.ContextMenu.addAction(self.ActionSetColorBarLimits)
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onImageViewerContextMenuCall)
-        # 
+        #
         if title is not None:
             self.axes.set_title(title)
     
@@ -3769,14 +4874,14 @@ class QFitsImageWidget(FigureCanvasQTAgg):
     def setImageWCS(self, data_image_wcs):
         self.dataimagewcs = data_image_wcs
     
-    def showImage(self, 
-            image=None, cmap='viridis', extent=None, vmin=None, vmax=None, 
-            selected_pixel=None, selected_pixel_color='k', selected_pixel_alpha=0.9, selected_pixel_linewidth=1.5, 
-            selected_polygon=None, selected_polygon_color='k', selected_polygon_alpha=0.9, selected_polygon_linewidth=1.5, 
-            selected_polygon_closed=True, 
-            clear_plot=True, clear_selected_pixel=True, clear_selected_polygon=True, 
-            with_contour=False, with_colorbar=False, clear_colorbar=False, 
-            with_title=None, with_title_color='k', 
+    def showImage(self,
+            image=None, cmap='viridis', extent=None, vmin=None, vmax=None,
+            selected_pixel=None, selected_pixel_color='k', selected_pixel_alpha=0.9, selected_pixel_linewidth=1.5,
+            selected_polygon=None, selected_polygon_color='k', selected_polygon_alpha=0.9, selected_polygon_linewidth=1.5,
+            selected_polygon_closed=True,
+            clear_plot=True, clear_selected_pixel=True, clear_selected_polygon=True,
+            with_contour=False, with_colorbar=False, clear_colorbar=False,
+            with_title=None, with_title_color='k',
             ):
         """
         selected_chunk are filled with color from zero baseline to y value.
@@ -3808,11 +4913,11 @@ class QFitsImageWidget(FigureCanvasQTAgg):
             if self.PlottedImshow is None:
                 imshow_params = {'origin':'lower', 'interpolation':'nearest', 'cmap':cmap, 'extent':extent}
                 self.PlottedImshow = self.axes.imshow(self.dataimage, **imshow_params)
-                # 
+                #
                 # fix axes range
                 self.axes.set_xlim([extent[0], extent[1]])
                 self.axes.set_ylim([extent[2], extent[3]])
-                # 
+                #
                 if with_contour:
                     contour_params = {'origin':'lower', 'colors':'white', 'linewidths':0.605, 'alpha':0.85}
                     contour_params['extent'] = extent
@@ -3827,11 +4932,11 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                     #vmax = np.nanpercentile(self.dataimage.ravel(), 100.0)
                 self.PlottedImshow.set_clim(vmin=vmin, vmax=vmax)
                 self.PlottedImshow.set_extent(extent)
-                # 
+                #
                 # fix axes range
                 self.axes.set_xlim([extent[0], extent[1]])
                 self.axes.set_ylim([extent[2], extent[3]])
-                # 
+                #
                 if with_contour:
                     #if self.PlottedContour:
                     #    print('self.PlottedContour.collections', self.PlottedContour.collections)
@@ -3843,7 +4948,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                     if extent is not None:
                         contour_params['extent'] = extent
                     self.PlottedContour = self.axes.contour(self.dataimage, **contour_params)
-            # 
+            #
             if with_colorbar:
                 if clear_colorbar and self.PlottedColorbar is not None:
                     self.PlottedColorbar.remove()
@@ -3855,45 +4960,45 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                 #else:
                 #    self.PlottedColorbar.set_clim(vmin=np.nanmin(self.dataimage), vmax=np.nanmax(self.dataimage))
                 #    self.PlottedColorbar.draw_all()
-            # 
+            #
             if with_title is not None:
                 self.axes.set_title(with_title, color=with_title_color)
                 #self.axes.text(0.5, 1.02, with_title, ha='center', va='bottom', transform=self.axes.transAxes, color=with_title_color)
-            # 
+            #
             self.update()
-        # 
+        #
         # check image array
         if self.dataimage is None:
             return False
-        # 
+        #
         # highlight selected pixel
         if selected_pixel is not None:
             print('QFitsImageWidget::showImage()', 'selected_pixel', selected_pixel, 'value', self.dataimage[selected_pixel[1], selected_pixel[0]], 'widget name', self.name)
             pobj = Rectangle(
-                [selected_pixel[0]-0.5, selected_pixel[1]-0.5], 
-                1, 1, 
-                linewidth=selected_pixel_linewidth, 
-                edgecolor=selected_pixel_color, 
-                facecolor='none', 
-                alpha=selected_pixel_alpha, 
+                [selected_pixel[0]-0.5, selected_pixel[1]-0.5],
+                1, 1,
+                linewidth=selected_pixel_linewidth,
+                edgecolor=selected_pixel_color,
+                facecolor='none',
+                alpha=selected_pixel_alpha,
                 zorder=99)
             self.axes.add_artist(pobj)
             self.PlottedPixel.append(pobj)
-        # 
+        #
         # highlight selected polygon
         if selected_polygon is not None:
             #print('QFitsImageWidget::showImage()', 'selected_polygon', selected_polygon)
             pobj = Polygon(
-                selected_polygon, 
+                selected_polygon,
                 closed=selected_polygon_closed,
-                linewidth=selected_polygon_linewidth, 
-                edgecolor=selected_polygon_color, 
-                facecolor='none', 
-                alpha=selected_polygon_alpha, 
+                linewidth=selected_polygon_linewidth,
+                edgecolor=selected_polygon_color,
+                facecolor='none',
+                alpha=selected_polygon_alpha,
                 zorder=99)
             self.axes.add_artist(pobj)
             self.PlottedPolygon.append(pobj)
-        # 
+        #
         # update canvas
         self.draw()
         return True
@@ -3908,7 +5013,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                 #logger.debug('self.axes.get_xlim() = '+str(self.axes.get_xlim()))
                 #logger.debug('self.axes.get_ylim() = '+str(self.axes.get_ylim()))
                 #self.slit = self.axes.fill_between(**slit_shape_in_pixel, transform=self.axes.transData)
-                # 
+                #
                 # slit in rectangle
                 if self.slit is not None:
                     self.slit.remove()
@@ -3935,9 +5040,9 @@ class QFitsImageWidget(FigureCanvasQTAgg):
             self.SelectedPixel = PixCoord(x=x, y=y)
             if do_plot:
                 self.showImage(
-                    clear_plot=False, 
-                    clear_selected_pixel=True, 
-                    clear_selected_polygon=False, 
+                    clear_plot=False,
+                    clear_selected_pixel=True,
+                    clear_selected_polygon=False,
                     selected_pixel=(int(round(x)), int(round(y))))
             if emit_signal:
                 self.PixelSelectedSignal.emit(self.SelectedPixel)
@@ -3950,16 +5055,16 @@ class QFitsImageWidget(FigureCanvasQTAgg):
             if isinstance(region, PolygonPixelRegion):
                 polygon = [(t.x,t.y) for t in region.vertices]
             elif isinstance(region, CirclePixelRegion):
-                polygon = [(region.center.x+region.radius*np.cos(np.deg2rad(t)), 
+                polygon = [(region.center.x+region.radius*np.cos(np.deg2rad(t)),
                             region.center.y+region.radius*np.sin(np.deg2rad(t))) for t in np.arange(0, 360+15, 15)]
                 #<TODO># here we convert anything to polygon. will do better later.
             else:
                 polygon = region # here we assume the input is like [(1,2), (3,4), (5,6), ...]
             self.showImage(
-                clear_plot=False, 
-                clear_selected_pixel=False, 
-                clear_selected_polygon=True, 
-                selected_polygon=polygon, 
+                clear_plot=False,
+                clear_selected_pixel=False,
+                clear_selected_polygon=True,
+                selected_polygon=polygon,
                 selected_polygon_closed=closed,
                 with_contour=True,
                 )
@@ -3993,10 +5098,10 @@ class QFitsImageWidget(FigureCanvasQTAgg):
         print('QFitsImageWidget::setSelectedPositionVelocityRidge()', 'positions: %s, closed: %s'%(str(positions), closed))
         if self.axes is not None and self.dataimage is not None:
             self.showImage(
-                clear_plot=False, 
-                clear_selected_pixel=False, 
-                clear_selected_polygon=True, 
-                selected_polygon=positions, 
+                clear_plot=False,
+                clear_selected_pixel=False,
+                clear_selected_polygon=True,
+                selected_polygon=positions,
                 selected_polygon_closed=False,
                 with_contour=True,
                 ) # when drawing pv ridge, it is always a non-closed polygon
@@ -4023,13 +5128,13 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                 event.button, event.x, event.y, event.xdata, event.ydata))
             #print('QFitsImageWidget::mplMousePressEvent()', 'self.PreviouslySelectedPixels: %s'%(
             #    self.PreviouslySelectedPixels))
-            # 
+            #
             # if click in valid data area
             if event.xdata is not None and event.ydata is not None:
-                # If in Polygon mode, right click once to enter the polygon editing mode, left click to add pixels, 
-                # then right click again to end the polygon editing mode. 
-                # Currently we can only add pixels in the editing mode. 
-                # If left click while not in the editing mode, then select a region from the store. 
+                # If in Polygon mode, right click once to enter the polygon editing mode, left click to add pixels,
+                # then right click again to end the polygon editing mode.
+                # Currently we can only add pixels in the editing mode.
+                # If left click while not in the editing mode, then select a region from the store.
                 if self.SelectingMode == self.PolygonMode:
                     if event.button == MouseButton.RIGHT:
                         if self.PreviouslySelectedPixels is None:
@@ -4045,7 +5150,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                             self.PreviouslySelectedPixels.extend([(event.xdata, event.ydata)])
                             ok = self.setSelectedRegion(self.PreviouslySelectedPixels, closed=False)
                         else:
-                            # if we are not in polygon selection mode, i.e., self.PreviouslySelectedPixels is None, 
+                            # if we are not in polygon selection mode, i.e., self.PreviouslySelectedPixels is None,
                             # then left click still selects a pixel.
                             #ok = self.setSelectedPixel(event.xdata, event.ydata)
                             pix = PixCoord(x=event.xdata, y=event.ydata)
@@ -4059,10 +5164,10 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                                         ok = self.setSelectedRegion(reg, closed=True)
                                         break
                             self.PreviouslySelectedPixelCoord = pix
-                # 
-                # If in PositionVelocity mode, right click once to enter the position editing mode, left click to add pixels, 
-                # then right click again to end the position editing mode. 
-                elif self.SelectingMode == self.PositionVelocityMode: 
+                #
+                # If in PositionVelocity mode, right click once to enter the position editing mode, left click to add pixels,
+                # then right click again to end the position editing mode.
+                elif self.SelectingMode == self.PositionVelocityMode:
                     if event.button == MouseButton.RIGHT:
                         if self.PreviouslySelectedPixels is None:
                             self.unsetSelectedPositionVelocityRidge()
@@ -4078,7 +5183,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                             ok = self.setSelectedPositionVelocityRidge(self.PreviouslySelectedPixels, closed=False)
                         else:
                             pass
-                            ## if we are not in position selection mode, i.e., self.PreviouslySelectedPixels is None, 
+                            ## if we are not in position selection mode, i.e., self.PreviouslySelectedPixels is None,
                             ## then left click still selects a pixel.
                             ##ok = self.setSelectedPixel(event.xdata, event.ydata)
                             #pix = PixCoord(x=event.xdata, y=event.ydata)
@@ -4092,9 +5197,9 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                             #            ok = self.setSelectedPositionVelocityRidge(reg, closed=True)
                             #            break
                             #self.PreviouslySelectedPixelCoord = pix
-                # 
+                #
                 # If in Pixel mode, then left click to select a pixel.
-                elif self.SelectingMode == self.PixelMode: 
+                elif self.SelectingMode == self.PixelMode:
                     if event.button == MouseButton.LEFT:
                         # if left click and in Pixel mode, select a pixel
                         ok = self.setSelectedPixel(event.xdata, event.ydata)
@@ -4103,7 +5208,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
         if self.axes is not None and self.dataimage is not None:
             #print('QFitsImageWidget::mplMouseMoveEvent()', 'event.button: %s, event.x: %s, event.y: %s, event.xdata:%s, event.ydata:%s'%(
             #    event.button, event.x, event.y, event.xdata, event.ydata))
-            # 
+            #
             # if click in valid data area
             if event.xdata is not None and event.ydata is not None:
                 # if in Polygon mode
@@ -4119,7 +5224,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
                             if isinstance(self.SelectedRegion, PolygonPixelRegion):
                                 reg = PolygonPixelRegion(vertices=PixCoord(x=self.SelectedRegion.vertices.x+dx, y=self.SelectedRegion.vertices.y+dy))
                             elif isinstance(self.SelectedRegion, CirclePixelRegion):
-                                reg = CirclePixelRegion(center=PixCoord(x=self.SelectedRegion.center.x+dx, y=self.SelectedRegion.center.y+dy), 
+                                reg = CirclePixelRegion(center=PixCoord(x=self.SelectedRegion.center.x+dx, y=self.SelectedRegion.center.y+dy),
                                                         radius=self.SelectedRegion.radius)
                             else:
                                 raise NotImplementedError('Region type %s is not implemented!'%(type(self.SelectedRegion)))
@@ -4130,12 +5235,12 @@ class QFitsImageWidget(FigureCanvasQTAgg):
         if self.axes is not None and self.dataimage is not None:
             print('QFitsImageWidget::mplKeyPressEvent()', 'event.key: %s, event.x: %s, event.y: %s, event.xdata:%s, event.ydata:%s'%(
                 event.key, event.x, event.y, event.xdata, event.ydata))
-            # 
+            #
             # if click in valid data area
             if event.xdata is not None and event.ydata is not None:
-                # 
+                #
                 # If in Pixel mode or Polygon mode, then press V key to print the coordinate of a pixel.
-                if self.SelectingMode == self.PixelMode or self.SelectingMode == self.PolygonMode: 
+                if self.SelectingMode == self.PixelMode or self.SelectingMode == self.PolygonMode:
                     if event.key == 'v' or event.key == 'V':
                         # if press key 'v' or 'V' in Pixel mode, select a pixel and print its coordinate
                         ok = self.setSelectedPixel(event.xdata, event.ydata)
@@ -4168,7 +5273,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
             return
         else:
             vmin, vmax = self.PlottedImshow.get_clim()
-            inputDialog = QInputDialogSetColorBarLimits(vmin, vmax)
+            inputDialog = QInputDialogSetLimits(vmin, vmax)
             inputDialog.show()
             vmin, vmax = inputDialog.getResults()
             if vmin is not None and vmax is not None:
@@ -4202,7 +5307,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
     #                return True
     #        else:
     #            self.update()
-    #    return False 
+    #    return False
     
     #def setDataTransform(self):
     #    debug = 0
@@ -4270,33 +5375,33 @@ class QFitsImageWidget(FigureCanvasQTAgg):
     #        self.origin.setX((size.width() - scaledPixmap.width()) / 2)
     #        self.origin.setY((size.height() - scaledPixmap.height()) / 2)
     #        painter.drawPixmap(self.origin, scaledPixmap)
-    #        # 
+    #        #
     #        if self.datapixel is not None:
     #            rect = QRectF(self.transform.map(self.datapixel)+self.origin, QSizeF(self.scalefactor,self.scalefactor))
     #            #print('QFitsImageWidget::paintEvent()', 'self.datapixel', self.datapixel, 'rect', rect)
     #            pen = QPen(Qt.green, 2, Qt.SolidLine)
     #            painter.setPen(pen)
     #            painter.drawRect(rect)
-    #        # 
+    #        #
     #    super(QLabel, self).paintEvent(event)
     
     #def mousePressEvent(self, event):
     #    #print('QFitsImageWidget::mousePressEvent()')
     #    #print('QFitsImageWidget::mousePressEvent()', 'event.pos()', event.pos(), 'event.buttons()', event.buttons())
     #    #print('QFitsImageWidget::mousePressEvent()', 'self.origin', self.origin)
-    #    # 
+    #    #
     #    if self.scalefactor is not None:
     #        # select pixel to plot spectrum if left click
     #        if event.buttons() == Qt.LeftButton :
     #            #print('QFitsImageWidget::mousePressEvent()', 'Left clicked')
     #            ok = self.setDataPixelFromEventPos(event.pos())
-    #            # 
+    #            #
     #            # also print pixel value
     #            #pixval = np.nan
     #            #if ok: pixval = self.dataimage[self.datapixel.y(), self.datapixel.x()]
     #            #print('QFitsImageWidget::mousePressEvent()', 'scalefactor: %s, event.pos(): %s, data pixel: %s (%s), pixel value: %s'%(\
     #            #    self.scalefactor, event.pos(), self.DataPixelF, self.datapixel, pixval))
-    #        # 
+    #        #
     #        if event.buttons() == Qt.RightButton :
     #            #print('QFitsImageWidget::mousePressEvent()', 'Right clicked')
     #            #if QApplication.keyboardModifiers() == Qt.ControlModifier:
@@ -4304,7 +5409,7 @@ class QFitsImageWidget(FigureCanvasQTAgg):
     #            pass
     
     #def mouseMoveEvent(self, event):
-    #    # 
+    #    #
     #    if self.scalefactor is not None:
     #        # select pixel to plot spectrum
     #        if event.buttons() == Qt.LeftButton :
@@ -4352,12 +5457,22 @@ class QSpectrumWidget(FigureCanvasQTAgg):
         self.setCursor(Qt.CrossCursor)
         self.setStyleSheet('.QWidget{border: 2px solid black; border-radius: 2px; background-color: rgb(255, 255, 255);}')
         self.setMinimumSize(100, 100)
-        # 
+        #
+        self.ContextMenu = QMenu()
+        self.ActionSetXLimits = QAction('Set X limits')
+        self.ActionSetYLimits = QAction('Set Y limits')
+        self.ActionSetXLimits.triggered.connect(self.onActionSetXLimits)
+        self.ActionSetYLimits.triggered.connect(self.onActionSetYLimits)
+        self.ContextMenu.addAction(self.ActionSetXLimits)
+        self.ContextMenu.addAction(self.ActionSetYLimits)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.onSpecViewerContextMenuCall)
+        #
         if not tight_layout:
             #self.fig.subplots_adjust(left=0.18, right=0.98, bottom=0.13, top=0.87) #<TODO># adjust this
             self.fig.subplots_adjust(left=0.01, right=0.80, bottom=0.13, top=0.87) #<TODO># adjust this
             self.axes.yaxis.tick_right()
-        # 
+        #
         if title is not None:
             self.axes.set_title(title)
     
@@ -4374,17 +5489,17 @@ class QSpectrumWidget(FigureCanvasQTAgg):
         #print('QSpectrumWidget::determinePlotLimits()', 'xlim', [xmin-xmargin*xdiv, xmax+xmargin*xdiv], 'ylim', [ymin-ymargin*ydiv, ymax+ymargin*ydiv])
         return [xmin-xmargin*xdiv, xmax+xmargin*xdiv], [ymin-ymargin*ydiv, ymax+ymargin*ydiv]
     
-    def plotSpectrum(self, 
-            x=None, y=None, 
-            xerr=None, yerr=None, 
-            xtype=None, ytype=None, 
-            xunit=None, yunit=None, 
-            color='C0', drawstyle='steps-mid', linestyle='solid', linewidth=1.0, label='__none__', 
-            plot_zero_line=True, update_xylimits=True, 
-            selected_chunk=None, selected_chunk_baseline=0.0, selected_chunk_color='yellow', selected_chunk_alpha=0.8, 
-            selected_channel=None, selected_channel_color='cyan', selected_channel_alpha=0.8, 
-            clear_plot=True, clear_text=True, clear_selected_chunk=True, clear_selected_channel=True, 
-            **kwargs, 
+    def plotSpectrum(self,
+            x=None, y=None,
+            xerr=None, yerr=None,
+            xtype=None, ytype=None,
+            xunit=None, yunit=None,
+            color='C0', drawstyle='steps-mid', linestyle='solid', linewidth=1.0, label='__none__',
+            plot_zero_line=True, update_xylimits=True,
+            selected_chunk=None, selected_chunk_baseline=0.0, selected_chunk_color='yellow', selected_chunk_alpha=0.8,
+            selected_channel=None, selected_channel_color='cyan', selected_channel_alpha=0.8,
+            clear_plot=True, clear_text=True, clear_selected_chunk=True, clear_selected_channel=True,
+            **kwargs,
             ):
         """
         selected_chunk are filled with color from zero baseline to y value.
@@ -4413,7 +5528,10 @@ class QSpectrumWidget(FigureCanvasQTAgg):
                     continue
                 elif not clear_text and axitem in self.axes.texts:
                     continue
-                axitem.remove()
+                try:
+                    axitem.remove()
+                except:
+                    pass
         # plot spectrum
         if x is not None and y is not None:
             self.xarray = np.array(x)
@@ -4438,11 +5556,11 @@ class QSpectrumWidget(FigureCanvasQTAgg):
             # plot zero line
             if plot_zero_line:
                 self.axes.plot(xlim, [0.0, 0.0], ls='dotted', lw=0.5, color='k')
-        # 
+        #
         # check x y arrays
         if self.xarray is None or self.yarray is None:
             return False
-        # 
+        #
         # highlight channel chunks
         # ('selected_chunk' contains channel index starting from 0)
         # ('selected_chunk' should contain pairs of channels)
@@ -4467,28 +5585,28 @@ class QSpectrumWidget(FigureCanvasQTAgg):
                     highlighting_xarray = self.xarray[ichan1:ichan2+1]
                     highlighting_yarray = self.yarray[ichan1:ichan2+1]
                     hbar = self.axes.bar(
-                        highlighting_xarray, 
-                        highlighting_yarray, 
-                        width=self.channelwidth, 
-                        align='center', 
-                        edgecolor='none', 
-                        facecolor=selected_chunk_color, 
+                        highlighting_xarray,
+                        highlighting_yarray,
+                        width=self.channelwidth,
+                        align='center',
+                        edgecolor='none',
+                        facecolor=selected_chunk_color,
                         alpha=selected_chunk_alpha)
                     self.PlottedChunk.append(hbar)
-        # 
+        #
         # highlight current channel, fill between ylim[0] to ylim[1]
         if selected_channel is not None:
             ichan = int(round(selected_channel))
             if ichan < 0: ichan = 0
             if ichan > len(self.xarray)-1: ichan = len(self.xarray)-1
             pobj = self.axes.fill_between(
-                [self.xarray[ichan]-self.channelwidth/2., self.xarray[ichan]+self.channelwidth/2.], 
-                [self.axes.get_ylim()[0], self.axes.get_ylim()[0]], 
-                [self.axes.get_ylim()[1], self.axes.get_ylim()[1]], 
-                color=selected_channel_color, 
+                [self.xarray[ichan]-self.channelwidth/2., self.xarray[ichan]+self.channelwidth/2.],
+                [self.axes.get_ylim()[0], self.axes.get_ylim()[0]],
+                [self.axes.get_ylim()[1], self.axes.get_ylim()[1]],
+                color=selected_channel_color,
                 alpha=selected_channel_alpha)
             self.PlottedChannel.append(pobj)
-        # 
+        #
         # plot axis label
         xlabel = ''
         if xtype is not None:
@@ -4504,7 +5622,7 @@ class QSpectrumWidget(FigureCanvasQTAgg):
             ylabel = (ylabel+' '+'['+yunit+']').strip()
         if ylabel != '':
             self.axes.set_ylabel(ylabel)
-        # 
+        #
         # update canvas
         self.draw()
         return True
@@ -4564,16 +5682,47 @@ class QSpectrumWidget(FigureCanvasQTAgg):
     #def mousePressEvent(self, event):
     #    #print('QSpectrumWidget::mousePressEvent()')
     #    #print('QSpectrumWidget::mousePressEvent()', 'event.pos()', event.pos(), 'event.buttons()', event.buttons())
-    #    # 
+    #    #
     #    if self.axes is not None:
     #        # hightlight channel if left click
     #        if event.buttons() == Qt.LeftButton :
     #            #print('QSpectrumWidget::mousePressEvent()', 'Left clicked')
     #            #self.setSelectedChannelFromEventPos(event.pos())
-    #        # 
+    #        #
     #        if event.buttons() == Qt.RightButton :
     #            #print('QSpectrumWidget::mousePressEvent()', 'Right clicked')
     #            pass
+    
+    
+    @pyqtSlot(QPoint)
+    def onSpecViewerContextMenuCall(self, point):
+        self.ContextMenu.exec_(self.mapToGlobal(point))
+    
+    
+    @pyqtSlot()
+    def onActionSetXLimits(self):
+        logger.debug('QSpectrumWidget::onActionSetXLimits()')
+        vmin, vmax = self.axes.get_xlim()
+        inputDialog = QInputDialogSetLimits(vmin, vmax, title = self.tr("Set x-axis limits"))
+        inputDialog.show()
+        vmin, vmax = inputDialog.getResults()
+        if vmin is not None and vmax is not None:
+            self.axes.set_xlim([vmin, vmax])
+            self.draw()
+            self.update()
+    
+    
+    @pyqtSlot()
+    def onActionSetYLimits(self):
+        logger.debug('QSpectrumWidget::onActionSetYLimits()')
+        vmin, vmax = self.axes.get_ylim()
+        inputDialog = QInputDialogSetLimits(vmin, vmax, title = self.tr("Set y-axis limits"))
+        inputDialog.show()
+        vmin, vmax = inputDialog.getResults()
+        if vmin is not None and vmax is not None:
+            self.axes.set_ylim([vmin, vmax])
+            self.draw()
+            self.update()
 
 
 
@@ -4583,27 +5732,68 @@ class QSpectrumWidget(FigureCanvasQTAgg):
 
 
 
-# 
+#
 # MAIN
-# 
+#
 if __name__ == '__main__':
     
     # read user input
     #DataFile = sys.argv[1]
-    
+    input_param_file = ''
+    input_debug_mode = False
+    if len(sys.argv) > 1:
+        iarg = 1
+        while iarg < len(sys.argv):
+            argstr = sys.argv[iarg]
+            if argstr.startswith('-'):
+                argstr = re.sub(r'^[-]+', r'-', argstr.lower())
+                if argstr == '-debug':
+                    input_debug_mode = True
+                    print('input_debug_mode = %s'%(input_debug_mode))
+            else:
+                if input_param_file == '' and sys.argv[iarg].endswith('.params'):
+                    input_param_file = sys.argv[iarg]
+                    print('input_param_file = %r'%(input_param_file))
+            iarg += 1
     # 
-    app = QApplication(sys.argv)
+    if input_debug_mode:
+        logger.setLevel(logging.DEBUG)
+        galaxy.logger.setLevel(logging.DEBUG)
+        lensing.logger.setLevel(logging.DEBUG)
+        utils_least_chi_squares_1d_fitter.logger.setLevel(logging.DEBUG)
+        if 'DysmalPy' in logging.root.manager.loggerDict:
+            logging.getLogger('DysmalPy').setLevel(logging.DEBUG)
+    # print('logging.getLevelName(logger.level)', logging.getLevelName(logger.level))
+    # print('logging.getLevelName(logging.getLogger(__name__).level)', logging.getLevelName(logging.getLogger(__name__).level))
+    
+    #
+    app = QApplication([sys.argv[0]])
     
     ScreenSize = app.primaryScreen().size()
     
     logger.debug('ScreenSize = ' + str(ScreenSize.width()) + ', ' + str(ScreenSize.height()))
 
-    w = QDysmalPyGUI(ScreenSize=ScreenSize)
+    # manager = multiprocessing.Manager()
+    # queue = manager.Queue()
+    # # tower = QDysmalPyFittingTower(basequeue=queue)
+    # starship = QDysmalPyFittingStarship(queue = queue)
+    # starship.start()
+    # starship.join()
+    #
+    # time.sleep(30)
+    
+    w = QDysmalPyGUI(ScreenSize = ScreenSize)
     #w.resize(250, 150)
     #w.move(300, 300)
     #w.setWindowTitle('Simple')
     w.show()
-
+    
+    # load user input param file
+    if input_param_file != '':
+        w.selectParamFile(input_param_file)
+    
+    
+    # exec
     sys.exit(app.exec_())
 
 
