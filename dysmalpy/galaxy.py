@@ -890,7 +890,7 @@ class Galaxy:
                                 this_fitting_mask = copy.copy(self.data.mask)
                             else:
                                 this_fitting_mask = 'auto'
-                            if logger.level == logging.DEBUG:
+                            if logger.level > logging.DEBUG:
                                 this_fitting_verbose = True
                             else:
                                 this_fitting_verbose = False
