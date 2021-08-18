@@ -517,7 +517,7 @@ void LeastChiSquares1D::runFitting(\
     if ( (this->DebugCode >= 2) || (verbose >= 2) ) {
         std::cout << "LeastChiSquares1D::runFitting() gsl_multifit_nlinear_driver done, niter = " << niter << ", status = " << status << ", info = " << info << std::endl; 
     }
-    if ( status != GSL_SUCCESS ) {
+    if ( ( status != GSL_SUCCESS ) && ( (this->DebugCode >= 2) || (verbose >= 2) ) ) {
         std::cout << "LeastChiSquares1D::runFitting() gsl_multifit_nlinear_driver niter = " << niter << ", status = " << status << ", info = " << info << ", status error message: \"" << gsl_strerror(status) << "\"" << ", info error message: \"" << gsl_strerror(info) << "\"" << std::endl;
     }
     
