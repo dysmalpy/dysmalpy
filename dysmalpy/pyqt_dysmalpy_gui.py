@@ -64,7 +64,7 @@ from threading import Thread
 
 from dysmalpy import galaxy, models, fitting, instrument, parameters, plotting, config, data_classes
 from dysmalpy.fitting_wrappers import utils_io
-from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D
+from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D, plot_bundle_2D
 from dysmalpy.fitting_wrappers.dysmalpy_fit_single import dysmalpy_fit_single
 from dysmalpy.fitting_wrappers.setup_gal_models import (setup_gal_model_base,
         setup_single_object_1D, setup_single_object_2D, setup_single_object_3D,
@@ -1053,12 +1053,18 @@ class QDysmalPyGUI(QMainWindow):
                      datatype=bool,
                      checkbox=True,
                      default='True')
+        self.CheckBoxModelParamsDict['mvirial_tied'] = QWidgetForParamInput(\
+                     keyname=self.tr('mvirial_tied'),
+                     keycomment=self.tr("For NFW, mvirial_tied=True determines Mvirial from fDM (at r_eff_disk)."),
+                     datatype=bool,
+                     checkbox=True,
+                     default='False')
         self.CheckBoxModelParamsDict['fdm_tied'] = QWidgetForParamInput(\
                      keyname=self.tr('fdm_tied'),
                      keycomment=self.tr("For NFW, fdm_tied=True determines fDM from Mvirial (+baryons)."),
                      datatype=bool,
                      checkbox=True,
-                     default='False')
+                     default='True')
         self.CheckBoxModelParamsDict['zcalc_truncate'] = QWidgetForParamInput(\
                      keyname=self.tr('zcalc_truncate'),
                      keycomment=self.tr("If True, the cube is only filled with flux to within +- 2 * scale length thickness above and below the galaxy midplane"),
@@ -1630,6 +1636,9 @@ class QDysmalPyGUI(QMainWindow):
                 self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['moment_calc']==False))
                 self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False, blocksignal=True)
                 self.DysmalPyParams['gauss_extract_with_c'] = self.CheckBoxModelParamsDict[key].keyvalue()
+                # 'gauss_extract_with_c' is enabled in default in our GUI, 
+                # if it is not specified in the params file, 
+                # but 'moment_calc' is specified in params and is set to False. 
         #
         # check data file data directory, see if we can proceed to load existing best fit result
         errormessages = []
@@ -1776,7 +1785,7 @@ class QDysmalPyGUI(QMainWindow):
         if self.DysmalPyFittingTower.model_cube is None:
             self.logMessage(self.tr('Error! No valid model cube! Could not save to FITS file.'))
             return
-        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube)
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube_data_array)
     
     @pyqtSlot()
     def onSaveModelFluxCall(self):
@@ -1816,7 +1825,7 @@ class QDysmalPyGUI(QMainWindow):
         """Save all model cube, moment maps and figures.
         """
         errormessages = []
-        if self.DysmalPyFittingTower.model_cube is None:
+        if self.DysmalPyFittingTower.model_cube_data_array is None:
             errormessages.append(self.tr('Error! No valid model cube! Could not save the FITS file.'))
         if self.DysmalPyFittingTower.model_flux_map is None:
             errormessages.append(self.tr('Error! No valid model flux map! Could not save the FITS file.'))
@@ -1836,7 +1845,9 @@ class QDysmalPyGUI(QMainWindow):
             self.logMessage(self.tr('No file selected. No file saved.'))
             return
         filepath = re.sub(r'^(.*)\.fits$', r'\1', filepath)
-        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube, filepath=filepath+'_model_cube.fits')
+        self.saveFitsFile(data=self.DysmalPyFittingTower.model_cube_data_array, 
+                          header=self.DysmalPyFittingTower.model_cube_header_info, 
+                          filepath=filepath+'_model_cube.fits')
         self.saveFitsFile(data=self.DysmalPyFittingTower.model_flux_map, filepath=filepath+'_model_flux_map.fits')
         self.saveFitsFile(data=self.DysmalPyFittingTower.model_vel_map, filepath=filepath+'_model_vel_map.fits')
         self.saveFitsFile(data=self.DysmalPyFittingTower.model_disp_map, filepath=filepath+'_model_disp_map.fits')
@@ -2277,7 +2288,8 @@ class QDysmalPyGUI(QMainWindow):
                 if self.DysmalPyFittingTower.DysmalPyFitResultFile is not None:
                     if os.path.exists(self.DysmalPyFittingTower.DysmalPyFitResultFile):
                         has_bestfit = True
-                if self.DysmalPyFittingTower.model_cube is not None:
+                # if self.DysmalPyFittingTower.model_cube is not None:
+                if self.DysmalPyFittingTower.model_cube_data_array is not None:
                     has_model = True
         self.ButtonInitRandomParams.setEnabled(has_gui)
         self.ButtonOpenParamsFile.setEnabled(has_gui)
@@ -2364,7 +2376,9 @@ class QDysmalPyGUI(QMainWindow):
                 'fit_data',
                 ( self.DysmalPyParams, ),
                 { 'do_fit': doFit,
-                  'overwrite': self.DysmalPyParams['overwrite'] }
+                  'overwrite': self.DysmalPyParams['overwrite'], 
+                  'param_filename': self.DysmalPyParamFile, 
+                }
             )
         )
     
@@ -2409,8 +2423,8 @@ class QDysmalPyGUI(QMainWindow):
             (
                 'command',
                 'generate_moment_maps',
-                ( self.DysmalPyFittingTower.DysmalPyParams,
-                  self.DysmalPyFittingTower.DysmalPyGal ),
+                ( self.DysmalPyParams,
+                  None ),
                 { }
             )
         )
@@ -2427,13 +2441,13 @@ class QDysmalPyGUI(QMainWindow):
         self.setButtonsEnabledDisabled(allDisabled=True)
         # pass data to DysmalPyFittingTower, which will be redirected to DysmalPyFittingStarship
         # self.DysmalPyFittingTower.BaseQueue.put( ('command', 'selectStarshipName', 'M66') )
-        self.DysmalPyFittingTower.BaseQueue.put( ('data', 'DysmalPyParams', self.DysmalPyParams) )
+        # self.DysmalPyFittingTower.BaseQueue.put( ('data', 'DysmalPyParams', self.DysmalPyParams) )
         self.DysmalPyFittingTower.BaseQueue.put(
             (
                 'command',
                 'generate_rotation_curves',
-                ( self.DysmalPyFittingTower.DysmalPyParams,
-                  self.DysmalPyFittingTower.DysmalPyGal ),
+                ( self.DysmalPyParams,
+                  None ),
                 { }
             )
         )
@@ -2476,6 +2490,7 @@ class QDysmalPyGUI(QMainWindow):
         pass
     
     def updateFittingParams(self):
+        self.logger.debug('updateFittingParams()')
         if self.DysmalPyFittingTower.DysmalPyFitResults is not None:
             # self.DysmalPyFittingTower.BaseQueue( ('command', 'sendDataToBase', 'DysmalPyFitResults') )
             free_param_names = self.DysmalPyFittingTower.DysmalPyFitResults.free_param_names
@@ -2495,6 +2510,8 @@ class QDysmalPyGUI(QMainWindow):
                     ipar += 1
             #for key in bestfit_parameters:
             #    self.logger.debug("bestfit_parameters[%r] = %r"%(key, bestfit_parameters[key]))
+        else:
+            self.logger.debug('updateFittingParams did nothing')
         return
     
     def getSlitShapeInPixel(self):
@@ -2652,7 +2669,7 @@ class QDysmalPyFittingTower(QObject, Thread):
         self.DysmalPyFitResults = None
         self.DysmalPyFitResultFile = None
         #
-        self.data_cube = None
+        # self.data_cube = None
         self.data_flux_map = None
         self.data_vel_map = None
         self.data_disp_map = None
@@ -2661,7 +2678,9 @@ class QDysmalPyFittingTower(QObject, Thread):
         self.data_vel_curve = None
         self.data_disp_curve = None
         self.data_rotation_curve = None
-        self.model_cube = None
+        # self.model_cube = None
+        self.model_cube_data_array = None
+        self.model_cube_header_info = None
         self.model_flux_map = None
         self.model_vel_map = None
         self.model_disp_map = None
@@ -2683,9 +2702,13 @@ class QDysmalPyFittingTower(QObject, Thread):
         self.lensing_transformer_source_plane_data_info = None
         #
         self.list_of_data_attr = [
-            'data_cube', 'data_flux_map', 'data_vel_map', 'data_disp_map', 'data_mask_map',
+            'DysmalPyFitResults', 'DysmalPyFitResultFile', 
+            # 'data_cube', # -- can not be pickle'd thus can not be put into shared dict
+            'data_flux_map', 'data_vel_map', 'data_disp_map', 'data_mask_map',
             'data_flux_curve', 'data_vel_curve', 'data_disp_curve', 'data_rotation_curve',
-            'model_cube', 'model_flux_map', 'model_vel_map', 'model_disp_map',
+            # 'model_cube', # -- can not be pickle'd thus can not be put into shared dict
+            'model_cube_data_array', 'model_cube_header_info', 
+            'model_flux_map', 'model_vel_map', 'model_disp_map',
             'model_flux_curve', 'model_vel_curve', 'model_disp_curve', 'model_rotation_curve',
             'residual_flux_map', 'residual_vel_map', 'residual_disp_map',
             'residual_flux_curve', 'residual_vel_curve', 'residual_disp_curve', 'residual_rotation_curve',
@@ -2771,11 +2794,17 @@ class QDysmalPyFittingTower(QObject, Thread):
         if data_type in self.list_of_data_attr:
             if this_ship_id in self.starships:
                 if data_type in self.shares[this_ship_id]:
+                    self.logger.debug('copyDataFromSharedDict is setting ' + str(data_type))
                     setattr(self, data_type, self.shares[this_ship_id][data_type])
                 else:
+                    self.logger.debug('copyDataFromSharedDict is setting to None')
                     setattr(self, data_type, None)
             else:
+                self.logger.debug('copyDataFromSharedDict is setting to None')
                 setattr(self, data_type, None)
+        else:
+            self.logger.debug('copyDataFromSharedDict can not set ' + str(data_type) + 
+                              'because it is not in self.list_of_data_attr')
     
     def run(self):
         #
@@ -2963,7 +2992,10 @@ class QDysmalPyFittingTower(QObject, Thread):
                                             self.vacancies[sender_id] = True
                                         self.logger.debug('queue signal ' + signal_name +
                                                           ' emitted as pyqtSignal')
-                                        this_signal.emit(*signal_content)
+                                        if len(signal_content) > 0:
+                                            this_signal.emit(*signal_content)
+                                        else:
+                                            this_signal.emit()
                             else:
                                 self.logger.error('queue_package is a signal with no name? discarding it!')
                         #
@@ -3044,7 +3076,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         self.logger.debug('proc id: %s, thread: %s, init'%(str(multiprocessing.current_process().pid),
                                                            str(hex(threading.currentThread().ident)))) # may not work
         #
-        self.daemon = True
+        # self.daemon = True
         #
         if ship_name is not None:
             self.ship_name = str(ship_name)
@@ -3060,7 +3092,8 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         self.busy = False
         #
         # self.params = None
-        # self.gal = None
+        self.param_filename = None
+        self.gal = None
         self.DysmalPyFitResults = None
         self.DysmalPyFitResultFile = None
         #
@@ -3079,6 +3112,8 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         self.data_disp_curve = None
         self.data_rotation_curve = None
         self.model_cube = None
+        self.model_cube_data_array = None
+        self.model_cube_header_info = None
         self.model_flux_map = None
         self.model_vel_map = None
         self.model_disp_map = None
@@ -3467,7 +3502,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         #
         return gal, fit_dict
     
-    def fit_data(self, params, do_fit = True, overwrite = False, block_signal = False):
+    def fit_data(self, params, do_fit = True, overwrite = False, param_filename = None, block_signal = False):
         #
         if not block_signal:
             self.emit_started()
@@ -3562,7 +3597,46 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
                     self.emit_finished_with_error()
                 return
             else:
+                self.log_message('Output to '+str(output_pickle_file)+'.')
+            # 
+            # Save results
+            # see dysmalpy_fit_single.py
+            utils_io.save_results_ascii_files(
+                fit_results=fit_results, 
+                gal=gal, 
+                params=params,
+                overwrite=overwrite)
+            # 
+            # Save params file
+            # see dysmalpy_fit_single.py
+            # param_filename = os.path.join(params['outdir'], 'fit.params') #<TODO># always save as this file name
+            if param_filename is not None:
+                fitting.ensure_dir(params['outdir'])
+                utils_io.preserve_param_file(param_filename, params=params, 
+                                             datadir=params['datadir'], 
+                                             outdir=params['outdir'])
+                # 
+                # Make component plot
+                # see dysmalpy_fit_single.py
+                if fit_dict['do_plotting']:
+                    ndim = gal.data.ndim
+                    if ndim == 1:
+                        plot_bundle_1D(
+                            params=params, fit_dict=fit_dict, param_filename=param_filename,
+                            plot_type='pdf', overwrite=overwrite,
+                            **kwargs_galmodel)
+                    elif ndim == 2:
+                        plot_bundle_2D(
+                            params=params, param_filename=param_filename, 
+                            plot_type='pdf', overwrite=overwrite)
+                    elif ndim == 3:
+                        pass
+                    # 
+                    self.log_message('Successfully fitted the data and plotted the results.')
+            else:
+                # 
                 self.log_message('Successfully fitted the data.')
+            # 
         elif os.path.isfile(output_pickle_file):
             # load existing fitting result
             self.log_message('Loading previous fitting...')
@@ -3576,20 +3650,25 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             if not block_signal:
                 self.emit_finished_with_warning()
             return
-        #
+        # 
         self.data_cube = None
         if hasattr(gal, 'data'):
             if hasattr(gal.data, 'data'):
                 if gal.data.ndim == 3:
                     self.data_cube = copy.copy(gal.data.data)
         self.model_cube = copy.copy(gal.model_cube.data)
+        self.model_cube_data_array = self.model_cube._data
+        self.model_cube_header_info = self.model_cube._header
         # self.params = params
-        # self.gal = gal
+        self.gal = gal
         self.DysmalPyFitResults = fit_results
         self.DysmalPyFitResultFile = output_pickle_file
         # 
         self.send_data_to_queue(
-                ['data_cube', 'model_cube', 'DysmalPyFitResults', 'DysmalPyFitResultFile']
+                # ['data_cube', 'model_cube', 'DysmalPyFitResults', 'DysmalPyFitResultFile']
+                # ['model_cube', 'DysmalPyFitResults', 'DysmalPyFitResultFile'] # tower does not need data cube
+                ['model_cube_data_array', 'model_cube_header_info', 
+                 'DysmalPyFitResults', 'DysmalPyFitResultFile'] # tower does not need data cube
             )
         # 
         self.send_lensing_data_to_queue()
@@ -3672,6 +3751,9 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         from_data = False # must set from_data = False to let the input ndim_final = 3 in effect
         self.logger.debug("self.lensing_transformer " + str(self.lensing_transformer))
         self.logger.debug("kwargs_galmodel['lensing_transformer'] " + str(kwargs_galmodel['lensing_transformer']))
+        self.logger.debug("hasattr(gal, 'instrument') " + str(hasattr(gal, 'instrument')))
+        self.logger.debug("hasattr(gal, 'model') " + str(hasattr(gal, 'model')))
+        gal.model._update_tied_parameters()
         gal.create_model_data(\
                             ndim_final = ndim_final,
                             profile1d_type = profile1d_type,
@@ -3689,8 +3771,15 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         self.logger.debug("kwargs_galmodel['lensing_transformer'] " + str(kwargs_galmodel['lensing_transformer']))
         #
         self.model_cube = copy.copy(gal.model_cube.data)
+        self.model_cube_data_array = self.model_cube._data
+        self.model_cube_header_info = self.model_cube._header
+        # self.params = params
+        self.gal = gal
         # 
-        self.send_data_to_queue(['model_cube'])
+        self.send_data_to_queue(
+                # ['model_cube'] # can not pickle a SpectralCube
+                ['model_cube_data_array', 'model_cube_header_info']
+            )
         # 
         self.send_lensing_data_to_queue()
         #
@@ -3735,7 +3824,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
                     if hasattr(data_mask, 'shape'):
                         if len(data_mask.shape) in [2, 3]:
                             this_fitting_mask = copy.copy(data_mask)
-                if logger.level == logging.DEBUG:
+                if logger.level > logging.DEBUG:
                     this_fitting_verbose = True
                 else:
                     this_fitting_verbose = False
@@ -3771,7 +3860,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         # <DZLIU><20210805> ----------
         return flux, vel, disp
     
-    def generate_moment_maps(self, params, gal, block_signal = False):
+    def generate_moment_maps(self, params, gal = None, block_signal = False):
         if not block_signal:
             self.emit_started()
         #
@@ -3784,6 +3873,8 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             if not block_signal:
                 self.emit_finished_with_error()
             return
+        if gal is None:
+            gal = self.gal
         if gal is None:
             self.log_message('Error! DysmalPyGal is invalid! ' +
                              'Could not proceed to generate the moment maps. ' +
@@ -3937,7 +4028,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             self.emit_finished()
     
     #
-    def generate_rotation_curves(self, params, gal, block_signal = False):
+    def generate_rotation_curves(self, params, gal = None, block_signal = False):
         if not block_signal:
             self.emit_started()
         #
@@ -3950,6 +4041,8 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             if not block_signal:
                 self.emit_finished_with_error()
             return
+        if gal is None:
+            gal = self.gal
         if gal is None:
             self.log_message('Error! DysmalPyGal is invalid! ' +
                              'Could not proceed to generate the rotation curve. ' +

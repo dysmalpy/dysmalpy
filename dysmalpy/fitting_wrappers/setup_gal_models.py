@@ -600,7 +600,8 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
             if 'mvirial_tied' not in params.keys():
                 params['mvirial_tied'] = True
             else:
-                if (not params['mvirial_tied']):
+                # if (not params['mvirial_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
+                if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
                     # Override setting and make tied, as it can't be truly fixed
                     params['mvirial_tied'] = True
         elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
@@ -1114,7 +1115,8 @@ def _preprocess_halo_parameters(params=None):
             if 'mvirial_tied' not in params.keys():
                 params['mvirial_tied'] = True
             else:
-                if (not params['mvirial_tied']):
+                # if (not params['mvirial_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
+                if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
                     # Override setting and make tied, as it can't be truly fixed
                     params['mvirial_tied'] = True
         elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
