@@ -149,7 +149,7 @@ class TestFittingWrappers:
                           'dispprof': {'sigma0': 50.0}}
 
         # Check that best-fit values are the same
-        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=1, ftol=0.33)
+        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=1, ftol=0.05) # actually as good as 0.02
 
 
 
@@ -183,6 +183,16 @@ class TestFittingWrappers:
             assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
             # Assert all values of parameter i are finite:
             assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+        
+        # Assert best-fit values
+        dict_bf_values = {'disk+bulge': {'total_mass': 11.0,
+                                         'r_eff_disk': 12.0,
+                                         'bt': 0.1},
+                          'halo': {'mvirial': 12.5},
+                          'dispprof': {'sigma0': 50.0}}
+
+        # Check that best-fit values are the same
+        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=1, ftol=0.05) # actually as good as 0.02
 
 
     def test_2D_mpfit(self):
@@ -210,7 +220,7 @@ class TestFittingWrappers:
                           'geom': {'vel_shift': 34.25}}
 
         # Check that best-fit values are the same
-        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=2, ftol=0.5)
+        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=2, ftol=0.05) # actually as good as 0.01
 
 
     def test_3D_mpfit(self):
@@ -237,7 +247,7 @@ class TestFittingWrappers:
                           'dispprof': {'sigma0': 50.0}}
 
         # Check that best-fit values are the same
-        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3, ftol=0.5)
+        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3, ftol=0.08) # actually as good as 0.04
 
 
 
@@ -246,13 +256,15 @@ class TestFittingWrappers:
 
 if __name__ == '__main__':
     
-    #TestFittingWrappers().test_1D_mpfit()
+    TestFittingWrappers().test_1D_mpfit()
     
-    #TestFittingWrappers().test_1D_mcmc()
+    TestFittingWrappers().test_1D_mcmc()
     
     TestFittingWrappers().test_2D_mpfit()
     
-    print('lensing.cached_lensing_transformer_dict', lensing.cached_lensing_transformer_dict)
+    TestFittingWrappers().test_3D_mpfit()
+    
+    # print('lensing.cached_lensing_transformer_dict', lensing.cached_lensing_transformer_dict)
     
     print('All done!')
 

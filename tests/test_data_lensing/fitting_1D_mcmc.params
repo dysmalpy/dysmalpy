@@ -236,9 +236,9 @@ fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 # SHORT test values:
 nWalkers,            6      # Number of walkers. Must be even and >= 2x
                             #   the number of free parameters
-nCPUs,               2      # Number of CPUs to use for parallelization
-nBurn,               2      # Number of steps during burn-in
-nSteps,             12      # Number of steps for sampling
+nCPUs,               6      # Number of CPUs to use for parallelization
+nBurn,               1      # Number of steps during burn-in
+nSteps,              120    # Number of steps for sampling
 
 # Other parameters:
 scale_param_a,      3.

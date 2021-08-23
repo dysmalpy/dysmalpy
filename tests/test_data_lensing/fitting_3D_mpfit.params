@@ -174,7 +174,7 @@ fdm_stddev,          1.0
 sigma0,              50.0      # Constant intrinsic dispersion value
 
 # Fixed? True if its a fixed parameter, False otherwise
-sigma0_fixed,        True
+sigma0_fixed,        False
 
 # Prior bounds. Lower and upper bounds on the prior
 sigma0_bounds,       5.0 300.0
@@ -264,7 +264,7 @@ overwrite,         True
 
 # MPFIT Settings
 #----------------
-maxiter,         5          # Maximum number of iterations before mpfit quits
+maxiter,         200          # Maximum number of iterations before mpfit quits
 
 
 
