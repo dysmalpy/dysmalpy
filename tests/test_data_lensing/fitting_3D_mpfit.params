@@ -51,7 +51,7 @@ outdir,           PYTEST_OUTPUT/J0901_3D_out_mpfit/
 # Instrument Setup
 # ------------------
 pixscale,         0.2          # Pixel scale in arcsec/pixel
-fov_npix,          25          # Number of pixels on a side of model cube
+fov_npix,          30          # Number of pixels on a side of model cube
 spec_type,   velocity          # DON'T CHANGE!
 spec_start,     -1000.         # Starting value for spectral axis
 spec_step,         25.         # Step size for spectral axis in km/s
