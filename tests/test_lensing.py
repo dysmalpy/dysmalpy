@@ -33,6 +33,18 @@ _dir_tests_data = _dir_tests+'test_data_lensing/'
 
 
 class TestLensing():
+    
+    def _unzip_lens_mesh(self, mesh_file):
+        # unzip
+        if mesh_file.endswith('.gz'):
+            import gzip
+            import shutil
+            unzip_mesh_file = mesh_file.rstrip('.gz')
+            with gzip.open(mesh_file, 'rb') as f_in:
+                with open(unzip_mesh_file, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            mesh_file = unzip_mesh_file
+        return mesh_file
         
     def test_read_params(self):
         
@@ -54,14 +66,16 @@ class TestLensing():
         self.outdir = os.path.join(_dir_tests_data, self.params['outdir'])
         fitting.ensure_dir(self.outdir)
         assert os.path.isdir(self.outdir)
+        
+        self.params['lensing_mesh'] = self._unzip_lens_mesh(self.params['lensing_mesh'])
     
     
     def test_read_data(self):
         self.test_read_params()
         
         # load data cube
-        self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits'))
-        self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits'))
+        self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits.gz'))
+        self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits.gz'))
         
         print('self.data_cube', self.data_cube)
         print('self.data_mask', self.data_mask)
@@ -79,7 +93,7 @@ class TestLensing():
         assert hasattr(gal.model, 'simulate_cube')
         
         self.gal = gal
-
+    
 
     def test_object_construction(self):
         self.test_read_params()
