@@ -50,10 +50,8 @@ def check_output_files(outdir, list_files):
         # Assert all files in the expected list are found in the output directory
         assert lf in outfiles
 
-    # for of in outfiles:
-    #     assert of in list_files
 
-def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ftol=1.e-3):
+def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ftol=5.e-3):
     for compn in dict_bf_values.keys():
         for paramn in dict_bf_values[compn].keys():
             whm = np.where((results['component'].str.strip() == compn) & \
@@ -174,7 +172,7 @@ class TestFittingWrappers:
 
         # Assert lnprob values are all finite:
         assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
-        
+
         for i in range(results.sampler['nParam']):
             # Assert at least one walker moved at least once for parameter i
             assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
