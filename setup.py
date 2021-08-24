@@ -5,9 +5,9 @@ import os
 import re
 
 try:
-    from setuptools import setup
+    from setuptools import setup, Extension
 except:
-    from distutils.core import setup
+    from distutils.core import setup, Extension
 
 from Cython.Build import cythonize
 
@@ -53,5 +53,26 @@ setup(
     packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.fitting_wrappers'],
     package_data={'dysmalpy': ['data/noordermeer/*.save']},
     version=__version__,
-    ext_modules=cythonize("dysmalpy/cutils.pyx")
+    ext_modules=cythonize([
+                    "dysmalpy/cutils.pyx", 
+                    Extension("dysmalpy.lensingTransformer", 
+                        sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
+                        language="c++",
+                        include_dirs=["lensing_transformer", "/usr/include", "/usr/local/include"],
+                        libraries=['gsl', 'gslcblas', 'cfitsio'],
+                        lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
+                        depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
+                        extra_compile_args=['-std=c++11']
+                    ), 
+                    Extension("dysmalpy.leastChiSquares1D", 
+                        sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
+                        language="c++",
+                        include_dirs=["utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include"],
+                        libraries=['gsl', 'gslcblas', 'pthread'],
+                        lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
+                        depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
+                                "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
+                        extra_compile_args=['-std=c++11']
+                    )
+                 ])
 )

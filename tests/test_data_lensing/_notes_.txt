@@ -1,0 +1,8 @@
+testing data from 
+  1D: J0901/Mock_data_cubes/run_pyqt_dysmalpy_in_image_plane/outdir_psf0p2as_pix0p05as_fov6p85as_noi50_2D/output_bestfit_model_{vel,disp}_curve.json
+  2D: J0901/Mock_data_cubes/run_pyqt_dysmalpy_in_image_plane/datadir_psf0p2as_pix0p05as_fov6p85as_noi50_2D/
+  3D: J0901/Mock_data_cubes/run_pyqt_dysmalpy_in_image_plane/datadir_psf0p2as_pix0p2as_fov6p0as_3D/
+
+
+need latest spectral-cube >= 0.5.1 from github
+  pip install git+https://github.com/radio-astro-tools/spectral-cube.git
