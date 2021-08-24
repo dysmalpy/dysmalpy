@@ -183,6 +183,11 @@ class TestFittingWrappers:
             assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
             # Assert all values of parameter i are finite:
             assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+
+        # Load output, check results
+        f_ascii_machine = outdir_full+'{}_{}_best_fit_results.dat'.format(params['galID'],
+                                    params['fit_method'].strip().lower())
+        results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
         
         # Assert best-fit values
         dict_bf_values = {'disk+bulge': {'total_mass': 11.0,
