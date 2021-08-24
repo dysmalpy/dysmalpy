@@ -67,7 +67,12 @@ class TestLensing():
         fitting.ensure_dir(self.outdir)
         assert os.path.isdir(self.outdir)
         
-        self.params['lensing_mesh'] = self._unzip_lens_mesh(self.params['lensing_mesh'])
+        self.params['lensing_mesh'] = os.path.basename(
+            self._unzip_lens_mesh(
+                os.path.join(_dir_tests_data, 
+                    self.params['lensing_mesh'])
+            )
+        )
     
     
     def test_read_data(self):
