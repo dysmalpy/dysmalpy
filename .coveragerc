@@ -4,6 +4,7 @@ branch = False
 
 omit =
     *pyqt_dysmalpy_gui.py
+    *extern*
 
 
 [report]
