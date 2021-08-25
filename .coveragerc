@@ -3,7 +3,7 @@
 branch = False
 
 omit =
-    dysmalpy/pyqt_dysmalpy_gui.py
+    *pyqt_dysmalpy_gui.py
 
 
 [report]
@@ -26,6 +26,9 @@ exclude_lines =
 
     # Don't complain about abstract methods, they aren't run:
     @(abc\.)?abstractmethod
+    
+    # Don't complain about __bootstrap__():
+    def __bootstrap__():
 
 ignore_errors = True
 
