@@ -29,6 +29,7 @@ exclude_lines =
     
     # Don't complain about __bootstrap__():
     def __bootstrap__():
+    __bootstrap__()
 
 ignore_errors = True
 
