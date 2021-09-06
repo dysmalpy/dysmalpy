@@ -33,7 +33,12 @@ from dysmalpy import config
 import datetime
 from dysmalpy.lensing import setup_lensing_transformer_from_params
 from dysmalpy.lensing import LensingTransformer
-from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
+
+try:
+    from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
+    loaded_LeastChiSquares1D = True
+except:
+    loaded_LeastChiSquares1D = False
 
 __all__ = ['Galaxy']
 
@@ -673,26 +678,26 @@ class Galaxy:
 
         # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
         #                                          **sim_cube_kwargs.dict)
-        
-        
+
+
         # Apply lensing transformation if necessary
         this_lensing_transformer = None
         if 'lensing_transformer' in kwargs:
             if kwargs['lensing_transformer'] is not None:
                 this_lensing_transformer = kwargs['lensing_transformer']['0']
-        
+
         this_lensing_transformer = setup_lensing_transformer_from_params(\
-                params = kwargs, 
-                source_plane_nchan = nspec, 
-                image_plane_sizex = nx_sky * oversample * oversize, 
-                image_plane_sizey = ny_sky * oversample * oversize, 
-                image_plane_pixsc = rstep / oversample, 
-                reuse_lensing_transformer = this_lensing_transformer, 
-                cache_lensing_transformer = True, 
-                reuse_cached_lensing_transformer = True, 
-                verbose = (logger.level >= logging.DEBUG), 
+                params = kwargs,
+                source_plane_nchan = nspec,
+                image_plane_sizex = nx_sky * oversample * oversize,
+                image_plane_sizey = ny_sky * oversample * oversize,
+                image_plane_pixsc = rstep / oversample,
+                reuse_lensing_transformer = this_lensing_transformer,
+                cache_lensing_transformer = True,
+                reuse_cached_lensing_transformer = True,
+                verbose = (logger.level >= logging.DEBUG),
             )
-        
+
         if this_lensing_transformer is not None:
             sim_cube, spec = self.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,
                                                       ny_sky=this_lensing_transformer.source_plane_ny,
@@ -710,7 +715,7 @@ class Galaxy:
                                                       transform_method=transform_method,
                                                       zcalc_truncate=zcalc_truncate,
                                                       n_wholepix_z_min=n_wholepix_z_min)
-            
+
             logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
             if this_lensing_transformer.source_plane_data_cube is None:
                 this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
@@ -718,13 +723,13 @@ class Galaxy:
                 this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
             sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
             sim_cube[np.isnan(sim_cube)] = 0.0
-            
+
             # store back
             if 'lensing_transformer' in kwargs:
                 if kwargs['lensing_transformer'] is None:
                     kwargs['lensing_transformer'] = {'0': None}
                 kwargs['lensing_transformer']['0'] = this_lensing_transformer
-            
+
             # mask by data mask if available
             if self.data is not None:
                 if hasattr(self.data, 'mask'):
@@ -740,9 +745,9 @@ class Galaxy:
                                 sim_cube[~this_lensing_mask] = 0.0
             # oversample oversize
             logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
-            
+
         else:
-            
+
             sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
                                                       ny_sky=ny_sky,
                                                       dscale=self.dscale,
@@ -759,8 +764,8 @@ class Galaxy:
                                                       transform_method=transform_method,
                                                       zcalc_truncate=zcalc_truncate,
                                                       n_wholepix_z_min=n_wholepix_z_min)
-        
-        
+
+
         # Correct for any oversampling
         if (oversample > 1) & (not skip_downsample):
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
@@ -879,11 +884,11 @@ class Galaxy:
                     disp = np.zeros(mom0.shape)
                     # <DZLIU><20210805> ++++++++++
                     my_least_chi_squares_1d_fitter = None
-                    if 'gauss_extract_with_c' in kwargs:
+                    if ('gauss_extract_with_c' in kwargs) & (loaded_LeastChiSquares1D):
                         if kwargs['gauss_extract_with_c'] is not None and \
                            kwargs['gauss_extract_with_c'] is not False:
                             # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
-                            # but note that if a spectrum has data all too close to zero, it will fail. 
+                            # but note that if a spectrum has data all too close to zero, it will fail.
                             # try to prevent this by excluding too low data
                             if from_data:
                                 this_fitting_mask = copy.copy(self.data.mask)
@@ -895,12 +900,12 @@ class Galaxy:
                                 this_fitting_verbose = False
                             # do the least chisquares fitting
                             my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                                    x = self.model_cube.data.spectral_axis.to(u.km/u.s).value, 
-                                    data = self.model_cube.data.unmasked_data[:,:,:].value, 
-                                    dataerr = None, 
-                                    datamask = this_fitting_mask, 
+                                    x = self.model_cube.data.spectral_axis.to(u.km/u.s).value,
+                                    data = self.model_cube.data.unmasked_data[:,:,:].value,
+                                    dataerr = None,
+                                    datamask = this_fitting_mask,
                                     initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
-                                    nthread = 4, 
+                                    nthread = 4,
                                     verbose = this_fitting_verbose)
                     if my_least_chi_squares_1d_fitter is not None:
                         logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
@@ -908,7 +913,7 @@ class Galaxy:
                         flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
                         vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
                         disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
-                        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug 
+                        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
                         logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
                     else:
                         for i in range(mom0.shape[0]):

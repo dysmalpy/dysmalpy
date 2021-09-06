@@ -90,7 +90,7 @@ class Config_simulate_cube(ConfigBase):
         self.transform_method = 'direct'
         self.zcalc_truncate = True
         self.n_wholepix_z_min = 3
-        self.datadir = None # datadir for the lensing model mesh.dat
+        self.lensing_datadir = None # datadir for the lensing model mesh.dat
         self.lensing_mesh = None # lensing model mesh.dat
         self.lensing_ra = None # lensing model ref ra
         self.lensing_dec = None # lensing model ref dec

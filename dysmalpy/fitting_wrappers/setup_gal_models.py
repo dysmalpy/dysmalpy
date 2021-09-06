@@ -1458,8 +1458,8 @@ def setup_lensing_dict(params=None, append_to_dict=None):
     if append_to_dict is not None:
         if isinstance(append_to_dict, dict):
             lensing_dict = append_to_dict
-    for key in params.keys(): 
-        if key.startswith('lensing') or key == 'datadir': 
+    for key in params.keys():
+        if key.startswith('lensing'): 
             lensing_dict[key] = params[key]
     return lensing_dict
 

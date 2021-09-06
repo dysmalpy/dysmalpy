@@ -1,10 +1,11 @@
-lensing_mesh,              mesh.dat                                                       # Glafic lensing model mesh.dat file. 
-lensing_ra,                135.3434883                                                    # Lensing model reference WCS RA. 
-lensing_dec,               18.2418031                                                     # Lensing model reference WCS Dec. 
-lensing_sra,               135.3434046                                                    # Source plane map center RA. 
-lensing_sdec,              18.2421152                                                     # Source plane map center Dec. 
-lensing_ssizex,            200                                                            # Source plane map size in pixels. 
-lensing_ssizey,            200                                                            # Source plane map size in pixels. 
-lensing_spixsc,            0.02                                                           # Source plane map pixel size in units of arcsec. 
-lensing_imra,              135.3442283                                                    # Image plane map center RA. 
+lensing_mesh,              mesh.dat                                                       # Glafic lensing model mesh.dat file.
+lensing_ra,                135.3434883                                                    # Lensing model reference WCS RA.
+lensing_dec,               18.2418031                                                     # Lensing model reference WCS Dec.
+lensing_sra,               135.3434046                                                    # Source plane map center RA.
+lensing_sdec,              18.2421152                                                     # Source plane map center Dec.
+lensing_ssizex,            200                                                            # Source plane map size in pixels.
+lensing_ssizey,            200                                                            # Source plane map size in pixels.
+lensing_spixsc,            0.02                                                           # Source plane map pixel size in units of arcsec.
+lensing_imra,              135.3442283                                                    # Image plane map center RA.
 lensing_imdec,             18.240239                                                      # Image plane map center Dec. 
+lensing_datadir,  None                       # Optional: Full path to lensing mesh directory.

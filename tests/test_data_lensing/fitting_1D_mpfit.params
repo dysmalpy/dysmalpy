@@ -9,7 +9,7 @@ z,        2.259        # Redshift
 
 # ****************************** DATA INFO *************************************
 
-datadir,          None                       # Optional: Full path to data directory. 
+datadir,          None                       # Optional: Full path to data directory.
 
 fdata,            fdata.txt                  # Full path to your data. Alternatively, just the filename if 'datadir' is set.
 data_inst_corr,   True                       # Is the dispersion corrected for
@@ -18,9 +18,9 @@ slit_width,       0.2                        # arcsecs
 slit_pa,          48                         # Degrees from N towards blue
 symmetrize_data,  False                      # Symmetrize data before fitting?
 profile1d_type,   circ_ap_pv                 # Default 1D aperture extraction shape
-aperture_radius,  0.2                        # Circular aperture radius, in ARCSEC. Have used half slit width in past 
-                                             # -- Eg, aperture diam = slit width 
-                                             
+aperture_radius,  0.2                        # Circular aperture radius, in ARCSEC. Have used half slit width in past
+                                             # -- Eg, aperture diam = slit width
+
 moment_calc,      False
 extract_gauss_with_c, True
 overwrite, True
@@ -117,7 +117,7 @@ total_mass_stddev,   1.0
 
 n_disk_stddev,       0.1
 r_eff_bulge_stddev,  1.0
-n_bulge_stddev,      0.1 
+n_bulge_stddev,      0.1
 
 
 # DARK MATTER HALO
@@ -215,7 +215,7 @@ inc_prior,           sine_gaussian
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
 
-# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and 
+# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and
 #       center of prior are defined in angle space (inc)
 inc_stddev,          0.1
 
@@ -243,16 +243,16 @@ maxiter,         200       # Maximum number of iterations before mpfit quits
 
 # **************************** Lensing Settings ********************************
 
-lensing_mesh,              mesh.dat.gz                                                    # Glafic lensing model mesh.dat file. 
-lensing_ra,                135.3434883                                                    # Lensing model reference WCS RA. 
-lensing_dec,               18.2418031                                                     # Lensing model reference WCS Dec. 
-lensing_sra,               135.3434046                                                    # Source plane map center RA. 
-lensing_sdec,              18.2421152                                                     # Source plane map center Dec. 
-lensing_ssizex,            200                                                            # Source plane map size in pixels. 
-lensing_ssizey,            200                                                            # Source plane map size in pixels. 
-lensing_spixsc,            0.02                                                           # Source plane map pixel size in units of arcsec. 
-lensing_imra,              135.3442283                                                    # Image plane map center RA. 
-lensing_imdec,             18.240239                                                      # Image plane map center Dec. 
 
+lensing_datadir,  None                       # Optional: Full path to lensing mesh directory.
 
-
+lensing_mesh,              mesh.dat.gz                                                    # Glafic lensing model mesh.dat file.
+lensing_ra,                135.3434883                                                    # Lensing model reference WCS RA.
+lensing_dec,               18.2418031                                                     # Lensing model reference WCS Dec.
+lensing_sra,               135.3434046                                                    # Source plane map center RA.
+lensing_sdec,              18.2421152                                                     # Source plane map center Dec.
+lensing_ssizex,            200                                                            # Source plane map size in pixels.
+lensing_ssizey,            200                                                            # Source plane map size in pixels.
+lensing_spixsc,            0.02                                                           # Source plane map pixel size in units of arcsec.
+lensing_imra,              135.3442283                                                    # Image plane map center RA.
+lensing_imdec,             18.240239                                                      # Image plane map center Dec.
