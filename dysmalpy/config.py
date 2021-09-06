@@ -90,6 +90,19 @@ class Config_simulate_cube(ConfigBase):
         self.transform_method = 'direct'
         self.zcalc_truncate = True
         self.n_wholepix_z_min = 3
+        self.lensing_datadir = None # datadir for the lensing model mesh.dat
+        self.lensing_mesh = None # lensing model mesh.dat
+        self.lensing_ra = None # lensing model ref ra
+        self.lensing_dec = None # lensing model ref dec
+        self.lensing_sra = None # lensing source plane image center ra
+        self.lensing_sdec = None # lensing source plane image center dec
+        self.lensing_ssizex = None # lensing source plane image size in x
+        self.lensing_ssizey = None # lensing source plane image size in y
+        self.lensing_spixsc = None # lensing source plane image pixel size in arcsec unit
+        self.lensing_imra = None # lensing image plane image center ra
+        self.lensing_imdec = None # lensing image plane image center dec
+        self.lensing_transformer = None # a placeholder for the object pointer
+        self.gauss_extract_with_c = None # True or False or None, whether to use faster C++ 1d gaussian spectral fitting
 
 
 

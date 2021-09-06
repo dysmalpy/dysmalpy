@@ -157,6 +157,10 @@ def setup_single_object_1D(params=None, data=None):
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=1)
 
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
+
     return gal, fit_dict
 
 
@@ -177,6 +181,10 @@ def setup_single_object_2D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=2)
+
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
 
     return gal, fit_dict
 
@@ -218,6 +226,10 @@ def setup_single_object_3D(params=None, data=None):
     # ------------------------------------------------------------
     # Setup fitting dict:
     fit_dict = setup_fit_dict(params=params, ndim_data=3)
+
+    # ------------------------------------------------------------
+    # Setup lensing dict:
+    fit_dict = setup_lensing_dict(params=params, append_to_dict=fit_dict)
 
     return gal, fit_dict
 
@@ -588,7 +600,8 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
             if 'mvirial_tied' not in params.keys():
                 params['mvirial_tied'] = True
             else:
-                if (not params['mvirial_tied']):
+                # if (not params['mvirial_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
+                if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
                     # Override setting and make tied, as it can't be truly fixed
                     params['mvirial_tied'] = True
         elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
@@ -1102,7 +1115,8 @@ def _preprocess_halo_parameters(params=None):
             if 'mvirial_tied' not in params.keys():
                 params['mvirial_tied'] = True
             else:
-                if (not params['mvirial_tied']):
+                # if (not params['mvirial_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
+                if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
                     # Override setting and make tied, as it can't be truly fixed
                     params['mvirial_tied'] = True
         elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
@@ -1437,6 +1451,17 @@ def setup_fit_dict(params=None, ndim_data=None):
         fit_dict = setup_mpfit_dict(params=params, ndim_data=ndim_data)
 
     return fit_dict
+
+
+def setup_lensing_dict(params=None, append_to_dict=None):
+    lensing_dict = {}
+    if append_to_dict is not None:
+        if isinstance(append_to_dict, dict):
+            lensing_dict = append_to_dict
+    for key in params.keys():
+        if key.startswith('lensing'): 
+            lensing_dict[key] = params[key]
+    return lensing_dict
 
 
 def setup_mcmc_dict(params=None, ndim_data=None):
