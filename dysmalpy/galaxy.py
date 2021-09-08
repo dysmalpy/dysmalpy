@@ -31,8 +31,12 @@ from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
 import datetime
-from dysmalpy.lensing import setup_lensing_transformer_from_params
-from dysmalpy.lensing import LensingTransformer
+
+try:
+    from dysmalpy.lensing import setup_lensing_transformer_from_params
+    loaded_lensing = True
+except:
+    loaded_lensing = False
 
 try:
     from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
@@ -42,12 +46,14 @@ except:
 
 __all__ = ['Galaxy']
 
-# Default cosmology
-_default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+
+
+# Default cosmology
+_default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 
 
 class Galaxy:
@@ -682,21 +688,45 @@ class Galaxy:
 
         # Apply lensing transformation if necessary
         this_lensing_transformer = None
-        if 'lensing_transformer' in kwargs:
-            if kwargs['lensing_transformer'] is not None:
-                this_lensing_transformer = kwargs['lensing_transformer']['0']
+        if loaded_lensing:
+            # Only check to get lensing transformer if the lensing modules were successfully loaded.
+            if 'lensing_transformer' in kwargs:
+                if kwargs['lensing_transformer'] is not None:
+                    this_lensing_transformer = kwargs['lensing_transformer']['0']
 
-        this_lensing_transformer = setup_lensing_transformer_from_params(\
-                params = kwargs,
-                source_plane_nchan = nspec,
-                image_plane_sizex = nx_sky * oversample * oversize,
-                image_plane_sizey = ny_sky * oversample * oversize,
-                image_plane_pixsc = rstep / oversample,
-                reuse_lensing_transformer = this_lensing_transformer,
-                cache_lensing_transformer = True,
-                reuse_cached_lensing_transformer = True,
-                verbose = (logger.level >= logging.DEBUG),
-            )
+            this_lensing_transformer = setup_lensing_transformer_from_params(\
+                    params = kwargs,
+                    source_plane_nchan = nspec,
+                    image_plane_sizex = nx_sky * oversample * oversize,
+                    image_plane_sizey = ny_sky * oversample * oversize,
+                    image_plane_pixsc = rstep / oversample,
+                    reuse_lensing_transformer = this_lensing_transformer,
+                    cache_lensing_transformer = True,
+                    reuse_cached_lensing_transformer = True,
+                    verbose = (logger.level >= logging.DEBUG),
+                )
+        else:
+            # Check if the key lensing params ARE set -- passed in kwargs here to the call to
+            #   `setup_lensing_transformer_from_params`.
+            #   In this case, if the lensing loading failed, issue & raise an error.
+            mesh_file = mesh_ra = mesh_dec = None
+            if 'lensing_mesh' in params:
+                mesh_file = params['lensing_mesh']
+            if 'lensing_ra' in params:
+                mesh_ra = params['lensing_ra']
+            if 'lensing_dec' in params:
+                mesh_dec = params['lensing_dec']
+
+            if ((mesh_file is not None) & (mesh_ra is not None) & (mesh_dec is not None)):
+                wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
+                wmsg += "*******************************************\n"
+                wmsg += "*** ERROR ***\n"
+                wmsg += " dysmalpy.lensing could not be loaded.\n"
+                wmsg += " Unable to perform lensing transformation.\n"
+                wmsg += "*******************************************\n"
+                logger.error(wmsg)
+                raise ValueError(wmsg)
+
 
         if this_lensing_transformer is not None:
             sim_cube, spec = self.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,

@@ -404,7 +404,7 @@ def setup_lensing_transformer_from_params(
     """A utility function to return a LensingTransformer instance from the input parameters.
 
     One can either provide a params dict with following madatory keys:
-        - 'lensing_ra']
+        - 'lensing_ra'
         - 'lensing_dec'
         - 'lensing_ssizex'
         - 'lensing_ssizey'
