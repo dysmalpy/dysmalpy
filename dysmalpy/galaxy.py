@@ -710,12 +710,12 @@ class Galaxy:
             #   `setup_lensing_transformer_from_params`.
             #   In this case, if the lensing loading failed, issue & raise an error.
             mesh_file = mesh_ra = mesh_dec = None
-            if 'lensing_mesh' in params:
-                mesh_file = params['lensing_mesh']
-            if 'lensing_ra' in params:
-                mesh_ra = params['lensing_ra']
-            if 'lensing_dec' in params:
-                mesh_dec = params['lensing_dec']
+            if 'lensing_mesh' in kwargs:
+                mesh_file = kwargs['lensing_mesh']
+            if 'lensing_ra' in kwargs:
+                mesh_ra = kwargs['lensing_ra']
+            if 'lensing_dec' in kwargs:
+                mesh_dec = kwargs['lensing_dec']
 
             if ((mesh_file is not None) & (mesh_ra is not None) & (mesh_dec is not None)):
                 wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
