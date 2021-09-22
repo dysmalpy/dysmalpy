@@ -15,9 +15,9 @@ import astropy.constants as apy_con
 try:
     import photutils
     from astropy.convolution import Gaussian2DKernel
-    loaded_photutils = True
+    _loaded_photutils = True
 except:
-    loaded_photutils = False
+    _loaded_photutils = False
 
 
 
@@ -122,7 +122,7 @@ def auto_gen_3D_mask(cube=None, err=None,
     mask_dict['emap_cube_sn'] = emap_cube_sn
     if sig_segmap_thresh is not None:
         # Do segmap on mask2D?????
-        if loaded_photutils:
+        if _loaded_photutils:
             bkg = None
             exclude_percentile=0.
             while ((bkg is None) & (exclude_percentile < 100.)):

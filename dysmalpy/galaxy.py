@@ -34,15 +34,15 @@ import datetime
 
 try:
     from dysmalpy.lensing import setup_lensing_transformer_from_params
-    loaded_lensing = True
+    _loaded_lensing = True
 except:
-    loaded_lensing = False
+    _loaded_lensing = False
 
 try:
     from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
-    loaded_LeastChiSquares1D = True
+    _loaded_LeastChiSquares1D = True
 except:
-    loaded_LeastChiSquares1D = False
+    _loaded_LeastChiSquares1D = False
 
 __all__ = ['Galaxy']
 
@@ -688,7 +688,7 @@ class Galaxy:
 
         # Apply lensing transformation if necessary
         this_lensing_transformer = None
-        if loaded_lensing:
+        if _loaded_lensing:
             # Only check to get lensing transformer if the lensing modules were successfully loaded.
             if 'lensing_transformer' in kwargs:
                 if kwargs['lensing_transformer'] is not None:
@@ -914,7 +914,7 @@ class Galaxy:
                     disp = np.zeros(mom0.shape)
                     # <DZLIU><20210805> ++++++++++
                     my_least_chi_squares_1d_fitter = None
-                    if ('gauss_extract_with_c' in kwargs) & (loaded_LeastChiSquares1D):
+                    if ('gauss_extract_with_c' in kwargs) & (_loaded_LeastChiSquares1D):
                         if kwargs['gauss_extract_with_c'] is not None and \
                            kwargs['gauss_extract_with_c'] is not False:
                             # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
