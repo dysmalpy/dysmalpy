@@ -570,9 +570,27 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     #         except:
     #             pass
 
+    ## SEPARATE INTERP + EXTRAPOLATED
+    # r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
+    # r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
+    #
+    # # Ensure it's an array:
+    # if isinstance(r*1., float):
+    #     rarr = np.array([r])
+    # else:
+    #     rarr = np.array(r)
+    # # Ensure all radii are 0. or positive:
+    # rarr = np.abs(rarr)
+    #
+    # rho_interp = np.zeros(len(rarr))
+    # wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
+    # wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
+    # rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+    # rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
 
-    r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
-    r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
+    # UNIFIED INTERPOLATION/EXTRAPOLATION
+    r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
+                                   fill_value='extrapolate', kind='linear')
 
     # Ensure it's an array:
     if isinstance(r*1., float):
@@ -582,11 +600,8 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
 
-    rho_interp = np.zeros(len(rarr))
-    wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
-    wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
-    rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
-    rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+    rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+
 
     if (len(rarr) > 1):
         return rho_interp
@@ -624,8 +639,27 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     #         except:
     #             pass
 
-    r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
-    r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+    ## SEPARATE INTERP + EXTRAPOLATED
+    # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
+    # r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+    #
+    # # Ensure it's an array:
+    # if isinstance(r*1., float):
+    #     rarr = np.array([r])
+    # else:
+    #     rarr = np.array(r)
+    # # Ensure all radii are 0. or positive:
+    # rarr = np.abs(rarr)
+    #
+    # dlnrho_dlnr_interp = np.zeros(len(rarr))
+    # wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
+    # wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
+    # dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
+    # dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) )
+
+    # UNIFIED INTERPOLATION/EXTRAPOLATION
+    r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
+                                   fill_value='extrapolate', kind='linear')
 
     # Ensure it's an array:
     if isinstance(r*1., float):
@@ -635,12 +669,7 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
 
-    dlnrho_dlnr_interp = np.zeros(len(rarr))
-    wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
-    wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
-    dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
-    dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) )
-
+    dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
 
     if (len(rarr) > 1):
         return dlnrho_dlnr_interp
