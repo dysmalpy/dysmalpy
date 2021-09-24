@@ -559,16 +559,16 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     table_Reff =    table['Reff']
     table_mass =    table['total_mass']
 
-    # Clean up values inside rmin:  Add the value at r=0: menc=0
-    if table['r'][0] > 0.:
-        if _sersic_profile_mass_VC_loaded:
-            try:
-                table_rad = np.insert(table_rad, 0, 0., axis=0)
-                table_rho = np.insert(table_rho, 0,
-                                sersic_profile_mass_VC_calcs.rho(0.,n=n, total_mass=table_mass,
-                                Reff=table_Reff, q=table['q']), axis=0)
-            except:
-                pass
+    # # Clean up values inside rmin:  Add the value at r=0: menc=0
+    # if table['r'][0] > 0.:
+    #     if _sersic_profile_mass_VC_loaded:
+    #         try:
+    #             table_rad = np.insert(table_rad, 0, 0., axis=0)
+    #             table_rho = np.insert(table_rho, 0,
+    #                             sersic_profile_mass_VC_calcs.rho(0.,n=n, total_mass=table_mass,
+    #                             Reff=table_Reff, q=table['q']), axis=0)
+    #         except:
+    #             pass
 
 
     r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
@@ -613,16 +613,16 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
     table_rad = table_rad[whfin]
 
-    # Clean up values inside rmin:  Add the value at r=0: menc=0
-    if table['r'][0] > 0.:
-        if _sersic_profile_mass_VC_loaded:
-            try:
-                table_rad = np.insert(table_rad, 0, 0., axis=0)
-                table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
-                                sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
-
-            except:
-                pass
+    # # Clean up values inside rmin:  Add the value at r=0: menc=0
+    # if table['r'][0] > 0.:
+    #     if _sersic_profile_mass_VC_loaded:
+    #         try:
+    #             table_rad = np.insert(table_rad, 0, 0., axis=0)
+    #             table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
+    #                             sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
+    #
+    #         except:
+    #             pass
 
     r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
     r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
@@ -5716,8 +5716,9 @@ class KinematicOptions:
         elif self.pressure_support_type == 3:
             # Direct calculation from sig0^2 dlnrho/dlnr:
             # Assumes constant sig0 -- eg Eq 3, Burkert+10
-            if not _sersic_profile_mass_VC_loaded:
-                raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
+
+            # if not _sersic_profile_mass_VC_loaded:
+            #     raise ImportError("The module 'sersic_profile_mass_VC' is currently needed to use 'pressure_support_type=3'")
 
             # NEEDS TO BE JUST RHO FOR THE GAS:
             dlnrhogas_dlnr = model.get_dlnrhogas_dlnr(r)

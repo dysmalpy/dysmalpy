@@ -358,6 +358,8 @@ def setup_gal_model_base(params=None,
     # Set some kinematic options for calculating the velocity profile
     mod_set.kinematic_options.adiabatic_contract = params['adiabatic_contract']
     mod_set.kinematic_options.pressure_support = params['pressure_support']
+    mod_set.kinematic_options.pressure_support_type = params.get('pressure_support_type', 1)
+
 
     # --------------------------------------
     # Set up the instrument
@@ -1459,7 +1461,7 @@ def setup_lensing_dict(params=None, append_to_dict=None):
         if isinstance(append_to_dict, dict):
             lensing_dict = append_to_dict
     for key in params.keys():
-        if key.startswith('lensing'): 
+        if key.startswith('lensing'):
             lensing_dict[key] = params[key]
     return lensing_dict
 
