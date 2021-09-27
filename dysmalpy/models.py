@@ -2819,7 +2819,7 @@ class Sersic(MassModel):
 
     def rho(self, r):
         """
-        Mass surface density as a function of radius
+        Mass density as a function of radius (if noord_flat; otherwise surface density)
 
         Parameters
         ----------
@@ -2828,8 +2828,8 @@ class Sersic(MassModel):
 
         Returns
         -------
-        surf_dens : float or array
-            Mass surface density at `r` in units of Msun/kpc^2
+        dens : float or array
+            Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
         if self.noord_flat:
             rho = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
@@ -3239,7 +3239,7 @@ class DiskBulge(MassModel):
 
     def rho_disk(self, r):
         """
-        Mass surface density of the disk as a function of radius
+        Mass density of the disk as a function of radius (if noord_flat; otherwise surface density)
 
         Parameters
         ----------
@@ -3248,8 +3248,8 @@ class DiskBulge(MassModel):
 
         Returns
         -------
-        surf_dens : float or array
-            Mass surface density at `r` in units of Msun/kpc^2
+        dens : float or array
+            Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1 - self.bt)
@@ -3263,7 +3263,7 @@ class DiskBulge(MassModel):
 
     def rho_bulge(self, r):
         """
-        Mass surface density of the bulge as a function of radius
+        Mass density of the bulge as a function of radius (if noord_flat; otherwise surface density)
 
         Parameters
         ----------
@@ -3272,8 +3272,8 @@ class DiskBulge(MassModel):
 
         Returns
         -------
-        surf_dens : float or array
-            Mass surface density at `r` in units of Msun/kpc^2
+        dens : float or array
+            Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
         if self.noord_flat:
             mbulge_total = 10**self.total_mass*self.bt
@@ -3289,7 +3289,7 @@ class DiskBulge(MassModel):
 
     def rho(self, r):
         """
-        Mass surface density as a function of radius
+        Mass density as a function of radius (if noord_flat; otherwise surface density)
 
         Parameters
         ----------
@@ -3298,8 +3298,8 @@ class DiskBulge(MassModel):
 
         Returns
         -------
-        surf_dens : float or array
-            Mass surface density at `r` in units of Msun/kpc^2
+        dens : float or array
+            Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
         return self.rho_disk(r) + self.rho_bulge(r)
 
