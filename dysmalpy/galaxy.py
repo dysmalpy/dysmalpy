@@ -516,7 +516,7 @@ class Galaxy:
                 #          leads to asymmetries when using truncation
                 #          -- e.g., dispersion peak not coincident with xycenter
                 zcalc_truncate = False
-            elif (ndim_final == 0) | (ndim_final == 0):
+            elif (ndim_final == 1) | (ndim_final == 0):
                 # Default: Truncate for 1D/0D, because combining multiple spaxels in apertures
                 #          generally avoids the above effects (and gives faster computation times).
                 zcalc_truncate = True
