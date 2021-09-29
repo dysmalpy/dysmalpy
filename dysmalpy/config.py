@@ -88,7 +88,12 @@ class Config_simulate_cube(ConfigBase):
         self.oversample = 1
         self.oversize = 1
         self.transform_method = 'direct'
-        self.zcalc_truncate = True
+        self.zcalc_truncate = None     # Default will be set in galaxy.create_model_data:
+                                       #    0D/1D/2D/3D: True/True/False/False
+                                       #    because for the smaller spatial extent of a single spaxel
+                                       #    for 2D/3D leads to asymmetries from truncation,
+                                       #    while this is less important for 0D/1D (combo in apertures).
+                                       #    Previous: True
         self.n_wholepix_z_min = 3
         self.lensing_datadir = None # datadir for the lensing model mesh.dat
         self.lensing_mesh = None # lensing model mesh.dat

@@ -341,7 +341,7 @@ class Galaxy:
                           skip_downsample=False, partial_aperture_weight=False,
                           xcenter=None, ycenter=None,
                           transform_method='direct',
-                          zcalc_truncate=True,
+                          zcalc_truncate=None,
                           n_wholepix_z_min=3,
                           **kwargs):
         r"""
@@ -496,7 +496,7 @@ class Galaxy:
                 If True, the cube is only filled with flux to within
                 +- 2 * scale length thickness above and below the galaxy midplane
                 (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
-                Default: True
+                Default: None (will be parsed to 0D/1D/2D/3D: True/True/False/False)
 
         n_wholepix_z_min: int
             Minimum number of whole pixels to include in the z direction when trunctating.
@@ -505,6 +505,21 @@ class Galaxy:
         """
         if line_center is None:
             line_center = self.model.line_center
+
+
+
+        # Parse default zcalc_truncate, if not already specified:
+        if zcalc_truncate is None:
+            if (ndim_final == 3) | (ndim_final == 2):
+                # Default: no truncation for 2D/3D, because for the smaller spatial extent
+                #          of a single spaxel (vs the aggregate in apertures for 1D/0D)
+                #          leads to asymmetries when using truncation
+                #          -- e.g., dispersion peak not coincident with xycenter
+                zcalc_truncate = False
+            elif (ndim_final == 0) | (ndim_final == 0):
+                # Default: Truncate for 1D/0D, because combining multiple spaxels in apertures
+                #          generally avoids the above effects (and gives faster computation times).
+                zcalc_truncate = True
 
         # Pull parameters from the observed data if specified
         if from_data:
@@ -680,7 +695,6 @@ class Galaxy:
             #
             if (ndim_final == 1) & (profile1d_type is None):
                 raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
-
 
         # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
         #                                          **sim_cube_kwargs.dict)
