@@ -2410,6 +2410,7 @@ class MassModel(_DysmalFittable1DModel):
     """
 
     _type = 'mass'
+    _potential_gradient_has_neg = False
 
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
@@ -2440,6 +2441,36 @@ class MassModel(_DysmalFittable1DModel):
         vcirc = v_circular(mass_enc, r)
 
         return vcirc
+
+
+    def potential_gradient(self, r):
+        r"""
+        Default method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate circular velocity in kpc
+
+        Returns
+        -------
+        dPhidr : float or array
+            Gradient of the potential at `r`
+
+        Notes
+        -----
+        Calculates the gradient of the potential from the circular velocity
+        using :math:`\del\Phi(r)/\del r = v_{c}^2(r)/r`.
+        An alternative should be written for components where the
+        potential gradient is ever *negative* (i.e., rings).
+
+        Can be coupled with setting & checking `model._potential_gradient_has_neg` flag
+        for mass models.
+        """
+        vcirc = self.circular_velocity(r)
+        dPhidr = vcirc ** 2 / r
+
+        return dPhidr
 
 
 
