@@ -1141,6 +1141,14 @@ class ModelSet:
                               - ntied)
         self.nparams_tied += ntied
 
+        # Now update all of the tied parameters if there are any
+        # Wrap in try/except, to avoid issues in component adding order:
+        try:
+            self._update_tied_parameters()
+        except:
+            pass
+
+
     def set_parameter_value(self, model_name, param_name, value, skip_updated_tied=False):
         """
         Change the value of a specific parameter
