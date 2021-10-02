@@ -9,5 +9,6 @@ import dysmalpy.aperture_classes
 import dysmalpy.parameters
 import dysmalpy.utils
 import dysmalpy.utils_io
+import dysmalpy.data_io
 
 __version__ = "1.7.1"
