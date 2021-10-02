@@ -15,7 +15,7 @@ import astropy.units as u
 from dysmalpy.fitting_wrappers import dysmalpy_make_model
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
-from dysmalpy import galaxy, models, parameters, instrument
+from dysmalpy import galaxy, models, parameters, instrument, config
 
 
 # TESTING DIRECTORY
@@ -190,6 +190,18 @@ class HelperSetups(object):
 
         return geom
 
+    def setup_biconical_outflow(self):
+        bicone = models.BiconicalOutflow(n=0.5, vmax=300., rturn=0.5, thetain=30, dtheta=20.,
+                                         rend=1., norm_flux=0., tau_flux=5., name='bicone')
+        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom')
+        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof')
+        return bicone, bicone_geom, bicone_disp
+
+    def setup_uniform_inflow(self):
+        # Negative vr is inflow
+        inflow = models.UniformRadialFlow(vr=-90,  name='inflow')
+        return inflow
+
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1):
         # Initialize the Galaxy, Instrument, and Model Set
@@ -221,6 +233,83 @@ class HelperSetups(object):
         gal.model = mod_set
 
         return gal
+
+    def setup_fullmodel_biconical(self, adiabatic_contract=False,
+                pressure_support=True, pressure_support_type=1):
+        # Initialize the Galaxy, Instrument, and Model Set
+        gal = galaxy.Galaxy(z=self.z, name=self.name)
+        mod_set = models.ModelSet()
+
+        bary = self.setup_diskbulge()
+        halo = self.setup_NFW()
+        disp_prof = self.setup_const_dispprof()
+        zheight_prof = self.setup_zheight_prof()
+        geom = self.setup_geom()
+        bicone, bicone_geom, bicone_disp = self.setup_biconical_outflow()
+        inst = self.setup_instrument()
+
+        # Add all of the model components to the ModelSet
+        mod_set.add_component(bary, light=True)
+        mod_set.add_component(halo)
+        mod_set.add_component(disp_prof)
+        mod_set.add_component(zheight_prof)
+        mod_set.add_component(geom)
+        mod_set.add_component(bicone)
+        mod_set.add_component(bicone_geom, geom_type='outflow')
+        mod_set.add_component(bicone_disp, disp_type='outflow')
+
+        ## Set some kinematic options for calculating the velocity profile
+        # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]
+        #                        2 / Exact nSersic, self-grav
+        #                        3 / Pressure gradient
+        mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
+        mod_set.kinematic_options.pressure_support = pressure_support
+        mod_set.kinematic_options.pressure_support_type = pressure_support_type
+
+        # Add the model set and instrument to the Galaxy
+        gal.model = mod_set
+        gal.instrument = inst
+
+        return gal
+
+
+    def setup_fullmodel_uniform_inflow(self, adiabatic_contract=False,
+                pressure_support=True, pressure_support_type=1):
+        # Initialize the Galaxy, Instrument, and Model Set
+        gal = galaxy.Galaxy(z=self.z, name=self.name)
+        mod_set = models.ModelSet()
+
+        bary = self.setup_diskbulge()
+        halo = self.setup_NFW()
+        disp_prof = self.setup_const_dispprof()
+        zheight_prof = self.setup_zheight_prof()
+        geom = self.setup_geom()
+        inflow = self.setup_uniform_inflow()
+        inst = self.setup_instrument()
+
+        # Add all of the model components to the ModelSet
+        mod_set.add_component(bary, light=True)
+        mod_set.add_component(halo)
+        mod_set.add_component(disp_prof)
+        mod_set.add_component(zheight_prof)
+        mod_set.add_component(geom)
+        mod_set.add_component(inflow)
+
+        ## Set some kinematic options for calculating the velocity profile
+        # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]
+        #                        2 / Exact nSersic, self-grav
+        #                        3 / Pressure gradient
+        mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
+        mod_set.kinematic_options.pressure_support = pressure_support
+        mod_set.kinematic_options.pressure_support_type = pressure_support_type
+
+        # Add the model set and instrument to the Galaxy
+        gal.model = mod_set
+        gal.instrument = inst
+
+
+        return gal
+
 
     def setup_instrument(self):
         inst = instrument.Instrument()
@@ -440,6 +529,156 @@ class TestModels:
             # Assert vcirc, menc values are the same
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
             assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
+
+
+    def test_biconical_outflow(self):
+        gal_bicone = self.helper.setup_fullmodel_biconical()
+
+        ##################
+        # Create cube:
+        param_filename = 'make_model_3Dcube.params'
+        param_filename_full=_dir_tests_data+param_filename
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+
+        config_c_m_data = config.Config_create_model_data(**params)
+        config_sim_cube = config.Config_simulate_cube(**params)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+        # Additional settings:
+        kwargs_galmodel['from_data'] = False
+        kwargs_galmodel['ndim_final'] = 3
+
+        # Make model
+        gal_bicone.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_bicone.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.00381117107560445],
+                          [0,0,0, -1.1293772630057338e-22],
+                          [100,18,0, 3.126830600463532e-07],
+                          [50,18,18, 5.320399157467473e-05],
+                          [95,10,10, 0.00025114780006119477],
+                          [100,5,5, 3.765977728305624e-06],
+                          [150,18,18, 5.312417940379806e-05],
+                          [100,15,15, 0.0073600622525440765],
+                          [100,15,21, 0.0022638772935597885],
+                          [90,15,15, 0.010582918504479507],
+                          [90,15,21, 0.0005703088570851938]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_uniform_inflow(self):
+        gal_inflow = self.helper.setup_fullmodel_uniform_inflow()
+
+        ##################
+        # Create cube:
+        param_filename = 'make_model_3Dcube.params'
+        param_filename_full=_dir_tests_data+param_filename
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+
+        config_c_m_data = config.Config_create_model_data(**params)
+        config_sim_cube = config.Config_simulate_cube(**params)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+        # Additional settings:
+        kwargs_galmodel['from_data'] = False
+        kwargs_galmodel['ndim_final'] = 3
+
+        # Make model
+        gal_inflow.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_inflow.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.003449915379640308],
+                          [0,0,0, 2.2587545260114675e-22],
+                          [100,18,0, 4.0604749531314176e-08],
+                          [50,18,18, 1.742932001716722e-08],
+                          [95,10,10, 0.00021499585635224392],
+                          [100,5,5, 1.9462550747609577e-06],
+                          [150,18,18, 2.4190233367665794e-07],
+                          [100,15,15, 0.006070378312299052],
+                          [100,15,21, 0.0008699919431378374],
+                          [90,15,15, 0.008918484250396356],
+                          [90,15,21, 0.0001878819028507639]]
+
+        ## Compare to no-inflow model: from commented "test_normal()"
+        # arr_pix_values = [[100,18,18, 0.003642043894515958],
+        #                   [0,0,0, 8.470329472543004e-23],
+        #                   [100,18,0, 3.1268306004623424e-07],
+        #                   [50,18,18, 2.440707378333536e-09],
+        #                   [95,10,10, 0.0002511288203406142],
+        #                   [100,5,5, 3.7659777283049023e-06],
+        #                   [150,18,18, 5.6281450732294695e-08],
+        #                   [100,15,15, 0.006963221989588695],
+        #                   [100,15,21, 0.0022507391576765032],
+        #                   [90,15,15, 0.010201219579003603],
+        #                   [90,15,21, 0.000557673465544929]]
+
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+    # def test_normal(self):
+    #     gal = self.helper.setup_fullmodel()
+    #     inst = self.helper.setup_instrument()
+    #     gal.instrument = inst
+    #
+    #     ##################
+    #     # Create cube:
+    #     param_filename = 'make_model_3Dcube.params'
+    #     param_filename_full=_dir_tests_data+param_filename
+    #     params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+    #
+    #     config_c_m_data = config.Config_create_model_data(**params)
+    #     config_sim_cube = config.Config_simulate_cube(**params)
+    #     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+    #
+    #     # Additional settings:
+    #     kwargs_galmodel['from_data'] = False
+    #     kwargs_galmodel['ndim_final'] = 3
+    #
+    #     # Make model
+    #     gal.create_model_data(**kwargs_galmodel)
+    #
+    #     # Get cube:
+    #     cube = gal.model_cube.data.unmasked_data[:].value
+    #
+    #     ##################
+    #     # Check some pix points:
+    #     atol = 1.e-9
+    #     # array: ind0,ind1,ind2, value
+    #     ## TO FIX THIS!!!
+    #     arr_pix_values = [[100,18,18, 0.003642043894515958],
+    #                       [0,0,0, 8.470329472543004e-23],
+    #                       [100,18,0, 3.1268306004623424e-07],
+    #                       [50,18,18, 2.440707378333536e-09],
+    #                       [95,10,10, 0.0002511288203406142],
+    #                       [100,5,5, 3.7659777283049023e-06],
+    #                       [150,18,18, 5.6281450732294695e-08],
+    #                       [100,15,15, 0.006963221989588695],
+    #                       [100,15,21, 0.0022507391576765032],
+    #                       [90,15,15, 0.010201219579003603],
+    #                       [90,15,21, 0.000557673465544929]]
+    #
+    #     for arr in arr_pix_values:
+    #         # Assert pixel values are the same
+    #         assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
 
 

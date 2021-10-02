@@ -22,13 +22,12 @@ import astropy.units as u
 from astropy.table import Table
 
 # Local imports
-from .base import MassModel, v_circular, sersic_mr
+from .base import MassModel, v_circular, menc_from_vcirc, sersic_mr
 from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-           'sersic_menc_2D_proj', 'menc_from_vcirc',
-           'apply_noord_flat']
+           'sersic_menc_2D_proj', 'apply_noord_flat']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -195,26 +194,6 @@ def sersic_menc_2D_proj(r, mass, n, r_eff):
     return menc
 
 
-def menc_from_vcirc(vcirc, r):
-    """
-    Enclosed mass given a circular velocity and radius
-
-    Parameters
-    ----------
-    vcirc : float or array
-        Circular velocity in km/s
-
-    r : float or array
-        Radius at which to calculate the enclosed mass in kpc
-
-    Returns
-    -------
-    menc : float or array
-        Enclosed mass in solar units
-    """
-    menc = ((vcirc*1e5)**2.*(r*1000.*pc.cgs.value) /
-                  (G.cgs.value * Msun.cgs.value))
-    return menc
 
 
 def apply_noord_flat(r, r_eff, mass, n, invq):
@@ -289,7 +268,7 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
 
     except:
         vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
-        
+
     return vcirc
 
 

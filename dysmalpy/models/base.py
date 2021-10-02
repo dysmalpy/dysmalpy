@@ -20,7 +20,7 @@ import scipy.special as scp_spec
 from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['MassModel', 'LightModel', 'LightModel3D'
-           'v_circular', 'sersic_mr', 'truncate_sersic_mr']
+           'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
 
 # CONSTANTS
@@ -253,7 +253,28 @@ def v_circular(mass_enc, r):
 
     return vcirc
 
-#
+
+def menc_from_vcirc(vcirc, r):
+    """
+    Enclosed mass given a circular velocity and radius
+
+    Parameters
+    ----------
+    vcirc : float or array
+        Circular velocity in km/s
+
+    r : float or array
+        Radius at which to calculate the enclosed mass in kpc
+
+    Returns
+    -------
+    menc : float or array
+        Enclosed mass in solar units
+    """
+    menc = ((vcirc*1e5)**2.*(r*1000.*pc.cgs.value) /
+                  (G.cgs.value * Msun.cgs.value))
+    return menc
+
 
 def sersic_mr(r, mass, n, r_eff):
     """

@@ -18,7 +18,7 @@ from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
 
 # Local imports:
-from .base import FitResults
+from .base import FitResults, chisq_eval, chisq_red
 
 # Third party imports
 import os

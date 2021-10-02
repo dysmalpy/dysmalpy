@@ -13,7 +13,7 @@ import six
 from collections import OrderedDict
 
 # Local imports
-from .base import _DysmalModel
+from .base import _DysmalModel, menc_from_vcirc
 from .kinematic_options import KinematicOptions
 
 # Third party imports
@@ -25,38 +25,9 @@ import pyximport; pyximport.install()
 from . import cutils
 
 
-# # Local imports
-# from dysmalpy.model_components.base import MassModel, LightModel, LightModel3D, \
-#                                            v_circular, sersic_mr, truncate_sersic_mr
-# from dysmalpy.model_components.baryons import Sersic, DiskBulge, LinearDiskBulge, \
-#                                               ExpDisk, BlackHole, \
-#                                               surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
-#                                               sersic_menc_2D_proj, menc_from_vcirc, \
-#                                               apply_noord_flat
-# from dysmalpy.model_components.halos import NFW, TwoPowerHalo, Burkert, \
-#                                             Einasto, DekelZhao, LinearNFW
-# from dysmalpy.model_components.outflows import BiconicalOutflow, UnresolvedOutflow
-# from dysmalpy.model_components.higher_order_kinematics import UniformRadialFlow
-# from dysmalpy.model_components.zheight import ZHeightGauss, ZHeightExp
-# from dysmalpy.model_components.dispersion_profiles import DispersionConst
-# from dysmalpy.model_components.light_distributions import LightTruncateSersic, LightGaussianRing, \
-#                                                           LightClump
-# from dysmalpy.model_components.kinematic_options import KinematicOptions
-# from dysmalpy.model_components.geometry import Geometry
-
-
 __all__ = ['ModelSet',
            'calc_1dprofile', 'calc_1dprofile_circap_pv']
 
-# __all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
-#            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
-#            'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
-#            'UniformRadialFlow', 'DustExtinction',
-#            'KinematicOptions', 'ZHeightGauss', 'ZHeightExp',
-#            'LightTruncateSersic', 'LightGaussianRing', 'LightClump',
-#            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-#            'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
-#            'apply_noord_flat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +74,7 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
     ai = full_ai[:,validpts]
 
     return ai
-    
+
 def area_segm(rr, dd):
 
     return (rr**2 * np.arccos(dd/rr) -
