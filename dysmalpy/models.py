@@ -2090,8 +2090,17 @@ class ModelSet:
 
             for cmp in self.light_components:
                 if self.light_components[cmp]:
+                    lcomp = self.components[cmp]
                     zscale = self.zprofile(zgal * rstep_samp / dscale)
-                    flux_mass += self.components[cmp].mass_to_light(rgal) * zscale
+                    # Differentiate between axisymmetric and non-axisymmetric light components:
+                    if lcomp._axisymmetric:
+                        # Axisymmetric cases:
+                        flux_mass += lcomp.mass_to_light(rgal) * zscale
+                    else:
+                        # Non-axisymmetric cases:
+                        flux_midplane = lcomp.mass_to_light(xgal * rstep_samp / dscale,
+                                                            ygal * rstep_samp / dscale)
+                        flux_mass +=  flux_midplane * zscale
 
             # Apply extinction if a component exists
             if self.extinction is not None:
@@ -2410,6 +2419,7 @@ class MassModel(_DysmalFittable1DModel):
     """
 
     _type = 'mass'
+    _axisymmetric = True
     _potential_gradient_has_neg = False
 
     @abc.abstractmethod
@@ -5178,7 +5188,7 @@ class Geometry(_DysmalFittable3DModel):
     Parameters
     ----------
     inc : float
-        Inclination of the modelin degrees
+        Inclination of the model in degrees
 
     pa : float
         Position angle East of North of the blueshifted side of the model in degrees
@@ -6141,6 +6151,7 @@ class LightModel(_DysmalFittable1DModel):
     """
 
     _type = 'light'
+    _axisymmetric = True
 
     @abc.abstractmethod
     def mass_to_light(self, *args, **kwargs):
@@ -6302,6 +6313,84 @@ class LightGaussianRing(LightModel):
         """
         I0 = _I0_gaussring(self.r_peak, self.sigma_r, self.L_tot)
         return I0*np.exp(-(r-self.r_peak)**2/(2.*self.sigma_r**2))
+
+
+
+class LightClump(LightModel):
+    """
+    Light distribution for a clump following a Sersic profile,
+    at a given galaxy midplane R and azimuthal angle phi.
+
+    Parameters
+    ----------
+    r_center : float
+        Radial distance from galaxy center to clump center, in the galaxy midplane, in kpc
+
+    phi : float
+        Azimuthal angle of clump, counter-clockwise from blue major axis. In degrees.
+
+    L_tot: float
+        Total luminsoity of clump. Arbitrary units.
+
+    r_eff : float
+        Effective (half-light) radius of clump in kpc
+
+    n : float
+        Sersic index of clump
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        I(r) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
+
+    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
+    light, and can be solved for numerically.
+
+    .. math::
+
+        \Gamma(2n) = 2\gamma (b_n,2n)
+
+    """
+
+    _axisymmetric = False
+    L_tot = DysmalParameter(default=1, bounds=(0, 50))
+    r_eff = DysmalParameter(default=1, bounds=(0, 50))
+    n = DysmalParameter(default=1, bounds=(0, 8))
+    r_center = DysmalParameter(default=0., bounds=(0, 30))
+    phi = DysmalParameter(default=0., bounds=(0, 360))
+
+    def __init__(self, **kwargs):
+        super(LightClump, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(x, y, L_tot, r_eff, n, r_center, phi):
+        """
+        Sersic light surface density. Same as self.mass_to_light
+        """
+        phi_rad = np.pi / 180. * phi
+        r = np.sqrt( (x-r_center*np.cos(phi_rad))**2 + (y-r_center*np.sin(phi_rad))**2 )
+        return sersic_mr(r, L_tot, n, r_eff)
+
+    def mass_to_light(self, x, y):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        phi_rad = np.pi / 180. * self.phi
+        r = np.sqrt( (x-self.r_center*np.cos(phi_rad))**2 + (y-self.r_center*np.sin(phi_rad))**2 )
+        return sersic_mr(r, self.L_tot, self.n, self.r_eff)
 
 
 
