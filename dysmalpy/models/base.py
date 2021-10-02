@@ -201,7 +201,7 @@ class MassModel(_DysmalFittable1DModel):
             is the phi direction in cylindrical coordinates, (R,phi,z).
         """
         rgal = np.sqrt(xgal ** 2 + ygal ** 2)
-        vel_dir_unit_vector = np.array([-ygal/rgal, xgal/rgal, 0.])
+        vel_dir_unit_vector = np.array([-ygal/rgal, xgal/rgal, 0.*zgal])
         return vel_dir_unit_vector
 
 

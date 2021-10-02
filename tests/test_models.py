@@ -634,51 +634,53 @@ class TestModels:
             # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
-    # def test_normal(self):
-    #     gal = self.helper.setup_fullmodel()
-    #     inst = self.helper.setup_instrument()
-    #     gal.instrument = inst
-    #
-    #     ##################
-    #     # Create cube:
-    #     param_filename = 'make_model_3Dcube.params'
-    #     param_filename_full=_dir_tests_data+param_filename
-    #     params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-    #
-    #     config_c_m_data = config.Config_create_model_data(**params)
-    #     config_sim_cube = config.Config_simulate_cube(**params)
-    #     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-    #
-    #     # Additional settings:
-    #     kwargs_galmodel['from_data'] = False
-    #     kwargs_galmodel['ndim_final'] = 3
-    #
-    #     # Make model
-    #     gal.create_model_data(**kwargs_galmodel)
-    #
-    #     # Get cube:
-    #     cube = gal.model_cube.data.unmasked_data[:].value
-    #
-    #     ##################
-    #     # Check some pix points:
-    #     atol = 1.e-9
-    #     # array: ind0,ind1,ind2, value
-    #     ## TO FIX THIS!!!
-    #     arr_pix_values = [[100,18,18, 0.003642043894515958],
-    #                       [0,0,0, 8.470329472543004e-23],
-    #                       [100,18,0, 3.1268306004623424e-07],
-    #                       [50,18,18, 2.440707378333536e-09],
-    #                       [95,10,10, 0.0002511288203406142],
-    #                       [100,5,5, 3.7659777283049023e-06],
-    #                       [150,18,18, 5.6281450732294695e-08],
-    #                       [100,15,15, 0.006963221989588695],
-    #                       [100,15,21, 0.0022507391576765032],
-    #                       [90,15,15, 0.010201219579003603],
-    #                       [90,15,21, 0.000557673465544929]]
-    #
-    #     for arr in arr_pix_values:
-    #         # Assert pixel values are the same
-    #         assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+    def test_simulate_cube(self):
+        gal = self.helper.setup_fullmodel()
+        inst = self.helper.setup_instrument()
+        gal.instrument = inst
+
+        ##################
+        # Create cube:
+        param_filename = 'make_model_3Dcube.params'
+        param_filename_full=_dir_tests_data+param_filename
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+
+        config_c_m_data = config.Config_create_model_data(**params)
+        config_sim_cube = config.Config_simulate_cube(**params)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+        # Additional settings:
+        kwargs_galmodel['from_data'] = False
+        kwargs_galmodel['ndim_final'] = 3
+
+        raise ValueError("check 'transform_method' & 'zcalc_truncate' ! ")
+
+        # Make model
+        gal.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.003642043894515958],
+                          [0,0,0, 8.470329472543004e-23],
+                          [100,18,0, 3.1268306004623424e-07],
+                          [50,18,18, 2.440707378333536e-09],
+                          [95,10,10, 0.0002511288203406142],
+                          [100,5,5, 3.7659777283049023e-06],
+                          [150,18,18, 5.6281450732294695e-08],
+                          [100,15,15, 0.006963221989588695],
+                          [100,15,21, 0.0022507391576765032],
+                          [90,15,15, 0.010201219579003603],
+                          [90,15,21, 0.000557673465544929]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
 
 

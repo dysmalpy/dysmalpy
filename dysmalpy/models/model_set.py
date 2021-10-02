@@ -1387,8 +1387,8 @@ class ModelSet:
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
                 zsky, ysky, xsky = np.indices(sh)
                 zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp # (ny_sky_samp - 1) / 2.
-                xsky = xsky - xcenter_samp # (nx_sky_samp - 1) / 2.
+                ysky = ysky - ycenter_samp
+                xsky = xsky - xcenter_samp
 
                 # Apply the geometric transformation to get galactic coordinates
                 # Need to account for oversampling in the x and y shift parameters
@@ -1469,11 +1469,11 @@ class ModelSet:
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     lcomp = self.components[cmp]
-                    zscale = self.zprofile(zgal * rstep_samp / dscale)
+                    zscale = self.zprofile(zgal_kpc)
                     # Differentiate between axisymmetric and non-axisymmetric light components:
                     if lcomp._axisymmetric:
                         # Axisymmetric cases:
-                        flux_mass += lcomp.light_profile(rgal) * zscale
+                        flux_mass += lcomp.light_profile(rgal_kpc) * zscale
                     else:
                         # Non-axisymmetric cases:
 
@@ -1515,7 +1515,7 @@ class ModelSet:
 
                 #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
-                rgal_final_kpc = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+                rgal_final_kpc = rgal_final * rstep_samp / dscale
 
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.

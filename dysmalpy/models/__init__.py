@@ -12,8 +12,8 @@ from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
                                               apply_noord_flat, _sersic_profile_mass_VC_loaded
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                             Einasto, DekelZhao, LinearNFW
-from dysmalpy.models.outflows import BiconicalOutflow, UnresolvedOutflow
-from dysmalpy.models.higher_order_kinematics import UniformRadialFlow
+from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
+                                                    UniformRadialFlow
 from dysmalpy.models.zheight import ZHeightGauss, ZHeightExp
 from dysmalpy.models.dispersion_profiles import DispersionConst
 from dysmalpy.models.light_distributions import LightTruncateSersic, LightGaussianRing, \
