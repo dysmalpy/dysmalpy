@@ -183,6 +183,27 @@ class MassModel(_DysmalFittable1DModel):
         return dPhidr
 
 
+    def vel_vector_direction_emitframe(self, xgal, ygal, zgal):
+        r"""
+        Default method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        xgal, ygal, zgal : float or array
+            xyz position in the galaxy reference frame.
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyzgal).
+
+            As this is the base mass model, assumes the velocity direction
+            is the phi direction in cylindrical coordinates, (R,phi,z).
+        """
+        rgal = np.sqrt(xgal ** 2 + ygal ** 2)
+        vel_dir_unit_vector = np.array([-ygal/rgal, xgal/rgal, 0.])
+        return vel_dir_unit_vector
+
 
 
 

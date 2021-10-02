@@ -118,7 +118,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
     norm_flux = DysmalParameter(default=0.0, fixed=True)
     tau_flux = DysmalParameter(default=5.0, fixed=True)
 
-    _type = 'outflow'
+    _type = 'higher_order'
     _spatial_type = 'resolved'
     outputs = ('vout',)
 
@@ -186,7 +186,64 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         return flux
 
 
-class UnresolvedOutflow(_DysmalFittable1DModel):
+    def vel_vector_direction_emitframe(self, x, y, z):
+        r"""
+        Method to return the velocity direction in the outflow Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the outflow reference frame.
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For biconical outflows, this is the rhat direction, in spherical coordinates
+            (r,phi,theta).
+        """
+        r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
+        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+        return vel_dir_unit_vector
+
+#
+# class UnresolvedOutflow(_DysmalFittable1DModel):
+#     """
+#     Model for an unresolved outflow component described by a Gaussian
+#
+#     Parameters
+#     ----------
+#     vcenter : float
+#         Central velocity of the Gaussian in km/s
+#
+#     fwhm : float
+#         FWHM of the Gaussian in km/s
+#
+#     amplitude : float
+#         Amplitude of the Gaussian
+#
+#     Notes
+#     -----
+#     This model simply produces a broad Gaussian spectrum that will be placed in the
+#     central spectrum of the galaxy.
+#     """
+#
+#     vcenter = DysmalParameter(default=0)
+#     fwhm = DysmalParameter(default=1000.0, bounds=(0, None))
+#     amplitude = DysmalParameter(default=1.0, bounds=(0, None))
+#
+#     _type = 'outflow'
+#     _spatial_type = 'unresolved'
+#     outputs = ('vout',)
+#
+#     @staticmethod
+#     def evaluate(v, vcenter, fwhm, amplitude):
+#
+#         return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
+
+
+class UnresolvedOutflow(_DysmalFittable3DModel):
     """
     Model for an unresolved outflow component described by a Gaussian
 
@@ -211,11 +268,29 @@ class UnresolvedOutflow(_DysmalFittable1DModel):
     fwhm = DysmalParameter(default=1000.0, bounds=(0, None))
     amplitude = DysmalParameter(default=1.0, bounds=(0, None))
 
-    _type = 'outflow'
+    _type = 'higher_order'
     _spatial_type = 'unresolved'
     outputs = ('vout',)
 
     @staticmethod
-    def evaluate(v, vcenter, fwhm, amplitude):
+    def evaluate( x, y, z, vcenter, fwhm, amplitude):
+        return np.ones(x.shape)*vcenter
 
-        return amplitude*np.exp(-(v - vcenter)**2/(fwhm/2.35482)**2)
+    def dispersion_profile(self, x, y, z, fwhm=None):
+        """Dispersion profile for the outflow"""
+        if fwhm is None: fwhm = self.fwhm
+        return np.ones(x.shape)*(fwhm/2.35482)
+
+    def light_profile(self, x, y, z):
+        """Evaluate the outflow line flux as a function of position x, y, z
+           All the light will be deposited at the center pixel."""
+
+        # The coordinates where the unresolved outflow is placed needs to be
+        # an integer pixel so for now we round to nearest integer.
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+        ind_min = r.argmin()
+        flux = x*0.
+        flux[ind_min] = self.amplitude
+
+        return flux

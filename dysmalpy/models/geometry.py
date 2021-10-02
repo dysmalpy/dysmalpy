@@ -186,6 +186,65 @@ class Geometry(_DysmalFittable3DModel):
 
         return cube_sky
 
+
+
+    def zsky_direction_emitframe(self, x, y, z, inc=None):
+        r"""
+        Method to return the zsky direction in terms of the emission frame.
+        This just accounts for the inclination.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        Returns
+        -------
+        zsky_unit_vector : 3-element array
+            Direction of the zsky vector in (xyz).
+
+            This corrects for the inclination, so returns [0, -sin(i), cos(i)]
+        """
+        if inc is None:     inc = self.inc
+        inc = np.pi / 180. * inc
+        zsky_unit_vector = [ x*0., y*0. + (-np.sin(inc)), z*0. + np.cos(inc) ]
+        return zsky_unit_vector
+
+    def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):
+        r"""
+        Method to project velocities in models' emission frame along the LOS (zsky direction).
+
+        Parameters
+        ----------
+        model : `~dysmalpy.models._DysmalModel`
+            Model component from which the velocity was calculated.
+
+        vel : float or array
+            Amplitude of the velocity
+
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        inc : float, optional
+            Specify a separate inclination. Default: uses self.inc
+
+        Returns
+        -------
+        v_LOS : float or array
+            Projection of velocity 'vel' along the LOS.
+        """
+
+        vel_hat = model.vel_vector_direction_emitframe(x, y, z)
+        zsky_unit_vector = self.zsky_direction_emitframe(x, y, z, inc=inc)
+
+        proj_dotprod = vel*0.
+        for vh, zuv in zip(vel_hat, zsky_unit_vector):
+            proj_dotprod += vh*zuv
+
+        v_LOS = vel * proj_dotprod
+
+        return v_LOS
+
     # def transform_cube_rotate_shift(self, cube, inc=None, pa=None, xshift=None, yshift=None):
     #     """Incline and transform a cube from galaxy/model reference frame to sky frame.
     #         Use scipy.ndimage.rotate and scipy.ndimage.shift"""

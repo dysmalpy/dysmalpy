@@ -41,7 +41,7 @@ class UniformRadialFlow(_DysmalFittable3DModel):
     """
     vr = DysmalParameter(default=30.)
 
-    _type = 'flow'
+    _type = 'higher_order'
     _spatial_type = 'resolved'
     outputs = ('vrad',)
 
@@ -55,3 +55,25 @@ class UniformRadialFlow(_DysmalFittable3DModel):
         vel = np.ones(x.shape) * (vr)
 
         return vel
+
+
+    def vel_vector_direction_emitframe(self, x, y, z):
+        r"""
+        Method to return the velocity direction in the outflow Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a uniform radial flow, this is the rhat direction, in spherical coordinates
+            (r,phi,theta).
+        """
+        r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
+        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+        return vel_dir_unit_vector

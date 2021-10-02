@@ -325,25 +325,15 @@ class ModelSet:
         self.geometry = None
         self.dispersion_profile = None
         self.zprofile = None
-        self.outflow = None
-        self.outflow_geometry = None
-        self.outflow_dispersion = None
-        self.outflow_flux = None
 
-        #########
-        # BACKWARDS COMPATIBILITY: remove next major version:
-        self.inflow = None
-        self.inflow_geometry = None
-        self.inflow_dispersion = None
-        self.inflow_flux = None
-
-        self.flow = None
-        self.flow_geometry = None
-        self.flow_dispersion = None
-        self.flow_flux = None
-        #########
+        # Keep higher-order kinematic components, and their geom/disp/fluxes in OrderedDicts:
+        #       (biconical) outflow / uniform flow / etc
+        self.higher_order_components = OrderedDict()
+        self.higher_order_geometries = OrderedDict()
+        self.higher_order_dispersions = OrderedDict()
 
         self.extinction = None
+
         self.parameters = None
         self.fixed = OrderedDict()
         self.tied = OrderedDict()
@@ -358,8 +348,8 @@ class ModelSet:
         # Option for dealing with 3D data:
         self.per_spaxel_norm_3D = False
 
-    def add_component(self, model, name=None, light=False, geom_type='galaxy',
-                      disp_type='galaxy'):
+    def add_component(self, model, name=None, light=False,
+                      geom_type='galaxy', disp_type='galaxy'):
         """
         Add a model component to the set
 
@@ -375,14 +365,16 @@ class ModelSet:
             If True, use the mass profile of the model component in the calculation of the
             flux of the line, i.e. setting the mass-to-light ratio equal to 1.
 
-        geom_type : {'galaxy', 'outflow', 'flow'}
+        geom_type : {'galaxy', component name}
             Specify which model components the geometry applies to.
             Only used if `model` is a `~Geometry`. If 'galaxy', then all included
-            components except outflows and flow will follow this geometry.
+            components except named components with other geometries will follow this geometry
+            (i.e., those with a separate geometry included that has 'geom_type'=the component name).
             Default is 'galaxy'.
 
-        disp_type : {'galaxy', 'outflow', 'flow'}
-            Specify which model components the dispersion applies to.
+        disp_type : {'galaxy', component name}
+            Specify which model components the dispersion applies to
+            (by name, with the exception of the default profiles).
             Only used if `model` is a `~DispersionProfile`. Default is 'galaxy'.
         """
         # Check to make sure its the correct class
@@ -412,17 +404,8 @@ class ModelSet:
                                     'overwritten!')
                     self.geometry = model
 
-                elif geom_type == 'outflow':
-
-                    self.outflow_geometry = model
-
-                elif geom_type == 'flow':
-
-                    self.flow_geometry = model
-
                 else:
-                    logger.error("geom_type can only be either 'galaxy', "
-                                 "'flow', or 'outflow'.")
+                    self.higher_order_geometries[geom_type] = model
 
                 self.mass_components[model.name] = False
 
@@ -434,14 +417,8 @@ class ModelSet:
                                        'overwritten!')
                     self.dispersion_profile = model
 
-                elif disp_type == 'outflow':
-
-                    self.outflow_dispersion = model
-
-                elif disp_type == 'flow':
-
-                    self.flow_dispersion = model
-
+                else:
+                    self.higher_order_dispersions[geom_type] = model
                 self.mass_components[model.name] = False
 
             elif model._type == 'zheight':
@@ -451,18 +428,8 @@ class ModelSet:
                 self.zprofile = model
                 self.mass_components[model.name] = False
 
-            elif model._type == 'outflow':
-                if self.outflow is not None:
-                    logger.warning('Current outflow model is being '
-                                   'overwritten!')
-                self.outflow = model
-                self.mass_components[model.name] = False
-
-            elif model._type == 'flow':
-                if self.flow is not None:
-                    logger.warning('Current flow model is being '
-                                   'overwritten!')
-                self.flow = model
+            elif model._type == 'higher_order':
+                self.higher_order_components[model.name] = model
                 self.mass_components[model.name] = False
 
             elif model._type == 'extinction':
@@ -474,10 +441,11 @@ class ModelSet:
             elif model._type == 'light':
                 if not light:
                     light = True
+                self.mass_components[model.name] = False
             else:
                 raise TypeError("This model type is not known. Must be one of"
                                 "'mass', 'geometry', 'dispersion', 'zheight',"
-                                "'outflow', 'flow', or 'extinction'.")
+                                "'higher_order', or 'extinction'.")
 
             if light:
                 self.light_components[model.name] = True
@@ -537,7 +505,6 @@ class ModelSet:
             self._update_tied_parameters()
         except:
             pass
-
 
     def set_parameter_value(self, model_name, param_name, value, skip_updated_tied=False):
         """
@@ -1349,17 +1316,17 @@ class ModelSet:
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
 
-        # Backwards compatibility:
-        if 'outflow' not in self.__dict__.keys():
-            self.outflow = None
-            self.outflow_geometry = None
-            self.outflow_dispersion = None
-            self.outflow_flux = None
-        if 'flow' not in self.__dict__.keys():
-            self.flow = None
-            self.flow_geometry = None
-            self.flow_dispersion = None
-            self.flow_flux = None
+        # # Backwards compatibility:
+        # if 'outflow' not in self.__dict__.keys():
+        #     self.outflow = None
+        #     self.outflow_geometry = None
+        #     self.outflow_dispersion = None
+        #     self.outflow_flux = None
+        # if 'flow' not in self.__dict__.keys():
+        #     self.flow = None
+        #     self.flow_geometry = None
+        #     self.flow_dispersion = None
+        #     self.flow_flux = None
 
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
@@ -1446,31 +1413,50 @@ class ModelSet:
 
             # The circular velocity at each position only depends on the radius
             # Convert to kpc
-            rgal = np.sqrt(xgal ** 2 + ygal ** 2) * rstep_samp / dscale
-            vrot = self.velocity_profile(rgal)
+            rgal = np.sqrt(xgal ** 2 + ygal ** 2)
+            rgal_kpc = rgal * rstep_samp / dscale
+            xgal_kpc = xgal * rstep_samp / dscale
+            ygal_kpc = ygal * rstep_samp / dscale
+            zgal_kpc = ygal * rstep_samp / dscale
+
+            vrot = self.velocity_profile(rgal_kpc)
             # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
             v_sys = self.geometry.vel_shift.value  # systemic velocity
             if transform_method.lower().strip() == 'direct':
-                vobs_mass = v_sys + (vrot * np.sin(np.radians(self.geometry.inc.value)) *
-                        xgal / (rgal / rstep_samp * dscale))
-
+                # Get one of the mass components:
+                for cmp in self.mass_components:
+                    if self.mass_components[cmp]:
+                        mcomp = self.components[cmp]
+                        break
+                vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
+                vobs_mass = v_sys + vrot_LOS
                 vobs_mass[rgal == 0] = 0.
-                #######
-                if ((self.flow is not None) & (self.flow_geometry is None)):
-                    rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
-                    # 3D radius, converted to kpc
-                    rgal3D_kpc = rgal3D * rstep_samp / dscale
-                    xgal_kpc = xgal * rstep_samp / dscale
-                    ygal_kpc = ygal * rstep_samp / dscale
-                    zgal_kpc = ygal * rstep_samp / dscale
-                    vr = self.flow(xgal_kpc, ygal_kpc, zgal_kpc)
 
-                    #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                    vr_obs = - vr * zsky/rgal3D
-                    vr_obs[rgal3D == 0] = vr[rgal3D == 0]
-                    vobs_mass += vr_obs
+                #######
+                # Higher order components: those that follow general geometry
+                for cmp_n in self.higher_order_components:
+                    comp = self.higher_order_components[cmp_n]
+                    cmps_hiord_geoms = list(self.higher_order_geometries.keys())
+                    cmps_hiord_disps = list(self.higher_order_dispersions.keys())
+
+                    if comp.name not in cmps_hiord_geoms:
+                        # Use general geometry:
+                        rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
+
+                        v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                        if comp._spatial_type != 'unresolved':
+                            v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                                                               xgal, ygal, zgal)
+                        else:
+                            v_hiord_LOS = v_hiord + v_sys
+
+                        v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+                        vobs_mass += v_hiord_LOS
+                #######
+
+
                 #######
             elif transform_method.lower().strip() == 'rotate':
                 vcirc_mass = vrot
@@ -1492,9 +1478,7 @@ class ModelSet:
                         # Non-axisymmetric cases:
 
                         ## ASSUME IT'S ALL IN THE MIDPLANE:
-                        flux_midplane = lcomp.light_profile(xgal * rstep_samp / dscale,
-                                                            ygal * rstep_samp / dscale,
-                                                            zgal * rstep_samp / dscale, )
+                        flux_midplane = lcomp.light_profile(xgal_kpc, ygal_kpc, zgal_kpc)
                         flux_mass +=  flux_midplane * zscale
 
                         ## Later option: directly 3D calculate ????
@@ -1505,7 +1489,7 @@ class ModelSet:
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
             if transform_method.lower().strip() == 'direct':
-                sigmar = self.dispersion_profile(rgal)
+                sigmar = self.dispersion_profile(rgal_kpc)
 
                 # The final spectrum will be a flux weighted sum of Gaussians at each
                 # velocity along the line of sight.
@@ -1521,7 +1505,6 @@ class ModelSet:
                     cube_final += cutils.populate_cube(flux_mass, vobs_mass, sigmar, vx)
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
             elif transform_method.lower().strip() == 'rotate':
                 zsky_final, ysky_final, xsky_final = np.indices(sh)
                 zsky_final = zsky_final - (nz_sky_samp - 1) / 2.
@@ -1530,11 +1513,13 @@ class ModelSet:
 
                 xgal_final, ygal_final, zgal_final = self.geometry(xsky_final, ysky_final, zsky_final)
 
-                rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+                #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+                rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
+                rgal_final_kpc = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
 
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
-                sigmar_transf = self.dispersion_profile(rgal_final)
+                sigmar_transf = self.dispersion_profile(rgal_final_kpc)
 
                 if zcalc_truncate:
                     cos_inc = np.cos(self.geometry.inc*np.pi/180.)
@@ -1561,24 +1546,46 @@ class ModelSet:
                     flux_mass_transf  = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
                     vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass[validz,:,:], output_shape=outsh)
 
-                    vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
-                            xgal_final / (rgal_final / rstep_samp * dscale))
+                    # -----------------------
+                    # Perform LOS projection
+                    vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                                            xgal_final, ygal_final, zgal_final)
+                    vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     vobs_mass_transf[rgal_final == 0] = 0.
 
-                    #######
-                    if ((self.flow is not None) & (self.flow_geometry is None)):
-                        rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
-                        # 3D radius, converted to kpc
-                        rgal3D_kpc = rgal3D * rstep_samp / dscale
-                        xgal_kpc = xgal_final * rstep_samp / dscale
-                        ygal_kpc = ygal_final * rstep_samp / dscale
-                        zgal_kpc = zgal_final * rstep_samp / dscale
-                        vr = self.flow(xgal_kpc, ygal_kpc, zgal_kpc)
+                    # vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
+                    #         xgal_final / rgal_final )
+                    # vobs_mass_transf[rgal_final == 0] = 0.
+                    # -----------------------
 
-                        #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                        vr_obs = - vr * zsky_final/rgal3D
-                        vr_obs[rgal3D == 0] = vr[rgal3D == 0]
-                        vobs_mass += vin_obs
+                    #######
+                    # Higher order components: those that follow general geometry
+                    for cmp_n in self.higher_order_components:
+                        comp = self.higher_order_components[cmp_n]
+                        cmps_hiord_geoms = list(self.higher_order_geometries.keys())
+                        cmps_hiord_disps = list(self.higher_order_dispersions.keys())
+
+                        if comp.name not in cmps_hiord_geoms:
+                            # Use general geometry:
+                            rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
+                            xgal_kpc = xgal_final * rstep_samp / dscale
+                            ygal_kpc = ygal_final * rstep_samp / dscale
+                            zgal_kpc = zgal_final * rstep_samp / dscale
+
+                            v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                            if comp._spatial_type != 'unresolved':
+                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                                                xgal_final, ygal_final, zgal_final)
+                            else:
+                                v_hiord_LOS = v_hiord + v_sys
+
+                            v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+                            #   No systemic velocity here bc this is relative to
+                            #    the center of the galaxy at rest already
+                            vobs_mass += v_hiord_LOS
+                    #######
+
+
                     #######
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
@@ -1592,39 +1599,63 @@ class ModelSet:
                     # Rotate + transform cube from inclined to sky coordinates
                     flux_mass_transf =  self.geometry.transform_cube_affine(flux_mass)
                     vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass)
-                    vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
-                            xgal_final / (rgal_final / rstep_samp * dscale))
+
+                    # -----------------------
+                    # Perform LOS projection
+                    vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                                            xgal_final, ygal_final, zgal_final)
+                    vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     vobs_mass_transf[rgal_final == 0] = 0.
 
-                    #######
-                    if ((self.flow is not None) & (self.flow_geometry is None)):
-                        rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
-                        # 3D radius, converted to kpc
-                        rgal3D_kpc = rgal3D * rstep_samp / dscale
-                        xgal_kpc = xgal_final * rstep_samp / dscale
-                        ygal_kpc = ygal_final * rstep_samp / dscale
-                        zgal_kpc = zgal_final * rstep_samp / dscale
-                        vr = self.inflow(xgal_kpc, ygal_kpc, zgal_kpc)
+                    # vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
+                    #         xgal_final / rgal_final )
+                    # vobs_mass_transf[rgal_final == 0] = 0.
+                    # -----------------------
 
-                        #   No systemic velocity here bc this is relative to the center of the galaxy at rest already
-                        vr_obs = - vr * zsky_final/rgal3D
-                        vr_obs[rgal3D == 0] = vr[rgal3D == 0]
-                        vobs_mass += vin_obs
+                    #######
+                    # Higher order components: those that follow general geometry
+                    for cmp_n in self.higher_order_components:
+                        comp = self.higher_order_components[cmp_n]
+                        cmps_hiord_geoms = list(self.higher_order_geometries.keys())
+                        cmps_hiord_disps = list(self.higher_order_dispersions.keys())
+
+                        if comp.name not in cmps_hiord_geoms:
+                            # Use general geometry:
+                            rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
+                            xgal_kpc = xgal_final * rstep_samp / dscale
+                            ygal_kpc = ygal_final * rstep_samp / dscale
+                            zgal_kpc = zgal_final * rstep_samp / dscale
+
+                            v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                            if comp._spatial_type != 'unresolved':
+                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                                                xgal_final, ygal_final, zgal_final)
+                            else:
+                                v_hiord_LOS = v_hiord + v_sys
+
+                            v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+                            #   No systemic velocity here bc this is relative to
+                            #    the center of the galaxy at rest already
+                            vobs_mass += v_hiord_LOS
                     #######
 
                     # Do complete cube propogation calculation
                     cube_final += cutils.populate_cube(flux_mass_transf, vobs_mass_transf, sigmar_transf, vx)
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
 
-        if self.outflow is not None:
 
-            if self.outflow._spatial_type == 'resolved':
-                # Create 3D arrays of the sky pixel coordinates
-                sin_inc = np.sin(self.outflow_geometry.inc * np.pi / 180.)
+        #######
+        # Higher order components: those that DON'T follow general geometry
+        for cmp_n in self.higher_order_components:
+            comp = self.higher_order_components[cmp_n]
+            cmps_hiord_geoms = list(self.higher_order_geometries.keys())
+            cmps_hiord_disps = list(self.higher_order_dispersions.keys())
+
+            if comp.name in cmps_hiord_geoms:
+                sin_inc = np.sin(self.higher_order_geometries[comp.name].inc * np.pi / 180.)
                 maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
                 maxr_y = np.max(np.array([maxr * 1.5, np.min(
                     np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
@@ -1638,110 +1669,48 @@ class ModelSet:
                 ysky = ysky - ycenter_samp
                 xsky = xsky - xcenter_samp
 
-                # Apply the geometric transformation to get outflow coordinates
+                # Apply the geometric transformation to get higher order coordinates
                 # Account for oversampling
-                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value * oversample
-                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value * oversample
-                xout, yout, zout = self.outflow_geometry(xsky, ysky, zsky)
+                self.higher_order_geometries[comp.name].xshift = \
+                        self.higher_order_geometries[comp.name].xshift.value * oversample
+                self.higher_order_geometries[comp.name].yshift = \
+                    self.higher_order_geometries[comp.name].yshift.value * oversample
+                xout, yout, zout = self.higher_order_geometries[comp.name](xsky, ysky, zsky)
 
                 # Convert to kpc
                 xout_kpc = xout * rstep_samp / dscale
                 yout_kpc = yout * rstep_samp / dscale
                 zout_kpc = zout * rstep_samp / dscale
 
-                rout = np.sqrt(xout**2 + yout**2 + zout**2)
-                vout = self.outflow(xout_kpc, yout_kpc, zout_kpc)
-                fout = self.outflow.light_profile(xout_kpc, yout_kpc, zout_kpc)
+                r_hiord = np.sqrt(xout**2 + yout**2 + zout**2)
+                v_hiord = comp(xout_kpc, yout_kpc, zout_kpc)
+                f_hiord = comp.light_profile(xout_kpc, yout_kpc, zout_kpc)
 
                 # Apply extinction if it exists
                 if self.extinction is not None:
+                    f_hiord *= self.extinction(xsky, ysky, zsky)
 
-                    fout *= self.extinction(xsky, ysky, zsky)
+                # LOS projection
+                if comp._spatial_type != 'unresolved':
+                    v_hiord_LOS = self.higher_order_geometries[comp.name].project_velocity_along_LOS(comp,
+                                                                      v_hiord, xout, yout, zout)
+                else:
+                    v_hiord_LOS = v_hiord + self.geometry.vel_shift.value  # galaxy systemic velocity
+                v_hiord_LOS[r_hiord == 0] = vout[r_hiord == 0]
 
-                # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-                v_sys = self.outflow_geometry.vel_shift.value  # systemic velocity
-                vobs = v_sys -vout * zsky/rout
-                vobs[rout == 0] = vout[rout == 0]
+                if comp.name in cmps_hiord_geoms:
+                    sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)
+                else:
+                    # The higher-order term MUST have its own defined dispersion profile:
+                    sigma_hiord = comp.dispersion_profile(xout_kpc, yout_kpc, zout_kpc)
 
-                sigma_out = self.outflow_dispersion(rout)
+                cube_final += cutils.populate_cube(f_hiord, v_hiord_LOS, sigma_hiord, vx)
 
-                cube_final += cutils.populate_cube(fout, vobs, sigma_out, vx)
+                self.higher_order_geometries[comp.name].xshift = \
+                            self.higher_order_geometries[comp.name].xshift.value / oversample
+                self.higher_order_geometries[comp.name].yshift = \
+                            self.higher_order_geometries[comp.name].yshift.value / oversample
 
-                self.outflow_geometry.xshift = self.outflow_geometry.xshift.value / oversample
-                self.outflow_geometry.yshift = self.outflow_geometry.yshift.value / oversample
-
-            elif self.outflow._spatial_type == 'unresolved':
-
-                # Set where the unresolved will be located and account for oversampling
-                xshift = self.outflow_geometry.xshift.value * oversample
-                yshift = self.outflow_geometry.yshift.value * oversample
-
-                # The coordinates where the unresolved outflow is placed needs to be
-                # an integer pixel so for now we round to nearest integer.
-                xpix = np.int(np.round(xshift)) + np.int(np.round(xcenter_samp))
-                ypix = np.int(np.round(yshift)) + np.int(np.round(ycenter_samp))
-
-                voutflow = v_sys + self.outflow(vx)
-                cube_final[:, ypix, xpix] += voutflow
-
-                xshift = self.outflow_geometry.xshift.value / oversample
-                yshift = self.outflow_geometry.yshift.value / oversample
-
-
-        ####
-        if (self.flow is not None) & (self.flow_geometry is not None):
-            # If self.flow_geometry is None:
-            #   Just us the galaxy geometry and light profile: is just a superimposed kinematic signature
-            #       on the normal disk rotation:
-            # CALCULATED EARLIER
-
-            if self.flow._spatial_type == 'resolved':
-                # Create 3D arrays of the sky pixel coordinates
-                sin_inc = np.sin(self.flow_geometry.inc * np.pi / 180.)
-
-                maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
-                maxr_y = np.max(np.array([maxr * 1.5, np.min(
-                    np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
-                nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
-
-                if np.mod(nz_sky_samp, 2) < 0.5:
-                    nz_sky_samp += 1
-
-                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-                zsky, ysky, xsky = np.indices(sh)
-                zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp
-                xsky = xsky - xcenter_samp
-
-                # Apply the geometric transformation to get flow coordinates
-                # Account for oversampling
-                self.flow_geometry.xshift = self.flow_geometry.xshift.value * oversample
-                self.flow_geometry.yshift = self.flow_geometry.yshift.value * oversample
-                xflow, yflow, zflow = self.flow_geometry(xsky, ysky, zsky)
-
-                # Convert to kpc
-                xflow_kpc = xflow * rstep_samp / dscale
-                yflow_kpc = yflow * rstep_samp / dscale
-                zflow_kpc = zflow * rstep_samp / dscale
-
-                rflow = np.sqrt(xflow**2 + yflow**2 + zflow**2)
-                vflow = self.flow(xflow_kpc, yflow_kpc, zflow_kpc)
-                fflow = self.flow.light_profile(xflow_kpc, yflow_kpc, zflow_kpc)
-
-                # Apply extinction if it exists
-                if self.extinction is not None:
-                    fflow *= self.extinction(xsky, ysky, zsky)
-
-                # L.O.S. velocity is v*cos(alpha) = -v*zsky/rsky
-                v_sys = self.flow_geometry.vel_shift.value  # systemic velocity
-                vobs = v_sys - vflow * zsky/rflow
-                vobs[rflow == 0] = vflow[rflow == 0]
-
-                sigma_flow = self.flow_dispersion(rflow)
-                cube_final += cutils.populate_cube(fflow, vobs, sigma_flow, vx)
-
-                self.flow_geometry.xshift = self.flow_geometry.xshift.value / oversample
-                self.flow_geometry.yshift = self.flow_geometry.yshift.value / oversample
 
 
 
