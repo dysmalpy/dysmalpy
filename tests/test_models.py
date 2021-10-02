@@ -653,8 +653,6 @@ class TestModels:
         kwargs_galmodel['from_data'] = False
         kwargs_galmodel['ndim_final'] = 3
 
-        raise ValueError("check 'transform_method' & 'zcalc_truncate' ! ")
-
         # Make model
         gal.create_model_data(**kwargs_galmodel)
 
