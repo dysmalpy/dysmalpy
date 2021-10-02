@@ -207,7 +207,7 @@ class Geometry(_DysmalFittable3DModel):
         """
         if inc is None:     inc = self.inc
         inc = np.pi / 180. * inc
-        zsky_unit_vector = [ x*0., y*0. + (-np.sin(inc)), z*0. + np.cos(inc) ]
+        zsky_unit_vector = [ x*0., y*0. - np.sin(inc), z*0. + np.cos(inc) ]
         return zsky_unit_vector
 
     def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):

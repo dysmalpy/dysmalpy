@@ -199,11 +199,11 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         vel_dir_unit_vector : 3-element array
             Direction of the velocity vector in (xyz).
 
-            For biconical outflows, this is the rhat direction, in spherical coordinates
+            For biconical outflows, this is the -rhat direction, in spherical coordinates
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+        vel_dir_unit_vector = [ -x/r, -y/r, -z/r ]
         return vel_dir_unit_vector
 
 #
@@ -342,9 +342,9 @@ class UniformRadialFlow(_DysmalFittable3DModel):
         vel_dir_unit_vector : 3-element array
             Direction of the velocity vector in (xyz).
 
-            For a uniform radial flow, this is the rhat direction, in spherical coordinates
+            For a uniform radial flow, this is the -rhat direction, in spherical coordinates
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+        vel_dir_unit_vector = [ -x/r, -y/r, -z/r ]
         return vel_dir_unit_vector

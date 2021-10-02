@@ -1417,7 +1417,7 @@ class ModelSet:
             rgal_kpc = rgal * rstep_samp / dscale
             xgal_kpc = xgal * rstep_samp / dscale
             ygal_kpc = ygal * rstep_samp / dscale
-            zgal_kpc = ygal * rstep_samp / dscale
+            zgal_kpc = zgal * rstep_samp / dscale
 
             vrot = self.velocity_profile(rgal_kpc)
             # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
@@ -1456,8 +1456,6 @@ class ModelSet:
                         vobs_mass += v_hiord_LOS
                 #######
 
-
-                #######
             elif transform_method.lower().strip() == 'rotate':
                 vcirc_mass = vrot
                 vcirc_mass[rgal == 0] = 0.
