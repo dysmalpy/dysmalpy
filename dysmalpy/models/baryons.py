@@ -33,6 +33,8 @@ __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
+# located one up:
+dir_path = '/'.join(dir_path.split('/')[:-1])
 _dir_noordermeer = dir_path+"/data/noordermeer/"
 
 
@@ -287,6 +289,7 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
 
     except:
         vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
+        
     return vcirc
 
 
