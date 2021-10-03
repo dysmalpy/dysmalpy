@@ -616,7 +616,7 @@ class TestModels:
                           [90,15,15, 0.008918484250396356],
                           [90,15,21, 0.0001878819028507639]]
 
-        ## Compare to no-inflow model: from commented "test_normal()"
+        ## Compare to no-inflow model: from "test_simulate_cube()"
         # arr_pix_values = [[100,18,18, 0.003642043894515958],
         #                   [0,0,0, 8.470329472543004e-23],
         #                   [100,18,0, 3.1268306004623424e-07],
