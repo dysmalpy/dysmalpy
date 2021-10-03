@@ -237,6 +237,7 @@ class Geometry(_DysmalFittable3DModel):
         vel_hat = model.vel_vector_direction_emitframe(x, y, z)
         zsky_unit_vector = self.zsky_direction_emitframe(x, y, z, inc=inc)
 
+        # Dot product of vel_hat, zsky_unit_vector
         proj_dotprod = vel*0.
         for vh, zuv in zip(vel_hat, zsky_unit_vector):
             proj_dotprod += vh*zuv

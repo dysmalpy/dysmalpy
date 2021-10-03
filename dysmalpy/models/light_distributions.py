@@ -16,7 +16,8 @@ import numpy as np
 from .base import LightModel, LightModel3D, truncate_sersic_mr, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter
 
-__all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump']
+__all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
+           'LightGaussianRingAzimuthal']
 
 
 # LOGGER SETTINGS
@@ -120,8 +121,8 @@ class LightTruncateSersic(LightModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        return truncate_sersic_mr(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
-
+        #return truncate_sersic_mr(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
+        return self.evaluate(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
 
 
 class LightGaussianRing(LightModel):
@@ -160,7 +161,8 @@ class LightGaussianRing(LightModel):
     @staticmethod
     def evaluate(r, r_peak, sigma_r, L_tot):
         """
-        Gaussian ring light surface density. Same as self.light_profile
+        Gaussian ring light surface density.
+        Radius r must be in kpc
         """
         I0 = _I0_gaussring(r_peak, sigma_r, L_tot)
         return I0*np.exp(-(r-r_peak)**2/(2.*sigma_r**2))
@@ -172,16 +174,17 @@ class LightGaussianRing(LightModel):
         Parameters
         ----------
         r : float or array
-            Radii at which to calculate the enclosed mass
+            Radii at which to calculate the enclosed mass, in kpc
 
         Returns
         -------
         light : float or array
             Relative line flux as a function of radius
         """
-        I0 = _I0_gaussring(self.r_peak, self.sigma_r, self.L_tot)
-        return I0*np.exp(-(r-self.r_peak)**2/(2.*self.sigma_r**2))
+        # I0 = _I0_gaussring(self.r_peak, self.sigma_r, self.L_tot)
+        # return I0*np.exp(-(r-self.r_peak)**2/(2.*self.sigma_r**2))
 
+        return self.evaluate(r, self.r_peak, self.sigma_r, self.L_tot)
 
 
 class LightClump(LightModel3D):
@@ -240,44 +243,130 @@ class LightClump(LightModel3D):
     @staticmethod
     def evaluate(x, y, z, L_tot, r_eff, n, r_center, phi, theta):
         """
-        Sersic light surface density. Same as self.light_profile
+        Light profile of the clump
         """
         phi_rad = np.pi / 180. * phi
-        theta_rad = np.pi / 180. * theta
+        # theta_rad = np.pi / 180. * theta
         # r = np.sqrt( (x-r_center*np.cos(phi_rad)*np.sin(theta_rad))**2 + \
         #              (y-r_center*np.sin(phi_rad)*np.sin(theta_rad))**2 + \
         #              (z-r_center*np.cos(theta_rad))**2)
         # return sersic_mr(r, L_tot, n, r_eff)
 
-        # Assume clump centered at midplane:
+        # INGORE THETA, and assume clump centered at midplane:
         r = np.sqrt( (x-r_center*np.cos(phi_rad))**2 + \
                      (y-r_center*np.sin(phi_rad))**2 )
         return sersic_mr(r, L_tot, n, r_eff)
 
     def light_profile(self, x, y, z):
         """
-        Conversion from mass to light as a function of radius
+        Light profile of the clump
 
         Parameters
         ----------
-        r : float or array
-            Radii at which to calculate the enclosed mass
+        x, y, z : float or array
+            Positioin at which to calculate the light profile
 
         Returns
         -------
         light : float or array
             Relative line flux as a function of radius
         """
-        phi_rad = np.pi / 180. * self.phi
-        theta_rad = np.pi / 180. * self.theta
-        # r = np.sqrt( (x-self.r_center*np.cos(phi_rad)*np.sin(theta_rad))**2 + \
-        #              (y-self.r_center*np.sin(phi_rad)*np.sin(theta_rad))**2 + \
-        #              (z-self.r_center*np.cos(theta_rad))**2)
-        # ## Assume clump centered at midplane??? -> use 2D sersic distro
-        # # Would be better to use the deprojected Sersic profiles if using 3D.....
-        # return sersic_mr(r, self.L_tot, self.n, self.r_eff)
+        return self.evaluate(x, y, z, self.L_tot, self.r_eff, self.n,
+                             self.r_center, self.phi, self.theta)
 
-        r = np.sqrt( (x-self.r_center*np.cos(phi_rad))**2 + \
-                     (y-self.r_center*np.sin(phi_rad))**2)
-        # Assume clump centered at midplane
-        return sersic_mr(r, self.L_tot, self.n, self.r_eff)
+
+class LightGaussianRingAzimuthal(LightModel3D):
+    r"""
+    Light distribution following a Gaussian ring profile, with azimuthal brightness variation.
+    (Reflection symmetric about one axis)
+
+    Parameters
+    ----------
+    r_peak : float
+        Peak of gaussian (radius) in kpc
+
+    sigma_r: float
+        Standard deviation of gaussian, in kpc
+
+    L_tot: float
+        Total luminsoity of component. Arbitrary units
+
+    phi : float
+        Azimuthal angle of bright side, counter-clockwise from blue major axis. In degrees.
+
+    contrast : float
+        Brightness contrast between dim and bright sides, dim/bright. Default: 1.
+
+    gamma : float
+        Scaling factor for how quickly the brightness changes occur from [0., abs(180.)].
+
+    Notes
+    -----
+    Model formula, for the radial part:
+
+    .. math::
+
+        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_r^2}\right]
+
+
+    """
+
+    _axisymmetric = False
+    r_peak = DysmalParameter(default=1, bounds=(0, 50))
+    sigma_r = DysmalParameter(default=1, bounds=(0, 50))
+    L_tot = DysmalParameter(default=1, bounds=(0, 50))
+    phi = DysmalParameter(default=0., bounds=(0, 360))
+    contrast = DysmalParameter(default=1., bounds=(0., 1.))
+    gamma = DysmalParameter(default=1., bounds=(0, 100.))
+
+    def __init__(self, **kwargs):
+        super(LightGaussianRingAzimuthal, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(x, y, z, r_peak, sigma_r, L_tot, phi, contrast, gamma):
+        """
+        Azimuthally varying Gaussian ring light surface density.
+        Positions x,y,z in kpc
+        """
+        I0 = _I0_gaussring(r_peak, sigma_r, L_tot)
+        r = np.sqrt( x ** 2 + y ** 2 )
+        gaus_symm = I0*np.exp(-(r-r_peak)**2/(2.*sigma_r**2))
+
+        # Assume ring is in midplane
+        phi_rad = phi * np.pi / 180.
+        phi_gal_rad = np.arcsin(y/r)
+        sh_x = np.shape(x)
+        if len(sh_x) > 0:
+            # Array-like
+            phi_gal_rad[x < 0] = np.pi - np.arcsin(y[x < 0]/r[x < 0])
+            # Handle position = 0 case:
+            phi_gal_rad[r == 0] = r[r==0] * 0.
+        else:
+            # Float
+            if x < 0.:
+                phi_gal_rad = np.pi - np.arcsin(y/r)
+            elif x == 0.:
+                # Handle position = 0 case:
+                phi_gal_rad = 0.
+
+        asymm_fac = 1. - (1.-contrast)*np.power(np.abs(np.sin(0.5 * (phi_gal_rad-phi_rad))), 1./gamma)
+        gaus_asymm = gaus_symm * asymm_fac
+
+        return gaus_asymm
+
+    def light_profile(self, x, y, z):
+        """
+        Azimuthally varying Gaussian ring light surface density.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            Position at which to calculate the light profile, in kpc. In the galaxy frame.
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        return self.evaluate(x, y, z, self.r_peak, self.sigma_r, self.L_tot,
+                    self.phi, self.contrast, self.gamma)

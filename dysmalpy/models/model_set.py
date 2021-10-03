@@ -298,9 +298,52 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
 
     return xvec, circaper_flux, circaper_vel, circaper_disp
 
-# ############################################################################
-# def tie_r_fdm(model_set):
-#     return model_set.components['disk+bulge'].r_eff_disk.value
+def _get_xyz_sky_gal(geom, sh, xc_samp, yc_samp, zc_samp):
+    """ Get grids in xyz sky, galaxy frames, assuming regularly gridded in sky frame """
+    zsky, ysky, xsky = np.indices(sh)
+    zsky = zsky - zc_samp
+    ysky = ysky - yc_samp
+    xsky = xsky - xc_samp
+    xgal, ygal, zgal = geom(xsky, ysky, zsky)
+    return xgal, ygal, zgal, xsky, ysky, zsky
+
+def _get_xyz_sky_gal_inverse(geom, sh, xc_samp, yc_samp, zc_samp):
+    """ Get grids in xyz sky, galaxy frames, assuming regularly gridded in galaxy frame """
+    zgal, ygal, xgal = np.indices(sh)
+    zgal = zgal - zc_samp
+    ygal = ygal - yc_samp
+    xgal = xgal - xc_samp
+    xsky, ysky, zsky = geom.inverse_coord_transform(xgal, ygal, zgal)
+    return xgal, ygal, zgal, xsky, ysky, zsky
+
+def _calculate_max_skyframe_extents(geom, nx_sky_samp, ny_sky_samp, transform_method, angle='cos'):
+    """ Calculate max zsky sample size, given geometry """
+    maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
+    if transform_method.lower().strip() == 'direct':
+        if angle.lower().strip() == 'cos':
+            cos_inc = np.cos(geom.inc*np.pi/180.)
+            geom_fac = cos_inc
+        elif angle.lower().strip() == 'sin':
+            sin_inc = np.sin(geom.inc*np.pi/180.)
+            geom_fac = sin_inc
+        else:
+            raise ValueError
+        maxr_y = np.max(np.array([maxr*1.5, np.min(
+            np.hstack([maxr*1.5/ geom_fac, maxr * 5.]))]))
+    else:
+        maxr_y = maxr * 5. #1.5
+
+    #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+    if angle.lower().strip() == 'cos':
+        nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
+    elif angle.lower().strip() == 'sin':
+        nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+    if np.mod(nz_sky_samp, 2) < 0.5:
+        nz_sky_samp += 1
+
+    return nz_sky_samp, maxr, maxr_y
+
+
 
 ############################################################################
 
@@ -415,7 +458,7 @@ class ModelSet:
                         logger.warning('Current Dispersion model is being '
                                        'overwritten!')
                     self.dispersion_profile = model
-                    
+
                 else:
                     self.higher_order_dispersions[disp_type] = model
                 self.mass_components[model.name] = False
@@ -1366,48 +1409,25 @@ class ModelSet:
         if sum(self.mass_components.values()) > 0:
 
             # Create 3D arrays of the sky / galaxy pixel coordinates
+            nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(self.geometry,
+                    nx_sky_samp, ny_sky_samp, transform_method)
 
-            maxr = np.sqrt(nx_sky_samp**2 + ny_sky_samp**2)
-            if transform_method.lower().strip() == 'direct':
-                cos_inc = np.cos(self.geometry.inc*np.pi/180.)
-                maxr_y = np.max(np.array([maxr*1.5, np.min(
-                    np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
-            else:
-                maxr_y = maxr * 5. #1.5
-
-            #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
-            nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
-            if np.mod(nz_sky_samp, 2) < 0.5:
-                nz_sky_samp += 1
+            # Apply the geometric transformation to get galactic coordinates
+            # Need to account for oversampling in the x and y shift parameters
+            self.geometry.xshift = self.geometry.xshift.value * oversample
+            self.geometry.yshift = self.geometry.yshift.value * oversample
+            sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
 
             # Regularly gridded in galaxy space
             #   -- just use the number values from sky space for simplicity
             if transform_method.lower().strip() == 'direct':
-                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-                zsky, ysky, xsky = np.indices(sh)
-                zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp
-                xsky = xsky - xcenter_samp
+                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal(self.geometry, sh,
+                        xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
-                # Apply the geometric transformation to get galactic coordinates
-                # Need to account for oversampling in the x and y shift parameters
-                self.geometry.xshift = self.geometry.xshift.value * oversample
-                self.geometry.yshift = self.geometry.yshift.value * oversample
-                xgal, ygal, zgal = self.geometry(xsky, ysky, zsky)
-
+            # Regularly gridded in sky space, will be rotated later
             elif transform_method.lower().strip() == 'rotate':
-                sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-                zgal, ygal, xgal = np.indices(sh)
-                zgal = zgal - (nz_sky_samp - 1) / 2.
-                ygal = ygal - ycenter_samp
-                xgal = xgal - xcenter_samp
-
-                # Apply the geometric transformation to get galactic coordinates
-                # Need to account for oversampling in the x and y shift parameters
-                self.geometry.xshift = self.geometry.xshift.value * oversample
-                self.geometry.yshift = self.geometry.yshift.value * oversample
-
-                xsky, ysky, zsky = self.geometry.inverse_coord_transform(xgal, ygal, zgal)
+                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal_inverse(self.geometry, sh,
+                        xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
 
             # The circular velocity at each position only depends on the radius
@@ -1435,12 +1455,13 @@ class ModelSet:
 
                 #######
                 # Higher order components: those that follow general geometry
+                #   (and have same light distribution)
                 for cmp_n in self.higher_order_components:
                     comp = self.higher_order_components[cmp_n]
                     cmps_hiord_geoms = list(self.higher_order_geometries.keys())
                     cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
-                    if comp.name not in cmps_hiord_geoms:
+                    if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                         # Use general geometry:
                         rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
 
@@ -1456,6 +1477,9 @@ class ModelSet:
                 #######
 
             elif transform_method.lower().strip() == 'rotate':
+                ####
+                logger.warning("Transform method 'rotate' has not been fully tested after changes!")
+                ####
                 vcirc_mass = vrot
                 vcirc_mass[rgal == 0] = 0.
 
@@ -1463,6 +1487,8 @@ class ModelSet:
             # Calculate "flux" for each position
             flux_mass = np.zeros(rgal.shape)
 
+            # self.light_components SHOULD NOT include
+            #    higher-order kin comps with own light profiles.
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     lcomp = self.components[cmp]
@@ -1503,12 +1529,11 @@ class ModelSet:
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             elif transform_method.lower().strip() == 'rotate':
-                zsky_final, ysky_final, xsky_final = np.indices(sh)
-                zsky_final = zsky_final - (nz_sky_samp - 1) / 2.
-                ysky_final = ysky_final - ycenter_samp
-                xsky_final = xsky_final - xcenter_samp
+                ###################################
 
-                xgal_final, ygal_final, zgal_final = self.geometry(xsky_final, ysky_final, zsky_final)
+                xgal_final, ygal_final, zgal_final, xsky_final, ysky_final, zsky_final = \
+                    _get_xyz_sky_gal_inverse(self.geometry, sh, xcenter_samp, ycenter_samp,
+                                             (nz_sky_samp - 1) / 2.)
 
                 #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
@@ -1519,9 +1544,13 @@ class ModelSet:
                 sigmar_transf = self.dispersion_profile(rgal_final_kpc)
 
                 if zcalc_truncate:
-                    cos_inc = np.cos(self.geometry.inc*np.pi/180.)
-                    maxr_y_final = np.max(np.array([maxr*1.5, np.min(
-                        np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+                    # cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+                    # maxr_y_final = np.max(np.array([maxr*1.5, np.min(
+                    #     np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
+
+                    # Use the cos term, and the normal 'direct' maxr_y calculation
+                    _, _, maxr_y_final = _calculate_max_skyframe_extents(self.geometry,
+                            nx_sky_samp, ny_sky_samp, 'direct', angle='cos')
 
                     # ---------------------
                     # GET TRIMMING FOR TRANSFORM:
@@ -1549,27 +1578,26 @@ class ModelSet:
                                             xgal_final, ygal_final, zgal_final)
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     vobs_mass_transf[rgal_final == 0] = 0.
-
-                    # vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
-                    #         xgal_final / rgal_final )
-                    # vobs_mass_transf[rgal_final == 0] = 0.
                     # -----------------------
 
                     #######
                     # Higher order components: those that follow general geometry
+                    #   (and have same light distribution)
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
                         cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
-                        if comp.name not in cmps_hiord_geoms:
+                        if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
                             rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
                             xgal_kpc = xgal_final * rstep_samp / dscale
                             ygal_kpc = ygal_final * rstep_samp / dscale
                             zgal_kpc = zgal_final * rstep_samp / dscale
 
+                            # Get velocity of higher-order component
                             v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                            # Project along LOS
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
@@ -1603,20 +1631,17 @@ class ModelSet:
                                             xgal_final, ygal_final, zgal_final)
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     vobs_mass_transf[rgal_final == 0] = 0.
-
-                    # vobs_mass_transf = v_sys + (vcirc_mass_transf * np.sin(np.radians(self.geometry.inc.value)) *
-                    #         xgal_final / rgal_final )
-                    # vobs_mass_transf[rgal_final == 0] = 0.
                     # -----------------------
 
                     #######
                     # Higher order components: those that follow general geometry
+                    #   (and have same light distribution)
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
                         cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
-                        if comp.name not in cmps_hiord_geoms:
+                        if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
                             rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
                             xgal_kpc = xgal_final * rstep_samp / dscale
@@ -1640,39 +1665,47 @@ class ModelSet:
                     cube_final += cutils.populate_cube(flux_mass_transf, vobs_mass_transf, sigmar_transf, vx)
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+            # Remove the oversample from the geometry xyshift
             self.geometry.xshift = self.geometry.xshift.value / oversample
             self.geometry.yshift = self.geometry.yshift.value / oversample
 
 
         #######
-        # Higher order components: those that DON'T follow general geometry
+        # Higher order components: those that DON'T follow general geometry,
+        #                          or have OWN light distribution
         for cmp_n in self.higher_order_components:
             comp = self.higher_order_components[cmp_n]
             cmps_hiord_geoms = list(self.higher_order_geometries.keys())
             cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
-            if comp.name in cmps_hiord_geoms:
-                sin_inc = np.sin(self.higher_order_geometries[comp.name].inc * np.pi / 180.)
-                maxr = np.sqrt(nx_sky_samp ** 2 + ny_sky_samp ** 2)
-                maxr_y = np.max(np.array([maxr * 1.5, np.min(
-                    np.hstack([maxr * 1.5 / sin_inc, maxr * 5.]))]))
-                nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
-                if np.mod(nz_sky_samp, 2) < 0.5:
-                    nz_sky_samp += 1
+            #if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
+            _do_comp = False
+            if (comp.name in cmps_hiord_geoms):
+                # Own geometry + light distribution
+                _do_comp = True
+                geom = self.higher_order_geometries[comp.name]
+            elif (comp.name not in cmps_hiord_geoms) & (comp._separate_light_profile):
+                # Own light distribution, uses galaxy geometry
+                _do_comp = True
+                geom = self.geometry
+                logger.warning("The case of higher ord comp using galaxy geometry "
+                               "but own light profile has not been tested")
+
+            if _do_comp:
+                #######
+                # Just create extra cube using the DIRECT calculation method
+
+                nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(geom,
+                            nx_sky_samp, ny_sky_samp, transform_method, angle='sin')
 
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
-                zsky, ysky, xsky = np.indices(sh)
-                zsky = zsky - (nz_sky_samp - 1) / 2.
-                ysky = ysky - ycenter_samp
-                xsky = xsky - xcenter_samp
 
                 # Apply the geometric transformation to get higher order coordinates
                 # Account for oversampling
-                self.higher_order_geometries[comp.name].xshift = \
-                        self.higher_order_geometries[comp.name].xshift.value * oversample
-                self.higher_order_geometries[comp.name].yshift = \
-                    self.higher_order_geometries[comp.name].yshift.value * oversample
-                xout, yout, zout = self.higher_order_geometries[comp.name](xsky, ysky, zsky)
+                geom.xshift = geom.xshift.value * oversample
+                geom.yshift = geom.yshift.value * oversample
+                xout, yout, zout, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
+                                xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
                 # Convert to kpc
                 xout_kpc = xout * rstep_samp / dscale
@@ -1689,13 +1722,13 @@ class ModelSet:
 
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
-                    v_hiord_LOS = self.higher_order_geometries[comp.name].project_velocity_along_LOS(comp,
-                                                                      v_hiord, xout, yout, zout)
+                    v_hiord_LOS = geom.project_velocity_along_LOS(comp,
+                                                            v_hiord, xout, yout, zout)
                 else:
                     v_hiord_LOS = v_hiord + self.geometry.vel_shift.value  # galaxy systemic velocity
                 v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
 
-                if comp.name in cmps_hiord_geoms:
+                if (comp.name in cmps_hiord_disps):
                     sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)
                 else:
                     # The higher-order term MUST have its own defined dispersion profile:
@@ -1703,12 +1736,9 @@ class ModelSet:
 
                 cube_final += cutils.populate_cube(f_hiord, v_hiord_LOS, sigma_hiord, vx)
 
-                self.higher_order_geometries[comp.name].xshift = \
-                            self.higher_order_geometries[comp.name].xshift.value / oversample
-                self.higher_order_geometries[comp.name].yshift = \
-                            self.higher_order_geometries[comp.name].yshift.value / oversample
-
-
+                # Remove the oversample from the geometry xyshift
+                geom.xshift = geom.xshift.value / oversample
+                geom.yshift = geom.yshift.value / oversample
 
 
         return cube_final, spec

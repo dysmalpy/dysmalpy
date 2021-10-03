@@ -13,22 +13,35 @@ from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                             Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
-                                                    UniformRadialFlow
+                                                    UniformRadialFlow, UniformBarFlow
 from dysmalpy.models.zheight import ZHeightGauss, ZHeightExp
 from dysmalpy.models.dispersion_profiles import DispersionConst
 from dysmalpy.models.light_distributions import LightTruncateSersic, LightGaussianRing, \
-                                                          LightClump
+                                                LightClump, LightGaussianRingAzimuthal
 from dysmalpy.models.kinematic_options import KinematicOptions
 from dysmalpy.models.geometry import Geometry
 from dysmalpy.models.model_set import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
 
 
-__all__ = ['ModelSet', 'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
+__all__ = ['ModelSet',
+           # Baryons
+           'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
+           # Halos
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
-           'DispersionConst', 'Geometry', 'BiconicalOutflow', 'UnresolvedOutflow',
-           'UniformRadialFlow', 'DustExtinction',
-           'KinematicOptions', 'ZHeightGauss', 'ZHeightExp',
-           'LightTruncateSersic', 'LightGaussianRing', 'LightClump',
+           # Higher-order components
+           'BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow', 'UniformBarFlow', 
+           # Light profiles
+           'LightTruncateSersic', 'LightGaussianRing',
+           'LightClump', 'LightGaussianRingAzimuthal',
+           # Dispersion
+           'DispersionConst',
+           # Extinction
+           'DustExtinction',
+           # Geometry and optoins
+           'Geometry', 'KinematicOptions',
+           # Zheight profiles
+           'ZHeightGauss', 'ZHeightExp',
+           # Functions
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
            'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
            'apply_noord_flat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']

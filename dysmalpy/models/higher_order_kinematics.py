@@ -119,6 +119,7 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
     _type = 'higher_order'
     _spatial_type = 'resolved'
+    _separate_light_profile = True
     outputs = ('vout',)
 
     def __init__(self, profile_type='both', **kwargs):
@@ -183,7 +184,6 @@ class BiconicalOutflow(_DysmalFittable3DModel):
         flux[ind_zero] = 0.
 
         return flux
-
 
     def vel_vector_direction_emitframe(self, x, y, z):
         r"""
@@ -269,6 +269,7 @@ class UnresolvedOutflow(_DysmalFittable3DModel):
 
     _type = 'higher_order'
     _spatial_type = 'unresolved'
+    _separate_light_profile = True
     outputs = ('vout',)
 
     @staticmethod
@@ -314,6 +315,7 @@ class UniformRadialFlow(_DysmalFittable3DModel):
 
     _type = 'higher_order'
     _spatial_type = 'resolved'
+    _separate_light_profile = False
     outputs = ('vrad',)
 
     def __init__(self, **kwargs):
@@ -327,10 +329,9 @@ class UniformRadialFlow(_DysmalFittable3DModel):
 
         return vel
 
-
     def vel_vector_direction_emitframe(self, x, y, z):
         r"""
-        Method to return the velocity direction in the outflow Cartesian frame.
+        Method to return the velocity direction in the galaxy Cartesian frame.
 
         Parameters
         ----------
@@ -347,4 +348,81 @@ class UniformRadialFlow(_DysmalFittable3DModel):
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
         vel_dir_unit_vector = [ -x/r, -y/r, -z/r ]
+        return vel_dir_unit_vector
+
+
+class UniformBarFlow(_DysmalFittable3DModel):
+    """
+    Model for a uniform flow along a bar, along some axis in the galaxy midplane.
+
+    Parameters
+    ----------
+    vbar : float
+        Bar streaming velocity in km/s. vbar > 0 for outflow, vbar < 0 for inflow
+
+    phi : float
+        Azimuthal angle of bar, counter-clockwise from blue major axis. In degrees.
+        Default is 90 (eg, along galaxy minor axis)
+
+    bar_width : float
+        Width of the bar, in kpc.
+        So bar velocity only is nonzero between -bar_width/2 < ygal  < bar_width/2.
+
+    Notes
+    -----
+    This model simply adds a constant radial velocity component
+    to all of the positions in the galaxy.
+    """
+    vbar = DysmalParameter(default=30.)
+    phi = DysmalParameter(default=90.)
+    bar_width = DysmalParameter(default=2.)
+
+    _type = 'higher_order'
+    _spatial_type = 'resolved'
+    _separate_light_profile = False
+    outputs = ('vrad',)
+
+    def __init__(self, **kwargs):
+        super(UniformBarFlow, self).__init__(**kwargs)
+
+    def evaluate(self, x, y, z, vbar, phi, bar_width):
+        """Evaluate the bar velocity amplitude as a function of position x, y, z"""
+
+        phi_rad = phi * np.pi / 180.
+        # Rotate by phi_rad:
+        ybar = - np.sin(phi_rad) * x + np.cos(phi_rad) * y
+
+        vel = np.ones(ybar.shape) * (vbar)
+        if len(ybar.shape) > 0:
+            # Array-like inputs
+            vel[np.abs(ybar) > 0.5*bar_width] = 0.
+        else:
+            # Float inputs:
+            if np.abs(ybar) > 0.5*bar_width:
+                vel = 0.
+
+        return vel
+
+    def vel_vector_direction_emitframe(self, x, y, z):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the galaxy/bar reference frame.
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a bar uniform flow, this is the (xbar, -xbar) direction, in cartesian coordinates,
+            for xbar <, > 0.
+        """
+        # Rotate by phi_rad:
+        phi_rad = self.phi * np.pi / 180.
+        xbar = np.cos(phi_rad) * x + np.sin(phi_rad) * y
+        vel_dir_unit_vector = [ np.cos(phi_rad)*np.sign(xbar), -np.sin(phi_rad)*np.sign(xbar), z*0.]
+
         return vel_dir_unit_vector

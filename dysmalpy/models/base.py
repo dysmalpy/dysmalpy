@@ -217,7 +217,7 @@ class LightModel(_DysmalFittable1DModel):
     _axisymmetric = True
 
     @abc.abstractmethod
-    def mass_to_light(self, *args, **kwargs):
+    def light_profile(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
 
 
@@ -233,7 +233,7 @@ class LightModel3D(_DysmalFittable3DModel):
     _axisymmetric = False
 
     @abc.abstractmethod
-    def mass_to_light(self, *args, **kwargs):
+    def light_profile(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
 
 
