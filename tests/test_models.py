@@ -255,8 +255,8 @@ class HelperSetups(object):
         mod_set.add_component(zheight_prof)
         mod_set.add_component(geom)
         mod_set.add_component(bicone)
-        mod_set.add_component(bicone_geom, geom_type='outflow')
-        mod_set.add_component(bicone_disp, disp_type='outflow')
+        mod_set.add_component(bicone_geom, geom_type=bicone.name)
+        mod_set.add_component(bicone_disp, disp_type=bicone.name)
 
         ## Set some kinematic options for calculating the velocity profile
         # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]

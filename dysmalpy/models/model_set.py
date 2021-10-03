@@ -410,15 +410,14 @@ class ModelSet:
                 self.mass_components[model.name] = False
 
             elif model._type == 'dispersion':
-
                 if disp_type == 'galaxy':
                     if self.dispersion_profile is not None:
                         logger.warning('Current Dispersion model is being '
                                        'overwritten!')
                     self.dispersion_profile = model
-
+                    
                 else:
-                    self.higher_order_dispersions[geom_type] = model
+                    self.higher_order_dispersions[disp_type] = model
                 self.mass_components[model.name] = False
 
             elif model._type == 'zheight':
@@ -1694,7 +1693,7 @@ class ModelSet:
                                                                       v_hiord, xout, yout, zout)
                 else:
                     v_hiord_LOS = v_hiord + self.geometry.vel_shift.value  # galaxy systemic velocity
-                v_hiord_LOS[r_hiord == 0] = vout[r_hiord == 0]
+                v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
 
                 if comp.name in cmps_hiord_geoms:
                     sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)
