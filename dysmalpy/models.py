@@ -558,6 +558,11 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     table_rad =     table['r']
     table_Reff =    table['Reff']
     table_mass =    table['total_mass']
+    
+    # Drop nonfinite parts:
+    whfin = np.where(np.isfinite(table_rho))[0]
+    table_rho = table_rho[whfin]
+    table_rad = table_rad[whfin]
 
     # # Clean up values inside rmin:  Add the value at r=0: menc=0
     # if table['r'][0] > 0.:
