@@ -199,7 +199,7 @@ class HelperSetups(object):
 
     def setup_uniform_inflow(self):
         # Negative vr is inflow
-        inflow = models.UniformRadialFlow(vr=-90,  name='inflow')
+        inflow = models.UniformRadialFlow(vr=-90, name='inflow')
         return inflow
 
     def setup_fullmodel(self, adiabatic_contract=False,

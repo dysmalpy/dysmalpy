@@ -391,6 +391,44 @@ class ModelSet:
         # Option for dealing with 3D data:
         self.per_spaxel_norm_3D = False
 
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the change to generalized
+        #    higher order components in ModelSet.simulate_cube().
+        self.__dict__ = state
+
+        # quick test if necessary to migrate:
+        if 'higher_order_components' not in state.keys():
+            new_keys = ['higher_order_components', 'higher_order_geometries',
+                        'higher_order_dispersions']
+            for nkey in new_keys:
+                self.__dict__[nkey] = OrderedDict()
+
+            # If there are nonzero higher-order kin components, migrate them:
+            # migrate_keys = ['outflow', 'outflow_geometry', 'outflow_dispersion',
+            #                 'flow', 'flow_geometry', 'flow_dispersion']
+            migrate_keys = ['outflow', 'flow']
+            ends = ['', '_geometry', '_dispersion']
+            for mkeyb in migrate_keys:
+                for e in ends:
+                    mkey = mkeyb+e
+                    if state[mkey] is not None:
+                        if e == '':
+                            self.higher_order_components[state[mkey].name] = state[mkey]
+                        elif e == '_geometry':
+                            self.higher_order_geometries[state[mkeyb].name] = state[mkey]
+                        elif e == '_dispersion':
+                            self.higher_order_dispersions[state[mkeyb].name] = state[mkey]
+                        self.mass_components[state[mkey].name] = False
+
+            # Cleanup old names:
+            del_keys = ['outflow', 'outflow_geometry', 'outflow_dispersion', 'outflow_flux',
+                        'inflow', 'inflow_geometry', 'inflow_dispersion', 'inflow_flux',
+                        'flow', 'flow_geometry', 'flow_dispersion', 'flow_flux']
+            for dkey in del_keys:
+                del self.__dict__[dkey]
+
+
+
     def add_component(self, model, name=None, light=False,
                       geom_type='galaxy', disp_type='galaxy'):
         """
@@ -1444,7 +1482,7 @@ class ModelSet:
             # cos(theta) is just xgal/rgal
             v_sys = self.geometry.vel_shift.value  # systemic velocity
             if transform_method.lower().strip() == 'direct':
-                # Get one of the mass components:
+                # Get one of the mass components: all have the same vrot unit vector
                 for cmp in self.mass_components:
                     if self.mass_components[cmp]:
                         mcomp = self.components[cmp]
@@ -1688,7 +1726,7 @@ class ModelSet:
                 # Own light distribution, uses galaxy geometry
                 _do_comp = True
                 geom = self.geometry
-                logger.warning("The case of higher ord comp using galaxy geometry "
+                logger.warning("The case of higher order component using galaxy geometry "
                                "but own light profile has not been tested")
 
             if _do_comp:
@@ -1704,17 +1742,17 @@ class ModelSet:
                 # Account for oversampling
                 geom.xshift = geom.xshift.value * oversample
                 geom.yshift = geom.yshift.value * oversample
-                xout, yout, zout, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
+                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
                                 xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
                 # Convert to kpc
-                xout_kpc = xout * rstep_samp / dscale
-                yout_kpc = yout * rstep_samp / dscale
-                zout_kpc = zout * rstep_samp / dscale
+                xhiord_kpc = xhiord * rstep_samp / dscale
+                yhiord_kpc = yhiord * rstep_samp / dscale
+                zhiord_kpc = zhiord * rstep_samp / dscale
 
-                r_hiord = np.sqrt(xout**2 + yout**2 + zout**2)
-                v_hiord = comp(xout_kpc, yout_kpc, zout_kpc)
-                f_hiord = comp.light_profile(xout_kpc, yout_kpc, zout_kpc)
+                r_hiord = np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)
+                v_hiord = comp(xhiord_kpc, yhiord_kpc, zhiord_kpc)
+                f_hiord = comp.light_profile(xhiord_kpc, yhiord_kpc, zhiord_kpc)
 
                 # Apply extinction if it exists
                 if self.extinction is not None:
@@ -1723,7 +1761,7 @@ class ModelSet:
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
                     v_hiord_LOS = geom.project_velocity_along_LOS(comp,
-                                                            v_hiord, xout, yout, zout)
+                                                            v_hiord, xhiord, yhiord, zhiord)
                 else:
                     v_hiord_LOS = v_hiord + self.geometry.vel_shift.value  # galaxy systemic velocity
                 v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
@@ -1732,7 +1770,7 @@ class ModelSet:
                     sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)
                 else:
                     # The higher-order term MUST have its own defined dispersion profile:
-                    sigma_hiord = comp.dispersion_profile(xout_kpc, yout_kpc, zout_kpc)
+                    sigma_hiord = comp.dispersion_profile(xhiord_kpc, yhiord_kpc, zhiord_kpc)
 
                 cube_final += cutils.populate_cube(f_hiord, v_hiord_LOS, sigma_hiord, vx)
 

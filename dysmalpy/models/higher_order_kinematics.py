@@ -134,6 +134,15 @@ class BiconicalOutflow(_DysmalFittable3DModel):
 
         super(BiconicalOutflow, self).__init__(**kwargs)
 
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the change to generalized
+        #    higher order components in ModelSet.simulate_cube().
+        self.__dict__ = state
+
+        # Change '_type' from 'outflow' to 'higher_order':
+        if self._type == 'outflow':
+            self._type = 'higher_order'
+
     def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
@@ -272,6 +281,15 @@ class UnresolvedOutflow(_DysmalFittable3DModel):
     _separate_light_profile = True
     outputs = ('vout',)
 
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the change to generalized
+        #    higher order components in ModelSet.simulate_cube().
+        self.__dict__ = state
+
+        # Change '_type' from 'outflow' to 'higher_order':
+        if self._type == 'outflow':
+            self._type = 'higher_order'
+
     @staticmethod
     def evaluate( x, y, z, vcenter, fwhm, amplitude):
         return np.ones(x.shape)*vcenter
@@ -321,6 +339,15 @@ class UniformRadialFlow(_DysmalFittable3DModel):
     def __init__(self, **kwargs):
 
         super(UniformRadialFlow, self).__init__(**kwargs)
+
+    def __setstate__(self, state):
+        # Compatibility hack, to handle the change to generalized
+        #    higher order components in ModelSet.simulate_cube().
+        self.__dict__ = state
+
+        # Change '_type' from 'flow' to 'higher_order':
+        if self._type == 'flow':
+            self._type = 'higher_order'
 
     def evaluate(self, x, y, z, vr):
         """Evaluate the radial velocity as a function of position x, y, z"""
@@ -380,7 +407,7 @@ class UniformBarFlow(_DysmalFittable3DModel):
     _type = 'higher_order'
     _spatial_type = 'resolved'
     _separate_light_profile = False
-    outputs = ('vrad',)
+    outputs = ('vflow',)
 
     def __init__(self, **kwargs):
         super(UniformBarFlow, self).__init__(**kwargs)
