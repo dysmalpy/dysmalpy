@@ -203,7 +203,7 @@ class HelperSetups(object):
         return inflow
 
     def setup_fullmodel(self, adiabatic_contract=False,
-                pressure_support=True, pressure_support_type=1):
+                pressure_support=True, pressure_support_type=1, instrument=True):
         # Initialize the Galaxy, Instrument, and Model Set
         gal = galaxy.Galaxy(z=self.z, name=self.name)
         mod_set = models.ModelSet()
@@ -232,81 +232,9 @@ class HelperSetups(object):
         # Add the model set and instrument to the Galaxy
         gal.model = mod_set
 
-        return gal
-
-    def setup_fullmodel_biconical(self, adiabatic_contract=False,
-                pressure_support=True, pressure_support_type=1):
-        # Initialize the Galaxy, Instrument, and Model Set
-        gal = galaxy.Galaxy(z=self.z, name=self.name)
-        mod_set = models.ModelSet()
-
-        bary = self.setup_diskbulge()
-        halo = self.setup_NFW()
-        disp_prof = self.setup_const_dispprof()
-        zheight_prof = self.setup_zheight_prof()
-        geom = self.setup_geom()
-        bicone, bicone_geom, bicone_disp = self.setup_biconical_outflow()
-        inst = self.setup_instrument()
-
-        # Add all of the model components to the ModelSet
-        mod_set.add_component(bary, light=True)
-        mod_set.add_component(halo)
-        mod_set.add_component(disp_prof)
-        mod_set.add_component(zheight_prof)
-        mod_set.add_component(geom)
-        mod_set.add_component(bicone)
-        mod_set.add_component(bicone_geom, geom_type=bicone.name)
-        mod_set.add_component(bicone_disp, disp_type=bicone.name)
-
-        ## Set some kinematic options for calculating the velocity profile
-        # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]
-        #                        2 / Exact nSersic, self-grav
-        #                        3 / Pressure gradient
-        mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
-        mod_set.kinematic_options.pressure_support = pressure_support
-        mod_set.kinematic_options.pressure_support_type = pressure_support_type
-
-        # Add the model set and instrument to the Galaxy
-        gal.model = mod_set
-        gal.instrument = inst
-
-        return gal
-
-
-    def setup_fullmodel_uniform_inflow(self, adiabatic_contract=False,
-                pressure_support=True, pressure_support_type=1):
-        # Initialize the Galaxy, Instrument, and Model Set
-        gal = galaxy.Galaxy(z=self.z, name=self.name)
-        mod_set = models.ModelSet()
-
-        bary = self.setup_diskbulge()
-        halo = self.setup_NFW()
-        disp_prof = self.setup_const_dispprof()
-        zheight_prof = self.setup_zheight_prof()
-        geom = self.setup_geom()
-        inflow = self.setup_uniform_inflow()
-        inst = self.setup_instrument()
-
-        # Add all of the model components to the ModelSet
-        mod_set.add_component(bary, light=True)
-        mod_set.add_component(halo)
-        mod_set.add_component(disp_prof)
-        mod_set.add_component(zheight_prof)
-        mod_set.add_component(geom)
-        mod_set.add_component(inflow)
-
-        ## Set some kinematic options for calculating the velocity profile
-        # pressure_support_type: 1 / Exponential, self-grav [Burkert+10]
-        #                        2 / Exact nSersic, self-grav
-        #                        3 / Pressure gradient
-        mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
-        mod_set.kinematic_options.pressure_support = pressure_support
-        mod_set.kinematic_options.pressure_support_type = pressure_support_type
-
-        # Add the model set and instrument to the Galaxy
-        gal.model = mod_set
-        gal.instrument = inst
-
+        if instrument:
+            inst = self.setup_instrument()
+            gal.instrument = inst
 
         return gal
 
@@ -460,7 +388,7 @@ class TestModels:
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
     def test_asymm_drift_selfgrav(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=1)
+        gal = self.helper.setup_fullmodel(pressure_support_type=1, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -472,7 +400,7 @@ class TestModels:
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
     def test_asymm_drift_exactsersic(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=2)
+        gal = self.helper.setup_fullmodel(pressure_support_type=2, instrument=False)
         gal.model.set_parameter_value('disk+bulge', 'n_disk', 0.5)
 
         ftol = 1.e-9
@@ -486,7 +414,7 @@ class TestModels:
 
     def test_asymm_drift_pressuregradient(self):
         if models._sersic_profile_mass_VC_loaded:
-            gal = self.helper.setup_fullmodel(pressure_support_type=3)
+            gal = self.helper.setup_fullmodel(pressure_support_type=3, instrument=False)
 
             ftol = 1.e-9
             rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
@@ -500,7 +428,7 @@ class TestModels:
             pass
 
     def test_composite_model(self):
-        gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False)
+        gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -516,7 +444,7 @@ class TestModels:
 
 
     def test_adiabatic_contraction(self):
-        gal_AC = self.helper.setup_fullmodel(adiabatic_contract=True)
+        gal_AC = self.helper.setup_fullmodel(adiabatic_contract=True, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -532,7 +460,11 @@ class TestModels:
 
 
     def test_biconical_outflow(self):
-        gal_bicone = self.helper.setup_fullmodel_biconical()
+        gal_bicone = self.helper.setup_fullmodel(instrument=True)
+        bicone, bicone_geom, bicone_disp = self.helper.setup_biconical_outflow()
+        gal_bicone.model.add_component(bicone)
+        gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
+        gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
 
         ##################
         # Create cube:
@@ -577,7 +509,10 @@ class TestModels:
 
 
     def test_uniform_inflow(self):
-        gal_inflow = self.helper.setup_fullmodel_uniform_inflow()
+        gal_inflow = self.helper.setup_fullmodel(instrument=True)
+        inflow = self.helper.setup_uniform_inflow()
+        gal_inflow.model.add_component(inflow)
+
 
         ##################
         # Create cube:
@@ -635,9 +570,7 @@ class TestModels:
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
     def test_simulate_cube(self):
-        gal = self.helper.setup_fullmodel()
-        inst = self.helper.setup_instrument()
-        gal.instrument = inst
+        gal = self.helper.setup_fullmodel(instrument=True)
 
         ##################
         # Create cube:
