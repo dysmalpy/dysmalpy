@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
+import abc
 import logging
 
 # Third party imports
@@ -33,6 +34,10 @@ class ZHeightProfile(_DysmalFittable1DModel):
 
     # Must set property z_scalelength for each subclass,
     #   for use with getting indices ai for filling simulated cube
+    @abc.abstractproperty
+    def z_scalelength(self):
+        """Evaluate the flux attenuation (linear multiplier) at all locations of the cube"""
+
 
 class ZHeightGauss(ZHeightProfile):
     r"""

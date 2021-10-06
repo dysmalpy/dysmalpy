@@ -205,12 +205,9 @@ class MassModel(_DysmalFittable1DModel):
         return vel_dir_unit_vector
 
 
-
-
-class LightModel(_DysmalFittable1DModel):
+class LightModel(_DysmalModel):
     """
     Base model for components that emit light, but are treated separately from any gravitational influence
-    Case: 1D profile.
     """
 
     _type = 'light'
@@ -220,21 +217,6 @@ class LightModel(_DysmalFittable1DModel):
     def light_profile(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
 
-
-
-
-class LightModel3D(_DysmalFittable3DModel):
-    """
-    Base model for components that emit light, but are treated separately from any gravitational influence
-    Case: 3D profile.
-    """
-
-    _type = 'light'
-    _axisymmetric = False
-
-    @abc.abstractmethod
-    def light_profile(self, *args, **kwargs):
-        """Evaluate the enclosed mass as a function of radius"""
 
 
 

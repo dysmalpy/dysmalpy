@@ -108,23 +108,8 @@ class Geometry(_DysmalFittable3DModel):
         if xshift is None:  xshift = self.xshift
         if yshift is None:  yshift = self.yshift
 
-        inc = np.pi / 180. * inc
-        pa = np.pi / 180. * (pa - 90.)
+        return self.evaluate(x, y, z, inc, pa, xshift, yshift, self.vel_shit)
 
-        # Apply the shifts in the sky system
-        xsky = x - xshift
-        ysky = y - yshift
-        zsky = z
-
-        xtmp = xsky * np.cos(pa) + ysky * np.sin(pa)
-        ytmp = -xsky * np.sin(pa) + ysky * np.cos(pa)
-        ztmp = zsky
-
-        xgal = xtmp
-        ygal = ytmp * np.cos(inc) - ztmp * np.sin(inc)
-        zgal = ytmp * np.sin(inc) + ztmp * np.cos(inc)
-
-        return xgal, ygal, zgal
 
     def inverse_coord_transform(self, xgal, ygal, zgal,
             inc=None, pa=None, xshift=None, yshift=None):

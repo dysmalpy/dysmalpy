@@ -2,8 +2,7 @@
 #
 # Submodule for handling of DysmalPy ModelSets (and Models) to use build the galaxy model
 
-
-from dysmalpy.models.base import MassModel, LightModel, LightModel3D, \
+from dysmalpy.models.base import MassModel, LightModel, \
                                            v_circular, sersic_mr, truncate_sersic_mr
 from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
                                               ExpDisk, BlackHole, \
@@ -18,6 +17,9 @@ from dysmalpy.models.zheight import ZHeightGauss, ZHeightExp
 from dysmalpy.models.dispersion_profiles import DispersionConst
 from dysmalpy.models.light_distributions import LightTruncateSersic, LightGaussianRing, \
                                                 LightClump, LightGaussianRingAzimuthal
+from dysmalpy.models.extinction import ThinCentralPlaneDustExtinction, \
+                                       ForegroundConstantExtinction, \
+                                       ForegroundExponentialExtinction
 from dysmalpy.models.kinematic_options import KinematicOptions
 from dysmalpy.models.geometry import Geometry
 from dysmalpy.models.model_set import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
@@ -29,14 +31,15 @@ __all__ = ['ModelSet',
            # Halos
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            # Higher-order components
-           'BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow', 'UniformBarFlow', 
+           'BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow', 'UniformBarFlow',
            # Light profiles
            'LightTruncateSersic', 'LightGaussianRing',
            'LightClump', 'LightGaussianRingAzimuthal',
            # Dispersion
            'DispersionConst',
            # Extinction
-           'DustExtinction',
+           'ThinCentralPlaneDustExtinction', 'ForegroundConstantExtinction',
+           'ForegroundExponentialExtinction',
            # Geometry and optoins
            'Geometry', 'KinematicOptions',
            # Zheight profiles

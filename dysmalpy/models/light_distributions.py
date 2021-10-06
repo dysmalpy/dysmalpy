@@ -13,7 +13,9 @@ import logging
 import numpy as np
 
 # Local imports
-from .base import LightModel, LightModel3D, truncate_sersic_mr, sersic_mr, _I0_gaussring
+#from .base import LightModel, LightModel3D, truncate_sersic_mr, sersic_mr, _I0_gaussring
+from .base import LightModel, _DysmalFittable1DModel, _DysmalFittable3DModel, \
+                  truncate_sersic_mr, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
@@ -27,7 +29,7 @@ logger = logging.getLogger('DysmalPy')
 np.warnings.filterwarnings('ignore')
 
 
-class LightTruncateSersic(LightModel):
+class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
     """
     Light distribution following a Sersic profile. Can be truncted.
 
@@ -125,7 +127,7 @@ class LightTruncateSersic(LightModel):
         return self.evaluate(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
 
 
-class LightGaussianRing(LightModel):
+class LightGaussianRing(LightModel, _DysmalFittable1DModel):
     r"""
     Light distribution following a Gaussian ring profile.
 
@@ -187,7 +189,7 @@ class LightGaussianRing(LightModel):
         return self.evaluate(r, self.r_peak, self.sigma_r, self.L_tot)
 
 
-class LightClump(LightModel3D):
+class LightClump(LightModel, _DysmalFittable3DModel):
     """
     Light distribution for a clump following a Sersic profile,
     at a given galaxy midplane R and azimuthal angle phi.
@@ -275,7 +277,7 @@ class LightClump(LightModel3D):
                              self.r_center, self.phi, self.theta)
 
 
-class LightGaussianRingAzimuthal(LightModel3D):
+class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
     r"""
     Light distribution following a Gaussian ring profile, with azimuthal brightness variation.
     (Reflection symmetric about one axis)
