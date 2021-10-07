@@ -121,7 +121,7 @@ class MassModel(_DysmalFittable1DModel):
     _type = 'mass'
     _axisymmetric = True
     _multicoord_velocity = False
-    # _native_geometry = 'cartesian'  ## possibility for further vel direction abstractioin
+    _native_geometry = 'cylindrical'  ## possibility for further vel direction abstractioin
     _potential_gradient_has_neg = False
 
     @abc.abstractmethod
@@ -203,7 +203,7 @@ class MassModel(_DysmalFittable1DModel):
             is the phi direction in cylindrical coordinates, (R,phi,z).
         """
         rgal = np.sqrt(xgal ** 2 + ygal ** 2)
-        vel_dir_unit_vector = np.array([ygal/rgal, -xgal/rgal, 0.*zgal])
+        vel_dir_unit_vector = np.array([-ygal/rgal, xgal/rgal, 0.*zgal])
         return vel_dir_unit_vector
 
 

@@ -126,6 +126,7 @@ class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False
+    _native_geometry = 'spherical'
     _separate_light_profile = True
     outputs = ('vout',)
 
@@ -150,8 +151,8 @@ class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
         if self._type == 'outflow':
             self._type = 'higher_order'
 
-    @staticmethod
-    def evaluate(x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux):
+
+    def evaluate(self, x, y, z, n, vmax, rturn, thetain, dtheta, rend, norm_flux, tau_flux):
         """Evaluate the outflow velocity as a function of position x, y, z"""
 
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -221,11 +222,11 @@ class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
         vel_dir_unit_vector : 3-element array
             Direction of the velocity vector in (xyz).
 
-            For biconical outflows, this is the -rhat direction, in spherical coordinates
+            For biconical outflows, this is the +rhat direction, in spherical coordinates
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ -x/r, -y/r, -z/r ]
+        vel_dir_unit_vector = [ x/r, y/r, z/r ]
         return vel_dir_unit_vector
 
 
@@ -257,6 +258,7 @@ class UnresolvedOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
 
     _spatial_type = 'unresolved'
     _multicoord_velocity = False
+    _native_geometry = 'cartesian'
     _separate_light_profile = True
     outputs = ('vout',)
 
@@ -321,6 +323,7 @@ class UniformRadialFlow(HigherOrderKinematics, _DysmalFittable3DModel):
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False
+    _native_geometry = 'spherical'
     _separate_light_profile = False
     outputs = ('vrad',)
 
@@ -364,11 +367,11 @@ class UniformRadialFlow(HigherOrderKinematics, _DysmalFittable3DModel):
         vel_dir_unit_vector : 3-element array
             Direction of the velocity vector in (xyz).
 
-            For a uniform radial flow, this is the -rhat direction, in spherical coordinates
+            For a uniform radial flow, this is the +rhat direction, in spherical coordinates
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ -x/r, -y/r, -z/r ]
+        vel_dir_unit_vector = [ x/r, y/r, z/r ]
         return vel_dir_unit_vector
 
 
@@ -401,6 +404,7 @@ class UniformBarFlow(HigherOrderKinematics, _DysmalFittable3DModel):
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False
+    _native_geometry = 'cartesian'
     _separate_light_profile = False
     outputs = ('vflow',)
 
@@ -476,6 +480,7 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
 
     _spatial_type = 'resolved'
     _multicoord_velocity = True
+    _native_geometry = 'cylindrical'
     _separate_light_profile = True
     outputs = ('vr','vphi','vz',)
 
@@ -556,8 +561,8 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
         """
         Return the radial velocity perturbation
         Given by Eq. A10, Davies et al. 2009, ApJ, 702, 114
-        
-        Here inflow is positive, outflow is negative.
+
+        Here inflow is NEGATIVE, outflow is POSITIVE.
         """
 
         R = np.sqrt(x**2 + y**2)
@@ -568,7 +573,10 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
         fvals = self.f(R)
         kvals = self.k(R)
 
-        vr1 = -self.eps * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
+        #vr1 = -self.eps * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
+
+        # Inflow is neg for this vector definition
+        vr1 = self.eps * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
 
         return vr1
 
@@ -603,17 +611,11 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
         Uses NEGATIVE for inflow, POSITIVE for outflow
         """
 
-
         R = np.sqrt(x ** 2 + y ** 2)
-        phi   = calc_phi(x, y, 0.) # Galaxy frame, so phi0 = 0.
-        vr1   = spiral_vrad_perturb(x, y, m, phi0, eps, cs, Om_p, rho0, f, k, Vrot)
-        vphi1 = spiral_vphi_perturb(x, y, m, phi0, eps, cs, Om_p, rho0, f, k, Vrot)
+        vr1 = self.vr_perturb(x, y, z)
+        vphi1 = self.vphi_perturb(x, y, z)
 
-        -y/R, -x/R,
-
-
-
-        return vr1*(-y/R) + vphi1*(-x/R)
+        return vr1*(-y/R) + vphi1*(x/R)
 
 
     def velocity(self, x, y, z):
@@ -627,7 +629,7 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
         vphi1 = self.vphi_perturb(x, y, z)
 
         # Tuple in the native cylindrical coordinates (really polar, ignoring z)
-        return (vr1, vphi1, z.*0.)
+        return (vr1, vphi1, z*0.)
 
 
     def light_profile(self, x, y, z):
@@ -662,14 +664,14 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
                               [Rtoz, phitoz, ztoz]]
 
         """
-        vel_dir_matrix = np.array([[-x/R,  y/R, 0.*z],
-                                   [-y/R, -x/R, 0.*z],
+        vel_dir_matrix = np.array([[x/R, -y/R, 0.*z],
+                                   [y/R,  x/R, 0.*z],
                                    [0.*z, 0.*z, 0.*z]])
 
-        # As zsky_unit_vector = [ x*0., y*0. - np.sin(inc), z*0. + np.cos(inc) ]
+        # As zsky_unit_vector = [ x*0., y*0. + np.sin(inc), z*0. - np.cos(inc) ]
         # The dot is:
-        # vphi: x/R*sin(i) = cos(phi) * sin(i)
         # vr :  y/R*sin(i) = sin(phi) * sin(i)
+        # vphi: x/R*sin(i) = cos(phi) * sin(i)
         # So really only picking out the y-cartesian coord
 
         return vel_dir_matrix

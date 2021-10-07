@@ -1498,7 +1498,7 @@ class ModelSet:
                         else:
                             v_hiord_LOS = v_hiord
 
-                        ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                        ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
                         # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
 
                         #   No systemic velocity here bc this is relative to
@@ -1634,7 +1634,7 @@ class ModelSet:
                             else:
                                 v_hiord_LOS = v_hiord
 
-                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
                             # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
 
                             #   No systemic velocity here bc this is relative to
@@ -1688,7 +1688,7 @@ class ModelSet:
                                 v_hiord_LOS = v_hiord
 
 
-                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
                             # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
 
                             #   No systemic velocity here bc this is relative to
@@ -1761,7 +1761,7 @@ class ModelSet:
                 else:
                     v_hiord_LOS = v_hiord
 
-                ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
                 # v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
 
                 v_hiord_LOS += geom.vel_shift.value  # galaxy systemic velocity

@@ -188,11 +188,13 @@ class Geometry(_DysmalFittable3DModel):
         zsky_unit_vector : 3-element array
             Direction of the zsky vector in (xyz).
 
-            This corrects for the inclination, so returns [0, -sin(i), cos(i)]
+            This corrects for the inclination, so returns [0, sin(i), -cos(i)]
+            Note the zsky direction is TOWARDS the observer, so the LOS is -zsky,
+            so this is the negative of the normal rotation in y,z (giving -sin(i), cos(i))
         """
         if inc is None:     inc = self.inc
         inc = np.pi / 180. * inc
-        zsky_unit_vector = [ x*0., y*0. - np.sin(inc), z*0. + np.cos(inc) ]
+        zsky_unit_vector = [ x*0., y*0. + np.sin(inc), z*0. - np.cos(inc) ]
         return zsky_unit_vector
 
     def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):
@@ -223,6 +225,11 @@ class Geometry(_DysmalFittable3DModel):
 
         zsky_hat = self.zsky_direction_emitframe(x, y, z, inc=inc)
 
+        if model._native_geometry.lower().strip() == 'spherical':
+            r = np.sqrt(x**2 + y**2 + z**2)
+        elif model._native_geometry.lower().strip() == 'cylindrical':
+            r = np.sqrt(x**2 + y**2)
+
         # Dot product of vel_hat, zsky_unit_vector
         if model._multicoord_velocity:
             # Matrix multiply the velocity direction matrix with the
@@ -240,6 +247,9 @@ class Geometry(_DysmalFittable3DModel):
             for vcomp, zhat in zip(vel_cartesian, zsky_hat):
                 v_LOS += vcomp*zhat
 
+            # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
+            if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+                v_LOS[r == 0] = vel[0][r == 0]
         else:
             # Dotproduct of velocity unit vector and zsky unit vector
             vel_hat = model.vel_direction_emitframe(x, y, z)
@@ -249,6 +259,10 @@ class Geometry(_DysmalFittable3DModel):
 
             # Multiply by velocity magnitude
             v_LOS = vel * proj_dotprod
+
+            # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
+            if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+                v_LOS[r == 0] = vel[r == 0]
 
         return v_LOS
 
