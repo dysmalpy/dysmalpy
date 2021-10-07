@@ -1,0 +1,44 @@
+# coding=utf8
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+#
+# Utility calculations for models, shared between different model types
+
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+# Standard library
+import logging
+
+# Third party imports
+import numpy as np
+
+
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
+
+np.warnings.filterwarnings('ignore')
+
+
+def get_geom_phi_rad_polar(x, y):
+    """
+    Calculate polar angle phi from x, y.
+    """
+    R = np.sqrt(x ** 2 + y ** 2)
+    # Assume ring is in midplane
+    phi_geom_rad = np.arcsin(y/R)
+    sh_x = np.shape(x)
+    if len(sh_x) > 0:
+        # Array-like
+        phi_geom_rad[x < 0] = np.pi - np.arcsin(y[x < 0]/R[x < 0])
+        # Handle position = 0 case:
+        phi_geom_rad[R == 0] = R[R==0] * 0.
+    else:
+        # Float
+        if x < 0.:
+            phi_geom_rad = np.pi - np.arcsin(y/R)
+        elif x == 0.:
+            # Handle position = 0 case:
+            phi_geom_rad = 0.
+
+    return phi_geom_rad

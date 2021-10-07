@@ -18,6 +18,12 @@ from .base import LightModel, _DysmalFittable1DModel, _DysmalFittable3DModel, \
                   truncate_sersic_mr, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter
 
+try:
+    import utils
+except:
+    from . import utils
+
+
 __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
            'LightGaussianRingAzimuthal']
 
@@ -336,20 +342,8 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
 
         # Assume ring is in midplane
         phi_rad = phi * np.pi / 180.
-        phi_gal_rad = np.arcsin(y/r)
-        sh_x = np.shape(x)
-        if len(sh_x) > 0:
-            # Array-like
-            phi_gal_rad[x < 0] = np.pi - np.arcsin(y[x < 0]/r[x < 0])
-            # Handle position = 0 case:
-            phi_gal_rad[r == 0] = r[r==0] * 0.
-        else:
-            # Float
-            if x < 0.:
-                phi_gal_rad = np.pi - np.arcsin(y/r)
-            elif x == 0.:
-                # Handle position = 0 case:
-                phi_gal_rad = 0.
+        phi_gal_rad = utils.get_geom_phi_rad_polar(x, y)
+
 
         asymm_fac = 1. - (1.-contrast)*np.power(np.abs(np.sin(0.5 * (phi_gal_rad-phi_rad))), 1./gamma)
         gaus_asymm = gaus_symm * asymm_fac

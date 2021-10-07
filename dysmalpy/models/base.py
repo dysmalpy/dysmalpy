@@ -19,7 +19,7 @@ import scipy.special as scp_spec
 # Local imports
 from dysmalpy.parameters import DysmalParameter
 
-__all__ = ['MassModel', 'LightModel', 'LightModel3D'
+__all__ = ['MassModel', 'LightModel', 'HigherOrderKinematics'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
 
@@ -120,6 +120,8 @@ class MassModel(_DysmalFittable1DModel):
 
     _type = 'mass'
     _axisymmetric = True
+    _multicoord_velocity = False
+    # _native_geometry = 'cartesian'  ## possibility for further vel direction abstractioin
     _potential_gradient_has_neg = False
 
     @abc.abstractmethod
@@ -183,7 +185,7 @@ class MassModel(_DysmalFittable1DModel):
         return dPhidr
 
 
-    def vel_vector_direction_emitframe(self, xgal, ygal, zgal):
+    def vel_direction_emitframe(self, xgal, ygal, zgal):
         r"""
         Default method to return the velocity direction in the galaxy Cartesian frame.
 
@@ -218,6 +220,16 @@ class LightModel(_DysmalModel):
         """Evaluate the enclosed mass as a function of radius"""
 
 
+class HigherOrderKinematics(_DysmalModel):
+    """
+    Base model for higher-order kinematic components
+    """
+
+    _type = 'higher_order'
+
+    @abc.abstractmethod
+    def vel_direction_emitframe(self, *args, **kwargs):
+        """Method to return the velocity direction in the output geometry Cartesian frame."""
 
 
 #########################################

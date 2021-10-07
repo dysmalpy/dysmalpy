@@ -1396,18 +1396,6 @@ class ModelSet:
         # the z size where z is in the direction of the L.O.S.
         # We'll just use the maximum of the given x and y
 
-        # # Backwards compatibility:
-        # if 'outflow' not in self.__dict__.keys():
-        #     self.outflow = None
-        #     self.outflow_geometry = None
-        #     self.outflow_dispersion = None
-        #     self.outflow_flux = None
-        # if 'flow' not in self.__dict__.keys():
-        #     self.flow = None
-        #     self.flow_geometry = None
-        #     self.flow_dispersion = None
-        #     self.flow_flux = None
-
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
@@ -1488,8 +1476,8 @@ class ModelSet:
                         mcomp = self.components[cmp]
                         break
                 vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
+                vrot_LOS[rgal == 0] = 0.
                 vobs_mass = v_sys + vrot_LOS
-                vobs_mass[rgal == 0] = 0.
 
                 #######
                 # Higher order components: those that follow general geometry
@@ -1503,14 +1491,18 @@ class ModelSet:
                         # Use general geometry:
                         rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
 
-                        v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                        v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                         if comp._spatial_type != 'unresolved':
                             v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                                xgal, ygal, zgal)
                         else:
-                            v_hiord_LOS = v_hiord + v_sys
+                            v_hiord_LOS = v_hiord
 
-                        v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+                        ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                        # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+
+                        #   No systemic velocity here bc this is relative to
+                        #    the center of the galaxy at rest already
                         vobs_mass += v_hiord_LOS
                 #######
 
@@ -1614,8 +1606,8 @@ class ModelSet:
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                                             xgal_final, ygal_final, zgal_final)
+                    vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
-                    vobs_mass_transf[rgal_final == 0] = 0.
                     # -----------------------
 
                     #######
@@ -1634,15 +1626,17 @@ class ModelSet:
                             zgal_kpc = zgal_final * rstep_samp / dscale
 
                             # Get velocity of higher-order component
-                            v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                            v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                             # Project along LOS
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                             else:
-                                v_hiord_LOS = v_hiord + v_sys
+                                v_hiord_LOS = v_hiord
 
-                            v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                            # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
                             vobs_mass += v_hiord_LOS
@@ -1667,8 +1661,8 @@ class ModelSet:
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                                             xgal_final, ygal_final, zgal_final)
+                    vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
-                    vobs_mass_transf[rgal_final == 0] = 0.
                     # -----------------------
 
                     #######
@@ -1686,14 +1680,17 @@ class ModelSet:
                             ygal_kpc = ygal_final * rstep_samp / dscale
                             zgal_kpc = zgal_final * rstep_samp / dscale
 
-                            v_hiord = comp(xgal_kpc, ygal_kpc, zgal_kpc)
+                            v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                             else:
-                                v_hiord_LOS = v_hiord + v_sys
+                                v_hiord_LOS = v_hiord
 
-                            v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+
+                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                            # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
+
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
                             vobs_mass += v_hiord_LOS
@@ -1751,7 +1748,7 @@ class ModelSet:
                 zhiord_kpc = zhiord * rstep_samp / dscale
 
                 r_hiord = np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)
-                v_hiord = comp(xhiord_kpc, yhiord_kpc, zhiord_kpc)
+                v_hiord = comp.velocity(xhiord_kpc, yhiord_kpc, zhiord_kpc)
                 f_hiord = comp.light_profile(xhiord_kpc, yhiord_kpc, zhiord_kpc)
 
                 # Apply extinction if it exists
@@ -1760,11 +1757,14 @@ class ModelSet:
 
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
-                    v_hiord_LOS = geom.project_velocity_along_LOS(comp,
-                                                            v_hiord, xhiord, yhiord, zhiord)
+                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord, xhiord, yhiord, zhiord)
                 else:
-                    v_hiord_LOS = v_hiord + self.geometry.vel_shift.value  # galaxy systemic velocity
-                v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
+                    v_hiord_LOS = v_hiord
+
+                ## Must handle r=0 excising internally, because v_hiord is a 3-tuple
+                # v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
+
+                v_hiord_LOS += geom.vel_shift.value  # galaxy systemic velocity
 
                 if (comp.name in cmps_hiord_disps):
                     sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)

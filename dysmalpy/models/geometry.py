@@ -204,8 +204,10 @@ class Geometry(_DysmalFittable3DModel):
         model : `~dysmalpy.models._DysmalModel`
             Model component from which the velocity was calculated.
 
-        vel : float or array
-            Amplitude of the velocity
+        vel : float or array or tuple of arrays
+            Amplitude of the velocity.
+            If model._multicoord_velocity is True, must pass a tuple of velocity components
+                for each coordinate in the model's native geometry.
 
         x, y, z : float or array
             xyz position in the radial flow reference frame.
@@ -219,15 +221,34 @@ class Geometry(_DysmalFittable3DModel):
             Projection of velocity 'vel' along the LOS.
         """
 
-        vel_hat = model.vel_vector_direction_emitframe(x, y, z)
-        zsky_unit_vector = self.zsky_direction_emitframe(x, y, z, inc=inc)
+        zsky_hat = self.zsky_direction_emitframe(x, y, z, inc=inc)
 
         # Dot product of vel_hat, zsky_unit_vector
-        proj_dotprod = vel*0.
-        for vh, zuv in zip(vel_hat, zsky_unit_vector):
-            proj_dotprod += vh*zuv
+        if model._multicoord_velocity:
+            # Matrix multiply the velocity direction matrix with the
+            #   oritinal velocity tuple, then dot product with the zsky unit vector
+            vel_dir_matrix = model.vel_direction_emitframe(x, y, z)
 
-        v_LOS = vel * proj_dotprod
+            # Need to explicity work this out, as this is a 3x3 matrix multiplication
+            #   with a 3-element vector, where the elements themselves are arrays...
+            vel_cartesian = [vel[0]*0., vel[1]*0., vel[2]*0.]
+            for row in range(vel_dir_matrix.shape[0]):
+                for col in range(vel_dir_matrix.shape[1]):
+                    vel_cartesian[row] += vel_dir_matrix[row, col] * vel[col]
+
+            v_LOS = vel[0]*0.
+            for vcomp, zhat in zip(vel_cartesian, zsky_hat):
+                v_LOS += vcomp*zhat
+
+        else:
+            # Dotproduct of velocity unit vector and zsky unit vector
+            vel_hat = model.vel_direction_emitframe(x, y, z)
+            proj_dotprod = vel*0.
+            for vhat, zhat in zip(vel_hat, zsky_hat):
+                proj_dotprod += vhat*zhat
+
+            # Multiply by velocity magnitude
+            v_LOS = vel * proj_dotprod
 
         return v_LOS
 
