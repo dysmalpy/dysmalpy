@@ -14,6 +14,7 @@ import logging
 # DYSMALPY code
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 from dysmalpy import plotting
+from dysmalpy import galaxy
 from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
 

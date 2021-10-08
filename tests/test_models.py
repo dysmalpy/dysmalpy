@@ -276,6 +276,7 @@ class HelperSetups(object):
 class TestModels:
     helper = HelperSetups()
 
+
     def test_diskbulge(self):
         bary = self.helper.setup_diskbulge()
 
@@ -284,20 +285,18 @@ class TestModels:
         vcirc = np.array([0., 233.84762112, 231.63051349, 222.14143224, 207.24934609]) #km/s
         menc = np.array([0., 3.17866553e+10, 6.23735490e+10, 8.60516713e+10, 9.98677462e+10]) # Msun
 
+        dlnrho_dlnr = np.array([-0.748634562849152, -1.4711285560530236, -2.179833936965688,
+                                -3.000041227680322, -3.8337218490100025])
+        rho = np.array([13508748522957.645, 400003289.8613462, 117861773.23589979,
+                        42118714.10378093, 15952739.398213904]) # msun/kpc^3 ??
+
         for i, r in enumerate(rarr):
-            # Assert vcirc, menc values are the same
+            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(bary.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
-
-        #####
-        dlnrho_dlnr = np.array([ 0., -1.4710141147249862, -2.178978908144452,
-                    -3.0000815229630002, -3.8338659358932334])
-        rho = np.array([3.970102840765826e+17, 399133357.6711784, 117795156.79188688,
-                        41725350.996718735, 15703871.592708467]) # msun/kpc^3 ??
-        for i, r in enumerate(rarr):
-            # Assert density, dlnrho_dlnr values are the same
             assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
             assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+
 
 
 
@@ -316,15 +315,15 @@ class TestModels:
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-        #####
         dlnrho_dlnr = np.array([0.0, -1.6783469900166612, -3.3566939800333224,
-                        -5.035040970049984, -6.713387960066645])
+                                -5.035040970049984, -6.713387960066645])
         rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
                         144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
         for i, r in enumerate(rarr):
             # Assert density, dlnrho_dlnr values are the same
             assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
             assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+
 
     def test_sersic_noord_flat(self):
         sersic = self.helper.setup_sersic(noord_flat=True)
@@ -336,20 +335,18 @@ class TestModels:
         menc = np.array([0.0, 16553065102.83822, 53222898982.82668,
                             84173927151.13939, 102463310604.53976]) # Msun
 
+        dlnrho_dlnr = np.array([0.0, -1.2608181791170565, -2.1284950291483833,
+                                -2.9805332449789246, -3.827214472961034])
+        rho = np.array([35133994466.11217, 511500615.0259837, 162957719.186185,
+                        59053333.61277823, 22454637.866798732])  # msun/kpc^3 ??
+
         for i, r in enumerate(rarr):
-            # Assert vcirc, menc values are the same
+            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
-
-        #####
-        dlnrho_dlnr = np.array([0.0, -1.2608824256730886, -2.128495149023024,
-                            -2.980578859391685, -3.8272560398656132])
-        rho = np.array([35133994466.11231, 510439919.6032341, 162957719.18618384,
-                            58502355.720370084, 22099112.430362392]) # msun/kpc^3 ??
-        for i, r in enumerate(rarr):
-            # Assert density, dlnrho_dlnr values are the same
             assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
             assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+
 
     def test_NFW(self):
         halo = self.helper.setup_NFW()
@@ -388,17 +385,19 @@ class TestModels:
             assert math.isclose(halo.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-    def test_asymm_drift_selfgrav(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=1, instrument=False)
+
+    def test_asymm_drift_pressuregradient(self):
+        gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.27820429923966, 255.50185397469704,
-                        252.9804212303498, 243.74423052912974]) #km/s
+        vrot = np.array([0.0, 248.91717537419922, 258.9907912770804,
+                         259.0402880219702, 252.58915056627905]) # km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+
 
     def test_asymm_drift_exactsersic(self):
         gal = self.helper.setup_fullmodel(pressure_support_type=2, instrument=False)
@@ -413,13 +412,14 @@ class TestModels:
             # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
-    def test_asymm_drift_pressuregradient(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=3, instrument=False)
+
+    def test_asymm_drift_selfgrav(self):
+        gal = self.helper.setup_fullmodel(pressure_support_type=1, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
-                        259.0401697217219, 252.5887167466986]) #km/s
+        vrot = np.array([0.0, 248.27820429923966, 255.50185397469704,
+                252.9804212303498, 243.74423052912974]) #km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
