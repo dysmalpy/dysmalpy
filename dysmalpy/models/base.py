@@ -126,7 +126,6 @@ class MassModel(_DysmalFittable1DModel):
     _potential_gradient_has_neg = False
 
 
-
     @property
     @abc.abstractmethod
     def _subtype(self):
@@ -135,7 +134,7 @@ class MassModel(_DysmalFittable1DModel):
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
-
+        pass
 
     def circular_velocity(self, r):
         r"""
@@ -215,6 +214,16 @@ class MassModel(_DysmalFittable1DModel):
         return vel_dir_unit_vector
 
 
+    def velocity_vector(self, xgal, ygal, zgal, vel=None):
+        """ Return the relevant velocity -- if not specified, call self.circular_velocity() --
+            as a vector in the the reference Cartesian frame coordinates. """
+        if vel is None:
+            vel = self.circular_velocity(np.sqrt(xgal**2 + ygal**2))
+        vhat = self.vel_direction_emitframe(xgal, ygal, zgal)
+        vel_vector = vel * vhat
+        return vel_vector
+
+
 class LightModel(_DysmalModel):
     """
     Base model for components that emit light, but are treated separately from any gravitational influence
@@ -261,9 +270,42 @@ class HigherOrderKinematics(_DysmalModel):
         pass
 
     @abc.abstractmethod
+    def velocity(self, *args, **kwargs):
+        """Method to return the velocity amplitude (in the output geometry Cartesian frame,
+           if self._multicoord_velocity==True)."""
+        pass
+
+    @abc.abstractmethod
     def vel_direction_emitframe(self, *args, **kwargs):
         """Method to return the velocity direction in the output geometry Cartesian frame."""
+        pass
 
+
+    def velocity_vector(self, x, y, z, vel=None):
+        """ Return the velocity -- calling self.velocity() if vel is None -- of the higher order
+            component as a vector in the the reference Cartesian frame coordinates. """
+        if vel is None:
+            vel = self.velocity(x, y, z)
+
+        # Dot product of vel_hat, zsky_unit_vector
+        if self._multicoord_velocity:
+            # Matrix multiply the velocity direction matrix with the
+            #   oritinal velocity tuple, then dot product with the zsky unit vector
+            vel_dir_matrix = self.vel_direction_emitframe(x, y, z)
+
+            # Need to explicity work this out, as this is a 3x3 matrix multiplication
+            #   with a 3-element vector, where the elements themselves are arrays...
+            vel_cartesian = [vel[0]*0., vel[1]*0., vel[2]*0.]
+            for row in range(vel_dir_matrix.shape[0]):
+                for col in range(vel_dir_matrix.shape[1]):
+                    vel_cartesian[row] += vel_dir_matrix[row, col] * vel[col]
+
+        else:
+            # Simply apply magnitude to velhat
+            vel_hat = self.vel_direction_emitframe(x, y, z)
+            vel_cartesian = vel * vel_hat
+
+        return vel_cartesian
 
 
 class HigherOrderKinematicsSeparate(HigherOrderKinematics):

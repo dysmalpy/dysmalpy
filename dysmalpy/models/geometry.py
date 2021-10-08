@@ -197,6 +197,7 @@ class Geometry(_DysmalFittable3DModel):
         zsky_unit_vector = [ x*0., y*0. + np.sin(inc), z*0. - np.cos(inc) ]
         return zsky_unit_vector
 
+
     def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):
         r"""
         Method to project velocities in models' emission frame along the LOS (zsky direction).
@@ -225,43 +226,93 @@ class Geometry(_DysmalFittable3DModel):
 
         zsky_hat = self.zsky_direction_emitframe(x, y, z, inc=inc)
 
-        if model._native_geometry.lower().strip() == 'spherical':
-            r = np.sqrt(x**2 + y**2 + z**2)
-        elif model._native_geometry.lower().strip() == 'cylindrical':
-            r = np.sqrt(x**2 + y**2)
+        vel_cartesian = model.velocity_vector(x, y, z, vel=vel)
 
-        # Dot product of vel_hat, zsky_unit_vector
-        if model._multicoord_velocity:
-            # Matrix multiply the velocity direction matrix with the
-            #   oritinal velocity tuple, then dot product with the zsky unit vector
-            vel_dir_matrix = model.vel_direction_emitframe(x, y, z)
+        # Dot product of vel_cartesian, zsky_unit_vector
+        v_LOS = x*0.
+        for vcomp, zhat in zip(vel_cartesian, zsky_hat):
+            v_LOS += vcomp*zhat
 
-            # Need to explicity work this out, as this is a 3x3 matrix multiplication
-            #   with a 3-element vector, where the elements themselves are arrays...
-            vel_cartesian = [vel[0]*0., vel[1]*0., vel[2]*0.]
-            for row in range(vel_dir_matrix.shape[0]):
-                for col in range(vel_dir_matrix.shape[1]):
-                    vel_cartesian[row] += vel_dir_matrix[row, col] * vel[col]
+        # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
+        if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+            if model._native_geometry.lower().strip() == 'spherical':
+                r = np.sqrt(x**2 + y**2 + z**2)
+            elif model._native_geometry.lower().strip() == 'cylindrical':
+                r = np.sqrt(x**2 + y**2)
 
-            v_LOS = vel[0]*0.
-            for vcomp, zhat in zip(vel_cartesian, zsky_hat):
-                v_LOS += vcomp*zhat
-
-            # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-            if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+            if  model._multicoord_velocity:
                 v_LOS[r == 0] = vel[0][r == 0]
-        else:
-            # Dotproduct of velocity unit vector and zsky unit vector
-            vel_hat = model.vel_direction_emitframe(x, y, z)
-            proj_dotprod = vel*0.
-            for vhat, zhat in zip(vel_hat, zsky_hat):
-                proj_dotprod += vhat*zhat
-
-            # Multiply by velocity magnitude
-            v_LOS = vel * proj_dotprod
-
-            # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-            if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+            else:
                 v_LOS[r == 0] = vel[r == 0]
 
         return v_LOS
+
+
+    # def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):
+    #     r"""
+    #     Method to project velocities in models' emission frame along the LOS (zsky direction).
+    #
+    #     Parameters
+    #     ----------
+    #     model : `~dysmalpy.models._DysmalModel`
+    #         Model component from which the velocity was calculated.
+    #
+    #     vel : float or array or tuple of arrays
+    #         Amplitude of the velocity.
+    #         If model._multicoord_velocity is True, must pass a tuple of velocity components
+    #             for each coordinate in the model's native geometry.
+    #
+    #     x, y, z : float or array
+    #         xyz position in the radial flow reference frame.
+    #
+    #     inc : float, optional
+    #         Specify a separate inclination. Default: uses self.inc
+    #
+    #     Returns
+    #     -------
+    #     v_LOS : float or array
+    #         Projection of velocity 'vel' along the LOS.
+    #     """
+    #
+    #     zsky_hat = self.zsky_direction_emitframe(x, y, z, inc=inc)
+    #
+    #     if model._native_geometry.lower().strip() == 'spherical':
+    #         r = np.sqrt(x**2 + y**2 + z**2)
+    #     elif model._native_geometry.lower().strip() == 'cylindrical':
+    #         r = np.sqrt(x**2 + y**2)
+    #
+    #     # Dot product of vel_hat, zsky_unit_vector
+    #     if model._multicoord_velocity:
+    #         # Matrix multiply the velocity direction matrix with the
+    #         #   oritinal velocity tuple, then dot product with the zsky unit vector
+    #         vel_dir_matrix = model.vel_direction_emitframe(x, y, z)
+    #
+    #         # Need to explicity work this out, as this is a 3x3 matrix multiplication
+    #         #   with a 3-element vector, where the elements themselves are arrays...
+    #         vel_cartesian = [vel[0]*0., vel[1]*0., vel[2]*0.]
+    #         for row in range(vel_dir_matrix.shape[0]):
+    #             for col in range(vel_dir_matrix.shape[1]):
+    #                 vel_cartesian[row] += vel_dir_matrix[row, col] * vel[col]
+    #
+    #         v_LOS = vel[0]*0.
+    #         for vcomp, zhat in zip(vel_cartesian, zsky_hat):
+    #             v_LOS += vcomp*zhat
+    #
+    #         # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
+    #         if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+    #             v_LOS[r == 0] = vel[0][r == 0]
+    #     else:
+    #         # Dotproduct of velocity unit vector and zsky unit vector
+    #         vel_hat = model.vel_direction_emitframe(x, y, z)
+    #         proj_dotprod = vel*0.
+    #         for vhat, zhat in zip(vel_hat, zsky_hat):
+    #             proj_dotprod += vhat*zhat
+    #
+    #         # Multiply by velocity magnitude
+    #         v_LOS = vel * proj_dotprod
+    #
+    #         # Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
+    #         if model._native_geometry.lower().strip() in ['spherical', 'cylindrical']:
+    #             v_LOS[r == 0] = vel[r == 0]
+    #
+    #     return v_LOS
