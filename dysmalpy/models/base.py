@@ -19,7 +19,8 @@ import scipy.special as scp_spec
 # Local imports
 from dysmalpy.parameters import DysmalParameter
 
-__all__ = ['MassModel', 'LightModel', 'HigherOrderKinematics'
+__all__ = ['MassModel', 'LightModel',
+           'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
 
@@ -124,6 +125,13 @@ class MassModel(_DysmalFittable1DModel):
     _native_geometry = 'cylindrical'  ## possibility for further vel direction abstractioin
     _potential_gradient_has_neg = False
 
+
+
+    @property
+    @abc.abstractmethod
+    def _subtype(self):
+        pass
+
     @abc.abstractmethod
     def enclosed_mass(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
@@ -227,9 +235,57 @@ class HigherOrderKinematics(_DysmalModel):
 
     _type = 'higher_order'
 
+    @property
+    @abc.abstractmethod
+    def _native_geometry(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def _higher_order_type(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def _separate_light_profile(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def _spatial_type(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def _multicoord_velocity(self):
+        pass
+
     @abc.abstractmethod
     def vel_direction_emitframe(self, *args, **kwargs):
         """Method to return the velocity direction in the output geometry Cartesian frame."""
+
+
+
+class HigherOrderKinematicsSeparate(HigherOrderKinematics):
+    """
+    Base model for higher-order kinematic components that are separate from the galaxy.
+    Have separate light profiles, and can have separate geometry/dispersion components.
+    """
+
+    _higher_order_type = 'separate'
+    _separate_light_profile = True
+
+
+class HigherOrderKinematicsPerturbation(HigherOrderKinematics):
+    """
+    Base model for higher-order kinematic components that are perturbations to the galaxy.
+    Cannot have a separate light/geometry/dispersion components.
+    However, they can have light that is then *added* to the galaxy,
+        by adding to the ModelSet with light=True.
+    """
+
+    _higher_order_type = 'perturbation'
+    _separate_light_profile = False
 
 
 #########################################

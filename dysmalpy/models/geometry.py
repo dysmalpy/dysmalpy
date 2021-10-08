@@ -265,19 +265,3 @@ class Geometry(_DysmalFittable3DModel):
                 v_LOS[r == 0] = vel[r == 0]
 
         return v_LOS
-
-    # def transform_cube_rotate_shift(self, cube, inc=None, pa=None, xshift=None, yshift=None):
-    #     """Incline and transform a cube from galaxy/model reference frame to sky frame.
-    #         Use scipy.ndimage.rotate and scipy.ndimage.shift"""
-    #     # NOTE: SLOWER THAN AFFINE TRANSFORM
-    #     if inc is None:     inc = self.inc
-    #     if pa is None:      pa = self.pa
-    #     if xshift is None:  xshift = self.xshift
-    #     if yshift is None:  yshift = self.yshift
-    #
-    #     offset_arr = np.array([0., yshift, xshift])
-    #     cube_inc = scp_ndi.rotate(cube, -inc, axes=(1,0), order=3, reshape=False)
-    #     cube_PA  = scp_ndi.rotate(cube_inc, pa, axes=(2,1), order=3, reshape=False)
-    #     cube_sky = scp_ndi.shift(cube_PA, offset_arr, order=3)
-    #
-    #     return cube_sky

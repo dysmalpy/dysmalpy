@@ -66,7 +66,8 @@ class HelperSetups(object):
                                 invq_bulge=invq_bulge,
                                 noord_flat=noord_flat,
                                 name='disk+bulge',
-                                fixed=bary_fixed, bounds=bary_bounds)
+                                fixed=bary_fixed, bounds=bary_bounds,
+                                gas_component='total')
 
         bary.r_eff_disk.prior = parameters.BoundedGaussianPrior(center=5.0, stddev=1.0)
 
@@ -288,15 +289,15 @@ class TestModels:
             assert math.isclose(bary.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([ 0., -1.4710141147249862, -2.178978908144452,
-                        -3.0000815229630002, -3.8338659358932334])
-            rho = np.array([3.970102840765826e+17, 399133357.6711784, 117795156.79188688,
-                            41725350.996718735, 15703871.592708467]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(bary.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(bary.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+        #####
+        dlnrho_dlnr = np.array([ 0., -1.4710141147249862, -2.178978908144452,
+                    -3.0000815229630002, -3.8338659358932334])
+        rho = np.array([3.970102840765826e+17, 399133357.6711784, 117795156.79188688,
+                        41725350.996718735, 15703871.592708467]) # msun/kpc^3 ??
+        for i, r in enumerate(rarr):
+            # Assert density, dlnrho_dlnr values are the same
+            assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
 
 
@@ -315,15 +316,15 @@ class TestModels:
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([0.0, -1.6783469900166612, -3.3566939800333224,
-                            -5.035040970049984, -6.713387960066645])
-            rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
-                            144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+        #####
+        dlnrho_dlnr = np.array([0.0, -1.6783469900166612, -3.3566939800333224,
+                        -5.035040970049984, -6.713387960066645])
+        rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
+                        144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
+        for i, r in enumerate(rarr):
+            # Assert density, dlnrho_dlnr values are the same
+            assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_sersic_noord_flat(self):
         sersic = self.helper.setup_sersic(noord_flat=True)
@@ -340,15 +341,15 @@ class TestModels:
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([0.0, -1.2608824256730886, -2.128495149023024,
-                                -2.980578859391685, -3.8272560398656132])
-            rho = np.array([35133994466.11231, 510439919.6032341, 162957719.18618384,
-                                58502355.720370084, 22099112.430362392]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+        #####
+        dlnrho_dlnr = np.array([0.0, -1.2608824256730886, -2.128495149023024,
+                            -2.980578859391685, -3.8272560398656132])
+        rho = np.array([35133994466.11231, 510439919.6032341, 162957719.18618384,
+                            58502355.720370084, 22099112.430362392]) # msun/kpc^3 ??
+        for i, r in enumerate(rarr):
+            # Assert density, dlnrho_dlnr values are the same
+            assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_NFW(self):
         halo = self.helper.setup_NFW()
@@ -413,19 +414,17 @@ class TestModels:
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
     def test_asymm_drift_pressuregradient(self):
-        if models._sersic_profile_mass_VC_loaded:
-            gal = self.helper.setup_fullmodel(pressure_support_type=3, instrument=False)
+        gal = self.helper.setup_fullmodel(pressure_support_type=3, instrument=False)
 
-            ftol = 1.e-9
-            rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-            vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
-                            259.0401697217219, 252.5887167466986]) #km/s
+        ftol = 1.e-9
+        rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
+        vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
+                        259.0401697217219, 252.5887167466986]) #km/s
 
-            for i, r in enumerate(rarr):
-                # Assert vrot values are the same
-                assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
-        else:
-            pass
+        for i, r in enumerate(rarr):
+            # Assert vrot values are the same
+            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+
 
     def test_composite_model(self):
         gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False, instrument=False)

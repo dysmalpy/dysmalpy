@@ -12,9 +12,11 @@ import logging
 # Third party imports
 import numpy as np
 import scipy.misc as scp_misc
+import scipy.integrate as scp_integrate
 
 # Local imports
-from .base import _DysmalFittable3DModel, HigherOrderKinematics
+from .base import _DysmalFittable3DModel, HigherOrderKinematicsSeparate, \
+                  HigherOrderKinematicsPerturbation
 from dysmalpy.parameters import DysmalParameter
 
 try:
@@ -32,7 +34,7 @@ logger = logging.getLogger('DysmalPy')
 np.warnings.filterwarnings('ignore')
 
 
-class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
+class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     r"""
     Model for a biconical outflow
 
@@ -127,7 +129,6 @@ class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
     _spatial_type = 'resolved'
     _multicoord_velocity = False
     _native_geometry = 'spherical'
-    _separate_light_profile = True
     outputs = ('vout',)
 
     def __init__(self, profile_type='both', **kwargs):
@@ -231,7 +232,7 @@ class BiconicalOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
 
 
 
-class UnresolvedOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
+class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     """
     Model for an unresolved outflow component described by a Gaussian
 
@@ -259,7 +260,6 @@ class UnresolvedOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
     _spatial_type = 'unresolved'
     _multicoord_velocity = False
     _native_geometry = 'cartesian'
-    _separate_light_profile = True
     outputs = ('vout',)
 
     def __setstate__(self, state):
@@ -305,7 +305,7 @@ class UnresolvedOutflow(HigherOrderKinematics, _DysmalFittable3DModel):
 
 
 
-class UniformRadialFlow(HigherOrderKinematics, _DysmalFittable3DModel):
+class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
     Model for a uniform radial flow.
 
@@ -324,7 +324,6 @@ class UniformRadialFlow(HigherOrderKinematics, _DysmalFittable3DModel):
     _spatial_type = 'resolved'
     _multicoord_velocity = False
     _native_geometry = 'spherical'
-    _separate_light_profile = False
     outputs = ('vrad',)
 
     def __init__(self, **kwargs):
@@ -375,7 +374,7 @@ class UniformRadialFlow(HigherOrderKinematics, _DysmalFittable3DModel):
         return vel_dir_unit_vector
 
 
-class UniformBarFlow(HigherOrderKinematics, _DysmalFittable3DModel):
+class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
     Model for a uniform flow along a bar, along some axis in the galaxy midplane.
 
@@ -405,7 +404,6 @@ class UniformBarFlow(HigherOrderKinematics, _DysmalFittable3DModel):
     _spatial_type = 'resolved'
     _multicoord_velocity = False
     _native_geometry = 'cartesian'
-    _separate_light_profile = False
     outputs = ('vflow',)
 
     def __init__(self, **kwargs):
@@ -460,7 +458,7 @@ class UniformBarFlow(HigherOrderKinematics, _DysmalFittable3DModel):
 
 
 
-class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
+class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
     Model for a spiral density wave, assumed in the galaxy midplane.
 
@@ -481,10 +479,9 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
     _spatial_type = 'resolved'
     _multicoord_velocity = True
     _native_geometry = 'cylindrical'
-    _separate_light_profile = True
     outputs = ('vr','vphi','vz',)
 
-    def __init__(self, **kwargs):
+    def __init__(self, Vrot=None, rho=None, **kwargs):
 
         # Set functions: MUST TAKE R as input!
         self.Vrot = Vrot
@@ -536,9 +533,11 @@ class SpiralDensityWave(HigherOrderKinematics, _DysmalFittable3DModel):
         return wavenum
 
     def f(self, R):
-        """ ????? """
+        """Shape of spiral arms, with f=m*phi = Int_0^R(k dR) """
+        intgrl, abserr = scp_integrate.quad(self.k, 0, R, args=(R))
 
-        return BLAH
+        return intgrl
+
 
     def rho_perturb(self, x, y, z):
         """

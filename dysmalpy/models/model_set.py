@@ -913,19 +913,21 @@ class ModelSet:
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
 
-                    if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
-                        cmpnt_rho = mcomp.rho(r)
-                        cmpnt_dlnrho_dlnr = mcomp.dlnrho_dlnr(r)
+                    # if (mcomp._subtype == 'baryonic') & (not isinstance(mcomp, BlackHole)):
+                    if (mcomp._subtype == 'baryonic'):
+                        if ('gas' in mcomp.baryon_type.lower().strip()):
+                            cmpnt_rhogas = mcomp.rhogas(r)
+                            cmpnt_dlnrhogas_dlnr = mcomp.dlnrhogas_dlnr(r)
 
-                        whfin = np.where(np.isfinite(cmpnt_dlnrho_dlnr))[0]
-                        try:
-                            if len(whfin) < len(r):
-                                raise ValueError
-                        except:
-                            pass
+                            whfin = np.where(np.isfinite(cmpnt_dlnrhogas_dlnr))[0]
+                            try:
+                                if len(whfin) < len(r):
+                                    raise ValueError
+                            except:
+                                pass
 
-                        rhogastot += cmpnt_rho
-                        rho_dlnrhogas_dlnr_sum += cmpnt_rho * cmpnt_dlnrho_dlnr
+                            rhogastot += cmpnt_rhogas
+                            rho_dlnrhogas_dlnr_sum += cmpnt_rhogas * cmpnt_dlnrhogas_dlnr
 
         dlnrhogas_dlnr = (1./rhogastot) * rho_dlnrhogas_dlnr_sum
 
@@ -1485,7 +1487,6 @@ class ModelSet:
                 for cmp_n in self.higher_order_components:
                     comp = self.higher_order_components[cmp_n]
                     cmps_hiord_geoms = list(self.higher_order_geometries.keys())
-                    cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
                     if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                         # Use general geometry:
@@ -1616,7 +1617,6 @@ class ModelSet:
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
-                        cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
                         if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
@@ -1671,7 +1671,6 @@ class ModelSet:
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
-                        cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
                         if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
@@ -1713,7 +1712,6 @@ class ModelSet:
             cmps_hiord_geoms = list(self.higher_order_geometries.keys())
             cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
-            #if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
             _do_comp = False
             if (comp.name in cmps_hiord_geoms):
                 # Own geometry + light distribution
@@ -1725,6 +1723,14 @@ class ModelSet:
                 geom = self.geometry
                 logger.warning("The case of higher order component using galaxy geometry "
                                "but own light profile has not been tested")
+
+            ######
+            # Catch failure condition: _higher_order_type = 'perturbation' must NOT be included here,
+            #       but rather above as a direct perturbation to the mass compoonent velocities.
+            if _do_comp & (comp._higher_order_type.lower().strip() == 'perturbation'):
+                msg = "Component with comp._higher_order_type = 'perturbation' "
+                msg += "must NOT have own geometry or separate light profile!"
+                raise ValueError(msg)
 
             if _do_comp:
                 #######

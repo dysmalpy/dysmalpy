@@ -42,11 +42,11 @@ _dir_noordermeer = dir_path+"/data/noordermeer/"
 _dir_sersic_profile_mass_VC_TMP = "/Users/sedona/data/sersic_profile_mass_VC/"
 _dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
 
-try:
-    import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
-    _sersic_profile_mass_VC_loaded = True
-except:
-    _sersic_profile_mass_VC_loaded = False
+# try:
+#     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
+#     _sersic_profile_mass_VC_loaded = True
+# except:
+#     _sersic_profile_mass_VC_loaded = False
 
 
 # CONSTANTS
@@ -254,7 +254,8 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
         nearest_n, nearest_q)
 
-    try:
+    #try:
+    if True:
         restNVC = scp_io.readsav(file_noord)
         N2008_vcirc = restNVC.N2008_vcirc
         N2008_rad = restNVC.N2008_rad
@@ -266,8 +267,8 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
         vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
                  mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
 
-    except:
-        vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
+    # except:
+    #     vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
 
     return vcirc
 
@@ -307,22 +308,18 @@ def apply_noord_flat_new(r, r_eff, mass, n, invq):
 
     return vcirc
 
-def sersic_curve_rho(r, Reff, total_mass, n, invq):
+def sersic_curve_rho(r, Reff, total_mass, n, invq, interp_type='linear'):
     table = get_sersic_VC_table_new(n, invq)
 
     table_rho =     table['rho']
     table_rad =     table['r']
     table_Reff =    table['Reff']
     table_mass =    table['total_mass']
-    
+
     # Drop nonfinite parts:
     whfin = np.where(np.isfinite(table_rho))[0]
     table_rho = table_rho[whfin]
     table_rad = table_rad[whfin]
-
-    # UNIFIED INTERPOLATION/EXTRAPOLATION
-    r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
-                                   fill_value='extrapolate', kind='linear')
 
     # Ensure it's an array:
     if isinstance(r*1., float):
@@ -332,7 +329,32 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
 
-    rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+
+    # # UNIFIED INTERPOLATION/EXTRAPOLATION
+    # r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
+    #                                fill_value='extrapolate', kind='linear')
+    #
+    # rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+
+    scale_fac = (total_mass / table_mass) * (table_Reff / Reff)**3
+
+    if interp_type.lower().strip() == 'cubic':
+        r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
+        r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
+
+        rho_interp = np.zeros(len(rarr))
+        wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
+        wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
+        rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * scale_fac )
+        rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * scale_fac)
+    elif interp_type.lower().strip() == 'linear':
+        r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate',
+                                       bounds_error=False, kind='linear')
+        rho_interp =     (r_interp(rarr / Reff * table_Reff) * scale_fac )
+
+    else:
+        raise ValueError("interp type '{}' unknown!".format(interp_type))
+
 
 
     if (len(rarr) > 1):
@@ -347,7 +369,7 @@ def sersic_curve_rho(r, Reff, total_mass, n, invq):
 
     return rho_interp
 
-def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
+def sersic_curve_dlnrho_dlnr(r, Reff, n, invq, interp_type='linear'):
     table = get_sersic_VC_table_new(n, invq)
 
     table_dlnrho_dlnr =     table['dlnrho_dlnr']
@@ -360,38 +382,6 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
     table_rad = table_rad[whfin]
 
-    # # Clean up values inside rmin:  Add the value at r=0: menc=0
-    # if table['r'][0] > 0.:
-    #     if _sersic_profile_mass_VC_loaded:
-    #         try:
-    #             table_rad = np.insert(table_rad, 0, 0., axis=0)
-    #             table_dlnrho_dlnr = np.insert(table_dlnrho_dlnr, 0,
-    #                             sersic_profile_mass_VC_calcs.dlnrho_dlnr(0., n=n, total_mass=table_mass, Reff=table_Reff, q=table['q']), axis=0)
-    #
-    #         except:
-    #             pass
-
-    ## SEPARATE INTERP + EXTRAPOLATED
-    # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
-    # r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
-    #
-    # # Ensure it's an array:
-    # if isinstance(r*1., float):
-    #     rarr = np.array([r])
-    # else:
-    #     rarr = np.array(r)
-    # # Ensure all radii are 0. or positive:
-    # rarr = np.abs(rarr)
-    #
-    # dlnrho_dlnr_interp = np.zeros(len(rarr))
-    # wh_in =     np.where((r <= table_rad.max()) & (r >= table_rad.min()))[0]
-    # wh_extrap = np.where((r > table_rad.max()) | (r < table_rad.min()))[0]
-    # dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
-    # dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) )
-
-    # UNIFIED INTERPOLATION/EXTRAPOLATION
-    r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
-                                   fill_value='extrapolate', kind='linear')
 
     # Ensure it's an array:
     if isinstance(r*1., float):
@@ -401,7 +391,28 @@ def sersic_curve_dlnrho_dlnr(r, Reff, n, invq):
     # Ensure all radii are 0. or positive:
     rarr = np.abs(rarr)
 
-    dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
+    #
+    # # UNIFIED INTERPOLATION/EXTRAPOLATION
+    # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
+    #                                fill_value='extrapolate', kind='linear')
+    # dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
+
+    if interp_type.lower().strip() == 'cubic':
+        r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
+        r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+
+        dlnrho_dlnr_interp = np.zeros(len(rarr))
+        wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
+        wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
+        dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
+        dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff))
+    elif interp_type.lower().strip() == 'linear':
+        r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate',
+                                       bounds_error=False, kind='linear')
+        dlnrho_dlnr_interp =     (r_interp(rarr / Reff * table_Reff)  )
+    else:
+        raise ValueError("interp type '{}' unknown!".format(interp_type))
+
 
     if (len(rarr) > 1):
         return dlnrho_dlnr_interp
@@ -431,6 +442,7 @@ class BlackHole(MassModel):
     """
     BH_mass = DysmalParameter(default=1, bounds=(0., 12.))
     _subtype = 'baryonic'
+    baryon_type = 'blackhole'
 
     def __init__(self, **kwargs):
         super(BlackHole, self).__init__(**kwargs)
@@ -534,14 +546,17 @@ class ExpDisk(MassModel):
     r_eff : float
         Effective radius in kpc
 
+    baryon_type : {'gas+stars', 'stars', 'gas'}
+        What type of baryons are included. Used for dlnrhogas/dlnr
+
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     _subtype = 'baryonic'
 
-    def __init__(self, **kwargs):
-
+    def __init__(self, baryon_type='gas+stars', **kwargs):
+        self.baryon_type = baryon_type
         super(ExpDisk, self).__init__(**kwargs)
 
     @staticmethod
@@ -606,7 +621,7 @@ class ExpDisk(MassModel):
         light = surf_dens_exp_disk(r, 1.0, self.rd)
         return light
 
-    def rho(self, r):
+    def rhogas(self, r):
         """
         Mass surface density as a function of radius
 
@@ -624,7 +639,7 @@ class ExpDisk(MassModel):
         """
         return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd)
 
-    def dlnrho_dlnr(self, r):
+    def dlnrhogas_dlnr(self, r):
         """
         Exponential disk asymmetric drift term
 
@@ -672,6 +687,9 @@ class Sersic(MassModel):
     noord_flat : bool
         If True, use circular velocity profiles derived in Noordermeer 2008.
         If False, circular velocity is derived through `v_circular`
+
+    baryon_type : {'gas+stars', 'stars', 'gas'}
+        What type of baryons are included. Used for dlnrhogas/dlnr
 
     Notes
     -----
@@ -721,11 +739,11 @@ class Sersic(MassModel):
 
     _subtype = 'baryonic'
 
-    def __init__(self, invq=1.0, noord_flat=False,
-                 **kwargs):
+    def __init__(self, invq=1.0, noord_flat=False, baryon_type='gas+stars', **kwargs):
 
         self.invq = invq
         self.noord_flat = noord_flat
+        self.baryon_type = baryon_type
         super(Sersic, self).__init__(**kwargs)
 
     @staticmethod
@@ -800,7 +818,7 @@ class Sersic(MassModel):
         """
         return sersic_mr(r, 1.0, self.n, self.r_eff)
 
-    def rho(self, r):
+    def rhogas(self, r):
         """
         Mass density as a function of radius (if noord_flat; otherwise surface density)
 
@@ -814,15 +832,20 @@ class Sersic(MassModel):
         dens : float or array
             Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
-        if self.noord_flat:
-            rho = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
 
+        if 'gas' in self.baryon_type.lower().strip():
+
+            if self.noord_flat:
+                rhogas = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
+
+            else:
+                rhogas = sersic_mr(r, 10**self.total_mass, self.n, self.r_eff)
         else:
-            rho = sersic_mr(r, 10**self.total_mass, self.n, self.r_eff)
+            rhogas = r * 0.
 
-        return rho
+        return rhogas
 
-    def dlnrho_dlnr(self, r):
+    def dlnrhogas_dlnr(self, r):
         """
         Sersic asymmetric drift term
 
@@ -836,14 +859,17 @@ class Sersic(MassModel):
         log_drhodr : float or array
             Log surface density derivative as a function or radius
         """
-        if self.noord_flat:
-            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
+        if 'gas' in self.baryon_type.lower().strip():
+            if self.noord_flat:
+                dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
 
-            return dlnrho_dlnr_arr
+            else:
+                bn = scp_spec.gammaincinv(2. * self.n, 0.5)
+                dlnrhogas_dlnr_arr = -2. * (bn / self.n) * np.power(r/self.r_eff, 1./self.n)
         else:
-            bn = scp_spec.gammaincinv(2. * self.n, 0.5)
-            return -2. * (bn / self.n) * np.power(r/self.r_eff, 1./self.n)
+            dlnrhogas_dlnr_arr = r * 0.
 
+        return dlnrhogas_dlnr_arr
 
 
 class DiskBulge(MassModel):
@@ -883,6 +909,12 @@ class DiskBulge(MassModel):
     light_component : {'disk', 'bulge', 'total'}
         Which component to use as the flux profile
 
+    gas_component : {'disk', 'total'}
+        Which component contributes to dlnrhogas/dlnr
+
+    baryon_type : {'gas+stars', 'stars', 'gas'}
+        What type of baryons are included. Used for dlnrhogas/dlnr
+
     Notes
     -----
     This model is the combination of 2 components, a disk and bulge, each described by
@@ -900,12 +932,15 @@ class DiskBulge(MassModel):
     _subtype = 'baryonic'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
-                 light_component='disk', **kwargs):
+                 light_component='disk', gas_component='disk', baryon_type='gas+stars',
+                 **kwargs):
 
         self.invq_disk = invq_disk
         self.invq_bulge = invq_bulge
         self.noord_flat = noord_flat
         self.light_component = light_component
+        self.gas_component = gas_component
+        self.baryon_type = baryon_type
 
         super(DiskBulge, self).__init__(**kwargs)
 
@@ -1216,7 +1251,7 @@ class DiskBulge(MassModel):
 
         return flux
 
-    def rho_disk(self, r):
+    def rhogas_disk(self, r):
         """
         Mass density of the disk as a function of radius (if noord_flat; otherwise surface density)
 
@@ -1230,17 +1265,26 @@ class DiskBulge(MassModel):
         dens : float or array
             Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
-        if self.noord_flat:
-            mdisk_total = 10**self.total_mass*(1 - self.bt)
-            rho = sersic_curve_rho(r, self.r_eff_disk, mdisk_total, self.n_disk, self.invq_disk)
 
-            return rho
+        if 'gas' in self.baryon_type.lower().strip():
+            if self.gas_component in ['total', 'disk']:
+                if self.noord_flat:
+                    mdisk_total = 10**self.total_mass*(1 - self.bt)
+                    rhogas = sersic_curve_rho(r, self.r_eff_disk, mdisk_total,
+                                              self.n_disk, self.invq_disk)
+                else:
+                    mdisk_total = 10**self.total_mass*(1 - self.bt)
+                    # Just use the surface density as "rho", as this is the razor-thin case
+                    rhogas = sersic_mr(r, mdisk_total, self.n_disk, self.r_eff_disk)
+            else:
+                rhogas = r * 0.
         else:
-            mdisk_total = 10**self.total_mass*(1 - self.bt)
-            mr_disk = sersic_mr(r, mdisk_total, self.n_disk, self.r_eff_disk)
-            return mr_disk
+            rhogas = r * 0.
 
-    def rho_bulge(self, r):
+        return rhogas
+
+
+    def rhogas_bulge(self, r):
         """
         Mass density of the bulge as a function of radius (if noord_flat; otherwise surface density)
 
@@ -1254,19 +1298,26 @@ class DiskBulge(MassModel):
         dens : float or array
             Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
-        if self.noord_flat:
-            mbulge_total = 10**self.total_mass*self.bt
+        if 'gas' in self.baryon_type.lower().strip():
+            # Only include bas in bulge if gas_component is 'total':
+            if self.gas_component in ['total']:
+                if self.noord_flat:
+                    mbulge_total = 10**self.total_mass*self.bt
+                    rhogas = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total,
+                                              self.n_bulge, self.invq_bulge)
+                else:
+                    mbulge_total = 10**self.total_mass*self.bt
+                    # Just use the surface density as "rho", as this is the razor-thin case
+                    rhogas = sersic_mr(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
 
-            rho = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total, self.n_bulge, self.invq_bulge)
-            return rho
-
-
+            else:
+                rhogas = r * 0.
         else:
-            mbulge_total = 10**self.total_mass*self.bt
-            mr_bulge = sersic_mr(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
-            return mr_bulge
+            rhogas = r * 0.
 
-    def rho(self, r):
+        return rhogas
+
+    def rhogas(self, r):
         """
         Mass density as a function of radius (if noord_flat; otherwise surface density)
 
@@ -1280,27 +1331,31 @@ class DiskBulge(MassModel):
         dens : float or array
             Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
         """
-        return self.rho_disk(r) + self.rho_bulge(r)
 
-    def dlnrho_dlnr_disk(self, r):
+        # All cases handled internally in rhogas_disk, rhogas_bulge
+        rhogas = self.rhogas_disk(r) + self.rhogas_bulge(r)
+
+        return rhogas
+
+    def dlnrhogas_dlnr_disk(self, r):
         if self.noord_flat:
-            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
+            dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
 
-            return dlnrho_dlnr_arr
+            return dlnrhogas_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n_disk, 0.5)
             return -2. * (bn / self.n_disk) * np.power(r/self.r_eff_disk, 1./self.n_disk)
 
-    def dlnrho_dlnr_bulge(self, r):
+    def dlnrhogas_dlnr_bulge(self, r):
         if self.noord_flat:
-            dlnrho_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
+            dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
 
-            return dlnrho_dlnr_arr
+            return dlnrhogas_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n_bulge, 0.5)
             return -2. * (bn / self.n_bulge) * np.power(r/self.r_eff_bulge, 1./self.n_bulge)
 
-    def dlnrho_dlnr(self, r):
+    def dlnrhogas_dlnr(self, r):
         """
         Asymmetric drift term for the combined disk and bulge
 
@@ -1314,11 +1369,20 @@ class DiskBulge(MassModel):
         log_drhodr : float or array
             Log surface density derivative as a function or radius
         """
-        # Save on duplicate interpolation calculations
-        rhoD = self.rho_disk(r)
-        rhoB = self.rho_bulge(r)
 
-        return (1./(rhoD + rhoB)) * (rhoD*self.dlnrho_dlnr_disk(r) + rhoB*self.dlnrho_dlnr_bulge(r))
+        if 'gas' in self.baryon_type.lower().strip():
+            if self.gas_component == 'total':
+                rhogasD = self.rhogas_disk(r)
+                rhogasB = self.rhogas_bulge(r)
+
+                dlnrhogas_dlnr_tot = (1./(rhogasD + rhogasB)) * \
+                            (rhogasD*self.dlnrhogas_dlnr_disk(r) + rhogasB*self.dlnrhogas_dlnr_bulge(r))
+            elif self.gas_component == 'disk':
+                dlnrhogas_dlnr_tot = self.dlnrhogas_dlnr_disk(r)
+        else:
+            dlnrhogas_dlnr_tot = r * 0.
+
+        return dlnrhogas_dlnr_tot
 
 
 class LinearDiskBulge(MassModel):
@@ -1358,6 +1422,9 @@ class LinearDiskBulge(MassModel):
     light_component : {'disk', 'bulge', 'total'}
         Which component to use as the flux profile
 
+    baryon_type : {'gas+stars', 'stars', 'gas'}
+        What type of baryons are included. Used for dlnrhogas/dlnr
+
     Notes
     -----
     This model is the exactly the same as `DiskBulge` except that `total_mass`
@@ -1374,12 +1441,13 @@ class LinearDiskBulge(MassModel):
     _subtype = 'baryonic'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
-                 light_component='disk', **kwargs):
+                 light_component='disk', baryon_type='gas+stars', **kwargs):
 
         self.invq_disk = invq_disk
         self.invq_bulge = invq_bulge
         self.noord_flat = noord_flat
         self.light_component = light_component
+        self.baryon_type = baryon_type
 
         super(LinearDiskBulge, self).__init__(**kwargs)
 

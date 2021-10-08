@@ -2,15 +2,16 @@
 #
 # Submodule for handling of DysmalPy ModelSets (and Models) to use build the galaxy model
 
-from dysmalpy.models.base import MassModel, LightModel, HigherOrderKinematics, \
-                                           v_circular, sersic_mr, truncate_sersic_mr
+from dysmalpy.models.base import MassModel, LightModel, \
+                                 HigherOrderKinematicsSeparate, HigherOrderKinematicsPerturbation, \
+                                 v_circular, sersic_mr, truncate_sersic_mr
 from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
-                                              ExpDisk, BlackHole, \
-                                              surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
-                                              sersic_menc_2D_proj, menc_from_vcirc, \
-                                              apply_noord_flat, _sersic_profile_mass_VC_loaded
+                                    ExpDisk, BlackHole, \
+                                    surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
+                                    sersic_menc_2D_proj, menc_from_vcirc, \
+                                    apply_noord_flat
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
-                                            Einasto, DekelZhao, LinearNFW
+                                  Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
                                                     UniformRadialFlow, UniformBarFlow, \
                                                     SpiralDensityWave
@@ -33,7 +34,7 @@ __all__ = ['ModelSet',
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            # Higher-order components
            'BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow', 'UniformBarFlow',
-           'SpiralDensityWave', 
+           'SpiralDensityWave',
            # Light profiles
            'LightTruncateSersic', 'LightGaussianRing',
            'LightClump', 'LightGaussianRingAzimuthal',
