@@ -1478,7 +1478,8 @@ class ModelSet:
                         mcomp = self.components[cmp]
                         break
                 vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
-                vrot_LOS[rgal == 0] = 0.
+                # Already performed in geom.project_velocity_along_LOS()
+                #vrot_LOS[rgal == 0] = 0.
                 vobs_mass = v_sys + vrot_LOS
 
                 #######
@@ -1537,6 +1538,7 @@ class ModelSet:
 
                         ## Later option: directly 3D calculate ????
                         #flux_mass +=  flux_3D
+
 
             # Apply extinction if a component exists
             if self.extinction is not None:
@@ -1607,7 +1609,8 @@ class ModelSet:
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                                             xgal_final, ygal_final, zgal_final)
-                    vobs_mass_transf_LOS[rgal_final == 0] = 0.
+                    # Already performed in geom.project_velocity_along_LOS()
+                    #vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     # -----------------------
 
@@ -1661,7 +1664,8 @@ class ModelSet:
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                                             xgal_final, ygal_final, zgal_final)
-                    vobs_mass_transf_LOS[rgal_final == 0] = 0.
+                    # Already performed in geom.project_velocity_along_LOS()
+                    #vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     # -----------------------
 
