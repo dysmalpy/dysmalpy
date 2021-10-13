@@ -1503,8 +1503,6 @@ class ModelSet:
                         #    the center of the galaxy at rest already
                         vobs_mass += v_hiord_LOS
 
-                        #raise ValueError
-
                 #######
 
             elif transform_method.lower().strip() == 'rotate':
