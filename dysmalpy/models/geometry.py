@@ -120,7 +120,7 @@ class Geometry(_DysmalFittable3DModel):
         if yshift is None:  yshift = self.yshift
 
         inc = np.pi / 180. * inc
-        #pa = np.pi / 180. * (pa - 90.)
+        pa = np.pi / 180. * (pa - 90.)
 
         # Apply inlincation:
         xtmp =  xgal

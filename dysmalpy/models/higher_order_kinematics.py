@@ -234,7 +234,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
 
         # Excise r=0 values
         vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
-        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 1.)
+        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 0.)
         vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
 
         vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
@@ -389,7 +389,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         # Excise r=0 values
         vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
-        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 1.)
+        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 0.)
         vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
 
         vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
@@ -758,9 +758,9 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         # Excise R=0 values
         vhat_Rtox =   utils.replace_values_by_refarr(vhat_Rtox, R, 0., 0.)
-        vhat_Rtoy =   utils.replace_values_by_refarr(vhat_Rtoy, R, 0., 1.)
+        vhat_Rtoy =   utils.replace_values_by_refarr(vhat_Rtoy, R, 0., 0.)
         vhat_phitox = utils.replace_values_by_refarr(vhat_phitox, R, 0., 0.)
-        vhat_phitoy = utils.replace_values_by_refarr(vhat_phitoy, R, 0., 1.)
+        vhat_phitoy = utils.replace_values_by_refarr(vhat_phitoy, R, 0., 0.)
 
         vel_dir_matrix = np.array([[vhat_Rtox, vhat_phitox, vhat_ztox],
                                    [vhat_Rtoy, vhat_phitoy, vhat_ztoy],
