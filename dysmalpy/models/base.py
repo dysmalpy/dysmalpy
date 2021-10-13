@@ -19,6 +19,11 @@ import scipy.special as scp_spec
 # Local imports
 from dysmalpy.parameters import DysmalParameter
 
+try:
+    import utils
+except:
+    from . import utils
+
 __all__ = ['MassModel', 'LightModel',
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
@@ -210,7 +215,18 @@ class MassModel(_DysmalFittable1DModel):
             is the phi direction in cylindrical coordinates, (R,phi,z).
         """
         rgal = np.sqrt(xgal ** 2 + ygal ** 2)
-        vel_dir_unit_vector = np.array([-ygal/rgal, xgal/rgal, 0.*zgal])
+
+        vhat_x = -ygal/rgal
+        vhat_y = xgal/rgal
+        vhat_z = 0.*zgal
+
+        # Excise rgal=0 values
+        vhat_x = utils.replace_values_by_refarr(vhat_x, rgal, 0., 0.)
+        vhat_y = utils.replace_values_by_refarr(vhat_y, rgal, 0., 0.)
+        vhat_z = utils.replace_values_by_refarr(vhat_z, rgal, 0., 0.)
+
+        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+
         return vel_dir_unit_vector
 
 
@@ -221,6 +237,7 @@ class MassModel(_DysmalFittable1DModel):
             vel = self.circular_velocity(np.sqrt(xgal**2 + ygal**2))
         vhat = self.vel_direction_emitframe(xgal, ygal, zgal)
         vel_vector = vel * vhat
+
         return vel_vector
 
 
@@ -328,6 +345,7 @@ class HigherOrderKinematicsPerturbation(HigherOrderKinematics):
 
     _higher_order_type = 'perturbation'
     _separate_light_profile = False
+    _axisymmetric = False
 
 
 #########################################

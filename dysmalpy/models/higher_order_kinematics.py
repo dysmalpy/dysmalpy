@@ -227,7 +227,18 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+
+        vhat_x = x/r
+        vhat_y = y/r
+        vhat_z = z/r
+
+        # Excise r=0 values
+        vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
+        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 1.)
+        vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
+
+        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+
         return vel_dir_unit_vector
 
 
@@ -370,7 +381,19 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
             (r,phi,theta).
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
-        vel_dir_unit_vector = [ x/r, y/r, z/r ]
+
+        vhat_x = x/r
+        vhat_y = y/r
+        vhat_z = z/r
+
+
+        # Excise r=0 values
+        vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
+        vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 1.)
+        vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
+
+        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+
         return vel_dir_unit_vector
 
 
@@ -446,13 +469,12 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         vel_dir_unit_vector : 3-element array
             Direction of the velocity vector in (xyz).
 
-            For a bar uniform flow, this is the (xbar, -xbar) direction, in cartesian coordinates,
-            for xbar <, > 0.
+            For a bar uniform flow, this is the sign(xbar) direction, in cartesian coordinates.
         """
         # Rotate by phi_rad:
         phi_rad = self.phi * np.pi / 180.
         xbar = np.cos(phi_rad) * x + np.sin(phi_rad) * y
-        vel_dir_unit_vector = [ np.cos(phi_rad)*np.sign(xbar), -np.sin(phi_rad)*np.sign(xbar), z*0.]
+        vel_dir_unit_vector = [ np.cos(phi_rad)*np.sign(xbar), np.sin(phi_rad)*np.sign(xbar), z*0.]
 
         return vel_dir_unit_vector
 
@@ -481,63 +503,111 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
     _native_geometry = 'cylindrical'
     outputs = ('vr','vphi','vz',)
 
-    def __init__(self, Vrot=None, rho=None, **kwargs):
+    def __init__(self, Vrot=None, rho0=None,
+                 f=None, k=None, dVrot_dR=None,
+                **kwargs):
 
         # Set functions: MUST TAKE R as input!
         self.Vrot = Vrot
         self.rho0 = rho0
+        self._f_func = f
+        self._k_func = k
+        self.dVrot_dR = dVrot_dR
+
         # Functions of R (midplane): rho0, f, k, Vrot,
         # -> k and f are actually derived....
+        #       but separately calculate, very slow to always do numerically!!!
 
         super(SpiralDensityWave, self).__init__(**kwargs)
 
+    def evaluate(self, x, y, z, m, phi, cs, epsilon, Om_p, Vrot, rho0):
+        """Evaluate the spiral density wave at x,y,z"""
+
+        vr1 = self.vr_perturb(x, y, z)
+        vphi1 = self.vphi_perturb(x, y, z)
+
+        # Tuple in the native cylindrical coordinates (really polar, ignoring z)
+        return (vr1, vphi1, z*0.)
+
     def ep_freq_sq(self, R):
         """ Return kappa^2, square of the epicyclic frequency """
-        dx=1.e-5
-        order=3
+        # dx=1.e-5
+        # order=3
+        #
+        # V = self.Vrot(R)
+        # Om = V / R
+        # shR = np.shape(R)
+        # if len(shR) == 0:
+        #     dVrot_dR = scp_misc.derivative(self.Vrot, R, dx=dx, n=1, order=order)
+        # else:
+        #     dVrot_dR = R * 0.
+        #     for i in range(shR[0]):
+        #         if len(shR) == 1:
+        #             dVrot_dR[i] = scp_misc.derivative(self.Vrot, R[i], dx=dx, n=1, order=order)
+        #         else:
+        #             for j in range(shR[1]):
+        #                 if len(shR) == 2:
+        #                     dVrot_dR[i,j] = scp_misc.derivative(self.Vrot, R[i,j],
+        #                                                           dx=dx, n=1, order=order)
+        #                 else:
+        #                     for k in range(shR[2]):
+        #                         dVrot_dR[i,j,k] = scp_misc.derivative(self.Vrot, R[i,j,k],
+        #                                                               dx=dx, n=1, order=order)
+        #
+        #
+        # kappasq = 2*Om * ( R * (1./R * dVrot_dR - V/R**2 ) + 2*Om )
+
 
         V = self.Vrot(R)
         Om = V / R
-        shR = np.shape(R)
-        if len(shR) == 0:
-            dVrot_dR = scp_misc.derivative(self.Vrot, R, dx=dx, n=1, order=order)
-        else:
-            dVrot_dR = R * 0.
-            for i in range(shR[0]):
-                if len(shR) == 1:
-                    dVrot_dR[i] = scp_misc.derivative(self.Vrot, R[i], dx=dx, n=1, order=order)
-                else:
-                    for j in range(shR[1]):
-                        if len(shR) == 2:
-                            dVrot_dR[i,j] = scp_misc.derivative(self.Vrot, R[i,j],
-                                                                  dx=dx, n=1, order=order)
-                        else:
-                            for k in range(shR[2]):
-                                dVrot_dR[i,j,k] = scp_misc.derivative(self.Vrot, R[i,j,k],
-                                                                      dx=dx, n=1, order=order)
+        dV_dR = self.dVrot_dR(R)
 
-
-        kappasq = 2*Om * ( R * (1./R * dVrot_dR - V/R**2 ) + 2*Om )
+        kappasq = 2*Om * ( R * (1./R * dV_dR - V/R**2 ) + 2*Om )
 
         return kappasq
+
+    # def k(self, R):
+    #     """Calculate wavenumber"""
+    #
+    #     Om = self.Vrot(R) / R
+    #     kappasq = self.ep_freq_sq(R)
+    #     eta = np.sqrt(1. - kappasq / (self.m**2 * (Om-self.Om_p)**2))
+    #
+    #     wavenum = (1.-self.Om_p / Om) * eta * self.m * Om / self.cs
+    #
+    #     return wavenum
+    #
+    # def f(self, R):
+    #     """Shape of spiral arms, with f=m*phi = Int_0^R(k dR) """
+    #
+    #     shR = np.shape(R)
+    #     if len(shR) == 0:
+    #         farr, abserr = scp_integrate.quad(self.k, 0, R)
+    #     else:
+    #         farr = R * 0.
+    #         for i in range(shR[0]):
+    #             if len(shR) == 1:
+    #                 farr[i], abserr = scp_integrate.quad(self.k, 0, R[i])
+    #             else:
+    #                 for j in range(shR[1]):
+    #                     if len(shR) == 2:
+    #                         farr[i,j], abserr = scp_integrate.quad(self.k, 0, R[i,j])
+    #                     else:
+    #                         for k in range(shR[2]):
+    #                             farr[i,j,k], abserr = scp_integrate.quad(self.k, 0, R[i,j,k])
+    #
+    #     return farr
+
 
     def k(self, R):
         """Calculate wavenumber"""
 
-        Om = self.Vrot(R) / R
-        kappasq = self.ep_freq_sq(R)
-        eta = np.sqrt(1. - kappasq / (self.m**2 * (Om-self.Om_p)**2))
-
-        wavenum = (1.-self.Om_p / Om) * eta * self.m * Om / self.cs
-
-        return wavenum
+        return self._k_func(R, self.m,  self.cs,  self.Om_p,  self.Vrot)
 
     def f(self, R):
         """Shape of spiral arms, with f=m*phi = Int_0^R(k dR) """
-        intgrl, abserr = scp_integrate.quad(self.k, 0, R, args=(R))
 
-        return intgrl
-
+        return self._f_func(R, self.m,  self.cs,  self.Om_p,  self.Vrot)
 
     def rho_perturb(self, x, y, z):
         """
@@ -552,7 +622,10 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         fvals = self.f(R)
         rho0vals = self.rho0(R)
 
-        rho1 = self.eps * rho0vals * np.cos( self.m*phi - fvals )
+        rho1 = self.epsilon * rho0vals * np.cos( self.m*phi - fvals )
+
+        # Excise R=0 values
+        rho1 = utils.replace_values_by_refarr(rho1, R, 0., 0.)
 
         return rho1
 
@@ -572,10 +645,10 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         fvals = self.f(R)
         kvals = self.k(R)
 
-        #vr1 = -self.eps * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
+        vr1 = -self.epsilon * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
 
-        # Inflow is neg for this vector definition
-        vr1 = self.eps * self.m*(Om-self.Om_p)/kvals * np.cos( self.m*phi - fvals )
+        # Excise R=0 values
+        vr1 = utils.replace_values_by_refarr(vr1, R, 0., 0.)
 
         return vr1
 
@@ -587,17 +660,19 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         """
 
         R = np.sqrt(x**2 + y**2)
-        Om = Vrot(R) / R
-        phi = calc_phi(x, y, phi0)
+        Om = self.Vrot(R) / R
+        phi0_rad = self.phi0 * np.pi / 180.
+        phi = utils.get_geom_phi_rad_polar(x, y) - phi0_rad
 
-        #fvals = f(R)
-        #kvals = k(R)
-        fvals = f(R, m, cs, Om_p, Vrot)
-        kvals = k(R, m, cs, Om_p, Vrot)
+        fvals = self.f(R)
+        kvals = self.k(R)
 
-        kappasq = ep_freq_sq(R, Vrot)
+        kappasq = self.ep_freq_sq(R)
 
-        vphi1 = eps * kappasq/(2.*kvals*Om) * np.sin( m*phi - fvals )
+        vphi1 = self.epsilon * kappasq/(2.*kvals*Om) * np.sin( self.m*phi - fvals )
+
+        # Excise R=0 values
+        vphi1 = utils.replace_values_by_refarr(vphi1, R, 0., 0.)
 
         return vphi1
 
@@ -614,7 +689,12 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         vr1 = self.vr_perturb(x, y, z)
         vphi1 = self.vphi_perturb(x, y, z)
 
-        return vr1*(-y/R) + vphi1*(x/R)
+        vLOS1 = vr1*(y/R) + vphi1*(x/R)
+
+        # Excise R=0 values
+        vLOS1 = utils.replace_values_by_refarr(vLOS1, R, 0., 0.)
+
+        return vLOS1
 
 
     def velocity(self, x, y, z):
@@ -632,10 +712,6 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
 
     def light_profile(self, x, y, z):
-        R = np.sqrt(x ** 2 + y ** 2)
-
-        phi_rad = phi * np.pi / 180.
-        phi_geom_rad = utils.get_geom_phi_rad_polar(x, y)
 
         return self.rho_perturb(x, y, z)
 
@@ -663,14 +739,31 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
                               [Rtoz, phitoz, ztoz]]
 
         """
-        vel_dir_matrix = np.array([[x/R, -y/R, 0.*z],
-                                   [y/R,  x/R, 0.*z],
-                                   [0.*z, 0.*z, 0.*z]])
+        R = np.sqrt(x ** 2 + y ** 2)
+        # vel_dir_matrix = np.array([[x/R, -y/R, 0.*z],
+        #                            [y/R,  x/R, 0.*z],
+        #                            [0.*z, 0.*z, 0.*z]])
 
         # As zsky_unit_vector = [ x*0., y*0. + np.sin(inc), z*0. - np.cos(inc) ]
         # The dot is:
         # vr :  y/R*sin(i) = sin(phi) * sin(i)
         # vphi: x/R*sin(i) = cos(phi) * sin(i)
         # So really only picking out the y-cartesian coord
+
+        vhat_Rtoz = vhat_phitoz = vhat_ztoz = vhat_ztoy = vhat_ztox = 0.*z
+        vhat_Rtox =    x/R
+        vhat_phitox = -y/R
+        vhat_Rtoy =    y/R
+        vhat_phitoy =  x/R
+
+        # Excise R=0 values
+        vhat_Rtox =   utils.replace_values_by_refarr(vhat_Rtox, R, 0., 0.)
+        vhat_Rtoy =   utils.replace_values_by_refarr(vhat_Rtoy, R, 0., 1.)
+        vhat_phitox = utils.replace_values_by_refarr(vhat_phitox, R, 0., 0.)
+        vhat_phitoy = utils.replace_values_by_refarr(vhat_phitoy, R, 0., 1.)
+
+        vel_dir_matrix = np.array([[vhat_Rtox, vhat_phitox, vhat_ztox],
+                                   [vhat_Rtoy, vhat_phitoy, vhat_ztoy],
+                                   [vhat_Rtoz, vhat_phitoz, vhat_ztoz]])
 
         return vel_dir_matrix

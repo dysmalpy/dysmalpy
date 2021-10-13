@@ -8,6 +8,7 @@ from __future__ import (absolute_import, division, print_function,
 
 # Standard library
 import logging
+import copy
 
 # Third party imports
 import numpy as np
@@ -42,3 +43,19 @@ def get_geom_phi_rad_polar(x, y):
             phi_geom_rad = 0.
 
     return phi_geom_rad
+
+def replace_values_by_refarr(arr, ref_arr, excise_val, subs_val):
+    """
+    Excise (presumably NaN) values from an array,
+    by replacing all entries where ref_arr == excise_value with subs_val, or
+       arr[ref_arr==excise_val] = subs_val
+    """
+    arr_out = copy.deepcopy(arr)
+
+    if len(np.shape(ref_arr)) == 0:
+        if ref_arr == excise_val:
+            arr_out = subs_val
+    else:
+        arr_out[ref_arr==excise_val] = subs_val
+
+    return arr_out

@@ -1490,8 +1490,7 @@ class ModelSet:
                     cmps_hiord_geoms = list(self.higher_order_geometries.keys())
 
                     if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
-                        # Use general geometry:
-                        rgal3D = np.sqrt(xgal ** 2 + ygal ** 2 + zgal **2)
+                        ## Use general geometry:
 
                         v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                         if comp._spatial_type != 'unresolved':
@@ -1500,12 +1499,11 @@ class ModelSet:
                         else:
                             v_hiord_LOS = v_hiord
 
-                        ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-                        # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
-
                         #   No systemic velocity here bc this is relative to
                         #    the center of the galaxy at rest already
                         vobs_mass += v_hiord_LOS
+
+
                 #######
 
             elif transform_method.lower().strip() == 'rotate':
