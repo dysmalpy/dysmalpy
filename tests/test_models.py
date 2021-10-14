@@ -15,7 +15,7 @@ import astropy.units as u
 from dysmalpy.fitting_wrappers import dysmalpy_make_model
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
-from dysmalpy import galaxy, models, parameters, instrument
+from dysmalpy import galaxy, models, parameters, instrument, config
 
 
 # TESTING DIRECTORY
@@ -66,7 +66,8 @@ class HelperSetups(object):
                                 invq_bulge=invq_bulge,
                                 noord_flat=noord_flat,
                                 name='disk+bulge',
-                                fixed=bary_fixed, bounds=bary_bounds)
+                                fixed=bary_fixed, bounds=bary_bounds,
+                                gas_component='total')
 
         bary.r_eff_disk.prior = parameters.BoundedGaussianPrior(center=5.0, stddev=1.0)
 
@@ -190,8 +191,50 @@ class HelperSetups(object):
 
         return geom
 
+    def setup_biconical_outflow(self):
+        bicone = models.BiconicalOutflow(n=0.5, vmax=300., rturn=0.5, thetain=30, dtheta=20.,
+                                         rend=1., norm_flux=0., tau_flux=5., name='bicone')
+        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom')
+        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof')
+        return bicone, bicone_geom, bicone_disp
+
+    def setup_uniform_inflow(self):
+        # Negative vr is inflow
+        inflow = models.UniformRadialFlow(vr=-90, name='inflow')
+        return inflow
+
+    def setup_bar_inflow(self):
+        # Negative vbar is inflow; phi=90 is along galaxy minor axis
+        bar = models.UniformBarFlow(vbar=-90., phi=90., bar_width=2., name='bar')
+        return bar
+
+    def setup_spiral_density_waves_flatVrot(self):
+        def constV(R):
+            return R*0. + 100.
+
+        def constrho(R):
+            return R*0. + 1.
+
+        def dVrot_dR(R):
+            return R*0.
+
+        def f_spiral(R, m, cs, Om_p, Vrot):
+            _amp = np.sqrt(m**2 -2.) * Vrot(R) / cs
+            return _amp * np.log(R)
+
+        def k_spiral(R, m, cs, Om_p, Vrot):
+            _amp = np.sqrt(m**2 -2.) * Vrot(R) / cs
+            # k = df/dR
+            return _amp/R
+
+        spiral = models.SpiralDensityWave(m=2, phi0=0., cs=50., epsilon=1.0,
+                                               Om_p=0., Vrot=constV, rho0=constrho,
+                                               f=f_spiral, k=k_spiral, dVrot_dR=dVrot_dR,
+                                               name='spiral')
+        return spiral
+
     def setup_fullmodel(self, adiabatic_contract=False,
-                pressure_support=True, pressure_support_type=1):
+                pressure_support=True, pressure_support_type=1, instrument=True):
         # Initialize the Galaxy, Instrument, and Model Set
         gal = galaxy.Galaxy(z=self.z, name=self.name)
         mod_set = models.ModelSet()
@@ -220,7 +263,12 @@ class HelperSetups(object):
         # Add the model set and instrument to the Galaxy
         gal.model = mod_set
 
+        if instrument:
+            inst = self.setup_instrument()
+            gal.instrument = inst
+
         return gal
+
 
     def setup_instrument(self):
         inst = instrument.Instrument()
@@ -253,10 +301,25 @@ class HelperSetups(object):
 
         return inst
 
+    def setup_3Dcube_kwargs(self):
+        param_filename = 'make_model_3Dcube.params'
+        param_filename_full=_dir_tests_data+param_filename
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+
+        config_c_m_data = config.Config_create_model_data(**params)
+        config_sim_cube = config.Config_simulate_cube(**params)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+        # Additional settings:
+        kwargs_galmodel['from_data'] = False
+        kwargs_galmodel['ndim_final'] = 3
+
+        return kwargs_galmodel
 
 
 class TestModels:
     helper = HelperSetups()
+
 
     def test_diskbulge(self):
         bary = self.helper.setup_diskbulge()
@@ -266,20 +329,18 @@ class TestModels:
         vcirc = np.array([0., 233.84762112, 231.63051349, 222.14143224, 207.24934609]) #km/s
         menc = np.array([0., 3.17866553e+10, 6.23735490e+10, 8.60516713e+10, 9.98677462e+10]) # Msun
 
+        dlnrho_dlnr = np.array([-0.748634562849152, -1.4711285560530236, -2.179833936965688,
+                                -3.000041227680322, -3.8337218490100025])
+        rho = np.array([13508748522957.645, 400003289.8613462, 117861773.23589979,
+                        42118714.10378093, 15952739.398213904]) # msun/kpc^3 ??
+
         for i, r in enumerate(rarr):
-            # Assert vcirc, menc values are the same
+            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(bary.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
+            assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([ 0., -1.4710141147249862, -2.178978908144452,
-                        -3.0000815229630002, -3.8338659358932334])
-            rho = np.array([3.970102840765826e+17, 399133357.6711784, 117795156.79188688,
-                            41725350.996718735, 15703871.592708467]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(bary.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(bary.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
 
 
@@ -298,15 +359,15 @@ class TestModels:
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([0.0, -1.6783469900166612, -3.3566939800333224,
-                            -5.035040970049984, -6.713387960066645])
-            rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
-                            144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+        dlnrho_dlnr = np.array([0.0, -1.6783469900166612, -3.3566939800333224,
+                                -5.035040970049984, -6.713387960066645])
+        rho = np.array([1793261526.5567722, 774809992.0335385, 334770202.1509947,
+                        144643318.23351952, 62495674.272009104]) # msun/kpc^3 ??
+        for i, r in enumerate(rarr):
+            # Assert density, dlnrho_dlnr values are the same
+            assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+
 
     def test_sersic_noord_flat(self):
         sersic = self.helper.setup_sersic(noord_flat=True)
@@ -318,20 +379,18 @@ class TestModels:
         menc = np.array([0.0, 16553065102.83822, 53222898982.82668,
                             84173927151.13939, 102463310604.53976]) # Msun
 
+        dlnrho_dlnr = np.array([0.0, -1.2608181791170565, -2.1284950291483833,
+                                -2.9805332449789246, -3.827214472961034])
+        rho = np.array([35133994466.11217, 511500615.0259837, 162957719.186185,
+                        59053333.61277823, 22454637.866798732])  # msun/kpc^3 ??
+
         for i, r in enumerate(rarr):
-            # Assert vcirc, menc values are the same
+            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
+            assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
-        if models._sersic_profile_mass_VC_loaded:
-            dlnrho_dlnr = np.array([0.0, -1.2608824256730886, -2.128495149023024,
-                                -2.980578859391685, -3.8272560398656132])
-            rho = np.array([35133994466.11231, 510439919.6032341, 162957719.18618384,
-                                58502355.720370084, 22099112.430362392]) # msun/kpc^3 ??
-            for i, r in enumerate(rarr):
-                # Assert density, dlnrho_dlnr values are the same
-                assert math.isclose(sersic.rho(r), rho[i], rel_tol=ftol)
-                assert math.isclose(sersic.dlnrho_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_NFW(self):
         halo = self.helper.setup_NFW()
@@ -370,20 +429,22 @@ class TestModels:
             assert math.isclose(halo.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
-    def test_asymm_drift_selfgrav(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=1)
+
+    def test_asymm_drift_pressuregradient(self):
+        gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.27820429923966, 255.50185397469704,
-                        252.9804212303498, 243.74423052912974]) #km/s
+        vrot = np.array([0.0, 248.91717537419922, 258.9907912770804,
+                         259.0402880219702, 252.58915056627905]) # km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
+
     def test_asymm_drift_exactsersic(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=2)
+        gal = self.helper.setup_fullmodel(pressure_support_type=2, instrument=False)
         gal.model.set_parameter_value('disk+bulge', 'n_disk', 0.5)
 
         ftol = 1.e-9
@@ -395,23 +456,22 @@ class TestModels:
             # Assert vrot values are the same
             assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
 
-    def test_asymm_drift_pressuregradient(self):
-        if models._sersic_profile_mass_VC_loaded:
-            gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
-            ftol = 1.e-9
-            rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-            vrot = np.array([0.0, 248.91752501894734, 258.9933019697994,
-                            259.0401697217219, 252.5887167466986]) #km/s
+    def test_asymm_drift_selfgrav(self):
+        gal = self.helper.setup_fullmodel(pressure_support_type=1, instrument=False)
 
-            for i, r in enumerate(rarr):
-                # Assert vrot values are the same
-                assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
-        else:
-            pass
+        ftol = 1.e-9
+        rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
+        vrot = np.array([0.0, 248.27820429923966, 255.50185397469704,
+                252.9804212303498, 243.74423052912974]) #km/s
+
+        for i, r in enumerate(rarr):
+            # Assert vrot values are the same
+            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+
 
     def test_composite_model(self):
-        gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False)
+        gal_noAC = self.helper.setup_fullmodel(adiabatic_contract=False, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -427,7 +487,7 @@ class TestModels:
 
 
     def test_adiabatic_contraction(self):
-        gal_AC = self.helper.setup_fullmodel(adiabatic_contract=True)
+        gal_AC = self.helper.setup_fullmodel(adiabatic_contract=True, instrument=False)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
@@ -440,6 +500,191 @@ class TestModels:
             # Assert vcirc, menc values are the same
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
             assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
+
+
+    def test_biconical_outflow(self):
+        gal_bicone = self.helper.setup_fullmodel(instrument=True)
+        bicone, bicone_geom, bicone_disp = self.helper.setup_biconical_outflow()
+        gal_bicone.model.add_component(bicone)
+        gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
+        gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_bicone.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_bicone.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.00381117107560445],
+                          [0,0,0, -1.1293772630057338e-22],
+                          [100,18,0, 3.126830600463532e-07],
+                          [50,18,18, 5.320399157467473e-05],
+                          [95,10,10, 0.00025114780006119477],
+                          [100,5,5, 3.765977728305624e-06],
+                          [150,18,18, 5.312417940379806e-05],
+                          [100,15,15, 0.0073600622525440765],
+                          [100,15,21, 0.0022638772935597885],
+                          [90,15,15, 0.010582918504479507],
+                          [90,15,21, 0.0005703088570851938]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_uniform_inflow(self):
+        gal_inflow = self.helper.setup_fullmodel(instrument=True)
+        inflow = self.helper.setup_uniform_inflow()
+        gal_inflow.model.add_component(inflow)
+
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_inflow.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_inflow.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values = [[100,18,18, 0.003457320571479227],
+                          [0,0,0, -2.8234431575143344e-23],
+                          [100,18,0, 4.0604749531378074e-08],
+                          [50,18,18, 1.742931999131984e-08],
+                          [95,10,10, 0.0002149957481730804],
+                          [100,5,5, 1.9462550747610114e-06],
+                          [150,18,18, 2.41902333675964e-07],
+                          [100,15,15, 0.00608786525932501],
+                          [100,15,21, 0.0008705542886999003],
+                          [90,15,15, 0.008899430518199991],
+                          [90,15,21, 0.0001872691725825555]]
+
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+    def test_bar_inflow(self):
+        gal_bar = self.helper.setup_fullmodel(instrument=True)
+        bar = self.helper.setup_bar_inflow()
+        gal_bar.model.add_component(bar)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_bar.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_bar.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values = [[100,18,18, 0.002949700703309121],
+                          [0,0,0, 5.646886315028669e-22],
+                          [100,18,0, 3.126434364710052e-07],
+                          [50,18,18, 1.9790117769278557e-07],
+                          [95,10,10, 0.00025092461647796343],
+                          [100,5,5, 3.7659777282734478e-06],
+                          [150,18,18, 5.832715946826883e-07],
+                          [100,15,15, 0.005435609676555287],
+                          [100,15,21, 0.0016775900062652787],
+                          [90,15,15, 0.010250649150114251],
+                          [90,15,21, 0.0003235957967723612]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_spiral_density_waves_flatVrot(self):
+        gal_spiral = self.helper.setup_fullmodel(instrument=True)
+        spiral = self.helper.setup_spiral_density_waves_flatVrot()
+        gal_spiral.model.add_component(spiral)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_spiral.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_spiral.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values = [[100,18,18, 0.0034415772446249296],
+                          [0,0,0, -1.1293772630057338e-22],
+                          [100,18,0, 3.2489353151314377e-07],
+                          [50,18,18, 9.813690772519924e-09],
+                          [95,10,10, 0.0003410230937585464],
+                          [100,5,5, 1.5891838480066463e-05],
+                          [150,18,18, 3.4391321564047896e-07],
+                          [100,15,15, 0.006651706667787829],
+                          [100,15,21, 0.002252529641204471],
+                          [90,15,15, 0.009913163947121531],
+                          [90,15,21, 0.0009135913829775011]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+    def test_simulate_cube(self):
+        gal = self.helper.setup_fullmodel(instrument=True)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.003642043894515958],
+                          [0,0,0, 8.470329472543004e-23],
+                          [100,18,0, 3.1268306004623424e-07],
+                          [50,18,18, 2.440707378333536e-09],
+                          [95,10,10, 0.0002511288203406142],
+                          [100,5,5, 3.7659777283049023e-06],
+                          [150,18,18, 5.6281450732294695e-08],
+                          [100,15,15, 0.006963221989588695],
+                          [100,15,21, 0.0022507391576765032],
+                          [90,15,15, 0.010201219579003603],
+                          [90,15,21, 0.000557673465544929]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
 
 
@@ -475,7 +720,6 @@ class TestModelsFittingWrappers:
                           [100,15,21, 0.0038719443027728975],
                           [ 90,15,15, 0.006517270586277637],
                           [ 90,15,21, 0.002939684687493484]]
-
 
         for arr in arr_pix_values:
             # Assert pixel values are the same

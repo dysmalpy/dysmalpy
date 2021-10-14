@@ -421,7 +421,9 @@ def add_disk_bulge_comp(gal=None, mod_set=None, params=None, light_components_li
                             noord_flat=noord_flat,
                             name='disk+bulge',
                             fixed=bary_fixed, bounds=bary_bounds,
-                            light_component=light_component_bary)
+                            light_component=light_component_bary,
+                            baryon_type=params['diskbulge_baryon_type'],
+                            gas_component=params['diskbulge_gas_component'])
 
     if 'linear_masses' in params.keys():
         if params['linear_masses']:
@@ -478,7 +480,8 @@ def add_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=N
 
     sersic = models.Sersic(total_mass=total_mass,r_eff=r_eff, n=n,invq=invq,
                             noord_flat=noord_flat,name='sersic',
-                            fixed=sersic_fixed, bounds=sersic_bounds)
+                            fixed=sersic_fixed, bounds=sersic_bounds,
+                            baryon_type=params['sersic_baryon_type'])
 
     sersic = set_comp_param_prior(comp=sersic, param_name='total_mass', params=params)
     sersic = set_comp_param_prior(comp=sersic, param_name='r_eff', params=params)
@@ -1056,6 +1059,11 @@ def _preprocess_disk_bulge_parameters(params=None):
                   'n_bulge': [1., 8.],
                   'bt': [0., 1.]}
 
+    if 'diskbulge_gas_component' not in params.keys():
+        params['diskbulge_gas_component'] = 'disk'
+    if 'diskbulge_baryon_type' not in params.keys():
+        params['diskbulge_baryon_type'] = 'gas+stars'
+
     params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
     return params
 
@@ -1064,6 +1072,9 @@ def _preprocess_sersic_parameters(params=None):
     bounds_dict = {'total_mass': [9., 13.],
                   'r_eff': [1., 15.],
                   'n': [0.5, 8.]}
+
+    if 'sersic_baryon_type' not in params.keys():
+        params['sersic_baryon_type'] = 'gas+stars'
 
     params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
     return params

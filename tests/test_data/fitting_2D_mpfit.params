@@ -141,68 +141,6 @@ n_bulge_bounds,      1.0  8.0
 
 
 
-# # ********************************************************************************
-# # BLACK HOLE
-# # ------------
-#
-# # Initial Values
-# BH_mass,             11.     # log(Msun)
-#
-# # Fixed? True if its a fixed parameter, False otherwise
-# BH_mass_fixed,       False
-#
-# # Parameter bounds. Lower and upper bounds
-# BH_mass_bounds,      6.  18.
-
-
-
-
-# # ********************************************************************************
-# # Separate light profile: (Truncated) Sersic profile
-# # ------------
-# # Initial values
-# L_tot_sersic,        1.     # arbitrary units
-# lr_eff,              4.     # kpc
-# lsersic_n,           1.     # Sersic index of light profile
-# lsersic_rinner,      0.     # [kpc] Inner truncation radius of sersic profile. 0   = no truncation
-# lsersic_router,     inf     # [kpc] Outer truncation radius of sersic profile. inf = no truncation
-#
-# # Fixed? True if its a fixed parameter, False otherwise
-# L_tot_sersic_fixed,   True
-# lr_eff_fixed,         False
-# lsersic_n_fixed,      True
-# lsersic_rinner_fixed, True
-# lsersic_router_fixed, True
-#
-# # Parameter bounds. Lower and upper bounds
-# L_tot_sersic_bounds,    0.   2.       # arbitrary units
-# lr_eff_bounds,          0.5  15.      # kpc
-# lsersic_n_bounds,       0.5  8.
-# lsersic_rinner_bounds,   0.  5.	    # kpc
-# lsersic_router_bounds,   4.  20.      # kpc
-
-
-# # ********************************************************************************
-# # Separate light profile: Gaussian ring
-# # ------------
-# # Initial values
-# L_tot_gaus_ring,     1.      # arbitrary units
-# r_peak_gaus_ring,    6.      # kpc
-# sigma_r_gaus_ring,   1.      # kpc
-#
-# # Fixed? True if its a fixed parameter, False otherwise
-# L_tot_gaus_ring_fixed,    True
-# r_peak_gaus_ring_fixed,   True
-# sigma_r_gaus_ring_fixed,  True
-#
-# # Parameter bounds. Lower and upper bounds
-# L_tot_gaus_ring_bounds,   0.  2.    # arbitrary units
-# r_peak_gaus_ring_bounds,  0.  15.   # kpc
-# sigma_r_gaus_ring_bounds, 0.1 10.   # kpc
-
-
-
-
 # ********************************************************************************
 # ********************************************************************************
 # ********************************************************************************
@@ -281,10 +219,10 @@ yshift,              0.        # pixels
 vel_shift,           0.        # km/s
 
 # Fixed? True if its a fixed parameter, False otherwise
-inc_fixed,           True 
-pa_fixed,            True 
-xshift_fixed,        True 
-yshift_fixed,        True 
+inc_fixed,           True
+pa_fixed,            True
+xshift_fixed,        True
+yshift_fixed,        True
 vel_shift_fixed,     False
 
 # Prior Bounds Lower and upper bounds on the prior

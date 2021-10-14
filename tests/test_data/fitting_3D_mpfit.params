@@ -13,17 +13,17 @@ datadir,          None                                   # Optional: Full path t
 
 fdata_cube,           gs4-43501_h250_21h30.fits.gz   # Full path to vel map. Alternatively, just the filename if 'datadir' is set.
 fdata_err,            noise_gs4-43501_h250_21h30.fits.gz    # Full path to vel. err map. Alternatively, just the filename if 'datadir' is set.
-#fdata_mask,           GS4_43501_mask.fits   # Full path to mask 
+#fdata_mask,           GS4_43501_mask.fits   # Full path to mask
 #                                                          #   -- strongly recommended to have a mask
                                                            # Alternatively, just the filename if 'datadir' is set.
-                                                           
-                                                           
+
+
 ### FOR 3D, MUST SET CUBE, ETC by ** HAND **.
 
 spec_orig_type,       wave
 spec_line_rest,       6564.
 spec_line_rest_unit,  angstrom
-spec_vel_trim,        -500   500. 
+spec_vel_trim,        -500   500.
 
 # l r b t
 spatial_crop_trim,     37  68   34  65
@@ -32,15 +32,15 @@ xcenter, 51.75    #None     # x/ycenter in UNCROPPED PIXELS. If None, assumed to
 ycenter, 48.75    #None
 
 
-data_inst_corr,   False 
+data_inst_corr,   False
 
 auto_gen_3D_mask,          		True
 auto_gen_mask_apply_skymask_first, 	True
-auto_gen_mask_snr_thresh_pixel, 	None 
-auto_gen_mask_sig_segmap_thresh, 	3. 
+auto_gen_mask_snr_thresh_pixel, 	None
+auto_gen_mask_sig_segmap_thresh, 	3.
 auto_gen_mask_npix_segmap_min,    	5
 auto_gen_mask_sky_var_thresh,    	2.  # H/J BAND  # 3. # K/Y
-auto_gen_mask_snr_int_flux_thresh,  	3. 
+auto_gen_mask_snr_int_flux_thresh,  	3.
 
 
 # ***************************** OUTPUT *****************************************
@@ -132,7 +132,7 @@ total_mass_stddev,   1.0
 
 n_disk_stddev,       0.1
 r_eff_bulge_stddev,  1.0
-n_bulge_stddev,      0.1 
+n_bulge_stddev,      0.1
 
 
 # DARK MATTER HALO
@@ -144,7 +144,7 @@ halo_conc,           5.0        # Halo concentration parameter
 fdm,                 0.5        # Dark matter fraction at Reff
 
 # Fixed? True if its a fixed parameter, False otherwise
-mvirial_fixed,       True 
+mvirial_fixed,       True
 halo_conc_fixed,     True
 fdm_fixed,           False
 
@@ -223,10 +223,10 @@ yshift,              0.        # pixels
 vel_shift,           0.        # km/s
 
 # Fixed? True if its a fixed parameter, False otherwise
-inc_fixed,           True 
-pa_fixed,            True 
-xshift_fixed,        True 
-yshift_fixed,        True 
+inc_fixed,           True
+pa_fixed,            True
+xshift_fixed,        True
+yshift_fixed,        True
 vel_shift_fixed,     False
 
 # Prior Bounds Lower and upper bounds on the prior
@@ -246,7 +246,7 @@ vel_shift_prior,     flat
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
 
-# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and 
+# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and
 #       center of prior are defined in angle space (inc)
 inc_stddev,          0.1
 pa_stddev,           10.
@@ -266,7 +266,3 @@ overwrite,         True
 # MPFIT Settings
 #----------------
 maxiter,         200        # Maximum number of iterations before mpfit quits
-
-
-
-
