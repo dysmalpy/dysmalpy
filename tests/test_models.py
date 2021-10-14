@@ -203,6 +203,36 @@ class HelperSetups(object):
         inflow = models.UniformRadialFlow(vr=-90, name='inflow')
         return inflow
 
+    def setup_bar_inflow(self):
+        # Negative vbar is inflow; phi=90 is along galaxy minor axis
+        bar = models.UniformBarFlow(vbar=-90., phi=90., bar_width=2., name='bar')
+        return bar
+
+    def setup_spiral_density_waves_flatVrot(self):
+        def constV(R):
+            return R*0. + 100.
+
+        def constrho(R):
+            return R*0. + 1.
+
+        def dVrot_dR(R):
+            return R*0.
+
+        def f_spiral(R, m, cs, Om_p, Vrot):
+            _amp = np.sqrt(m**2 -2.) * Vrot(R) / cs
+            return _amp * np.log(R)
+
+        def k_spiral(R, m, cs, Om_p, Vrot):
+            _amp = np.sqrt(m**2 -2.) * Vrot(R) / cs
+            # k = df/dR
+            return _amp/R
+
+        spiral = models.SpiralDensityWave(m=2, phi0=0., cs=50., epsilon=1.0,
+                                               Om_p=0., Vrot=constV, rho0=constrho,
+                                               f=f_spiral, k=k_spiral, dVrot_dR=dVrot_dR,
+                                               name='spiral')
+        return spiral
+
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1, instrument=True):
         # Initialize the Galaxy, Instrument, and Model Set
@@ -271,6 +301,20 @@ class HelperSetups(object):
 
         return inst
 
+    def setup_3Dcube_kwargs(self):
+        param_filename = 'make_model_3Dcube.params'
+        param_filename_full=_dir_tests_data+param_filename
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+
+        config_c_m_data = config.Config_create_model_data(**params)
+        config_sim_cube = config.Config_simulate_cube(**params)
+        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+
+        # Additional settings:
+        kwargs_galmodel['from_data'] = False
+        kwargs_galmodel['ndim_final'] = 3
+
+        return kwargs_galmodel
 
 
 class TestModels:
@@ -467,17 +511,7 @@ class TestModels:
 
         ##################
         # Create cube:
-        param_filename = 'make_model_3Dcube.params'
-        param_filename_full=_dir_tests_data+param_filename
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
         gal_bicone.create_model_data(**kwargs_galmodel)
@@ -515,17 +549,7 @@ class TestModels:
 
         ##################
         # Create cube:
-        param_filename = 'make_model_3Dcube.params'
-        param_filename_full=_dir_tests_data+param_filename
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
         gal_inflow.create_model_data(**kwargs_galmodel)
@@ -555,22 +579,85 @@ class TestModels:
             # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
+    def test_bar_inflow(self):
+        gal_bar = self.helper.setup_fullmodel(instrument=True)
+        bar = self.helper.setup_bar_inflow()
+        gal_bar.model.add_component(bar)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_bar.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_bar.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values = [[100,18,18, 0.002949700703309121],
+                          [0,0,0, 5.646886315028669e-22],
+                          [100,18,0, 3.126434364710052e-07],
+                          [50,18,18, 1.9790117769278557e-07],
+                          [95,10,10, 0.00025092461647796343],
+                          [100,5,5, 3.7659777282734478e-06],
+                          [150,18,18, 5.832715946826883e-07],
+                          [100,15,15, 0.005435609676555287],
+                          [100,15,21, 0.0016775900062652787],
+                          [90,15,15, 0.010250649150114251],
+                          [90,15,21, 0.0003235957967723612]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_spiral_density_waves_flatVrot(self):
+        gal_spiral = self.helper.setup_fullmodel(instrument=True)
+        spiral = self.helper.setup_spiral_density_waves_flatVrot()
+        gal_spiral.model.add_component(spiral)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_spiral.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_spiral.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values = [[100,18,18, 0.0034415772446249296],
+                          [0,0,0, -1.1293772630057338e-22],
+                          [100,18,0, 3.2489353151314377e-07],
+                          [50,18,18, 9.813690772519924e-09],
+                          [95,10,10, 0.0003410230937585464],
+                          [100,5,5, 1.5891838480066463e-05],
+                          [150,18,18, 3.4391321564047896e-07],
+                          [100,15,15, 0.006651706667787829],
+                          [100,15,21, 0.002252529641204471],
+                          [90,15,15, 0.009913163947121531],
+                          [90,15,21, 0.0009135913829775011]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
     def test_simulate_cube(self):
         gal = self.helper.setup_fullmodel(instrument=True)
 
         ##################
         # Create cube:
-        param_filename = 'make_model_3Dcube.params'
-        param_filename_full=_dir_tests_data+param_filename
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
         gal.create_model_data(**kwargs_galmodel)
