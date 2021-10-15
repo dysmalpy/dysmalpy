@@ -194,12 +194,13 @@ class Geometry(_DysmalFittable3DModel):
         """
         if inc is None:     inc = self.inc
         inc = np.pi / 180. * inc
-        LOS_unit_vector = [ x*0., y*0. + np.sin(inc), z*0. - np.cos(inc) ]
+
+        LOS_unit_vector = [ 0., np.sin(inc), -np.cos(inc) ]
 
         return LOS_unit_vector
 
 
-    def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None):
+    def project_velocity_along_LOS(self, model, vel, x, y, z, inc=None, _save_memory=False):
         r"""
         Method to project velocities in models' emission frame along the LOS (zsky direction).
 
@@ -219,6 +220,10 @@ class Geometry(_DysmalFittable3DModel):
         inc : float, optional
             Specify a separate inclination. Default: uses self.inc
 
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
         Returns
         -------
         v_LOS : float or array
@@ -227,7 +232,7 @@ class Geometry(_DysmalFittable3DModel):
 
         LOS_hat = self.LOS_direction_emitframe(x, y, z, inc=inc)
 
-        vel_cartesian = model.velocity_vector(x, y, z, vel=vel)
+        vel_cartesian = model.velocity_vector(x, y, z, vel=vel, _save_memory=_save_memory)
 
         # Dot product of vel_cartesian, zsky_unit_vector
         v_LOS = x*0.

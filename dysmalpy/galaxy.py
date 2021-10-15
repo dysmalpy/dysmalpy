@@ -343,6 +343,7 @@ class Galaxy:
                           transform_method='direct',
                           zcalc_truncate=None,
                           n_wholepix_z_min=3,
+                          _save_memory=True,
                           **kwargs):
         r"""
         Function to simulate data for the galaxy
@@ -502,6 +503,10 @@ class Galaxy:
             Minimum number of whole pixels to include in the z direction when trunctating.
             Default: 3
 
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: True
+            
         """
         if line_center is None:
             line_center = self.model.line_center
@@ -758,7 +763,8 @@ class Galaxy:
                                                       ycenter=None,
                                                       transform_method=transform_method,
                                                       zcalc_truncate=zcalc_truncate,
-                                                      n_wholepix_z_min=n_wholepix_z_min)
+                                                      n_wholepix_z_min=n_wholepix_z_min,
+                                                      _save_memory=_save_memory)
 
             logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
             if this_lensing_transformer.source_plane_data_cube is None:
@@ -807,7 +813,8 @@ class Galaxy:
                                                       ycenter=ycenter,
                                                       transform_method=transform_method,
                                                       zcalc_truncate=zcalc_truncate,
-                                                      n_wholepix_z_min=n_wholepix_z_min)
+                                                      n_wholepix_z_min=n_wholepix_z_min,
+                                                      _save_memory=_save_memory)
 
 
         # Correct for any oversampling

@@ -686,6 +686,39 @@ class TestModels:
             # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
+    def test_simulate_cube_no_save_memory(self):
+        gal = self.helper.setup_fullmodel(instrument=True)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal.create_model_data(_save_memory=False, **kwargs_galmodel)
+
+        # Get cube:
+        cube = gal.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        ## TO FIX THIS!!!
+        arr_pix_values = [[100,18,18, 0.003642043894515958],
+                          [0,0,0, 8.470329472543004e-23],
+                          [100,18,0, 3.1268306004623424e-07],
+                          [50,18,18, 2.440707378333536e-09],
+                          [95,10,10, 0.0002511288203406142],
+                          [100,5,5, 3.7659777283049023e-06],
+                          [150,18,18, 5.6281450732294695e-08],
+                          [100,15,15, 0.006963221989588695],
+                          [100,15,21, 0.0022507391576765032],
+                          [90,15,15, 0.010201219579003603],
+                          [90,15,21, 0.000557673465544929]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
 
 class TestModelsFittingWrappers:

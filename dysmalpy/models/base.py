@@ -197,7 +197,7 @@ class MassModel(_DysmalFittable1DModel):
         return dPhidr
 
 
-    def vel_direction_emitframe(self, xgal, ygal, zgal):
+    def vel_direction_emitframe(self, xgal, ygal, zgal, _save_memory=False):
         r"""
         Default method to return the velocity direction in the galaxy Cartesian frame.
 
@@ -205,6 +205,10 @@ class MassModel(_DysmalFittable1DModel):
         ----------
         xgal, ygal, zgal : float or array
             xyz position in the galaxy reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
 
         Returns
         -------
@@ -216,29 +220,45 @@ class MassModel(_DysmalFittable1DModel):
         """
         rgal = np.sqrt(xgal ** 2 + ygal ** 2)
 
-        vhat_x = -ygal/rgal
         vhat_y = xgal/rgal
-        vhat_z = 0.*zgal
 
         # Excise rgal=0 values
-        vhat_x = utils.replace_values_by_refarr(vhat_x, rgal, 0., 0.)
         vhat_y = utils.replace_values_by_refarr(vhat_y, rgal, 0., 0.)
-        vhat_z = utils.replace_values_by_refarr(vhat_z, rgal, 0., 0.)
 
-        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        if not _save_memory:
+            vhat_x = -ygal/rgal
+            vhat_z = 0.*zgal
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, rgal, 0., 0.)
+            vhat_z = utils.replace_values_by_refarr(vhat_z, rgal, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only calculate y values
+            vel_dir_unit_vector = [0., vhat_y, 0.]
 
         return vel_dir_unit_vector
 
 
-    def velocity_vector(self, xgal, ygal, zgal, vel=None):
+    def velocity_vector(self, xgal, ygal, zgal, vel=None, _save_memory=False):
         """ Return the relevant velocity -- if not specified, call self.circular_velocity() --
             as a vector in the the reference Cartesian frame coordinates. """
         if vel is None:
             vel = self.circular_velocity(np.sqrt(xgal**2 + ygal**2))
-        vhat = self.vel_direction_emitframe(xgal, ygal, zgal)
-        vel_vector = vel * vhat
 
-        return vel_vector
+        vel_hat = self.vel_direction_emitframe(xgal, ygal, zgal, _save_memory=_save_memory)
+
+        if not _save_memory:
+            vel_cartesian = vel * vel_hat
+        else:
+            # Only calculated y direction, as this is cylindrical only
+            if self._native_geometry == 'cylindrical':
+                vel_cartesian = [0., vel*vel_hat[1], 0.]
+            else:
+                raise ValueError("all mass models assumed to be cylindrical for memory saving!")
+
+        return vel_cartesian
 
 
 class LightModel(_DysmalModel):
@@ -298,7 +318,7 @@ class HigherOrderKinematics(_DysmalModel):
         pass
 
 
-    def velocity_vector(self, x, y, z, vel=None):
+    def velocity_vector(self, x, y, z, vel=None, _save_memory=False):
         """ Return the velocity -- calling self.velocity() if vel is None -- of the higher order
             component as a vector in the the reference Cartesian frame coordinates. """
         if vel is None:
@@ -308,7 +328,7 @@ class HigherOrderKinematics(_DysmalModel):
         if self._multicoord_velocity:
             # Matrix multiply the velocity direction matrix with the
             #   oritinal velocity tuple, then dot product with the zsky unit vector
-            vel_dir_matrix = self.vel_direction_emitframe(x, y, z)
+            vel_dir_matrix = self.vel_direction_emitframe(x, y, z, _save_memory=_save_memory)
 
             # Need to explicity work this out, as this is a 3x3 matrix multiplication
             #   with a 3-element vector, where the elements themselves are arrays...
@@ -319,8 +339,12 @@ class HigherOrderKinematics(_DysmalModel):
 
         else:
             # Simply apply magnitude to velhat
-            vel_hat = self.vel_direction_emitframe(x, y, z)
-            vel_cartesian = vel * vel_hat
+            vel_hat = self.vel_direction_emitframe(x, y, z, _save_memory=_save_memory)
+            if not _save_memory:
+                vel_cartesian = vel * vel_hat
+            else:
+                # Only calculated y,z directions
+                vel_cartesian = [0., vel*vel_hat[1], vel*vel_hat[2]]
 
         return vel_cartesian
 

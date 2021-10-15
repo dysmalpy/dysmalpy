@@ -209,7 +209,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
 
         return flux
 
-    def vel_direction_emitframe(self, x, y, z):
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""
         Method to return the velocity direction in the outflow Cartesian frame.
 
@@ -217,6 +217,10 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
         ----------
         x, y, z : float or array
             xyz position in the outflow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
 
         Returns
         -------
@@ -228,16 +232,23 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
 
-        vhat_x = x/r
         vhat_y = y/r
         vhat_z = z/r
 
         # Excise r=0 values
-        vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
         vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 0.)
         vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
 
-        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        if not _save_memory:
+            vhat_x = x/r
+
+            # Excise r=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only calculate y,z directions
+            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z])
 
         return vel_dir_unit_vector
 
@@ -309,7 +320,7 @@ class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
 
         return flux
 
-    def vel_direction_emitframe(self, x, y, z):
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""Method to return the velocity direction in the output geometry Cartesian frame.
         Undefined for `UnresolvedOutflow`"""
         return None
@@ -363,7 +374,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         return self.evaluate(x, y, z, self.vr)
 
 
-    def vel_direction_emitframe(self, x, y, z):
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""
         Method to return the velocity direction in the galaxy Cartesian frame.
 
@@ -371,6 +382,10 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         ----------
         x, y, z : float or array
             xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
 
         Returns
         -------
@@ -382,17 +397,23 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         """
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2 )
 
-        vhat_x = x/r
         vhat_y = y/r
         vhat_z = z/r
 
-
         # Excise r=0 values
-        vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
         vhat_y = utils.replace_values_by_refarr(vhat_y, r, 0., 0.)
         vhat_z = utils.replace_values_by_refarr(vhat_z, r, 0., 0.)
 
-        vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        if not _save_memory:
+            vhat_x = x/r
+
+            # Excise r=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, r, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only calculate y,z directions
+            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z])
 
         return vel_dir_unit_vector
 
@@ -455,7 +476,7 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.vbar, self.phi, self.bar_width)
 
-    def vel_direction_emitframe(self, x, y, z):
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""
         Method to return the velocity direction in the galaxy Cartesian frame.
 
@@ -463,6 +484,10 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         ----------
         x, y, z : float or array
             xyz position in the galaxy/bar reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
 
         Returns
         -------
@@ -474,7 +499,12 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         # Rotate by phi_rad:
         phi_rad = self.phi * np.pi / 180.
         xbar = np.cos(phi_rad) * x + np.sin(phi_rad) * y
-        vel_dir_unit_vector = [ np.cos(phi_rad)*np.sign(xbar), np.sin(phi_rad)*np.sign(xbar), z*0.]
+        if not _save_memory:
+            vel_dir_unit_vector = np.array([ np.cos(phi_rad)*np.sign(xbar), np.sin(phi_rad)*np.sign(xbar), z*0.])
+        else:
+            # Only return y direction
+            vel_dir_unit_vector = np.array([ 0., np.sin(phi_rad)*np.sign(xbar), 0.])
+
 
         return vel_dir_unit_vector
 
@@ -715,7 +745,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         return self.rho_perturb(x, y, z)
 
-    def vel_direction_emitframe(self, x, y, z):
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""
         Method to return the velocity matrix in the output Cartesian frame.
 
@@ -726,6 +756,10 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         ----------
         x, y, z : float or array
             xyz position in the output reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
 
         Returns
         -------
@@ -750,20 +784,31 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         # vphi: x/R*sin(i) = cos(phi) * sin(i)
         # So really only picking out the y-cartesian coord
 
-        vhat_Rtoz = vhat_phitoz = vhat_ztoz = vhat_ztoy = vhat_ztox = 0.*z
-        vhat_Rtox =    x/R
-        vhat_phitox = -y/R
+
         vhat_Rtoy =    y/R
         vhat_phitoy =  x/R
 
         # Excise R=0 values
-        vhat_Rtox =   utils.replace_values_by_refarr(vhat_Rtox, R, 0., 0.)
         vhat_Rtoy =   utils.replace_values_by_refarr(vhat_Rtoy, R, 0., 0.)
-        vhat_phitox = utils.replace_values_by_refarr(vhat_phitox, R, 0., 0.)
         vhat_phitoy = utils.replace_values_by_refarr(vhat_phitoy, R, 0., 0.)
 
-        vel_dir_matrix = np.array([[vhat_Rtox, vhat_phitox, vhat_ztox],
-                                   [vhat_Rtoy, vhat_phitoy, vhat_ztoy],
-                                   [vhat_Rtoz, vhat_phitoz, vhat_ztoz]])
+        if not _save_memory:
+            vhat_Rtoz = vhat_phitoz = vhat_ztoz = vhat_ztoy = vhat_ztox = 0.*z
+            vhat_Rtox =    x/R
+            vhat_phitox = -y/R
+
+            # Excise R=0 values
+            vhat_Rtox =   utils.replace_values_by_refarr(vhat_Rtox, R, 0., 0.)
+            vhat_phitox = utils.replace_values_by_refarr(vhat_phitox, R, 0., 0.)
+
+            vel_dir_matrix = np.array([[vhat_Rtox, vhat_phitox, vhat_ztox],
+                                       [vhat_Rtoy, vhat_phitoy, vhat_ztoy],
+                                       [vhat_Rtoz, vhat_phitoz, vhat_ztoz]])
+
+        else:
+            # Only return y directions (z dir are all 0):
+            vel_dir_matrix = np.array([[0., 0., 0.],
+                                       [vhat_Rtoy, vhat_phitoy, 0.],
+                                       [0., 0., 0.]])
 
         return vel_dir_matrix
