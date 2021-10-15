@@ -1307,8 +1307,7 @@ class ModelSet:
                       xcenter=None, ycenter=None,
                       transform_method='direct',
                       zcalc_truncate=True,
-                      n_wholepix_z_min=3,
-                      _save_memory=True):
+                      n_wholepix_z_min=3):
         r"""
         Simulate a line emission cube of this model set
 
@@ -1376,10 +1375,6 @@ class ModelSet:
         n_wholepix_z_min: int
             Minimum number of whole pixels to include in the z direction when trunctating.
             Default: 3
-
-        _save_memory : bool, optional
-            Option to save memory by only calculating the relevant matrices (eg during fitting).
-            Default: True
 
         Returns
         -------
@@ -1482,8 +1477,7 @@ class ModelSet:
                     if self.mass_components[cmp]:
                         mcomp = self.components[cmp]
                         break
-                vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal,
-                                                                    _save_memory=_save_memory)
+                vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
                 # Already performed in geom.project_velocity_along_LOS()
                 #vrot_LOS[rgal == 0] = 0.
                 vobs_mass = v_sys + vrot_LOS
@@ -1501,8 +1495,7 @@ class ModelSet:
                         v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                         if comp._spatial_type != 'unresolved':
                             v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
-                                                                               xgal, ygal, zgal,
-                                                                               _save_memory=_save_memory)
+                                                                               xgal, ygal, zgal)
                         else:
                             v_hiord_LOS = v_hiord
 
@@ -1612,8 +1605,7 @@ class ModelSet:
                     # -----------------------
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
-                                            xgal_final, ygal_final, zgal_final,
-                                            _save_memory=_save_memory)
+                                            xgal_final, ygal_final, zgal_final)
                     # Already performed in geom.project_velocity_along_LOS()
                     #vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
@@ -1638,8 +1630,7 @@ class ModelSet:
                             # Project along LOS
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
-                                                                xgal_final, ygal_final, zgal_final,
-                                                                _save_memory=_save_memory)
+                                                                xgal_final, ygal_final, zgal_final)
                             else:
                                 v_hiord_LOS = v_hiord
 
@@ -1669,8 +1660,7 @@ class ModelSet:
                     # -----------------------
                     # Perform LOS projection
                     vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
-                                            xgal_final, ygal_final, zgal_final,
-                                            _save_memory=_save_memory)
+                                            xgal_final, ygal_final, zgal_final)
                     # Already performed in geom.project_velocity_along_LOS()
                     #vobs_mass_transf_LOS[rgal_final == 0] = 0.
                     vobs_mass_transf = v_sys + vobs_mass_transf_LOS
@@ -1693,8 +1683,7 @@ class ModelSet:
                             v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
-                                                                xgal_final, ygal_final, zgal_final,
-                                                                _save_memory=_save_memory)
+                                                                xgal_final, ygal_final, zgal_final)
                             else:
                                 v_hiord_LOS = v_hiord
 
@@ -1775,8 +1764,7 @@ class ModelSet:
 
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
-                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord, xhiord, yhiord, zhiord,
-                                                                  _save_memory=_save_memory)
+                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord, xhiord, yhiord, zhiord)
                 else:
                     v_hiord_LOS = v_hiord
 
