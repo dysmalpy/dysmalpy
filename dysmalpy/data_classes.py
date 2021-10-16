@@ -43,7 +43,7 @@ class Data(object):
         self.weight = weight
         self.ndim = ndim
         self.shape = shape
-        self.mask = np.array(mask, dtype=np.bool)
+        self.mask = np.array(mask, dtype=bool)
 
         self.smoothing_type = smoothing_type
         self.smoothing_npix = smoothing_npix
@@ -196,11 +196,11 @@ class Data1D(Data):
 
         #
         if mask_velocity is not None:
-            self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
+            self.mask_velocity = np.array(mask_velocity, dtype=bool)
         else:
             self.mask_velocity = None
         if mask_vel_disp is not None:
-            self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
+            self.mask_vel_disp = np.array(mask_vel_disp, dtype=bool)
         else:
             self.mask_vel_disp = None
 
@@ -338,11 +338,11 @@ class Data2D(Data):
                                      ycenter=ycenter)
 
         if mask_velocity is not None:
-            self.mask_velocity = np.array(mask_velocity, dtype=np.bool)
+            self.mask_velocity = np.array(mask_velocity, dtype=bool)
         else:
             self.mask_velocity = None
         if mask_vel_disp is not None:
-            self.mask_vel_disp = np.array(mask_vel_disp, dtype=np.bool)
+            self.mask_vel_disp = np.array(mask_vel_disp, dtype=bool)
         else:
             self.mask_vel_disp = None
 

@@ -60,7 +60,7 @@ def read_fitting_params_input(fname=None):
                         if len(ta) > 0:
                             tv = ta.strip()
                             try:
-                                tvn = np.float(tv)
+                                tvn = float(tv)
                             except:
                                 tvn = tv
                             tmparrnew.append(tvn)
@@ -82,9 +82,9 @@ def read_fitting_params_input(fname=None):
                     tmpval = np.inf
                 else:
                     try:
-                        fltval = np.float(tmpval)
+                        fltval = float(tmpval)
                         if (fltval % 1) == 0.:
-                            tmpval = np.int(fltval)
+                            tmpval = int(fltval)
                         else:
                             tmpval = fltval
                     except:
@@ -443,7 +443,7 @@ def load_single_object_2D_data(params=None, adjust_error=False,
     # Apply symmetrization if wanted:
     try:
         if params['symmetrize_data'+extra]:
-            ybin, xbin = np.indices(gal_vel.shape, dtype=np.float64)
+            ybin, xbin = np.indices(gal_vel.shape, dtype=float)
             ybin = ybin.flatten()
             xbin = xbin.flatten()
             xbin -= (gal_vel.shape[1]-1.)/2.
@@ -550,8 +550,8 @@ def load_single_object_2D_data(params=None, adjust_error=False,
                     xcenter -= crp[0]
                     ycenter -= crp[2]
         elif params['fov_npix'+extra] < min(gal_vel.shape):
-            crp_x = np.int64(np.round((gal_vel.shape[1] - params['fov_npix'+extra])/2.))
-            crp_y = np.int64(np.round((gal_vel.shape[0] - params['fov_npix'+extra])/2.))
+            crp_x = int(np.round((gal_vel.shape[1] - params['fov_npix'+extra])/2.))
+            crp_y = int(np.round((gal_vel.shape[0] - params['fov_npix'+extra])/2.))
             gal_vel = gal_vel[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
             err_vel = err_vel[crp_y:params['fov_npix'+extra]+crp_y, crp_x:params['fov_npix'+extra]+crp_x]
             if params['fitdispersion'+extra]:

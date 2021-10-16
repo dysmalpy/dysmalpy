@@ -16,6 +16,12 @@ from collections import OrderedDict
 from .base import _DysmalModel, menc_from_vcirc
 from .kinematic_options import KinematicOptions
 
+
+try:
+    import utils as model_utils
+except:
+    from . import utils as model_utils
+
 # Third party imports
 import numpy as np
 import scipy.ndimage as scp_ndi
@@ -47,12 +53,12 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
         thick = 0.
 
     # # maxr, maxr_y are already in pixel units
-    xsize = np.int(np.floor(2.*(maxr * oversize) +0.5))
-    ysize = np.int(np.floor( 2.*maxr_y + 0.5))
+    xsize = int(np.floor(2.*(maxr * oversize) +0.5))
+    ysize = int(np.floor( 2.*maxr_y + 0.5))
 
     # Sample += 2 * scale length thickness
     # Modify: make sure there are at least 3 *whole* pixels sampled:
-    zsize = np.max([ n_wholepix_z_min*oversample, np.int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+    zsize = np.max([ n_wholepix_z_min*oversample, int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
 
     if ( (xsize%2) < 0.5 ): xsize += 1
     if ( (ysize%2) < 0.5 ): ysize += 1
@@ -242,7 +248,7 @@ def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
     rr = 0.5 * slit_width
     pp = pxs
 
-    nslice = np.int(1 + 2 * np.ceil((rr - 0.5 * pp) / pp))
+    nslice = int(1 + 2 * np.ceil((rr - 0.5 * pp) / pp))
 
     circaper_idx = np.arange(nslice) - 0.5 * (nslice - 1)
     circaper_sc = np.zeros(nslice)
@@ -333,11 +339,10 @@ def _calculate_max_skyframe_extents(geom, nx_sky_samp, ny_sky_samp, transform_me
     else:
         maxr_y = maxr * 5. #1.5
 
-    #nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
     if angle.lower().strip() == 'cos':
-        nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp]))
+        nz_sky_samp = int(np.max([nx_sky_samp, ny_sky_samp]))
     elif angle.lower().strip() == 'sin':
-        nz_sky_samp = np.int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
+        nz_sky_samp = int(np.max([nx_sky_samp, ny_sky_samp, maxr_y]))
     if np.mod(nz_sky_samp, 2) < 0.5:
         nz_sky_samp += 1
 
@@ -722,7 +727,7 @@ class ModelSet:
         for cmp in self.fixed:
             pkeys[cmp] = OrderedDict()
             for pm in self.fixed[cmp]:
-                if self.fixed[cmp][pm] | np.bool(self.tied[cmp][pm]):
+                if self.fixed[cmp][pm] | bool(self.tied[cmp][pm]):
                     pkeys[cmp][pm] = -99
                 else:
                     pkeys[cmp][pm] = j
@@ -1401,6 +1406,7 @@ class ModelSet:
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
         rstep_samp = rstep/oversample
+        to_kpc = rstep_samp / dscale
 
         if (np.mod(nx_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             nx_sky_samp = nx_sky_samp + 1
@@ -1459,28 +1465,34 @@ class ModelSet:
 
 
             # The circular velocity at each position only depends on the radius
-            # Convert to kpc
             rgal = np.sqrt(xgal ** 2 + ygal ** 2)
-            rgal_kpc = rgal * rstep_samp / dscale
-            xgal_kpc = xgal * rstep_samp / dscale
-            ygal_kpc = ygal * rstep_samp / dscale
-            zgal_kpc = zgal * rstep_samp / dscale
 
-            vrot = self.velocity_profile(rgal_kpc)
+            vrot = self.velocity_profile(rgal*to_kpc)
             # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
             v_sys = self.geometry.vel_shift.value  # systemic velocity
             if transform_method.lower().strip() == 'direct':
-                # Get one of the mass components: all have the same vrot unit vector
-                for cmp in self.mass_components:
-                    if self.mass_components[cmp]:
-                        mcomp = self.components[cmp]
-                        break
-                vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
-                # Already performed in geom.project_velocity_along_LOS()
-                #vrot_LOS[rgal == 0] = 0.
-                vobs_mass = v_sys + vrot_LOS
+
+                # #########################
+                # # Get one of the mass components: all have the same vrot unit vector
+                # for cmp in self.mass_components:
+                #     if self.mass_components[cmp]:
+                #         mcomp = self.components[cmp]
+                #         break
+                #
+                # vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
+                # vobs_mass = v_sys + vrot_LOS
+                # #########################
+
+                #########################
+                # Avoid extra calculations to save memory:
+                # Use direct calculation for mass components: simple cylindrical LOS projection
+                LOS_hat = self.geometry.LOS_direction_emitframe()
+                vobs_mass = v_sys + vrot * xgal/rgal * LOS_hat[1]
+                # Excise rgal=0 values
+                vobs_mass = model_utils.replace_values_by_refarr(vobs_mass, rgal, 0., v_sys)
+                #########################
 
                 #######
                 # Higher order components: those that follow general geometry
@@ -1492,7 +1504,7 @@ class ModelSet:
                     if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                         ## Use general geometry:
 
-                        v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
+                        v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc)
                         if comp._spatial_type != 'unresolved':
                             v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                                xgal, ygal, zgal)
@@ -1502,7 +1514,6 @@ class ModelSet:
                         #   No systemic velocity here bc this is relative to
                         #    the center of the galaxy at rest already
                         vobs_mass += v_hiord_LOS
-
                 #######
 
             elif transform_method.lower().strip() == 'rotate':
@@ -1521,17 +1532,15 @@ class ModelSet:
             for cmp in self.light_components:
                 if self.light_components[cmp]:
                     lcomp = self.components[cmp]
-                    zscale = self.zprofile(zgal_kpc)
+                    zscale = self.zprofile(zgal*to_kpc)
                     # Differentiate between axisymmetric and non-axisymmetric light components:
                     if lcomp._axisymmetric:
                         # Axisymmetric cases:
-                        flux_mass += lcomp.light_profile(rgal_kpc) * zscale
+                        flux_mass += lcomp.light_profile(rgal*to_kpc) * zscale
                     else:
                         # Non-axisymmetric cases:
-
-                        ## ASSUME IT'S ALL IN THE MIDPLANE:
-                        flux_midplane = lcomp.light_profile(xgal_kpc, ygal_kpc, zgal_kpc)
-                        flux_mass +=  flux_midplane * zscale
+                        ## ASSUME IT'S ALL IN THE MIDPLANE, so also apply zscale
+                        flux_mass +=  lcomp.light_profile(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc) * zscale
 
                         ## Later option: directly 3D calculate ????
                         #flux_mass +=  flux_3D
@@ -1542,7 +1551,7 @@ class ModelSet:
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
             if transform_method.lower().strip() == 'direct':
-                sigmar = self.dispersion_profile(rgal_kpc)
+                sigmar = self.dispersion_profile(rgal*to_kpc)
 
                 # The final spectrum will be a flux weighted sum of Gaussians at each
                 # velocity along the line of sight.
@@ -1560,18 +1569,17 @@ class ModelSet:
 
             elif transform_method.lower().strip() == 'rotate':
                 ###################################
-
                 xgal_final, ygal_final, zgal_final, xsky_final, ysky_final, zsky_final = \
                     _get_xyz_sky_gal_inverse(self.geometry, sh, xcenter_samp, ycenter_samp,
                                              (nz_sky_samp - 1) / 2.)
 
                 #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
-                rgal_final_kpc = rgal_final * rstep_samp / dscale
+                #rgal_final_kpc = rgal_final * rstep_samp / dscale
 
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
-                sigmar_transf = self.dispersion_profile(rgal_final_kpc)
+                sigmar_transf = self.dispersion_profile(rgal_final*to_kpc)
 
                 if zcalc_truncate:
                     # cos_inc = np.cos(self.geometry.inc*np.pi/180.)
@@ -1589,7 +1597,7 @@ class ModelSet:
                         thick = 0.
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
-                    zsize = np.max([  3.*oversample, np.int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
+                    zsize = np.max([  3.*oversample, int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
                     origpos_z = zarr - np.mean(zarr) + zsize/2.
@@ -1604,11 +1612,20 @@ class ModelSet:
 
                     # -----------------------
                     # Perform LOS projection
-                    vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
-                                            xgal_final, ygal_final, zgal_final)
-                    # Already performed in geom.project_velocity_along_LOS()
-                    #vobs_mass_transf_LOS[rgal_final == 0] = 0.
-                    vobs_mass_transf = v_sys + vobs_mass_transf_LOS
+                    # #########################
+                    # vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                    #                         xgal_final, ygal_final, zgal_final)
+                    # vobs_mass_transf = v_sys + vobs_mass_transf_LOS
+                    # #########################
+
+                    #########################
+                    # Avoid extra calculations to save memory:
+                    # Use direct calculation for mass components: simple cylindrical LOS projection
+                    LOS_hat = self.geometry.LOS_direction_emitframe()
+                    vobs_mass_transf = v_sys + vcirc_mass_transf * xgal_final/rgal_final * LOS_hat[1]
+                    # Excise rgal=0 values
+                    vobs_mass_transf = model_utils.replace_values_by_refarr(vobs_mass_transf, rgal_final, 0., v_sys)
+                    #########################
                     # -----------------------
 
                     #######
@@ -1620,22 +1637,15 @@ class ModelSet:
 
                         if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
-                            rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
-                            xgal_kpc = xgal_final * rstep_samp / dscale
-                            ygal_kpc = ygal_final * rstep_samp / dscale
-                            zgal_kpc = zgal_final * rstep_samp / dscale
 
                             # Get velocity of higher-order component
-                            v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
+                            v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc, zgal_finial*to_kpc)
                             # Project along LOS
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                             else:
                                 v_hiord_LOS = v_hiord
-
-                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-                            # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
 
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
@@ -1659,11 +1669,20 @@ class ModelSet:
 
                     # -----------------------
                     # Perform LOS projection
-                    vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
-                                            xgal_final, ygal_final, zgal_final)
-                    # Already performed in geom.project_velocity_along_LOS()
-                    #vobs_mass_transf_LOS[rgal_final == 0] = 0.
-                    vobs_mass_transf = v_sys + vobs_mass_transf_LOS
+                    # #########################
+                    # vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                    #                         xgal_final, ygal_final, zgal_final)
+                    # vobs_mass_transf = v_sys + vobs_mass_transf_LOS
+                    # #########################
+
+                    #########################
+                    # Avoid extra calculations to save memory:
+                    # Use direct calculation for mass components: simple cylindrical LOS projection
+                    LOS_hat = self.geometry.LOS_direction_emitframe()
+                    vobs_mass_transf = v_sys + vcirc_mass_transf * xgal_final/rgal_final * LOS_hat[1]
+                    # Excise rgal=0 values
+                    vobs_mass_transf = model_utils.replace_values_by_refarr(vobs_mass_transf, rgal_final, 0., v_sys)
+                    #########################
                     # -----------------------
 
                     #######
@@ -1675,21 +1694,13 @@ class ModelSet:
 
                         if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
                             # Use general geometry:
-                            rgal3D = np.sqrt(xgal_final ** 2 + ygal_final ** 2 + zgal_final **2)
-                            xgal_kpc = xgal_final * rstep_samp / dscale
-                            ygal_kpc = ygal_final * rstep_samp / dscale
-                            zgal_kpc = zgal_final * rstep_samp / dscale
 
-                            v_hiord = comp.velocity(xgal_kpc, ygal_kpc, zgal_kpc)
+                            v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc, zgal_final*to_kpc)
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                             else:
                                 v_hiord_LOS = v_hiord
-
-
-                            ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-                            # v_hiord_LOS[rgal3D == 0] = v_hiord[rgal3D == 0]
 
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
@@ -1749,14 +1760,11 @@ class ModelSet:
                 xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
                                 xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
-                # Convert to kpc
-                xhiord_kpc = xhiord * rstep_samp / dscale
-                yhiord_kpc = yhiord * rstep_samp / dscale
-                zhiord_kpc = zhiord * rstep_samp / dscale
+                #r_hiord = np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)
 
-                r_hiord = np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)
-                v_hiord = comp.velocity(xhiord_kpc, yhiord_kpc, zhiord_kpc)
-                f_hiord = comp.light_profile(xhiord_kpc, yhiord_kpc, zhiord_kpc)
+                # Profiles need positions in kpc
+                v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
+                f_hiord = comp.light_profile(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
 
                 # Apply extinction if it exists
                 if self.extinction is not None:
@@ -1768,16 +1776,13 @@ class ModelSet:
                 else:
                     v_hiord_LOS = v_hiord
 
-                ## Must handle r=0 excising internally, because v_hiord is a 3-tuple sometimes
-                # v_hiord_LOS[r_hiord == 0] = v_hiord[r_hiord == 0]
-
                 v_hiord_LOS += geom.vel_shift.value  # galaxy systemic velocity
 
                 if (comp.name in cmps_hiord_disps):
-                    sigma_hiord = self.higher_order_dispersions[comp.name](r_hiord)
+                    sigma_hiord = self.higher_order_dispersions[comp.name](np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)) # r_hiord
                 else:
                     # The higher-order term MUST have its own defined dispersion profile:
-                    sigma_hiord = comp.dispersion_profile(xhiord_kpc, yhiord_kpc, zhiord_kpc)
+                    sigma_hiord = comp.dispersion_profile(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
 
                 cube_final += cutils.populate_cube(f_hiord, v_hiord_LOS, sigma_hiord, vx)
 

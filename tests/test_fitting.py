@@ -58,7 +58,7 @@ def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ft
                            (results['param_name'].str.strip() == paramn))[0]
             if len(whm) == 1:
                 # Assert best-fit values are the same
-                assert math.isclose(np.float(results['best_value'].iloc[whm[0]]),
+                assert math.isclose(float(results['best_value'].iloc[whm[0]]),
                             dict_bf_values[compn][paramn], rel_tol=ftol), \
                             '{}, ndim={}, {}:{}'.format(fit_method,ndim,compn,paramn)
             else:

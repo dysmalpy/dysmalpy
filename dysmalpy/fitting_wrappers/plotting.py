@@ -54,9 +54,6 @@ def plot_bundle_1D(params=None, param_filename=None, fit_dict=None,
     if ('partial_weight' in params.keys()):
         partial_weight = params['partial_weight']
     else:
-        # # Preserve previous default behavior
-        # partial_weight = False
-
         ## NEW default behavior: always use partial_weight:
         partial_weight = True
 
@@ -66,8 +63,6 @@ def plot_bundle_1D(params=None, param_filename=None, fit_dict=None,
             partial_weight=partial_weight,
             overwrite=overwrite, overwrite_curve_files=overwrite,
             **kwargs_galmodel)
-
-
 
     # Plot multid, if enabled:
     if 'fdata_vel' in params.keys():
@@ -115,9 +110,6 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     if ('partial_weight' in params.keys()):
         partial_weight = params['partial_weight']
     else:
-        # # Preserve previous default behavior
-        # partial_weight = False
-
         ## NEW default behavior: always use partial_weight:
         partial_weight = True
 
@@ -137,7 +129,7 @@ def plot_curve_components_overview(fname_gal=None, fname_results=None, param_fil
     return None
 
 
-#
+
 def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
     remove_shift=True,
     show_1d_apers=False,
@@ -183,7 +175,7 @@ def plot_results_multid(param_filename=None, data=None, fit_ndim=None,
 
     return None
 
-#
+
 def plot_results_multid_general(param_filename=None,
     data=None,
     fit_ndim=None,
@@ -196,7 +188,7 @@ def plot_results_multid_general(param_filename=None,
 
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
                         data=data, fit_ndim=fit_ndim)
-    #
+    
     config_c_m_data = config.Config_create_model_data(**fit_dict)
     config_sim_cube = config.Config_simulate_cube(**fit_dict)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}

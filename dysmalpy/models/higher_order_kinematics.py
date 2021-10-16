@@ -248,7 +248,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
             vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
         else:
             # Only calculate y,z directions
-            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z])
+            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z], dtype=object)
 
         return vel_dir_unit_vector
 
@@ -413,7 +413,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
             vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
         else:
             # Only calculate y,z directions
-            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z])
+            vel_dir_unit_vector = np.array([0., vhat_y, vhat_z], dtype=object)
 
         return vel_dir_unit_vector
 
@@ -500,10 +500,11 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         phi_rad = self.phi * np.pi / 180.
         xbar = np.cos(phi_rad) * x + np.sin(phi_rad) * y
         if not _save_memory:
-            vel_dir_unit_vector = np.array([ np.cos(phi_rad)*np.sign(xbar), np.sin(phi_rad)*np.sign(xbar), z*0.])
+            vel_dir_unit_vector = np.array([ np.cos(phi_rad)*np.sign(xbar),
+                                             np.sin(phi_rad)*np.sign(xbar), z*0.])
         else:
             # Only return y direction
-            vel_dir_unit_vector = np.array([ 0., np.sin(phi_rad)*np.sign(xbar), 0.])
+            vel_dir_unit_vector = np.array([ 0., np.sin(phi_rad)*np.sign(xbar), 0.], dtype=object)
 
 
         return vel_dir_unit_vector
@@ -809,6 +810,6 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
             # Only return y directions (z dir are all 0):
             vel_dir_matrix = np.array([[0., 0., 0.],
                                        [vhat_Rtoy, vhat_phitoy, 0.],
-                                       [0., 0., 0.]])
+                                       [0., 0., 0.]], dtype=object)
 
         return vel_dir_matrix

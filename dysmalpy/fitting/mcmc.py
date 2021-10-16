@@ -38,7 +38,7 @@ import copy
 import emcee
 
 
-if np.int(emcee.__version__[0]) >= 3:
+if int(emcee.__version__[0]) >= 3:
     import h5py
 
 import time, datetime
@@ -115,7 +115,7 @@ def fit_mcmc(gal, **kwargs):
 
     #if nCPUs is None:
     if kwargs_fit['cpuFrac'] is not None:
-        kwargs_fit['nCPUs'] = np.int(np.floor(cpu_count()*kwargs_fit['cpuFrac']))
+        kwargs_fit['nCPUs'] = int(np.floor(cpu_count()*kwargs_fit['cpuFrac']))
 
     # +++++++++++++++++++++++
     # Setup for oversampled_chisq:
@@ -136,7 +136,7 @@ def fit_mcmc(gal, **kwargs):
     # --------------------------------
     # Split by emcee version:
 
-    if np.int(emcee.__version__[0]) >= 3:
+    if int(emcee.__version__[0]) >= 3:
         mcmcResults = _fit_emcee_3(gal, **fit_kwargs)
     else:
         mcmcResults = _fit_emcee_221(gal, **fit_kwargs)
@@ -1245,7 +1245,7 @@ class MCMCResults(FitResults):
         for cmp in gal.model.fixed:
             # pkeys[cmp] = OrderedDict()
             for pm in gal.model.fixed[cmp]:
-                if gal.model.fixed[cmp][pm] | np.bool(gal.model.tied[cmp][pm]):
+                if gal.model.fixed[cmp][pm] | bool(gal.model.tied[cmp][pm]):
                     pass
                 else:
                     j += 1
@@ -2269,7 +2269,7 @@ def reinitialize_emcee_sampler(sampler_dict, gal=None, kwargs_dict=None,
         sampler.naccepted = np.array(sampler_dict['nIter']*copy.deepcopy(sampler_dict['acceptance_fraction']),
                             dtype=np.int64)
     ###
-    elif np.int(emcee.__version__[0]) >= 3:
+    elif int(emcee.__version__[0]) >= 3:
         # This is based off of HDF5 files, which automatically makes it easy to reload + resetup the sampler
         raise ValueError
 

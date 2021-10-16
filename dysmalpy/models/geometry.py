@@ -173,15 +173,13 @@ class Geometry(_DysmalFittable3DModel):
 
 
 
-    def LOS_direction_emitframe(self, x, y, z, inc=None):
+    def LOS_direction_emitframe(self, inc=None):
         r"""
         Method to return the LOS direction in terms of the emission frame.
         This just accounts for the inclination.
 
         Parameters
         ----------
-        x, y, z : float or array
-            xyz position in the radial flow reference frame.
 
         Returns
         -------
@@ -226,13 +224,11 @@ class Geometry(_DysmalFittable3DModel):
             Projection of velocity 'vel' along the LOS.
         """
 
-        LOS_hat = self.LOS_direction_emitframe(x, y, z, inc=inc)
+        LOS_hat = self.LOS_direction_emitframe(inc=inc)
 
         vel_cartesian = model.velocity_vector(x, y, z, vel=vel, _save_memory=True)
 
-        # Dot product of vel_cartesian, zsky_unit_vector
-        v_LOS = x*0.
-        for vcomp, Lhat in zip(vel_cartesian, LOS_hat):
-            v_LOS += vcomp*Lhat
+        # Dot product of vel_cartesian, LOS_unit_vector
+        v_LOS = vel_cartesian[0]*LOS_hat[0] + vel_cartesian[1]*LOS_hat[1] + vel_cartesian[2]*LOS_hat[2]
 
         return v_LOS

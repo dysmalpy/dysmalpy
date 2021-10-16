@@ -13,7 +13,6 @@ import logging
 import numpy as np
 
 # Local imports
-#from .base import LightModel, LightModel3D, truncate_sersic_mr, sersic_mr, _I0_gaussring
 from .base import LightModel, _DysmalFittable1DModel, _DysmalFittable3DModel, \
                   truncate_sersic_mr, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter

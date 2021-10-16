@@ -763,73 +763,6 @@ def _check_data_inst_FOV_compatibility(gal):
 
 
 
-#########################
-## OLD METHOD: NOT AS GOOD, LOOKS AT NON-MAJOR AXIS
-# def _calc_Rout_max_2D(gal=None, results=None):
-#     gal.model.update_parameters(results.bestfit_parameters)
-#     inc_gal = gal.model.geometry.inc.value
-#
-#     ###############
-#     # Get grid of data coords:
-#     nx_sky = gal.data.data['velocity'].shape[1]
-#     ny_sky = gal.data.data['velocity'].shape[0]
-#     nz_sky = 1 #np.int(np.max([nx_sky, ny_sky]))
-#     rstep = gal.data.pixscale
-#
-#     xcenter = gal.data.xcenter
-#     ycenter = gal.data.ycenter
-#
-#     if xcenter is None:
-#         xcenter = (nx_sky - 1) / 2.
-#     if ycenter is None:
-#         ycenter = (ny_sky - 1) / 2.
-#
-#
-#     sh = (nz_sky, ny_sky, nx_sky)
-#     zsky, ysky, xsky = np.indices(sh)
-#     zsky = zsky - (nz_sky - 1) / 2.
-#     ysky = ysky - ycenter
-#     xsky = xsky - xcenter
-#
-#     # Apply the geometric transformation to get galactic coordinates
-#     xgal, ygal, zgal = gal.model.geometry(xsky, ysky, zsky)
-#
-#     # Get the 4 corners sets:
-#     gal.model.geometry.inc = 0
-#     xskyp_ur, yskyp_ur, zskyp_ur = gal.model.geometry(xsky+0.5, ysky+0.5, zsky)
-#     xskyp_ll, yskyp_ll, zskyp_ll = gal.model.geometry(xsky-0.5, ysky-0.5, zsky)
-#     xskyp_lr, yskyp_lr, zskyp_lr = gal.model.geometry(xsky+0.5, ysky-0.5, zsky)
-#     xskyp_ul, yskyp_ul, zskyp_ul = gal.model.geometry(xsky-0.5, ysky+0.5, zsky)
-#
-#     #Reset:
-#     gal.model.geometry.inc = inc_gal
-#
-#     yskyp_ur_flat = yskyp_ur[0,:,:]
-#     yskyp_ll_flat = yskyp_ll[0,:,:]
-#     yskyp_lr_flat = yskyp_lr[0,:,:]
-#     yskyp_ul_flat = yskyp_ul[0,:,:]
-#
-#     val_sgns = np.zeros(yskyp_ur_flat.shape)
-#     val_sgns += np.sign(yskyp_ur_flat)
-#     val_sgns += np.sign(yskyp_ll_flat)
-#     val_sgns += np.sign(yskyp_lr_flat)
-#     val_sgns += np.sign(yskyp_ul_flat)
-#
-#     whgood = np.where( ( np.abs(val_sgns) < 4. ) & (gal.data.mask) )
-#
-#     xgal_flat = xgal[0,:,:]
-#     ygal_flat = ygal[0,:,:]
-#     xgal_list = xgal_flat[whgood]
-#     ygal_list = ygal_flat[whgood]
-#
-#     # The circular velocity at each position only depends on the radius
-#     # Convert to kpc
-#     rgal = np.sqrt(xgal_list ** 2 + ygal_list ** 2) * rstep / gal.dscale
-#
-#     Routmax2D = np.max(rgal.flatten())
-#
-#     return Routmax2D
-
 # BETTER METHOD: ALONG MAJOR AXIS:
 def _calc_Rout_max_2D(gal=None, results=None):
     gal.model.update_parameters(results.bestfit_parameters)
@@ -840,8 +773,8 @@ def _calc_Rout_max_2D(gal=None, results=None):
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
                             gal.data.ycenter + gal.model.geometry.yshift.value)
     except:
-        center_pixel_kin = (np.int(nx_sky/ 2.) + gal.model.geometry.xshift.value,
-                            np.int(ny_sky/ 2.) + gal.model.geometry.yshift.value)
+        center_pixel_kin = (int(nx_sky/ 2.) + gal.model.geometry.xshift.value,
+                            int(ny_sky/ 2.) + gal.model.geometry.yshift.value)
 
     # Start going to neg, pos of center, at PA, and check if mask True/not
     #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
@@ -871,7 +804,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
-            elif not gal.data.mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+            elif not gal.data.mask[int(np.round(ytmp)), int(np.round(xtmp))]:
                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
@@ -885,60 +818,6 @@ def _calc_Rout_max_2D(gal=None, results=None):
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# def create_vel_profile_files(gal=None, outpath=None,
-#             moment=False,
-#             partial_weight=True,
-#             fname_model_matchdata=None,
-#             fname_finer=None,
-#             fname_intrinsic=None,
-#             fname_intrinsic_m = None,
-#             overwrite=False,
-#             **kwargs):
-#     #
-#     config_c_m_data = Config_create_model_data(**kwargs)
-#     config_sim_cube = Config_simulate_cube(**kwargs)
-#     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-#
-#     if outpath is None:
-#         raise ValueError
-#
-#     if fname_model_matchdata is None:
-#         #fname_model_matchdata = outpath + '{}_out-1dplots_{}.txt'.format(gal.name, monthday)
-#         fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, gal.name)
-#     if fname_finer is None:
-#         #fname_finer = outpath + '{}_out-1dplots_{}_finer_sampling.txt'.format(gal.name, monthday)
-#         fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, gal.name)
-#
-#     if fname_intrinsic is None:
-#         fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
-#     if fname_intrinsic_m is None:
-#         fname_intrinsic_m = '{}{}_menc_tot_bary_dm.dat'.format(outpath, gal.name)
-#
-#     ###
-#     galin = copy.deepcopy(gal)
-#
-#     # ---------------------------------------------------------------------------
-#     gal.create_model_data(**kwargs_galmodel)
-#
-#     # -------------------
-#     # Save Bary/DM vcirc:
-#     write_vcirc_tot_bar_dm(gal=gal, fname=fname_intrinsic, fname_m=fname_intrinsic_m, overwrite=overwrite)
-#
-#     # --------------------------------------------------------------------------
-#     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
-#         write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata, overwrite=overwrite)
-#
-#
-#     # Try finer scale:
-#     if (not os.path.isfile(fname_finer)) | (overwrite):
-#         # Reload galaxy object: reset things
-#         gal = copy.deepcopy(galin)
-#
-#         write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
-#                 partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
-#
-#
-#     return None
 
 def create_vel_profile_files(gal=None, outpath=None,
             moment=False,

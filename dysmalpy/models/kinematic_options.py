@@ -212,7 +212,7 @@ class KinematicOptions:
                                         " or 'baryonic' accepted.".format(mcomp._subtype, cmp))
 
 
-            converged = np.zeros(len(r1d), dtype=np.bool)
+            converged = np.zeros(len(r1d), dtype=bool)
             for i in range(len(r1d)):
                 try:
                     result = scp_opt.newton(_adiabatic, r1d[i] + 1.,

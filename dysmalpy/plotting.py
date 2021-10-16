@@ -55,6 +55,11 @@ from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
 from .config import Config_create_model_data, Config_simulate_cube
 
+# New colormap:
+new_diverging_cmap('RdBu_r', diverge = 0.5,
+            gamma_lower=1.5, gamma_upper=1.5,
+            name_new='RdBu_r_stretch')
+
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
 
@@ -124,7 +129,7 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
     trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
     trace_colors = []
     for i in six.moves.xrange(nTraceWalkers):
-        trace_colors.append(cmap(1./np.float(nTraceWalkers)*i))
+        trace_colors.append(cmap(1./float(nTraceWalkers)*i))
 
     norm_inds = np.setdiff1d(range(nWalkers), trace_inds)
 
@@ -284,7 +289,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     for i in six.moves.xrange(nFreeParam):
         ax = axes[i*nFreeParam + i]
         # Format the quantile display.
-        best = truths[i] #fit_results.bestfit_parameters[i]
+        best = truths[i]
         q_m = truths_l68[i]
         q_p = truths_u68[i]
         title_fmt=".2f"
@@ -333,7 +338,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
                     ax.set_ylim(ylim)
 
     if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight')#, dpi=300)
+        plt.savefig(fileout, bbox_inches='tight')
         plt.close(fig)
     else:
         plt.show()
@@ -372,10 +377,6 @@ def plot_data_model_comparison(gal,theta = None,
         dummy_gal.data.aper_center_pix_shift = (0,0)
         dummy_gal.model.geometry.xshift = 0
         dummy_gal.model.geometry.yshift = 0
-
-    # if (theta is not None) & (gal.data.ndim < 3):
-    #     dummy_gal.model.update_parameters(theta)     # Update the parameters
-    #     dummy_gal.create_model_data(**kwargs_galmodel)
 
     if (theta is not None) & (gal.data.ndim == 3):
         dummy_gal.model.update_parameters(theta)     # Update the parameters
@@ -575,7 +576,7 @@ def plot_data_model_comparison_1D(gal,
         elif keyyarr[j] == 'flux':
             msk = gal.data.mask
         else:
-            msk = np.array(np.ones(len(data.rarr)), dtype=np.bool)
+            msk = np.array(np.ones(len(data.rarr)), dtype=bool)
 
         # Masked points
         axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
@@ -785,7 +786,7 @@ def plot_data_model_comparison_2D(gal,
                              cbar_mode=cbar_mode,
                              cbar_size=cbar_size,
                              cbar_pad=cbar_pad)
-    #
+
     keyxarr = ['data', 'model', 'residual']
     keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Data', 'Model', 'Residual']
@@ -794,15 +795,16 @@ def plot_data_model_comparison_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap =  cm.Spectral_r #cm.nipy_spectral
+    cmap = cm.get_cmap("Spectral_r").copy()
     cmap.set_bad(color='k')
 
 
-    gamma = 1.5
-    cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-                gamma_lower=gamma, gamma_upper=gamma,
-                name_new='RdBu_r_stretch')
-
+    # gamma = 1.5
+    # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
+    #             gamma_lower=gamma, gamma_upper=gamma,
+    #             name_new='RdBu_r_stretch')
+    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+    cmap_resid.set_bad(color='k')
 
     vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
     vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
@@ -812,7 +814,6 @@ def plot_data_model_comparison_2D(gal,
     except:
         vel_shift = 0
 
-    #
     vel_vmin -= vel_shift
     vel_vmax -= vel_shift
 
@@ -851,7 +852,6 @@ def plot_data_model_comparison_2D(gal,
             ax.set_xticks([])
             ax.set_yticks([])
         else:
-            # #ax.set_axis_off()
             for pos in ['top', 'bottom', 'left', 'right']:
                 ax.spines[pos].set_visible(False)
             ax.set_xticks([])
@@ -932,7 +932,6 @@ def plot_data_model_comparison_2D(gal,
                 ax.set_xticks([])
                 ax.set_yticks([])
             else:
-                # #ax.set_axis_off()
                 for pos in ['top', 'bottom', 'left', 'right']:
                     ax.spines[pos].set_visible(False)
                 ax.set_xticks([])
@@ -1003,7 +1002,6 @@ def plot_data_model_comparison_2D(gal,
                 ax.set_xticks([])
                 ax.set_yticks([])
             else:
-                # #ax.set_axis_off()
                 for pos in ['top', 'bottom', 'left', 'right']:
                     ax.spines[pos].set_visible(False)
                 ax.set_xticks([])
@@ -1074,7 +1072,7 @@ def plot_data_model_comparison_3D(gal,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
                     moment=moment,
-                    remove_shift=False,   # TRY THIS
+                    remove_shift=False,
                     fill_mask=fill_mask,
                     **kwargs_galmodel)
 
@@ -1226,13 +1224,12 @@ def plot_model_multid_base(gal,
 
     ncols = 5
 
-    padx = 0.25
-    pady = 0.25
+    padx = pady = 0.25
 
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
+    xextra = 0.15
+    yextra = 0.
 
-    scale = 2.5 #3.5
+    scale = 2.5
 
     f = plt.figure()
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
@@ -1259,12 +1256,11 @@ def plot_model_multid_base(gal,
         grid_1D.append(plt.subplot(gs01[indr,1]))
 
 
-    padx = 0.2 #0.4
-    pady = 0.1 #0.35
+    padx = 0.2
+    pady = 0.1
     gs02 = gridspec.GridSpecFromSubplotSpec(nrows, 3, subplot_spec=gs_outer[1],
             wspace=padx, hspace=pady)
     grid_2D = []
-    # grid_2D_cax = []
     for jj in six.moves.xrange(nrows):
         for mm in six.moves.xrange(3):
             grid_2D.append(plt.subplot(gs02[jj,mm]))
@@ -1273,10 +1269,8 @@ def plot_model_multid_base(gal,
     gal_input = copy.deepcopy(gal)
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
-        #gal.create_model_data(**kwargs_galmodel)
 
-    #raise ValueError
-    #
+
     inst_corr_1d = inst_corr_2d = None
     if inst_corr is None:
         if 'inst_corr' in data1d.data.keys():
@@ -1324,9 +1318,6 @@ def plot_model_multid_base(gal,
         else:
             apply_shift = False
 
-        # if theta is not None:
-        #     gal.model.update_parameters(theta)
-
         if apply_shift:
             if xshift is not None:
                 gal.model.geometry.xshift = xshift
@@ -1346,8 +1337,6 @@ def plot_model_multid_base(gal,
             kwargs_galmodel_2d['ndim_final'] = 3
         gal.model_data = None
         gal.create_model_data(**kwargs_galmodel_2d)
-        # gal.model.update_parameters(theta)
-        # gal.create_model_data(**kwargs_galmodel)
 
         if galorig.data.ndim == 3:
             #EXTRACT 2D MAPS HERE! (don't pre-do the dispersion correction)
@@ -1361,12 +1350,9 @@ def plot_model_multid_base(gal,
             gal.data = copy.deepcopy(data2d)
 
 
-            #raise ValueError
 
         keyxarr = ['data', 'model', 'residual']
         keyxtitlearr = ['Data', 'Model', 'Residual']
-        # keyyarr = ['velocity', 'dispersion', 'flux']
-        # keyytitlearr = [r'$V$', r'$\sigma$', 'Flux']
         keyyarr = ['velocity']
         keyytitlearr = [r'$V$']
         if fitdispersion:
@@ -1378,15 +1364,16 @@ def plot_model_multid_base(gal,
 
         int_mode = "nearest"
         origin = 'lower'
-        cmap =  cm.Spectral_r
+        cmap = cm.get_cmap("Spectral_r").copy()
         cmap.set_bad(color='k')
 
-        gamma = 1.5
-        cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-                    gamma_lower=gamma, gamma_upper=gamma,
-                    name_new='RdBu_r_stretch')
 
-        cmap.set_bad(color='k')
+        # gamma = 1.5
+        # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
+        #             gamma_lower=gamma, gamma_upper=gamma,
+        #             name_new='RdBu_r_stretch')
+        cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+        cmap_resid.set_bad(color='k')
 
         color_annotate = 'white'
 
@@ -1438,9 +1425,9 @@ def plot_model_multid_base(gal,
             flux_vmax = None
 
         # ++++++++++++++
-        alpha_unmasked = 1. #0.7 #0.6
-        alpha_masked = 0.5   # 0.
-        alpha_bkgd = 1. #0.5 #1. #0.5
+        alpha_unmasked = 1.
+        alpha_masked = 0.5
+        alpha_bkgd = 1.
         alpha_aper = 0.8
 
         vmin_2d = []
@@ -1448,7 +1435,6 @@ def plot_model_multid_base(gal,
         vmin_2d_resid = []
         vmax_2d_resid = []
 
-        #for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
         for j in six.moves.xrange(len(keyyarr)):
             for mm in six.moves.xrange(len(keyxarr)):
                 kk = j*len(keyxarr) + mm
@@ -1466,17 +1452,14 @@ def plot_model_multid_base(gal,
                     if keyyarr[j] == 'velocity':
                         im = gal.data.data['velocity'].copy()
                         im -= vel_shift
-                        #im[~gal.data.mask] = np.nan
                         vmin = vel_vmin
                         vmax = vel_vmax
                     elif keyyarr[j] == 'dispersion':
                         im = gal.data.data['dispersion'].copy()
-                        #im[~gal.data.mask] = np.nan
                         vmin = disp_vmin
                         vmax = disp_vmax
                     elif keyyarr[j] == 'flux':
                         im = gal.data.data['flux'].copy()
-                        #im[~gal.data.mask] = np.nan
                         vmin = flux_vmin
                         vmax = flux_vmax
 
@@ -1489,10 +1472,8 @@ def plot_model_multid_base(gal,
                         im -= vel_shift
                         vmin = vel_vmin
                         vmax = vel_vmax
-                        #im[~gal.data.mask] = np.nan
                     elif keyyarr[j] == 'dispersion':
                         im = gal.model_data.data['dispersion'].copy()
-                        #im[~gal.data.mask] = np.nan
                         vmin = disp_vmin
                         vmax = disp_vmax
 
@@ -1579,10 +1560,9 @@ def plot_model_multid_base(gal,
                 xlim = ax.get_xlim()
                 ylim = ax.get_ylim()
 
-                #
-                ybase_offset = 0.035 #0.065
-                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                ybase_offset = 0.035
+                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
+                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
                 len_line_angular = 1./(pixscale)
 
                 ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
@@ -1643,9 +1623,6 @@ def plot_model_multid_base(gal,
     # ----------------------------------------------------------------------
     # 1D plotting
 
-    # gal = copy.deepcopy(galorig)
-    # gal.data = data2d
-
     if data1d is None:
         for ax in grid_1D:
             ax.set_axis_off()
@@ -1705,7 +1682,7 @@ def plot_model_multid_base(gal,
 
         galnew = copy.deepcopy(gal)
         model_data = galnew.model_data
-        data = data1d #galnew.data
+        data = data1d
         if (inst_corr_1d):
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - inst_corr_sigma**2 )
@@ -1765,7 +1742,7 @@ def plot_model_multid_base(gal,
                                     marker=None, ls='None', ecolor='blue', zorder=-5.,
                                     lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
                             ax.scatter( data1d_2.rarr, data1d_2.data[keyyarr[j]],
-                                edgecolors='blue', facecolors='none', marker='o', s=25, lw=1, #zorder=-0.5,
+                                edgecolors='blue', facecolors='none', marker='o', s=25, lw=1,
                                 label='Data2')
                             rrange = data1d_2.rarr.max() - data1d_2.rarr.min()
                             xlim = [data1d_2.rarr.min() - padfacxlim*rrange, data1d_2.rarr.max() + padfacxlim*rrange]
@@ -1775,7 +1752,6 @@ def plot_model_multid_base(gal,
 
                     if fill_mask:
                         if 'filled_mask_data' in data.__dict__.keys():
-                            #ylim = [data.filled_mask_data.data[keyyarr[j]].min(), data.filled_mask_data.data[keyyarr[j]].max()]
                             ax.errorbar( data.filled_mask_data.rarr, data.filled_mask_data.data[keyyarr[j]],
                                     xerr=None, yerr = data.filled_mask_data.error[keyyarr[j]],
                                     marker=None, ls='None', ecolor='grey', zorder=-1.,
@@ -1811,7 +1787,7 @@ def plot_model_multid_base(gal,
                         handles, lbls = ax.get_legend_handles_labels()
                         frameon = True
                         borderpad = 0.25
-                        markerscale = 0.8 #1.
+                        markerscale = 0.8
                         labelspacing= 0.25
                         handletextpad = 0.2
                         handlelength = 1.
@@ -1894,62 +1870,6 @@ def plot_aperture_compare_3D_cubes(gal,
                 fill_mask=False,
                 skip_fits=True,
                 overwrite=False):
-    #
-    # if datacube is None:
-    #     datacube = gal.data.data
-    # if errcube is None:
-    #     errcube = gal.data.error
-    # if modelcube is None:
-    #     modelcube = gal.model_data.data
-    # if mask is None:
-    #     mask = gal.data.mask
-    #
-    # # Check for existing file:
-    # if (not overwrite) and (fileout is not None):
-    #     if os.path.isfile(fileout):
-    #         logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-    #         return None
-    #
-    # ######################################
-    # if slit_width is None:
-    #     try:
-    #         slit_width = gal.instrument.beam.major.to(u.arcsec).value
-    #     except:
-    #         slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
-    # if slit_pa is None:
-    #     slit_pa = gal.model.geometry.pa.value
-    #
-    #
-    # pixscale = gal.instrument.pixscale.value
-    #
-    #
-    # rpix = slit_width/pixscale/2.
-    #
-    # if aper_dist is None:
-    #     aper_dist_pix = 1. # pixscale #rstep * 2.
-    # else:
-    #     #aper_dist_pix = aper_dist/rstep
-    #     aper_dist_pix = aper_dist
-    #
-    #
-    # # Aper centers: pick roughly number fitting into size:
-    # nx = datacube.shape[2]
-    # ny = datacube.shape[1]
-    # center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-    #                 np.int(ny / 2.) + gal.model.geometry.yshift)
-    #
-    # #aper_centers = np.linspace(0.,nx-1, num=nx) - np.int(nx / 2.)
-    #
-    # nap = np.int(np.floor((nx/rpix)))
-    # # Make odd
-    # if nap % 2 == 0.:
-    #     nap -= 1
-    #
-    # ###
-    # # nap = nx
-    #
-    # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    # aper_centers_arcsec = aper_centers*aper_dist_pix*pixscale      # /rstep
 
 
     #############################################################
@@ -1993,8 +1913,8 @@ def plot_aperture_compare_3D_cubes(gal,
         center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
                         gal.data.ycenter + gal.model.geometry.yshift.value)
     except:
-        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                        np.int(ny / 2.) + gal.model.geometry.yshift)
+        center_pixel = (int(nx / 2.) + gal.model.geometry.xshift,
+                        int(ny / 2.) + gal.model.geometry.yshift)
 
 
     aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, gal, mask=mask,
@@ -2021,11 +1941,6 @@ def plot_aperture_compare_3D_cubes(gal,
                         cube=data_scaled, mask=mask, err=ecube,
                         center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
 
-        ## UNWEIGHTED GAUS FIT TO DATA
-        # aper_centers2, flux1d2, vel1d2, disp1d2 = apertures.extract_1d_kinematics(spec_arr=specarr,
-        #                 cube=data_scaled, mask=mask, err=None,
-        #                 center_pixel = center_pixel, pixscale=gal.instrument.pixscale.value)
-
         #####
         aper_centers_mod, flux1d_mod, vel1d_mod, disp1d_mod = apertures.extract_1d_kinematics(spec_arr=specarr,
                         cube=model_scaled, mask=mask, err=None,
@@ -2044,16 +1959,16 @@ def plot_aperture_compare_3D_cubes(gal,
     ######################################
     # Setup plot:
 
-    nrows = np.int(np.round(np.sqrt(len(aper_centers_arcsec))))
-    ncols = np.int(np.ceil(len(aper_centers_arcsec)/(1.*nrows)))
+    nrows = int(np.round(np.sqrt(len(aper_centers_arcsec))))
+    ncols = int(np.ceil(len(aper_centers_arcsec)/(1.*nrows)))
 
     padx = 0.25
     pady = 0.25
 
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
+    xextra = 0.15
+    yextra = 0.
 
-    scale = 2.5 #3.5
+    scale = 2.5
 
     f = plt.figure()
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
@@ -2097,9 +2012,6 @@ def plot_aperture_compare_3D_cubes(gal,
                 gdata_flux2=flux1d2[k]
                 gdata_vel2=vel1d2[k]
                 gdata_disp2=disp1d2[k]
-                # gdata_flux2=None
-                # gdata_vel2=None
-                # gdata_disp2=None
 
                 gdata_flux=flux1d[k]
                 gdata_vel=vel1d[k]
@@ -2129,7 +2041,7 @@ def plot_aperture_compare_3D_cubes(gal,
 
     #############################################################
     # Save to file:
-    f.suptitle(suptitle, fontsize=16, y=0.925) #0.95)
+    f.suptitle(suptitle, fontsize=16, y=0.925)
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight', dpi=300)
@@ -2162,7 +2074,7 @@ def plot_spaxel_compare_3D_cubes(gal,
     if errcube is None:
         errcube = gal.data.error
     if mask is None:
-        mask = np.array(gal.data.mask, dtype=np.float)
+        mask = np.array(gal.data.mask, dtype=float)
     if show_model:
         if modelcube is None:
             try:
@@ -2195,33 +2107,29 @@ def plot_spaxel_compare_3D_cubes(gal,
         nrows = len(rowinds)
         ncols = len(colinds)
     elif typ == 'diag':
-        nrows = np.int(np.round(np.sqrt(npix)))
-        ncols = np.int(np.ceil(npix/(1.*nrows)))
+        nrows = int(np.round(np.sqrt(npix)))
+        ncols = int(np.ceil(npix/(1.*nrows)))
         rowinds = np.arange(nrows*ncols)
         colinds = np.arange(nrows*ncols)
-        #print("npix={}, nrows={}, ncols={}".format(npix, ncols, nrows))
 
 
 
     padx = 0.25
     pady = 0.25
 
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
+    xextra = 0.15
+    yextra = 0.
 
-    scale = 2.5 #3.5
+    scale = 2.5
 
     f = plt.figure()
     figsize = ((ncols+(ncols-1)*padx+xextra)*scale,
                (nrows+(nrows-1)*pady+yextra)*scale)
-    #print("figsize={}; nrows={}, ncols={}".format(figsize, nrows, ncols))
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale,
                       (nrows+(nrows-1)*pady+yextra)*scale)
-    #                 (nrows+pady+yextra)*scale)
 
 
     suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
-    #suptitle = None
 
     gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
 
@@ -2244,7 +2152,7 @@ def plot_spaxel_compare_3D_cubes(gal,
             mom1_mod = modelcube.moment1().to(u.km/u.s).value
             mom2_mod = modelcube.linewidth_sigma().to(u.km/u.s).value
 
-        maskbool = np.array(mask, dtype=np.bool)
+        maskbool = np.array(mask, dtype=bool)
         datacube_masked = datacube.with_mask(maskbool)
         mom0_dat = datacube_masked.moment0().to(u.km/u.s).value
         mom1_dat = datacube_masked.moment1().to(u.km/u.s).value
@@ -2299,7 +2207,7 @@ def plot_spaxel_compare_3D_cubes(gal,
                             vel1d_mod = None
                             disp1d_mod = None
 
-                        maskarr_bool = np.array(maskarr, dtype=np.bool)
+                        maskarr_bool = np.array(maskarr, dtype=bool)
 
                         flux1d2 = mom0_dat[i,j]
                         vel1d2 = mom1_dat[i,j]
@@ -2313,23 +2221,11 @@ def plot_spaxel_compare_3D_cubes(gal,
                         vel1d = best_fit[1]
                         disp1d = best_fit[2]
 
-                        # UNWEIGHTED:
-                        # best_fit = gaus_fit_sp_opt_leastsq(specarr[maskarr_bool], datarr[maskarr_bool],
-                        #                 mom0[i,j], mom1[i,j], mom2[i,j])
-                        # flux1d2 = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                        # vel1d2 = best_fit[1]
-                        # disp1d2 = best_fit[2]
-                        # # flux1d2 = None
-                        # # vel1d2 = None
-                        # # disp1d2 = None
 
                         gmod_flux2=flux1d_mod_mom
                         gmod_vel2=vel1d_mod_mom
                         gmod_disp2=disp1d_mod_mom
 
-                        # gmod_flux2 = None
-                        # gmod_vel2 = None
-                        # gmod_disp2 = None
 
                     else:
                         flux1d = vel1d = disp1d = None
@@ -2352,26 +2248,23 @@ def plot_spaxel_compare_3D_cubes(gal,
                             ha='left', va='top', fontsize=8)
 
                     if (maskarr.max() <= 0):
-                        ax.set_facecolor('#f0f0f0') #'#e3e3e3')
+                        ax.set_facecolor('#f0f0f0')
                 else:
                     ax.set_axis_off()
             elif (k < len(axes)) & (not skip) & (k >= npix):
-                #print("TURNING OFF: typ={}, i={}, j={}, k={}".format(typ, i, j, k))
                 ax = axes[k]
                 ax.set_axis_off()
 
     #############################################################
     # Save to file:
     if suptitle is not None:
-        #ytitlepos=0.895  # 36.875
-        #ytitlepos=0.905  # 18.125
         yoff = 0.105 - 0.01*(36.875-f.get_size_inches()[1])/18.75
         ytitlepos = 1.-yoff
         if f.get_size_inches()[1] < 20.:
             ytitlefontsize = 20
         else:
             ytitlefontsize = 30
-        f.suptitle(suptitle, fontsize=ytitlefontsize, y=ytitlepos) # color='red',
+        f.suptitle(suptitle, fontsize=ytitlefontsize, y=ytitlepos)
 
     if fileout is not None:
         plt.savefig(fileout, bbox_inches='tight', dpi=300)
@@ -2415,12 +2308,12 @@ def plot_channel_maps_3D_cube(gal,
 
     #################################################
     # center slice: flux limits:
-    ind = np.int(np.round((len(v_slice_lims_arr)-2)/2.))
+    ind = int(np.round((len(v_slice_lims_arr)-2)/2.))
     v_slice_lims = v_slice_lims_arr[ind:ind+2]
     subcube = gal.data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
     im = subcube.moment0().value * gal.data.mask
     flux_lims = [im.min(), im.max()]
-    fac = 1. # 0.33
+    fac = 1.
     immax = np.max(np.abs(im))
     flux_lims_resid = [-fac*immax, fac*immax]
     #################################################
@@ -2442,8 +2335,8 @@ def plot_channel_maps_3D_cube(gal,
         ind_mod = 1
         ind_resid = None
     else:
-        n_cols = np.int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
-        n_rows = np.int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
+        n_cols = int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
+        n_rows = int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
         show_multi = False
         if show_data:
             ind_dat = 0
@@ -2454,14 +2347,11 @@ def plot_channel_maps_3D_cube(gal,
 
 
     wspace_outer = 0.
-    wspace = 0.1 #0.25
-    hspace = 0.1 #0.25
-    padfac = 0.1 #0.15
+    wspace = hspace = padfac = 0.1
     fac = 1.
     f.set_size_inches(fac*scale*n_cols+(n_cols-1)*scale*padfac,scale*n_rows+(n_rows-1)*scale*padfac)
 
     gs =  gridspec.GridSpec(n_rows,n_cols, wspace=wspace, hspace=hspace)
-    # width_ratios=np.ones(n_cols), height_ratios=np.ones(n_rows),
 
 
     if show_multi:
@@ -2504,11 +2394,9 @@ def plot_channel_maps_3D_cube(gal,
 
 
     center = np.array([(gal.model_data.data.shape[2]-1.)/2., (gal.model_data.data.shape[1]-1.)/2.])
-    #print(center)
     center[0] += gal.model.geometry.xshift.value
     center[1] += gal.model.geometry.yshift.value
 
-    #for k in range(n_rows):
     k = -1
     for ii in range(n_rows):
         if show_multi:
@@ -2528,7 +2416,6 @@ def plot_channel_maps_3D_cube(gal,
             typ = types[ind_stack]
             flims = flux_lims
             cmap_tmp = cmap
-            #color_contours='red'
             residual=False
             if typ == 'data':
                 cube = gal.data.data*gal.data.mask
@@ -2717,7 +2604,7 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
 
     #################################################
     # center slice: flux limits:
-    ind = np.int(np.round((len(v_slice_lims_arr)-2)/2.))
+    ind = int(np.round((len(v_slice_lims_arr)-2)/2.))
     v_slice_lims = v_slice_lims_arr[ind:ind+2]
     subcube = datcube.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
     im = subcube.moment0().value
@@ -2730,13 +2617,11 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
     f = plt.figure()
     scale = 3.
 
-    n_cols = np.int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
-    n_rows = np.int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
+    n_cols = int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
+    n_rows = int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
 
     wspace_outer = 0.
-    wspace = 0.1 #0.25
-    hspace = 0.1 #0.25
-    padfac = 0.1 #0.15
+    wspace = hspace = padfac = 0.1
     fac = 1.
     f.set_size_inches(fac*scale*n_cols+(n_cols-1)*scale*padfac,scale*n_rows+(n_rows-1)*scale*padfac)
 
@@ -2761,7 +2646,7 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
                 v_slice_lims = v_slice_lims_arr[k:k+2]
                 flims = flux_lims
                 cmap_tmp = cmap
-                color_contours='red' # 'blue'
+                color_contours='red'
 
                 ax = plot_channel_slice(ax=ax,speccube=datcube, center=center,
                             v_slice_lims=v_slice_lims, flux_lims=flims,
@@ -2845,7 +2730,7 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
             contour_levels[i] = imflat[0]
     contour_levels.sort()
     m = np.diff(contour_levels) == 0
-    if np.any(m): #and not quiet:
+    if np.any(m):
         print("Too few points to create valid contours")
     while np.any(m):
         contour_levels[np.where(m)[0][0]] *= 1.0 - 1e-4
@@ -2856,14 +2741,14 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
 
     #################################################
 
-    ax.plot(center[0], center[1], '+', mew=1., ms=10., c=color_center) #'cyan') #'white')
+    ax.plot(center[0], center[1], '+', mew=1., ms=10., c=color_center)
 
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
 
-    ybase_offset = 0.035 #0.065
-    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+    ybase_offset = 0.035
+    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
+    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
     string = r'$[{:0.1f},{:0.1f}]$'.format(v_slice_lims[0], v_slice_lims[1])
     ax.annotate(string, xy=(x_base, y_base),
                 xycoords="data",
@@ -2980,8 +2865,6 @@ def plot_model_1D(gal,
     keyxtitle = r'$r$ [arcsec]'
     keyyarr = ['velocity', 'dispersion', 'flux']
     keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
-    # keyyresidtitlearr = [r'$V_{\mathrm{model}} - V_{\mathrm{data}}$ [km/s]',
-    #                 r'$\sigma_{\mathrm{model}} - \sigma_{\mathrm{data}}$ [km/s]']
     keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
                     r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
                     r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
@@ -3024,7 +2907,6 @@ def plot_model_2D(gal,
             max_residual=100.,
             inst_corr=True,
             **kwargs_galmodel):
-    #
 
     ######################################
     # Setup plot:
@@ -3089,7 +2971,7 @@ def plot_model_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap =  cm.Spectral_r  #cm.nipy_spectral
+    cmap =  cm.Spectral_r
     cmap.set_bad(color='k')
 
     msk = np.isfinite(gal.model_data.data['velocity'])
@@ -3231,10 +3113,10 @@ def plot_model_2D_residual(gal,
     padx = 0.25
     pady = 0.25
 
-    xextra = 0.15 #0.2
-    yextra = 0. #0.75
+    xextra = 0.15
+    yextra = 0.
 
-    scale = 2.5 #3.5
+    scale = 2.5
 
     f = plt.figure()
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
@@ -3243,11 +3125,10 @@ def plot_model_2D_residual(gal,
     suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
 
 
-    padx = 0.2 #0.4
-    pady = 0.1 #0.35
+    padx = 0.2
+    pady = 0.1
     gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
     grid_2D = []
-    # grid_2D_cax = []
     for jj in six.moves.xrange(nrows):
         for mm in six.moves.xrange(ncols):
             grid_2D.append(plt.subplot(gs02[jj,mm]))
@@ -3257,7 +3138,7 @@ def plot_model_2D_residual(gal,
     if theta is not None:
         gal.model.update_parameters(theta)     # Update the parameters
 
-    #
+
     inst_corr_2d = None
     if inst_corr is None:
         if 'inst_corr' in data2d.data.keys():
@@ -3323,17 +3204,16 @@ def plot_model_2D_residual(gal,
 
         int_mode = "nearest"
         origin = 'lower'
-        cmap =  cm.Spectral_r
+        cmap = cm.get_cmap("Spectral_r").copy()
         cmap.set_bad(color='k')
 
 
-        gamma = 1.5
-        cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-                    gamma_lower=gamma, gamma_upper=gamma,
-                    name_new='RdBu_r_stretch')
-
-
-        cmap.set_bad(color='k')
+        # gamma = 1.5
+        # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
+        #             gamma_lower=gamma, gamma_upper=gamma,
+        #             name_new='RdBu_r_stretch')
+        cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+        cmap_resid.set_bad(color='k')
 
         color_annotate = 'white'
 
@@ -3370,9 +3250,9 @@ def plot_model_2D_residual(gal,
         flux_vmin = gal.data.data['flux'][gal.data.mask].min()
         flux_vmax = gal.data.data['flux'][gal.data.mask].max()
 
-        alpha_unmasked = 1. #0.7 #0.6
-        alpha_masked = 0.5   # 0.
-        alpha_bkgd = 1. #0.5 #1. #0.5
+        alpha_unmasked = 1.
+        alpha_masked = 0.5
+        alpha_bkgd = 1.
         alpha_aper = 0.8
 
         vmin_2d = []
@@ -3380,7 +3260,6 @@ def plot_model_2D_residual(gal,
         vmin_2d_resid = []
         vmax_2d_resid = []
 
-        #for ax, k, xt in zip(grid_2D, keyyarr, keyytitlearr):
         for j in six.moves.xrange(len(keyxarr)):
             for mm in six.moves.xrange(len(keyyarr)):
                 kk = j*len(keyyarr) + mm
@@ -3440,13 +3319,12 @@ def plot_model_2D_residual(gal,
                 # Create an alpha channel of linearly increasing values moving to the right.
                 alphas = np.ones(im.shape)
                 alphas[~gal.data.mask] = alpha_masked
-                alphas[gal.data.mask] = 1.-alpha_unmasked # 0.
+                alphas[gal.data.mask] = 1.-alpha_unmasked
                 # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
                 imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
                 imtmpalph = cm.Greys_r(imtmpalph)
                 # Now set the alpha channel to the one we created above
                 imtmpalph[..., -1] = alphas
-
 
                 immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
                 # ++++++++++++++++++++++++++
@@ -3463,10 +3341,9 @@ def plot_model_2D_residual(gal,
                 xlim = ax.get_xlim()
                 ylim = ax.get_ylim()
 
-                #
-                ybase_offset = 0.035 #0.065
-                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075 # 0.1
-                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075) #(ybase_offset + 0.06)
+                ybase_offset = 0.035
+                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
+                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
                 len_line_angular = 1./(pixscale)
 
                 ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
@@ -3651,7 +3528,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         fontsize_label = 10.
         fontsize_ann = 8.
         fontsize_title = 10.
-        fontsize_leg= 7.5 #8.
+        fontsize_leg= 7.5
 
         color_arr = ['mediumblue', 'mediumturquoise', 'orange', 'red', 'blueviolet', 'dimgrey']
 
@@ -3663,7 +3540,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         xlim2 = np.array(xlim) / gal.dscale
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
 
-        # msk = data.data.mask
         if hasattr(gal.data, 'mask_velocity'):
             if gal.data.mask_velocity is not None:
                 msk = gal.data.mask_velocity
@@ -3743,13 +3619,12 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         handles_arr.extend(handles)
         labels_arr.extend(lbls)
 
-        frameon = True #False
-        borderpad = 0.25 #0
-        markerscale = 1.#0.8
-        labelspacing= 0.25 #0.15
-        handletextpad= 0.05 #0.2
+        frameon = True
+        borderpad = 0.25
+        markerscale = 1.
+        labelspacing= 0.25
+        handletextpad= 0.05
         handlelength = 0.
-        #legend_properties = {'weight':'bold'}
         legend = ax.legend(handles_arr, labels_arr,
             labelspacing=labelspacing, borderpad=borderpad,
             markerscale=markerscale,
@@ -3793,11 +3668,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             ax2.annotate(r'$R_{\mathrm{eff}}$',
                 (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
                 xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
-
-            # ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678, ls='--', color='dimgrey', zorder=-10.)
-            # ax2.annotate(r'$6r_d}$',
-            #     (gal.model.components['disk+bulge'].r_eff_disk.value*6./1.678 - 0.05*(xlim2[1]-xlim2[0]), 0.975*(ylim[1]-ylim[0])),
-            #     xycoords='data', ha='right', va='top', color='dimgrey', fontsize=fontsize_ann)
 
         ###
         ax3 = ax2.twinx()
@@ -3976,11 +3846,8 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
         # # EVERY PIXEL
         aper_dist_pix = 1. #pixscale #rstep
 
-        # # EVERY 0.5 PSF FWHM
-        # aper_dist_pix = slit_width/2./ pixscale
     else:
         aper_dist_pix = aper_dist/pixscale
-        #aper_dist_pix = aper_dist
 
     # Aper centers: pick roughly number fitting into size:
     nx = data_cube.shape[2]
@@ -3989,8 +3856,8 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
         center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
                             gal.data.ycenter + gal.model.geometry.yshift.value)
     except:
-        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                        np.int(ny / 2.) + gal.model.geometry.yshift)
+        center_pixel = (int(nx / 2.) + gal.model.geometry.xshift,
+                        int(ny / 2.) + gal.model.geometry.yshift)
 
     cPA = np.cos(slit_pa * np.pi/180.)
     sPA = np.sin(slit_pa * np.pi/180.)
@@ -4010,7 +3877,7 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
         # Just use unmasked range:
         maskflat = np.sum(mask, axis=0)
         maskflat[maskflat>0] = 1
-        mask2D = np.array(maskflat, dtype=np.bool)
+        mask2D = np.array(maskflat, dtype=bool)
         rstep_A = 0.25
 
         rMA_tmp = 0
@@ -4027,11 +3894,10 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
                     rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                     rMA_tmp = 0
                     ended_MA = True
-                elif not mask2D[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+                elif not mask2D[int(np.round(ytmp)), int(np.round(xtmp))]:
                     rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
                     rMA_tmp = 0
                     ended_MA = True
-        #nmax = 2. * np.max(np.abs(np.array(rMA_arr)))
         nmax = None
         rMA_arr = np.array(rMA_arr)
 
@@ -4039,7 +3905,7 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
         aper_centers_pix = np.arange(np.sign(rMA_arr[0])*np.floor(np.abs(rMA_arr[0])),
                                      np.sign(rMA_arr[1])*np.floor(np.abs(rMA_arr[1]))+1., 1.)
     else:
-        nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
+        nap = int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
                                                     # Otherwise, fewer and more spaced out
         # Make odd
         if nap % 2 == 0.:
@@ -4047,34 +3913,9 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
                 nap -= 1
             else:
                 nap += 1
-        aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
+        aper_centers_pix = np.linspace(0.,nap-1, num=nap) - int(nap / 2.)
 
     ######################################
-    ## ORIG: 13 ap, -0.75 to 0.75
-    # if aper_dist is None:
-    #     aper_dist_pix = 1. # pixscale
-    # else:
-    #     aper_dist_pix = aper_dist/pixscale
-    #     #aper_dist_pix = aper_dist
-    #
-    # # Aper centers: pick roughly number fitting into size:
-    # nx = data_cube.shape[2]
-    # ny = data_cube.shape[1]
-    # try:
-    #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
-    #                         gal.data.ycenter + gal.model.geometry.yshift.value)
-    # except:
-    #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-    #                     np.int(ny / 2.) + gal.model.geometry.yshift)
-    #
-    # nap = np.int(np.floor((nx/rpix)))
-    # # Make odd
-    # if nap % 2 == 0.:
-    #     nap -= 1
-    #
-    #
-    # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
 
     aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
     return aper_centers_arcsec
@@ -4086,133 +3927,6 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
             moment=False, inst_corr=True,
             fill_mask=False):
 
-    # if slit_width is None:
-    #     try:
-    #         slit_width = gal.instrument.beam.major.to(u.arcsec).value
-    #     except:
-    #         slit_width = gal.instrument.beam.major_fwhm.to(u.arcsec).value
-    # if slit_pa is None:
-    #     slit_pa = gal.model.geometry.pa.value
-    #
-    #
-    # if mask is None:
-    #     mask = gal.data.mask.copy()
-    #
-    # pixscale = gal.instrument.pixscale.value
-    #
-    # rpix = slit_width/pixscale/2.
-    #
-    #
-    #
-    # #############################
-    #
-    #
-    # if aper_dist is None:
-    #     # # EVERY PIXEL
-    #     aper_dist_pix = 1. #pixscale #rstep
-    #
-    #     # # EVERY 0.5 PSF FWHM
-    #     # aper_dist_pix = slit_width/2./ pixscale
-    # else:
-    #     aper_dist_pix = aper_dist/pixscale
-    #     #aper_dist_pix = aper_dist
-    #
-    # # Aper centers: pick roughly number fitting into size:
-    # nx = data_cube.shape[2]
-    # ny = data_cube.shape[1]
-    # try:
-    #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
-    #                         gal.data.ycenter + gal.model.geometry.yshift.value)
-    # except:
-    #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-    #                     np.int(ny / 2.) + gal.model.geometry.yshift)
-    #
-    # cPA = np.cos(slit_pa * np.pi/180.)
-    # sPA = np.sin(slit_pa * np.pi/180.)
-    # ###################
-    # if fill_mask:
-    #     diag_step = False
-    #     if np.abs(cPA) >= np.abs(sPA):
-    #         nmax = ny / np.abs(cPA)
-    #         if diag_step & (aper_dist_pix == 1.):
-    #             aper_dist_pix *= 1. / np.abs(cPA)
-    #     else:
-    #         nmax = nx / np.abs(sPA)
-    #         if diag_step & (aper_dist_pix == 1.):
-    #             aper_dist_pix *= 1. / np.abs(sPA)
-    #     rMA_arr = None
-    # else:
-    #     # Just use unmasked range:
-    #     maskflat = np.sum(mask, axis=0)
-    #     maskflat[maskflat>0] = 1
-    #     mask2D = np.array(maskflat, dtype=np.bool)
-    #     rstep_A = 0.25
-    #
-    #     rMA_tmp = 0
-    #     rMA_arr = []
-    #     # PA is to Blue; rMA_arr is [Blue (neg), Red (pos)]
-    #     # but for PA definition blue will be pos step; invert at the end
-    #     for fac in [1.,-1.]:
-    #         ended_MA = False
-    #         while not ended_MA:
-    #             rMA_tmp += fac * rstep_A
-    #             xtmp = rMA_tmp * -sPA + center_pixel[0]
-    #             ytmp = rMA_tmp * cPA  + center_pixel[1]
-    #             if (xtmp < 0) | (xtmp > mask2D.shape[1]-1) | (ytmp < 0) | (ytmp > mask2D.shape[0]-1):
-    #                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
-    #                 rMA_tmp = 0
-    #                 ended_MA = True
-    #             elif not mask2D[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
-    #                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
-    #                 rMA_tmp = 0
-    #                 ended_MA = True
-    #     #nmax = 2. * np.max(np.abs(np.array(rMA_arr)))
-    #     nmax = None
-    #     rMA_arr = np.array(rMA_arr)
-    #
-    # if rMA_arr is not None:
-    #     aper_centers_pix = np.arange(np.sign(rMA_arr[0])*np.floor(np.abs(rMA_arr[0])),
-    #                                  np.sign(rMA_arr[1])*np.floor(np.abs(rMA_arr[1]))+1., 1.)
-    # else:
-    #     nap = np.int(np.floor(nmax/aper_dist_pix))  # If aper_dist_pix = 1, than nmax apertures.
-    #                                                 # Otherwise, fewer and more spaced out
-    #     # Make odd
-    #     if nap % 2 == 0.:
-    #         if fill_mask:
-    #             nap -= 1
-    #         else:
-    #             nap += 1
-    #     aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    #
-    # ######################################
-    # ## ORIG: 13 ap, -0.75 to 0.75
-    # # if aper_dist is None:
-    # #     aper_dist_pix = 1. # pixscale
-    # # else:
-    # #     aper_dist_pix = aper_dist/pixscale
-    # #     #aper_dist_pix = aper_dist
-    # #
-    # # # Aper centers: pick roughly number fitting into size:
-    # # nx = data_cube.shape[2]
-    # # ny = data_cube.shape[1]
-    # # try:
-    # #     center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
-    # #                         gal.data.ycenter + gal.model.geometry.yshift.value)
-    # # except:
-    # #     center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-    # #                     np.int(ny / 2.) + gal.model.geometry.yshift)
-    # #
-    # # nap = np.int(np.floor((nx/rpix)))
-    # # # Make odd
-    # # if nap % 2 == 0.:
-    # #     nap -= 1
-    # #
-    # #
-    # # aper_centers_pix = np.linspace(0.,nap-1, num=nap) - np.int(nap / 2.)
-    # # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
-    #
-    # aper_centers_arcsec = aper_centers_pix*aper_dist_pix*pixscale
-    #
     # ############################################
 
     if slit_width is None:
@@ -4237,8 +3951,8 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
         center_pixel = (gal.data.xcenter + gal.model.geometry.xshift.value,
                         gal.data.ycenter + gal.model.geometry.yshift.value)
     except:
-        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift,
-                        np.int(ny / 2.) + gal.model.geometry.yshift)
+        center_pixel = (int(nx / 2.) + gal.model.geometry.xshift,
+                        int(ny / 2.) + gal.model.geometry.yshift)
 
     aper_centers_arcsec = aper_centers_arcsec_from_cube(data_cube, gal, mask=mask,
                 slit_width=slit_width, slit_pa=slit_pa,
@@ -4310,7 +4024,7 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
 def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
     # cubein must be SpectralCube instance!
 
-    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=gal.data.data.wcs)
+    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=bool), wcs=gal.data.data.wcs)
 
     data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
 
@@ -4342,12 +4056,7 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
         err_cube[err_cube==99.] = err_cube.min()
         err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
 
-        #wgt_cube = wgt_cube * 1./err_cube
-
         wgt_cube = 1./(err_cube)
-
-        # # Do a crude flux cut too:
-        # wgt_cube[data_scaled<0.05*np.percentile(data_scaled, 95)] = 0
 
 
     except:
@@ -4370,12 +4079,6 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
             if (np.max(np.abs(wgts)) == 0):
                 wgts = None
 
-            # ########################
-            # # Unmasked fit:
-            # best_fit = fitter(mod, data_cube.spectral_axis.to(u.km/u.s).value,
-            #             data_cube.unmasked_data[:,i,j].value, weights=wgts)
-            # ########################
-
             ########################
             # Masked fit:
             spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
@@ -4396,9 +4099,6 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
             disp[i,j] = best_fit.stddev.value
 
 
-
-    #raise ValueError
-
     ###########################
     # Flatten mask: only mask fully masked spaxels:
     msk3d_coll = np.sum(gal.data.mask, axis=0)
@@ -4415,19 +4115,11 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
     mask[~np.isfinite(disp)] = 0
 
 
-    # # setup data2d:
-    # try:
-    #     pixscale = gal.instrument.pixscale.value
-    # except:
-    #     pixscale = None
     data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
                         inst_corr = inst_corr, moment=False,
                         xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
-
-
-
 
     return data2d
 
@@ -4437,17 +4129,10 @@ def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
 def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
     # cubein must be SpectralCube instance!
 
-    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=np.bool), wcs=cubein.wcs)
+    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=bool), wcs=cubein.wcs)
 
     data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
 
-    # data_unscaled = cubein.unmasked_data[:].value
-    # data_scaled = data_unscaled / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
-    # # Some extra arbitrary scaling:
-    # data_scaled *= 100.
-    # data_cube = SpectralCube(data=data_scaled, mask=mask, wcs=cubein.wcs)
-
-    #print("gal.data.smoothing_type={}".format(gal.data.smoothing_type))
     if gal.data.smoothing_type is not None:
         data_cube = apply_smoothing_3D(data_cube,
                     smoothing_type=gal.data.smoothing_type,
@@ -4487,8 +4172,6 @@ def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
 
 
 
-
-
 #############################################################
 def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
 
@@ -4501,8 +4184,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     except:
         rstep1d = rstep
     rpix = slit_width/rstep/2.
-    # aper_dist_pix = 2*rpix
-    aper_centers_pix = aper_centers/rstep#1d
+
+    aper_centers_pix = aper_centers/rstep
 
     if aper_centers[0] <= 0:
         # Starts from neg -> pos:
@@ -4525,8 +4208,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d,
                             gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
     except:
-        center_pixel_kin = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                            np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel_kin = (int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
+                            int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
     if not remove_shift:
         if data1d.aper_center_pix_shift is not None:
@@ -4534,8 +4217,8 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
                 center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
                                 gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
             except:
-                center_pixel = (np.int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
-                                np.int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
+                center_pixel = (int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
+                                int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
         else:
             try:
                 center_pixel = (gal.data.xcenter, gal.data.ycenter)
@@ -4547,15 +4230,15 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
 
 
     if center_pixel is None:
-        center_pixel = (np.int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                        np.int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel = (int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
+                        int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
 
     # +++++++++++++++++
 
     pyoff = 0.
     ax.scatter(center_pixel[0], center_pixel[1], color='magenta', marker='+')
     ax.scatter(center_pixel_kin[0], center_pixel_kin[1], color='cyan', marker='+')
-    ax.scatter(np.int(nx / 2), np.int(ny / 2), color='lime', marker='+')
+    ax.scatter(int(nx / 2), int(ny / 2), color='lime', marker='+')
 
     # +++++++++++++++++
 
@@ -4568,7 +4251,6 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
 
     for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
-        #print("mm={}:  rap={}, xap, yap=({}, {}), rpix={}".format(mm, rap, xap, yap, rpix))
         circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)
         ax.add_artist(circle)
         if (mm == 0):
@@ -4617,7 +4299,7 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
-            elif not mask[np.int(np.round(ytmp)), np.int(np.round(xtmp))]:
+            elif not mask[int(np.round(ytmp)), int(np.round(xtmp))]:
                 A_xs.append((rMA_tmp) * -sPA + center_pixel_kin[0])
                 A_ys.append((rMA_tmp) * cPA  + center_pixel_kin[1])
                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg

@@ -62,7 +62,7 @@ def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ft
                            (results['param_name'].str.strip() == paramn))[0]
             if len(whm) == 1:
                 # Assert best-fit values are the same
-                assert math.isclose(np.float(results['best_value'].iloc[whm[0]]),
+                assert math.isclose(float(results['best_value'].iloc[whm[0]]),
                             dict_bf_values[compn][paramn], rel_tol=ftol), \
                             '{}, ndim={}, {}:{}'.format(fit_method,ndim,compn,paramn)
             else:
@@ -177,7 +177,7 @@ class TestFittingWrappers:
 
         # Assert lnprob values are all finite:
         assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
-        
+
         for i in range(results.sampler['nParam']):
             # Assert at least one walker moved at least once for parameter i
             assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
@@ -188,7 +188,7 @@ class TestFittingWrappers:
         f_ascii_machine = outdir_full+'{}_{}_best_fit_results.dat'.format(params['galID'],
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
-        
+
         # Assert best-fit values
         dict_bf_values = {'disk+bulge': {'total_mass': 11.0,
                                          'r_eff_disk': 12.0,
@@ -260,19 +260,15 @@ class TestFittingWrappers:
 # pragma: no cover
 
 if __name__ == '__main__':
-    
+
     TestFittingWrappers().test_1D_mpfit()
-    
+
     TestFittingWrappers().test_1D_mcmc()
-    
+
     TestFittingWrappers().test_2D_mpfit()
-    
+
     TestFittingWrappers().test_3D_mpfit()
-    
+
     # print('lensing.cached_lensing_transformer_dict', lensing.cached_lensing_transformer_dict)
-    
+
     print('All done!')
-
-
-
-

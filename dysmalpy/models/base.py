@@ -101,8 +101,10 @@ class _DysmalFittable1DModel(_DysmalModel):
     col_fit_deriv = True
     fittable = True
 
-    inputs = ('x',)
-    outputs = ('y',)
+    # inputs = ('x',)
+    # outputs = ('y',)
+    n_inputs = 1
+    n_outputs = 1
 
 
 class _DysmalFittable3DModel(_DysmalModel):
@@ -115,7 +117,8 @@ class _DysmalFittable3DModel(_DysmalModel):
     col_fit_deriv = True
     fittable = True
 
-    inputs = ('x', 'y', 'z')
+    #inputs = ('x', 'y', 'z')
+    n_inputs = 3
 
 
 

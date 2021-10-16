@@ -1518,7 +1518,7 @@ def setup_mcmc_dict(params=None, ndim_data=None):
 
     f_cube = outdir+'{}{}_mcmc_bestfit_model_cube.fits'.format(galID, filename_extra)
 
-    if np.int(emcee.__version__[0]) >= 3:
+    if int(emcee.__version__[0]) >= 3:
         ftype_sampler = 'h5'
     else:
         ftype_sampler = 'pickle'
@@ -1783,7 +1783,6 @@ def setup_data_weighting_method(method='UNSET', r=None):
         weight = None
     elif ((method.strip().lower() == 'none') | (method.strip().lower() == 'uniform')):
         weight = None
-        #weight = np.ones(len(r), dtype=np.float)
     # exp[ A * (r/rmax) ]  // exponential or more general power-law
     elif method.strip().lower() == 'radius_rmax':
         # value at 0: 1 // value at rmax: 2.718

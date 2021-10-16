@@ -61,7 +61,7 @@ class Aperture(object):
             self._mask_ap = None
 
     def define_aperture_mask(self):
-        mask = np.ones((self.ny, self.nx), dtype=np.bool)
+        mask = np.ones((self.ny, self.nx), dtype=bool)
         mask[np.int(self.aper_center[1]), np.int(self.aper_center[0])] = True
         return mask
 
@@ -85,7 +85,7 @@ class Aperture(object):
             mask_cube *= mask
             spec_mask2 = np.sum(np.sum(mask_cube, axis=2), axis=1)
             spec_mask2[spec_mask2>0] = 1.
-            spec_mask2 = np.array(spec_mask2, dtype=np.bool)
+            spec_mask2 = np.array(spec_mask2, dtype=bool)
             if spec_mask is None:
                 spec_mask = spec_mask2
 

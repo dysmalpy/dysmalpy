@@ -8,7 +8,6 @@ from __future__ import (absolute_import, division, print_function,
 
 # Standard library
 import logging
-import copy
 
 # Third party imports
 import numpy as np
@@ -50,12 +49,10 @@ def replace_values_by_refarr(arr, ref_arr, excise_val, subs_val):
     by replacing all entries where ref_arr == excise_value with subs_val, or
        arr[ref_arr==excise_val] = subs_val
     """
-    arr_out = copy.deepcopy(arr)
-
     if len(np.shape(ref_arr)) == 0:
         if ref_arr == excise_val:
-            arr_out = subs_val
+            arr = subs_val
     else:
-        arr_out[ref_arr==excise_val] = subs_val
+        arr[ref_arr==excise_val] = subs_val
 
-    return arr_out
+    return arr
