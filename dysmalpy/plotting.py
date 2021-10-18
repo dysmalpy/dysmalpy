@@ -4259,7 +4259,9 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     return ax
 
 
-def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
+def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
+    lw_major = 3., lw_minor = 2.25, fac2 = 0.66, fac_len_minor_marker = 1./20.,
+    color_kin_axes = 'black', color_kin_axes2 = 'white'):
     ####################################
     # Show MAJOR AXIS line, center:
     try:
@@ -4281,7 +4283,6 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
         rstep_A = 0.25
     else:
         rstep_A = 1.
-    #rstep_A = 0.25
 
     rMA_tmp = 0
     rMA_arr = []
@@ -4308,20 +4309,16 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True):
 
     B_xs = []
     B_ys = []
-    len_minor_marker = 1./20. * im.shape[0]   # CONSTANT SIZE REL TO AXIS
+    len_minor_marker = fac_len_minor_marker * im.shape[0]   # CONSTANT SIZE REL TO AXIS
     for fac in [-1.,1.]:
         B_xs.append(fac*len_minor_marker*0.5 * cPA  + center_pixel_kin[0])
         B_ys.append(fac*len_minor_marker*0.5 * sPA + center_pixel_kin[1])
 
-    lw_major = 3.
-    lw_minor = 2.25
-    color_kin_axes = 'black'
-    ax.plot(A_xs , A_ys, color=color_kin_axes, lw=lw_major, ls='-')
+
+    ax.plot(A_xs, A_ys, color=color_kin_axes, lw=lw_major, ls='-')
     ax.plot(B_xs, B_ys,color=color_kin_axes, lw=lw_minor, ls='-')
 
-    color_kin_axes2 = 'white'
-    fac2 = 0.66
-    ax.plot(A_xs , A_ys, color=color_kin_axes2, lw=lw_major*fac2, ls='-')
+    ax.plot(A_xs, A_ys, color=color_kin_axes2, lw=lw_major*fac2, ls='-')
     ax.plot(B_xs, B_ys,color=color_kin_axes2, lw=lw_minor*fac2, ls='-')
 
     return ax
