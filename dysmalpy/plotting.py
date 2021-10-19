@@ -60,6 +60,34 @@ new_diverging_cmap('RdBu_r', diverge = 0.5,
             gamma_lower=1.5, gamma_upper=1.5,
             name_new='RdBu_r_stretch')
 
+# Default settings for contours on 2D maps:
+_kwargs_contour_defaults = { 'colors_cont': 'black',
+                            'alpha_cont': 1.,
+                            'ls_cont': 'solid',
+                            'lw_cont': 0.75,
+                            'delta_cont_v': 25.,
+                            'delta_cont_disp': 25.,
+                            'delta_cont_flux': 5.,
+                            ####
+                            'lw_cont_minor': 0.2,
+                            'alpha_cont_minor': 1.,
+                            'colors_cont_minor': 'black',
+                            'ls_cont_minor': '-',
+                            'delta_cont_v_minor': None,
+                            'delta_cont_disp_minor': None,
+                            'delta_cont_flux_minor': None,
+                            ####
+                            'lw_cont_minor_resid': 0.15,
+                            'colors_cont_minor_resid': 'grey',
+                            'alpha_cont_minor_resid' : 1.,
+                            'ls_cont_minor_resid' : ':',
+                            'delta_cont_v_minor_resid': None,
+                            'delta_cont_disp_minor_resid': None,
+                            'delta_cont_flux_minor_resid': None
+                            }
+
+
+
 __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 
 
@@ -366,6 +394,9 @@ def plot_data_model_comparison(gal,theta = None,
                                overwrite=False,
                                moment=False,
                                fill_mask=False,
+                               show_contours=False,
+                               show_ruler=True,
+                               ruler_loc='lowerleft',
                                **kwargs_galmodel):
     """
     Plot data, model, and residuals between the data and this model.
@@ -398,6 +429,9 @@ def plot_data_model_comparison(gal,theta = None,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     fileout=fileout,
+                    show_contours=show_contours,
+                    show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
                     overwrite=overwrite,
                     **kwargs_galmodel)
     elif gal.data.ndim == 3:
@@ -417,6 +451,9 @@ def plot_data_model_comparison(gal,theta = None,
                     show_all_spax=show_all_spax,
                     show_channel=show_channel,
                     fill_mask=fill_mask,
+                    show_contours=show_contours,
+                    show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
                     **kwargs_galmodel)
 
     elif gal.data.ndim == 0:
@@ -492,6 +529,8 @@ def plot_data_model_comparison_1D(gal,
             fileout=None, overwrite=False,
             **kwargs_galmodel):
 
+    fitvelocity = True
+
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
         if os.path.isfile(fileout):
@@ -530,21 +569,29 @@ def plot_data_model_comparison_1D(gal,
     # Setup plot:
     f = plt.figure()
     scale = 3.5
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
-    if fitflux:
-        ncols += 1
+    ncols = 0
+    for cond in [fitflux, fitvelocity, fitdispersion]:
+        if cond:
+            ncols += 1
     nrows = 2
     f.set_size_inches(1.1*ncols*scale, nrows*scale)
     gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
 
+
     keyxtitle = r'$r$ [arcsec]'
-    keyyarr = ['velocity', 'dispersion', 'flux']
-    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', r'Flux [arb]']
-    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
-                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
+    keyyarr, keyytitlearr, keyyresidtitlearr = ([] for _ in range(3))
+    if fitflux:
+        keyyarr.append('flux')
+        keyytitlearr.append(r'Flux [arb]')
+        keyyresidtitlearr.append(r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]')
+    if fitvelocity:
+        keyyarr.append('velocity')
+        keyytitlearr.append(r'$V$ [km/s]')
+        keyyresidtitlearr.append(r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]')
+    if fitdispersion:
+        keyyarr.append('dispersion')
+        keyytitlearr.append(r'$\sigma$ [km/s]')
+        keyyresidtitlearr.append(r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]')
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -704,7 +751,17 @@ def plot_data_model_comparison_2D(gal,
             max_residual=100.,
             max_residual_flux=None,
             overwrite=False,
+            show_contours=False,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
+
+    fitvelocity = True
+    if show_contours:
+        # Set contour defaults, if not specifed:
+        for key in _kwargs_contour_defaults.keys():
+            if key not in kwargs_galmodel.keys():
+                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -734,48 +791,16 @@ def plot_data_model_comparison_2D(gal,
     cbar_mode="each"
     cbar_size="5%"
     cbar_pad="1%"
-    if fitdispersion:
-        if fitflux:
-            pos_gridvel = 311
-            pos_griddisp = 312
-            pos_gridflux = 313
-        else:
-            pos_gridvel = 211
-            pos_griddisp = 212
-    else:
-        if fitflux:
-            pos_gridvel = 211
-            pos_gridflux = 212
-        else:
-            pos_gridvel = 111
 
+    nrows = 0
+    for cond in [fitflux, fitvelocity, fitdispersion]:
+        if cond:
+            nrows += 1
 
-    grid_vel = ImageGrid(f, pos_gridvel,
-                         nrows_ncols=nrows_ncols,
-                         direction=direction,
-                         axes_pad=axes_pad,
-                         add_all=add_all,
-                         label_mode=label_mode,
-                         share_all=share_all,
-                         cbar_location=cbar_location,
-                         cbar_mode=cbar_mode,
-                         cbar_size=cbar_size,
-                         cbar_pad=cbar_pad)
-    if fitdispersion:
-        grid_disp = ImageGrid(f, pos_griddisp,
-                             nrows_ncols=nrows_ncols,
-                             direction=direction,
-                             axes_pad=axes_pad,
-                             add_all=add_all,
-                             label_mode=label_mode,
-                             share_all=share_all,
-                             cbar_location=cbar_location,
-                             cbar_mode=cbar_mode,
-                             cbar_size=cbar_size,
-                             cbar_pad=cbar_pad)
-
+    cntr = 0
     if fitflux:
-        grid_flux = ImageGrid(f, pos_gridflux,
+        cntr += 1
+        grid_flux = ImageGrid(f, '{}'.format(100+nrows*10+cntr),
                              nrows_ncols=nrows_ncols,
                              direction=direction,
                              axes_pad=axes_pad,
@@ -786,175 +811,43 @@ def plot_data_model_comparison_2D(gal,
                              cbar_mode=cbar_mode,
                              cbar_size=cbar_size,
                              cbar_pad=cbar_pad)
+    if fitvelocity:
+        cntr += 1
+        grid_vel = ImageGrid(f, '{}'.format(100+nrows*10+cntr),
+                             nrows_ncols=nrows_ncols,
+                             direction=direction,
+                             axes_pad=axes_pad,
+                             add_all=add_all,
+                             label_mode=label_mode,
+                             share_all=share_all,
+                             cbar_location=cbar_location,
+                             cbar_mode=cbar_mode,
+                             cbar_size=cbar_size,
+                             cbar_pad=cbar_pad)
+    if fitdispersion:
+        cntr += 1
+        grid_disp = ImageGrid(f, '{}'.format(100+nrows*10+cntr),
+                             nrows_ncols=nrows_ncols,
+                             direction=direction,
+                             axes_pad=axes_pad,
+                             add_all=add_all,
+                             label_mode=label_mode,
+                             share_all=share_all,
+                             cbar_location=cbar_location,
+                             cbar_mode=cbar_mode,
+                             cbar_size=cbar_size,
+                             cbar_pad=cbar_pad)
+
 
     keyxarr = ['data', 'model', 'residual']
-    keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Data', 'Model', 'Residual']
-    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
-
-
-    int_mode = "nearest"
-    origin = 'lower'
-    cmap = cm.get_cmap("Spectral_r").copy()
-    cmap.set_bad(color='k')
-
-
-    # gamma = 1.5
-    # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-    #             gamma_lower=gamma, gamma_upper=gamma,
-    #             name_new='RdBu_r_stretch')
-    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
-    cmap_resid.set_bad(color='k')
-
-    vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
-    vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
-
-    try:
-        vel_shift = gal.model.geometry.vel_shift.value
-    except:
-        vel_shift = 0
-
-    vel_vmin -= vel_shift
-    vel_vmax -= vel_shift
-
-    for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
-        if k == 'data':
-            im = gal.data.data['velocity'].copy()
-            im -= vel_shift
-            im[~gal.data.mask] = np.nan
-            cmaptmp = cmap
-        elif k == 'model':
-            im = gal.model_data.data['velocity'].copy()
-            im -= vel_shift
-            im[~gal.data.mask] = np.nan
-            cmaptmp = cmap
-        elif k == 'residual':
-            im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-            im[~gal.data.mask] = np.nan
-            if symmetric_residuals:
-                vel_vmin = -max_residual
-                vel_vmax = max_residual
-            cmaptmp = cmap_resid
-        else:
-            raise ValueError("key not supported.")
-
-        imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                         vmin=vel_vmin, vmax=vel_vmax, origin=origin)
-
-
-
-        ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
-
-        if k == 'data':
-            ax.set_ylabel(keyytitlearr[0])
-            for pos in ['top', 'bottom', 'left', 'right']:
-                ax.spines[pos].set_visible(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-        else:
-            for pos in ['top', 'bottom', 'left', 'right']:
-                ax.spines[pos].set_visible(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-
-        #
-        if k == 'residual':
-            med = np.median(im[gal.data.mask])
-            rms = np.std(im[gal.data.mask])
-            median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
-            scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
-            ax.annotate(median_str,
-                (0.01,-0.05), xycoords='axes fraction',
-                ha='left', va='top', fontsize=8)
-            ax.annotate(scatter_str,
-                (0.99,-0.05), xycoords='axes fraction',
-                ha='right', va='top', fontsize=8)
-
-        ax.set_title(xt)
-
-        cbar = ax.cax.colorbar(imax)
-        cbar.ax.tick_params(labelsize=8)
-
-    #####
-    if fitdispersion:
-
-        if gal.data is not None:
-            disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-            disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
-        else:
-            disp_vmin = gal.model_data.data['dispersion'].min()
-            disp_vmax = gal.model_data.data['dispersion'].max()
-
-        for ax, k in zip(grid_disp, keyxarr):
-            if k == 'data':
-                im = gal.data.data['dispersion'].copy()
-                im[~gal.data.mask] = np.nan
-                cmaptmp = cmap
-            elif k == 'model':
-                im = gal.model_data.data['dispersion'].copy()
-
-                im[~gal.data.mask] = np.nan
-
-                # Correct model for instrument dispersion
-                # if the data is instrument corrected:
-                if inst_corr:
-                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
-                                 u.km / u.s).value ** 2)
-                cmaptmp = cmap
-            elif k == 'residual':
-
-                im_model = gal.model_data.data['dispersion'].copy()
-                if inst_corr:
-                    im_model = np.sqrt(im_model ** 2 -
-                                       gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
-
-
-                im = gal.data.data['dispersion'] - im_model
-                im[~gal.data.mask] = np.nan
-
-                if symmetric_residuals:
-                    disp_vmin = -max_residual
-                    disp_vmax = max_residual
-                cmaptmp = cmap_resid
-            else:
-                raise ValueError("key not supported.")
-
-            imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
-
-
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
-
-            if k == 'data':
-                ax.set_ylabel(keyytitlearr[1])
-                for pos in ['top', 'bottom', 'left', 'right']:
-                    ax.spines[pos].set_visible(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
-            else:
-                for pos in ['top', 'bottom', 'left', 'right']:
-                    ax.spines[pos].set_visible(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
-
-            #
-            if k == 'residual':
-                med = np.median(im[gal.data.mask])
-                rms = np.std(im[gal.data.mask])
-                median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
-                scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                ax.annotate(median_str,
-                    (0.01,-0.05), xycoords='axes fraction',
-                    ha='left', va='top', fontsize=8)
-                ax.annotate(scatter_str,
-                    (0.99,-0.05), xycoords='axes fraction',
-                    ha='right', va='top', fontsize=8)
-
-            cbar = ax.cax.colorbar(imax)
-            cbar.ax.tick_params(labelsize=8)
-
-    ######
+    keyyarr, keyytitlearr, grid_arr, annstr_arr = ([] for _ in range(4))
     if fitflux:
+        keyyarr.append('flux')
+        keyytitlearr.append(r'Flux')
+        grid_arr.append(grid_flux)
+        annstr_arr.append('f')
+
         if gal.data is not None:
             flux_vmin = gal.data.data['flux'][gal.data.mask].min()
             flux_vmax = gal.data.data['flux'][gal.data.mask].max()
@@ -964,55 +857,144 @@ def plot_data_model_comparison_2D(gal,
         else:
             flux_vmin = gal.model_data.data['flux'].min()
             flux_vmax = gal.model_data.data['flux'].max()
+        if max_residual_flux is None:
+            max_residual_flux = np.max(np.abs(gal.data.data['flux'][gal.data.mask]))
+
+    if fitvelocity:
+        keyyarr.append('velocity')
+        keyytitlearr.append(r'$V$')
+        grid_arr.append(grid_vel)
+        annstr_arr.append('V')
+
+        vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+        vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
+
+        try:
+            vel_shift = gal.model.geometry.vel_shift.value
+        except:
+            vel_shift = 0
+
+        vel_vmin -= vel_shift
+        vel_vmax -= vel_shift
+
+    if fitdispersion:
+        keyyarr.append('dispersion')
+        keyytitlearr.append(r'$\sigma$')
+        grid_arr.append(grid_disp)
+        annstr_arr.append('\sigma')
+
+        if gal.data is not None:
+            disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+            disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        else:
+            disp_vmin = gal.model_data.data['dispersion'].min()
+            disp_vmax = gal.model_data.data['dispersion'].max()
 
 
-        for ax, k in zip(grid_flux, keyxarr):
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap.set_bad(color='k')
+    color_annotate = 'white'
+
+    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+    cmap_resid.set_bad(color='k')
+
+
+
+    for j in range(len(keyyarr)):
+        grid = grid_arr[j]
+
+        for ax, k, xt in zip(grid, keyxarr, keyxtitlearr):
+
             if k == 'data':
-                im = gal.data.data['flux'].copy()
-                im[~gal.data.mask] = np.nan
+                im = gal.data.data[keyyarr[j]].copy()
+
+                if keyyarr[j] == 'velocity':
+                    im -= vel_shift
+                    vmin = vel_vmin
+                    vmax = vel_vmax
+                elif keyyarr[j] == 'dispersion':
+                    vmin = disp_vmin
+                    vmax = disp_vmax
+                elif keyyarr[j] == 'flux':
+                    vmin = flux_vmin
+                    vmax = flux_vmax
+
                 cmaptmp = cmap
             elif k == 'model':
-                im = gal.model_data.data['flux'].copy()
-
-                im[~gal.data.mask] = np.nan
+                im = gal.model_data.data[keyyarr[j]].copy()
+                if keyyarr[j] == 'velocity':
+                    im -= vel_shift
+                    vmin = vel_vmin
+                    vmax = vel_vmax
+                elif keyyarr[j] == 'dispersion':
+                    if inst_corr:
+                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                     u.km / u.s).value ** 2)
+                    vmin = disp_vmin
+                    vmax = disp_vmax
+                elif keyyarr[j] == 'flux':
+                    vmin = flux_vmin
+                    vmax = flux_vmax
 
                 cmaptmp = cmap
             elif k == 'residual':
-                im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
-                im[~gal.data.mask] = np.nan
-
+                im_data = gal.data.data[keyyarr[j]].copy()
+                im_model = gal.model_data.data[keyyarr[j]].copy()
+                if keyyarr[j] == 'dispersion':
+                    if inst_corr:
+                        im_model = np.sqrt(im_model ** 2 -
+                                       gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
+                im = im_data - im_model
                 if symmetric_residuals:
-                    if max_residual_flux is None:
-                        max_residual_flux = np.max(np.abs(im[gal.data.mask]))
-                    flux_vmin = -max_residual_flux
-                    flux_vmax = max_residual_flux
+                    if keyyarr[j] == 'flux':
+                        vmin = -max_residual_flux
+                        vmax = max_residual_flux
+                    else:
+                        vmin = -max_residual
+                        vmax = max_residual
+
                 cmaptmp = cmap_resid
             else:
                 raise ValueError("key not supported.")
 
+
+
+            # Mask image:
+            im[~gal.data.mask] = np.nan
+
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
+                             vmin=vmin, vmax=vmax, origin=origin)
 
             ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
+            if show_ruler:
+                pixscale = gal.instrument.pixscale.value
+                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                      ruler_loc=ruler_loc, color=color_annotate)
+
+            if show_contours:
+                ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
+                            vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+
 
             if k == 'data':
-                ax.set_ylabel(keyytitlearr[2])
-                for pos in ['top', 'bottom', 'left', 'right']:
-                    ax.spines[pos].set_visible(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
-            else:
-                for pos in ['top', 'bottom', 'left', 'right']:
-                    ax.spines[pos].set_visible(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
+                ax.set_ylabel(keyytitlearr[j])
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            if j == 0:
+                ax.set_title(xt)
 
             ####
             if k == 'residual':
                 med = np.median(im[gal.data.mask])
                 rms = np.std(im[gal.data.mask])
-                median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
-                scatter_str = r"$f{rms}="+r"{:0.1f}".format(rms)+r"$"
+                median_str  = r"${}".format(annstr_arr[j])+r"_{med}="+r"{:0.1f}".format(med)+r"$"
+                scatter_str = r"${}".format(annstr_arr[j])+r"_{rms}="+r"{:0.1f}".format(rms)+r"$"
                 ax.annotate(median_str,
                     (0.01,-0.05), xycoords='axes fraction',
                     ha='left', va='top', fontsize=8)
@@ -1022,6 +1004,8 @@ def plot_data_model_comparison_2D(gal,
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
+
+
 
     #############################################################
     # Save to file:
@@ -1053,6 +1037,9 @@ def plot_data_model_comparison_3D(gal,
             show_channel=True,
             remove_shift=False,
             fill_mask=False,
+            show_contours=False,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1074,6 +1061,9 @@ def plot_data_model_comparison_3D(gal,
                     moment=moment,
                     remove_shift=False,
                     fill_mask=fill_mask,
+                    show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
+                    show_contours=show_contours,
                     **kwargs_galmodel)
 
     if show_all_spax:
@@ -1114,6 +1104,9 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
             overwrite=False,
             moment=False,
             fill_mask=False,
+            show_contours=False,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
 
     # Check for existing file:
@@ -1126,6 +1119,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals, max_residual=max_residual,
+                    show_contours=show_contours, show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
                     fileout=fileout,
                     xshift = xshift,
                     yshift = yshift,
@@ -1136,6 +1131,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data,
                     theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
+                    show_contours=show_contours, show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
                     fileout=fileout,
                     show_1d_apers=show_1d_apers,
                     remove_shift=remove_shift,
@@ -1174,6 +1171,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d,
                     theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
+                    show_contours=show_contours, show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
                     fileout=fileout,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr,
                     vcrop=vcrop, vcrop_value=vcrop_value,
@@ -1203,9 +1202,18 @@ def plot_model_multid_base(gal,
             moment=True,
             fill_mask=False,
             overwrite=False,
+            show_contours=False,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    #
+    fitvelocity = True
+    if show_contours:
+        # Set contour defaults, if not specifed:
+        for key in _kwargs_contour_defaults.keys():
+            if key not in kwargs_galmodel.keys():
+                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
         if os.path.isfile(fileout):
@@ -1215,12 +1223,10 @@ def plot_model_multid_base(gal,
     ######################################
     # Setup plot:
 
-    nrows = 1
-    if fitdispersion:
-        nrows += 1
-    if fitflux:
-        nrows += 1
-
+    nrows = 0
+    for cond in [fitflux, fitvelocity, fitdispersion]:
+        if cond:
+            nrows += 1
 
     ncols = 5
 
@@ -1324,8 +1330,6 @@ def plot_model_multid_base(gal,
             if yshift is not None:
                 gal.model.geometry.yshift = yshift
 
-
-
         gal.instrument = copy.deepcopy(instorig2d)
         pixscale = gal.instrument.pixscale.value
         kwargs_galmodel_2d = kwargs_galmodel.copy()
@@ -1349,18 +1353,20 @@ def plot_model_multid_base(gal,
 
             gal.data = copy.deepcopy(data2d)
 
-
-
         keyxarr = ['data', 'model', 'residual']
         keyxtitlearr = ['Data', 'Model', 'Residual']
-        keyyarr = ['velocity']
-        keyytitlearr = [r'$V$']
+
+        keyyarr, keyytitlearr = ([] for _ in range(2))
+        if fitflux:
+            keyyarr.append('flux')
+            keyytitlearr.append(r'Flux')
+        if fitvelocity:
+            keyyarr.append('velocity')
+            keyytitlearr.append(r'$V$')
         if fitdispersion:
             keyyarr.append('dispersion')
             keyytitlearr.append(r'$\sigma$')
-        if fitflux:
-            keyyarr.append('flux')
-            keyytitlearr.append('Flux')
+
 
         int_mode = "nearest"
         origin = 'lower'
@@ -1368,10 +1374,6 @@ def plot_model_multid_base(gal,
         cmap.set_bad(color='k')
 
 
-        # gamma = 1.5
-        # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-        #             gamma_lower=gamma, gamma_upper=gamma,
-        #             name_new='RdBu_r_stretch')
         cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
         cmap_resid.set_bad(color='k')
 
@@ -1546,6 +1548,11 @@ def plot_model_multid_base(gal,
                     immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
                 # ++++++++++++++++++++++++++
 
+                if show_contours:
+                    ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
+                                vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+
+
                 if (show_1d_apers) & (data1d is not None):
                     ax = show_1d_apers_plot(ax, gal, data1d, data2d,
                                     galorig=galorig, alpha_aper=alpha_aper,
@@ -1557,24 +1564,10 @@ def plot_model_multid_base(gal,
 
                 ####################################
                 # Show a 1arcsec line:
-                xlim = ax.get_xlim()
-                ylim = ax.get_ylim()
+                if show_ruler:
+                    ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                        ruler_loc=ruler_loc,  color=color_annotate)
 
-                ybase_offset = 0.035
-                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
-                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
-                len_line_angular = 1./(pixscale)
-
-                ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                            c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
-                string = '1"'
-                y_text = y_base
-                ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                xycoords="data",
-                                xytext=(0,0),
-                                color=color_annotate,
-                                textcoords="offset points", ha="left", va="center",
-                                fontsize=8)
                 ####################################
 
                 if k == 'data':
@@ -1696,13 +1689,25 @@ def plot_model_multid_base(gal,
 
         ######################################
 
+
         keyxtitle = r'$r$ [arcsec]'
-        keyyarr = ['velocity', 'dispersion', 'flux']
         plottype = ['data', 'residual']
-        keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux']
-        keyytitlearrresid = [r'$V_{\mathrm{data}}-V_{\mathrm{model}}$ [km/s]',
-                        r'$\sigma_{\mathrm{data}}-\sigma_{\mathrm{model}}$ [km/s]',
-                        r'$f_{\mathrm{data}}-f_{\mathrm{model}}$ [km/s]']
+
+        keyyarr, keyytitlearr, keyyresidtitlearr = ([] for _ in range(3))
+        if fitflux:
+            keyyarr.append('flux')
+            keyytitlearr.append(r'Flux [arb]')
+            keyyresidtitlearr.append(r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]')
+        if fitvelocity:
+            keyyarr.append('velocity')
+            keyytitlearr.append(r'$V$ [km/s]')
+            keyyresidtitlearr.append(r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]')
+        if fitdispersion:
+            keyyarr.append('dispersion')
+            keyytitlearr.append(r'$\sigma$ [km/s]')
+            keyyresidtitlearr.append(r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]')
+
+
 
         errbar_lw = 0.5
         errbar_cap = 1.5
@@ -1726,7 +1731,6 @@ def plot_model_multid_base(gal,
                             c='black', marker='o', s=25, lw=1, label='Data')
                     except:
                         pass
-
 
                     if fill_mask:
                         ax.scatter( model_data.rarr, model_data.data[keyyarr[j]],
@@ -1815,7 +1819,7 @@ def plot_model_multid_base(gal,
 
 
                     ax.set_xlabel(keyxtitle)
-                    ax.set_ylabel(keyytitlearrresid[j])
+                    ax.set_ylabel(keyyresidtitlearr[j])
                     ax.axhline(y=0, ls='--', color='k', zorder=-10.)
 
                     ax.set_xlim(xlim)
@@ -2906,47 +2910,30 @@ def plot_model_2D(gal,
             symmetric_residuals=True,
             max_residual=100.,
             inst_corr=True,
+            show_contours=True,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
+
+    fitvelocity = True
+    if show_contours:
+        # Set contour defaults, if not specifed:
+        for key in _kwargs_contour_defaults.keys():
+            if key not in kwargs_galmodel.keys():
+                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
 
     ######################################
     # Setup plot:
     f = plt.figure(figsize=(9.5, 6))
     scale = 3.5
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
-    if fitflux:
-        ncols += 1
 
-    #
-    cntr = 1
-    grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
-                         nrows_ncols=(1, 1),
-                         direction="row",
-                         axes_pad=0.5,
-                         add_all=True,
-                         label_mode="1",
-                         share_all=True,
-                         cbar_location="right",
-                         cbar_mode="each",
-                         cbar_size="5%",
-                         cbar_pad="1%",
-                         )
-    if fitdispersion:
-        cntr += 1
-        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
-                              nrows_ncols=(1, 1),
-                              direction="row",
-                              axes_pad=0.5,
-                              add_all=True,
-                              label_mode="1",
-                              share_all=True,
-                              cbar_location="right",
-                              cbar_mode="each",
-                              cbar_size="5%",
-                              cbar_pad="1%",
-                              )
+    ncols = 0
+    for cond in [fitflux, fitvelocity, fitdispersion]:
+        if cond:
+            ncols += 1
 
+
+    cntr = 0
     if fitflux:
         cntr += 1
         grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
@@ -2962,51 +2949,67 @@ def plot_model_2D(gal,
                               cbar_pad="1%",
                               )
 
-    #
+    if fitvelocity:
+        cntr += 1
+        grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                             nrows_ncols=(1, 1),
+                             direction="row",
+                             axes_pad=0.5,
+                             add_all=True,
+                             label_mode="1",
+                             share_all=True,
+                             cbar_location="right",
+                             cbar_mode="each",
+                             cbar_size="5%",
+                             cbar_pad="1%",
+                             )
+    if fitdispersion:
+        cntr += 1
+        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+                              nrows_ncols=(1, 1),
+                              direction="row",
+                              axes_pad=0.5,
+                              add_all=True,
+                              label_mode="1",
+                              share_all=True,
+                              cbar_location="right",
+                              cbar_mode="each",
+                              cbar_size="5%",
+                              cbar_pad="1%",
+                              )
+
+
     keyxarr = ['model']
-    keyyarr = ['velocity', 'dispersion', 'flux']
     keyxtitlearr = ['Model']
-    keyytitlearr = [r'$V$', r'$\sigma$', r'Flux']
 
+    keyyarr, keyytitlearr, grid_arr = ([] for _ in range(3))
+    if fitflux:
+        keyyarr.append('flux')
+        keyytitlearr.append(r'Flux')
+        grid_arr.append(grid_flux)
 
-    int_mode = "nearest"
-    origin = 'lower'
-    cmap =  cm.Spectral_r
-    cmap.set_bad(color='k')
+        msk = np.isfinite(gal.model_data.data['flux'])
+        flux_vmin = gal.model_data.data['flux'][msk].min()
+        flux_vmax = gal.model_data.data['flux'][msk].max()
 
-    msk = np.isfinite(gal.model_data.data['velocity'])
-    vel_vmin = gal.model_data.data['velocity'][msk].min()
-    vel_vmax = gal.model_data.data['velocity'][msk].max()
-    if np.abs(vel_vmax) > 400.:
-        vel_vmax = 400.
-    if np.abs(vel_vmin) > 400.:
-        vel_vmin = -400.
+    if fitvelocity:
+        keyyarr.append('velocity')
+        keyytitlearr.append(r'$V$')
+        grid_arr.append(grid_vel)
 
-    vel_shift = gal.model.geometry.vel_shift.value
-    #
-    vel_vmin -= vel_shift
-    vel_vmax -= vel_shift
-
-    for ax, k, xt in zip(grid_vel, keyxarr, keyxtitlearr):
-        im = gal.model_data.data['velocity'].copy()
-        im -= vel_shift
-
-        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                         vmin=vel_vmin, vmax=vel_vmax, origin=origin)
-
-        for pos in ['top', 'bottom', 'left', 'right']:
-            ax.spines[pos].set_visible(False)
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-        ax.set_ylabel(keyytitlearr[0])
-
-        ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
-
-        cbar = ax.cax.colorbar(imax)
-        cbar.ax.tick_params(labelsize=8)
+        msk = np.isfinite(gal.model_data.data['velocity'])
+        vel_vmin = gal.model_data.data['velocity'][msk].min()
+        vel_vmax = gal.model_data.data['velocity'][msk].max()
+        if np.abs(vel_vmax) > 400.:
+            vel_vmax = 400.
+        if np.abs(vel_vmin) > 400.:
+            vel_vmin = -400.
 
     if fitdispersion:
+        keyyarr.append('dispersion')
+        keyytitlearr.append(r'$\sigma$')
+        grid_arr.append(grid_disp)
+
         msk = np.isfinite(gal.model_data.data['dispersion'])
         disp_vmin = gal.model_data.data['dispersion'][msk].min()
         disp_vmax = gal.model_data.data['dispersion'][msk].max()
@@ -3016,54 +3019,68 @@ def plot_model_2D(gal,
         if np.abs(disp_vmin) > 500:
             disp_vmin = 0.
 
-        for ax, k in zip(grid_disp, keyxarr):
-            im = gal.model_data.data['dispersion'].copy()
-            if inst_corr:
-                im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
-                             u.km / u.s).value ** 2)
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap.set_bad(color='k')
+    color_annotate = 'black'
 
-                disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
-                disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
+
+    for j in range(len(keyyarr)):
+        msk = np.isfinite(gal.model_data.data[keyyarr[j]])
+        grid = grid_arr[j]
+
+        for ax, k in zip(grid, keyxarr):
+            im = gal.model_data.data[keyyarr[j]].copy()
+            if keyyarr[j] == 'flux':
+                vmin = flux_vmin
+                vmax = flux_vmax
+            elif keyyarr[j] == 'velocity':
+                vel_shift = gal.model.geometry.vel_shift.value
+                im -= vel_shift
+
+                vel_vmin -= vel_shift
+                vel_vmax -= vel_shift
+
+                vmin = vel_vmin
+                vmax = vel_vmax
+
+            elif keyyarr[j] == 'dispersion':
+                if inst_corr:
+                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                                 u.km / u.s).value ** 2)
+
+                    disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
+                    disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
+
+                vmin = disp_vmin
+                vmax = disp_vmax
 
 
             imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=disp_vmin, vmax=disp_vmax, origin=origin)
+                             vmin=vmin, vmax=vmax, origin=origin)
 
-            ax.set_ylabel(keyytitlearr[1])
+            ax.set_ylabel(keyytitlearr[j])
 
             for pos in ['top', 'bottom', 'left', 'right']:
                 ax.spines[pos].set_visible(False)
             ax.set_xticks([])
             ax.set_yticks([])
 
+            if show_contours:
+                ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
+                            vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+
             ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+            if show_ruler:
+                pixscale = gal.instrument.pixscale.value
+                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                            ruler_loc=ruler_loc,  color=color_annotate)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
 
-    if fitflux:
-        msk = np.isfinite(gal.model_data.data['flux'])
-        flux_vmin = gal.model_data.data['flux'][msk].min()
-        flux_vmax = gal.model_data.data['flux'][msk].max()
 
-
-        for ax, k in zip(grid_flux, keyxarr):
-            im = gal.model_data.data['flux'].copy()
-
-            imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
-                             vmin=flux_vmin, vmax=flux_vmax, origin=origin)
-
-            ax.set_ylabel(keyytitlearr[2])
-
-            for pos in ['top', 'bottom', 'left', 'right']:
-                ax.spines[pos].set_visible(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
-
-            cbar = ax.cax.colorbar(imax)
-            cbar.ax.tick_params(labelsize=8)
 
     #############################################################
     # Save to file:
@@ -3075,9 +3092,6 @@ def plot_model_2D(gal,
         plt.show()
 
 
-
-
-#############################################################
 
 def plot_model_2D_residual(gal,
             data1d=None,
@@ -3095,17 +3109,25 @@ def plot_model_2D_residual(gal,
             show_1d_apers=False,
             remove_shift = True,
             inst_corr=None,
+            show_contours=False,
+            show_ruler=True,
+            ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    #
+    fitvelocity = True
+    if show_contours:
+        # Set contour defaults, if not specifed:
+        for key in _kwargs_contour_defaults.keys():
+            if key not in kwargs_galmodel.keys():
+                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+
     ######################################
     # Setup plot:
 
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
-    if fitflux:
-        ncols += 1
+    ncols = 0
+    for cond in [fitflux, fitvelocity, fitdispersion]:
+        if cond:
+            ncols += 1
 
     nrows = 1
 
@@ -3198,9 +3220,19 @@ def plot_model_2D_residual(gal,
 
 
         keyyarr = ['residual']
-        keyxarr = ['velocity', 'dispersion', 'flux']
         keyytitlearr = ['Residual']
-        keyxtitlearr = [r'$V$', r'$\sigma$', 'Flux']
+
+
+        keyxarr, keyxtitlearr = ([] for _ in range(2))
+        if fitflux:
+            keyxarr.append('flux')
+            keyxtitlearr.append(r'Flux')
+        if fitvelocity:
+            keyxarr.append('velocity')
+            keyxtitlearr.append(r'$V$')
+        if fitdispersion:
+            keyxarr.append('dispersion')
+            keyxtitlearr.append(r'$\sigma$')
 
         int_mode = "nearest"
         origin = 'lower'
@@ -3208,10 +3240,6 @@ def plot_model_2D_residual(gal,
         cmap.set_bad(color='k')
 
 
-        # gamma = 1.5
-        # cmap_resid = new_diverging_cmap('RdBu_r', diverge = 0.5,
-        #             gamma_lower=gamma, gamma_upper=gamma,
-        #             name_new='RdBu_r_stretch')
         cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
         cmap_resid.set_bad(color='k')
 
@@ -3329,6 +3357,11 @@ def plot_model_2D_residual(gal,
                 immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
                 # ++++++++++++++++++++++++++
 
+                if show_contours:
+                    ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
+                                vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+
+
                 if (show_1d_apers) & (data1d is not None):
 
                     ax = show_1d_apers_plot(ax, gal, data1d, data2d,
@@ -3338,26 +3371,10 @@ def plot_model_2D_residual(gal,
 
                 ####################################
                 # Show a 1arcsec line:
-                xlim = ax.get_xlim()
-                ylim = ax.get_ylim()
-
-                ybase_offset = 0.035
-                x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
-                y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
-                len_line_angular = 1./(pixscale)
-
-                ax.plot([x_base, x_base+len_line_angular], [y_base, y_base],
-                            c=color_annotate, ls='-',lw=2, solid_capstyle='butt')
-                string = '1"'
-                y_text = y_base
-                ax.annotate(string, xy=(x_base+len_line_angular*1.25, y_text),
-                                xycoords="data",
-                                xytext=(0,0),
-                                color=color_annotate,
-                                textcoords="offset points", ha="left", va="center",
-                                fontsize=8)
+                if show_ruler:
+                    ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                            ruler_loc=ruler_loc, color=color_annotate)
                 ####################################
-
 
                 ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
 
@@ -3416,6 +3433,297 @@ def plot_model_2D_residual(gal,
     return None
 
 
+#############################################################
+
+def plot_model_comparison_2D(gal1=None, gal2=None,
+        show_models=True,
+        label_gal1='Gal1',
+        label_gal2='Gal2',
+        label_residuals='Residuals: Gal2-Gal1',
+        symmetric_residuals=True,
+        max_residual=100.,
+        fileout=None,
+        vcrop = False,
+        vcrop_value = 800.,
+        inst_corr=True,
+        show_contours=True,
+        **kwargs):
+
+    # Set contour defaults, if not specifed:
+    for key in _kwargs_contour_defaults.keys():
+        if key not in kwargs.keys():
+            kwargs[key] = _kwargs_contour_defaults[key]
+
+
+    ######################################
+    # Setup plot:
+
+    ncols = 3
+    if show_models:
+        nrows = 3
+    else:
+        nrows = 1
+
+
+    padx = pady = 0.25
+
+    xextra = 0.25 #0.15
+    yextra = 0.25
+
+    scale = 2.5
+
+    f = plt.figure()
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+(nrows-1)*pady+yextra)*scale)
+
+
+    padx = 0.2
+    pady = 0.1
+    gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+    grid_2D = []
+    for jj in six.moves.xrange(nrows):
+        for mm in six.moves.xrange(ncols):
+            grid_2D.append(plt.subplot(gs02[jj,mm]))
+
+
+
+    if inst_corr:
+        inst_corr_sigma = gal1.instrument.lsf.dispersion.to(u.km/u.s).value
+        inst_corr_sigma2 = gal2.instrument.lsf.dispersion.to(u.km/u.s).value
+        # Check values are equivalent:
+        if inst_corr_sigma != inst_corr_sigma2:
+            raise ValueError
+    else:
+        inst_corr_sigma = 0.
+
+
+    # ----------------------------------------------------------------------
+    # 2D plotting
+
+    pixscale = gal1.instrument.pixscale.value
+
+
+    if show_models:
+        keyyarr = ['gal1', 'gal2', 'residual']
+        keyytitlearr = [label_gal1, label_gal2, label_residuals]
+    else:
+        keyyarr = ['residual']
+        keyytitlearr = [label_residuals]
+    keyxarr = ['flux', 'velocity', 'dispersion']
+    keyxtitlearr = ['Flux', r'$V$', r'$\sigma$']
+
+    int_mode = "nearest"
+    origin = 'lower'
+    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap.set_bad(color='k')
+
+
+    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+    cmap_resid.set_bad(color='k')
+    cmap_resid.set_over(color='magenta')
+    cmap_resid.set_under(color='blueviolet')
+
+
+    # -----------------------
+    if show_models:
+        vel_vmin = disp_vmin = flux_vmin = 999.
+        vel_vmax = disp_vmax = flux_vmax = -999.
+        for gal in [gal1, gal2]:
+            vel_vmin = np.min([vel_vmin, gal.model_data.data['velocity'][gal.model_data.mask].min()])
+            vel_vmax = np.max([vel_vmin, gal.model_data.data['velocity'][gal.model_data.mask].max()])
+
+            if inst_corr:
+                im = gal.model_data.data['dispersion'].copy()
+                im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
+                msk = gal.model_data.mask.copy()
+                msk[~np.isfinite(im)] = False
+                disp_vmin = np.min([disp_vmin, im[msk].min()])
+                disp_vmax = np.max([disp_vmax, im[msk].max()])
+            else:
+                disp_vmin = np.min([disp_vmin, gal.model_data.data['dispersion'][gal.model_data.mask].min()])
+                disp_vmax = np.max([disp_vmax, gal.model_data.data['dispersion'][gal.model_data.mask].max()])
+
+
+            flux_vmin = np.min([flux_vmin, gal.model_data.data['flux'][gal.model_data.mask].min()])
+            flux_vmax = np.max([flux_vmax, gal.model_data.data['flux'][gal.model_data.mask].max()])
+
+        # Apply vel shift from model:
+        vel_shift = gal1.model.geometry.vel_shift.value
+        vel_vmin -= vel_shift
+        vel_vmax -= vel_shift
+
+        # Check for not too crazy:
+        if vcrop:
+            if vel_vmin < -vcrop_value:
+                vel_vmin = -vcrop_value
+            if vel_vmax > vcrop_value:
+                vel_vmax = vcrop_value
+
+            if disp_vmin < 0:
+                disp_vmin = 0
+            if disp_vmax > vcrop_value:
+                disp_vmax = vcrop_value
+
+
+    alpha_unmasked = 1.
+    alpha_masked = 0.5
+    alpha_bkgd = 1.
+    alpha_aper = 0.8
+
+
+    for mm in six.moves.xrange(len(keyyarr)):
+        for j in six.moves.xrange(len(keyxarr)):
+            kk = mm*len(keyyarr) + j
+
+            k = keyyarr[mm]
+
+            ax = grid_2D[kk]
+
+            xt = keyxtitlearr[j]
+            yt = keyytitlearr[mm]
+
+            # -----------------------------------
+            if (k == 'gal1') | (k == 'gal2'):
+                if (k == 'gal1'):
+                    gal = gal1
+                elif (k == 'gal2'):
+                    gal = gal2
+                if keyxarr[j] == 'velocity':
+                    im = gal.model_data.data['velocity']
+                    im[~gal.model_data.mask] = np.nan
+                    vmin = vel_vmin
+                    vmax = vel_vmax
+                elif keyxarr[j] == 'dispersion':
+                    im = gal.model_data.data['dispersion'].copy()
+                    im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
+
+                    im[~gal.model_data.mask] = np.nan
+
+                    vmin = disp_vmin
+                    vmax = disp_vmax
+
+                elif keyxarr[j] == 'flux':
+                    im = gal.model_data.data['flux'].copy()
+                    im[~gal.model_data.mask] = np.nan
+
+                    vmin = flux_vmin
+                    vmax = flux_vmax
+
+                cmaptmp = cmap
+                gal = None
+
+            elif k == 'residual':
+                if keyxarr[j] == 'velocity':
+                    im = gal2.model_data.data['velocity'] - gal1.model_data.data['velocity']
+                    im[~gal1.model_data.mask] = np.nan
+                    if symmetric_residuals:
+                        vmin = -max_residual
+                        vmax = max_residual
+                elif keyxarr[j] == 'dispersion':
+                    im_model1 = gal1.model_data.data['dispersion'].copy()
+                    im_model1 = np.sqrt(im_model1 ** 2 - inst_corr_sigma ** 2)
+
+                    im_model2 = gal2.model_data.data['dispersion'].copy()
+                    im_model2 = np.sqrt(im_model2 ** 2 - inst_corr_sigma ** 2)
+
+                    im = im_model2 - im_model1
+                    im[~gal1.model_data.mask] = np.nan
+
+                    if symmetric_residuals:
+                        vmin = -max_residual
+                        vmax = max_residual
+                elif keyxarr[j] == 'flux':
+                    im = gal2.model_data.data['flux'].copy() - gal1.model_data.data['flux'].copy()
+                    im[~gal1.model_data.mask] = np.nan
+
+                    if symmetric_residuals:
+                        if show_models:
+                            fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
+                        else:
+                            fabsmax = np.max(np.abs(im[np.isfinite(im)]))
+                        vmin = -fabsmax
+                        vmax = fabsmax
+                if not symmetric_residuals:
+                    vmin = im[np.isfinite(im)].min()
+                    vmax = im[np.isfinite(im)].max()
+
+                cmaptmp = cmap_resid
+
+            else:
+                raise ValueError("key not supported.")
+
+
+            imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+                             vmin=vmin, vmax=vmax, origin=origin)
+
+            if show_contours:
+                ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
+                            vmin=vmin, vmax=vmax, kwargs=kwargs)
+
+            # ++++++++++++++++++++++++++
+            imtmp = im.copy()
+            imtmp[gal1.model_data.mask] = vmax #vel_vmax
+            imtmp[~gal1.model_data.mask] = np.nan
+
+            # Create an alpha channel of linearly increasing values moving to the right.
+            alphas = np.ones(im.shape)
+            alphas[~gal1.model_data.mask] = alpha_masked
+            alphas[gal1.model_data.mask] = 1.-alpha_unmasked
+            # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+            imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
+            imtmpalph = cm.Greys_r(imtmpalph)
+            # Now set the alpha channel to the one we created above
+            imtmpalph[..., -1] = alphas
+
+            immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+            # ++++++++++++++++++++++++++
+
+
+            ####################################
+            # Show a 1arcsec line:
+            ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1., ruler_loc='lowerright', color='black')
+            ####################################
+
+
+            ax = plot_major_minor_axes_2D(ax, gal1, im, gal1.model_data.mask)
+
+            if j == 0:
+                ax.set_ylabel(yt)
+
+            for pos in ['top', 'bottom', 'left', 'right']:
+                ax.spines[pos].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            #print("ytitle={}".format(yt))
+
+            if mm == 0:
+                ax.set_title(xt)
+
+            #########
+            cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                    #fraction=5./101.,
+                    fraction=4.75/101.,
+                    aspect=20.)
+            cbar = plt.colorbar(imax, cax=cax, **kw)
+            cbar.ax.tick_params(labelsize=8)
+
+
+
+
+    ################
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+
+#############################################################
 
 
 def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False,
@@ -4173,6 +4481,12 @@ def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
 
 
 #############################################################
+#############################################################
+#############################################################
+# UTILITY FUNCTIONS
+#############################################################
+
+
 def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
 
     aper_centers = data1d.rarr
@@ -4320,5 +4634,133 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
 
     ax.plot(A_xs, A_ys, color=color_kin_axes2, lw=lw_major*fac2, ls='-')
     ax.plot(B_xs, B_ys,color=color_kin_axes2, lw=lw_minor*fac2, ls='-')
+
+    return ax
+
+
+
+def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
+        ruler_loc='lowerright', color='black', ybase_offset=0.02,
+        delx=0.075, dely=0.075, dely_text=0.06):
+    ####################################
+    # Show a ruler line:
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    #len_line_angular = 0.5/(pixscale)
+    len_line_angular = len_arcsec/(pixscale)
+    if len_arcsec % 1. == 0.:
+        string = r'{}"'.format(int(len_arcsec))
+    else:
+        intpart = str(len_arcsec).split('.')[0]
+        decpart = str(len_arcsec).split('.')[1]
+        string = r'0."{}'.format()
+
+
+    #ybase_offset = 0.02 #0.035 #0.065
+    if 'left' in ruler_loc:
+        x_base = xlim[0] + (xlim[1]-xlim[0])*delx
+        sign_x = 1.
+        ha = 'left'
+    elif 'right' in ruler_loc:
+        x_base = xlim[1] - (xlim[1]-xlim[0])*delx
+        sign_x = -1.
+        ha = 'right'
+    if 'upper' in ruler_loc:
+        y_base = ylim[1] - (ylim[1]-ylim[0])*(ybase_offset+dely)
+        y_text = y_base - (ylim[1]-ylim[0])*(dely_text)
+        va = 'center'
+    elif 'lower' in ruler_loc:
+        y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+dely)
+        y_text = y_base + (ylim[1]-ylim[0])*(dely_text)
+        va = 'center'
+
+    ax.plot([x_base+sign_x*len_line_angular, x_base], [y_base, y_base],
+                c=color, ls='-',lw=2, solid_capstyle='butt')
+
+    ax.annotate(string, xy=(x_base, y_text), xycoords="data", xytext=(0,0),
+                color=color, textcoords="offset points", ha=ha, va=va, fontsize=9)
+
+    return ax
+
+def plot_contours_2D_multitype(im, ax=None, mapname='velocity', plottype='data',
+            vmin=None, vmax=None, kwargs=None):
+    # mapname: 'flux', 'velocity', 'dispersion'
+    # plottype: 'data', 'model', 'gal1', 'gal2', etc -- and then 'residual' handled separately
+
+    if mapname == 'velocity':
+        delta_cont = kwargs['delta_cont_v']
+        delta_cont_minor = kwargs['delta_cont_v_minor']
+        delta_cont_minor_resid = kwargs['delta_cont_v_minor_resid']
+    elif mapname == 'dispersion':
+        delta_cont = kwargs['delta_cont_disp']
+        delta_cont_minor = kwargs['delta_cont_disp_minor']
+        delta_cont_minor_resid = kwargs['delta_cont_disp_minor_resid']
+    elif mapname == 'flux':
+        delta_cont = kwargs['delta_cont_flux']
+        delta_cont_minor = kwargs['delta_cont_flux_minor']
+        delta_cont_minor_resid = kwargs['delta_cont_flux_minor_resid']
+    else:
+        raise ValueError
+
+    if (plottype != 'residual'):
+        #####
+        if delta_cont_minor is not None:
+            lo_minor = vmin - (vmin%delta_cont_minor) +delta_cont_minor
+            hi_minor = vmax -(vmax%delta_cont_minor)
+            contour_levels_tmp2_minor = np.arange(lo_minor, hi_minor+delta_cont_minor,
+                                delta_cont_minor)
+            ax.contour(im,levels=contour_levels_tmp2_minor,
+                        colors=kwargs['colors_cont_minor'],
+                        alpha=kwargs['alpha_cont_minor'],
+                        linestyles=kwargs['ls_cont_minor'],
+                        linewidths=kwargs['lw_cont_minor'])
+        #####
+        if delta_cont is not None:
+            lo = vmin - (vmin%delta_cont) +delta_cont
+            hi = vmax -(vmax%delta_cont)
+            contour_levels_tmp2 = np.arange(lo, hi+delta_cont, delta_cont)
+            ax.contour(im,levels=contour_levels_tmp2,
+                        colors=kwargs['colors_cont'], alpha=kwargs['alpha_cont'],
+                        linestyles=kwargs['ls_cont'], linewidths=kwargs['lw_cont'])
+    elif plottype == 'residual':
+        # Check that the residual isn't all basically 0:
+        if delta_cont_minor is not None:
+            compval = np.min([delta_cont_minor / 10., 0.01])
+        else:
+            compval = 0.01
+
+        if ((im[np.isfinite(im)].max() - im[np.isfinite(im)].min()) >= compval):
+            #####
+            if delta_cont_minor_resid is not None:
+                # Minor minor contours:
+                lo_mminor = vmin - (vmin%delta_cont_minor_resid) +delta_cont_minor_resid
+                hi_mminor = vmax -(vmax%delta_cont_minor_resid)
+                contour_levels_tmp2_mminor = np.arange(lo_mminor,
+                                    hi_mminor+delta_cont_minor_resid,
+                                    delta_cont_minor_resid)
+                ax.contour(im,levels=contour_levels_tmp2_mminor,
+                            colors=kwargs['colors_cont_minor_resid'],
+                            alpha=kwargs['alpha_cont_minor_resid'],
+                            linestyles=kwargs['ls_cont_minor_resid'],
+                            linewidths=kwargs['lw_cont_minor_resid'])
+            if delta_cont_minor is not None:
+                lo_minor = vmin - (vmin%delta_cont_minor) +delta_cont_minor
+                hi_minor = vmax -(vmax%delta_cont_minor)
+                contour_levels_tmp2_minor = np.arange(lo_minor, hi_minor+delta_cont_minor,
+                                    delta_cont_minor)
+                ax.contour(im,levels=contour_levels_tmp2_minor,
+                            colors=kwargs['colors_cont_minor'],
+                            alpha=kwargs['alpha_cont_minor'],
+                            linestyles=kwargs['ls_cont_minor'],
+                            linewidths=kwargs['lw_cont_minor'])
+            #####
+            if delta_cont is not None:
+                lo = vmin - (vmin%delta_cont) +delta_cont
+                hi = vmax -(vmax%delta_cont)
+                contour_levels_tmp2 = np.arange(lo, hi+delta_cont, delta_cont)
+                ax.contour(im,levels=contour_levels_tmp2,
+                            colors=kwargs['colors_cont'], alpha=kwargs['alpha_cont'],
+                            linestyles=kwargs['ls_cont'], linewidths=kwargs['lw_cont'])
 
     return ax

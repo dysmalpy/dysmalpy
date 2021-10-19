@@ -923,9 +923,10 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
 
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
-    r_step = 0.025 #0.05
-    if rmax_abs > 4.:
-        r_step = 0.05
+    # r_step = 0.025 #0.05
+    # if rmax_abs > 4.:
+    #     r_step = 0.05
+    r_step = 0.05
     #aper_centers_interp = np.arange(0, rmax_abs+r_step, r_step)
     aper_centers_interp = np.arange(-rmax_abs, rmax_abs+r_step, r_step)
 

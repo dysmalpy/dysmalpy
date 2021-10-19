@@ -51,16 +51,16 @@ def plot_bundle_1D(params=None, param_filename=None, fit_dict=None,
     # Reload bestfit case
     gal = galaxy.load_galaxy_object(filename=fit_dict['f_model'])
 
-    if ('partial_weight' in params.keys()):
-        partial_weight = params['partial_weight']
+    if ('partial_aperture_weight' in params.keys()):
+        partial_aperture_weight = params['partial_aperture_weight']
     else:
         ## NEW default behavior: always use partial_weight:
-        partial_weight = True
+        partial_aperture_weight = True
 
     kwargs_galmodel['aperture_radius'] = params['aperture_radius']
     plotting.plot_rotcurve_components(gal=gal, outpath = params['outdir'],
             plot_type=plot_type,
-            partial_weight=partial_weight,
+            partial_weight=partial_aperture_weight,
             overwrite=overwrite, overwrite_curve_files=overwrite,
             **kwargs_galmodel)
 
@@ -188,7 +188,7 @@ def plot_results_multid_general(param_filename=None,
 
     gal, fit_dict = load_setup_multid_multifit_data(param_filename=param_filename,
                         data=data, fit_ndim=fit_ndim)
-    
+
     config_c_m_data = config.Config_create_model_data(**fit_dict)
     config_sim_cube = config.Config_simulate_cube(**fit_dict)
     kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
