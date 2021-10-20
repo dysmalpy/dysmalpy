@@ -13,8 +13,10 @@ from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                   Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
-                                                    UniformRadialFlow, UniformBarFlow, \
-                                                    VariableXBarFlow, SpiralDensityWave
+                                                    UniformRadialFlow, PlanarUniformRadialFlow, \
+                                                    AzimuthalPlanarRadialFlow, \
+                                                    UniformBarFlow, VariableXBarFlow, \
+                                                    SpiralDensityWave
 from dysmalpy.models.zheight import ZHeightGauss, ZHeightExp
 from dysmalpy.models.dispersion_profiles import DispersionConst
 from dysmalpy.models.light_distributions import LightTruncateSersic, LightGaussianRing, \
@@ -33,8 +35,11 @@ __all__ = ['ModelSet',
            # Halos
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            # Higher-order components
-           'BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow',
-           'UniformBarFlow', 'VariableXBarFlow', 'SpiralDensityWave',
+           'BiconicalOutflow', 'UnresolvedOutflow',
+           'UniformRadialFlow', 'PlanarUniformRadialFlow',
+           'AzimuthalPlanarRadialFlow', 
+           'UniformBarFlow', 'VariableXBarFlow',
+           'SpiralDensityWave',
            # Light profiles
            'LightTruncateSersic', 'LightGaussianRing',
            'LightClump', 'LightGaussianRingAzimuthal',

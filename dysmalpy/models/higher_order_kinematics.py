@@ -24,8 +24,11 @@ try:
 except:
     from . import utils
 
-__all__ = ['BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow',
-           'UniformBarFlow', 'VariableXBarFlow', 'SpiralDensityWave']
+__all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
+           'UniformRadialFlow', 'PlanarUniformRadialFlow',
+           'AzimuthalPlanarRadialFlow',
+           'UniformBarFlow', 'VariableXBarFlow',
+           'SpiralDensityWave']
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
@@ -412,8 +415,182 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
             vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
         else:
-            # Only calculate y,z directions
+            # Only y,z directions
             vel_dir_unit_vector = np.array([0., vhat_y, vhat_z], dtype=object)
+
+        return vel_dir_unit_vector
+
+class PlanarUniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for a planar uniform radial flow, with radial flow only in the plane of the galaxy.
+
+    Parameters
+    ----------
+    vr : float
+        Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
+
+    Notes
+    -----
+    This model simply adds a constant radial velocity component
+    to all of the positions in the galaxy.
+    """
+    vr = DysmalParameter(default=30.)
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cylindrical'
+    outputs = ('vrad',)
+
+    def __init__(self, **kwargs):
+
+        super(PlanarUniformRadialFlow, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(x, y, z, vr):
+        """Evaluate the radial velocity as a function of position x, y, z"""
+
+        vel = np.ones(x.shape) * (vr)
+
+        return vel
+
+    def velocity(self, x, y, z):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.vr)
+
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a planar uniform radial flow, this is the +Rhat direction, in cylindrical coordinates
+            (R,phi,z).
+        """
+
+        R = np.sqrt(x ** 2 + y ** 2)
+
+        vhat_y = y/R
+
+        # Excise rgal=0 values
+        vhat_y = utils.replace_values_by_refarr(vhat_y, R, 0., 0.)
+
+        if not _save_memory:
+            vhat_x = x/R
+            vhat_z = z * 0.
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, R, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only y direction: z is by definition 0.
+            vel_dir_unit_vector = np.array([0., vhat_y, 0.], dtype=object)
+
+        return vel_dir_unit_vector
+
+
+
+class AzimuthalPlanarRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for a planar radial flow, with radial flow only in the plane of the galaxy,
+        but that can vary azimuthally with angle phi relative to the galaxy major axis.
+
+    Parameters
+    ----------
+
+    m : int
+        Number of modes in the azimuthal pattern. m=0 gives a purely radial profile.
+
+    phi0 : float
+        Angle offset relative to the galaxy angle, so the azimuthal variation goes as
+        cos(m(phi_gal - phi0))
+
+    Notes
+    -----
+    The following functions must be specified, which take the galaxy radius R:
+        vr(R):  Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
+    """
+    m = DysmalParameter(default=2.)
+    phi0 = DysmalParameter(default=0.)
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cylindrical'
+    outputs = ('vrad',)
+
+    def __init__(self, vr=None, **kwargs):
+
+        self.vr = vr
+
+        super(AzimuthalPlanarRadialFlow, self).__init__(**kwargs)
+
+    def evaluate(self, x, y, z, m, phi0):
+        """Evaluate the radial velocity as a function of position x, y, z"""
+        phi0_rad = phi0 * np.pi / 180.
+        phi_gal_rad = utils.get_geom_phi_rad_polar(x, y)
+        R = np.sqrt(x**2 + y**2)
+        vel = self.vr(R) * np.cos(m*(phi_gal_rad-phi0_rad))
+
+        return vel
+
+    def velocity(self, x, y, z):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.m, self.phi0)
+
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a planar uniform radial flow, this is the +Rhat direction, in cylindrical coordinates
+            (R,phi,z).
+        """
+
+        R = np.sqrt(x ** 2 + y ** 2)
+
+        vhat_y = y/R
+
+        # Excise rgal=0 values
+        vhat_y = utils.replace_values_by_refarr(vhat_y, R, 0., 0.)
+
+        if not _save_memory:
+            vhat_x = x/R
+            vhat_z = z * 0.
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, R, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only y direction: z is by definition 0.
+            vel_dir_unit_vector = np.array([0., vhat_y, 0.], dtype=object)
 
         return vel_dir_unit_vector
 
