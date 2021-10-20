@@ -25,7 +25,7 @@ except:
     from . import utils
 
 __all__ = ['BiconicalOutflow', 'UnresolvedOutflow', 'UniformRadialFlow',
-           'UniformBarFlow', 'SpiralDensityWave']
+           'UniformBarFlow', 'VariableXBarFlow', 'SpiralDensityWave']
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
@@ -433,12 +433,8 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
 
     bar_width : float
         Width of the bar, in kpc.
-        So bar velocity only is nonzero between -bar_width/2 < ygal  < bar_width/2.
+        So bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
 
-    Notes
-    -----
-    This model simply adds a constant radial velocity component
-    to all of the positions in the galaxy.
     """
 
     vbar = DysmalParameter(default=30.)
@@ -510,6 +506,102 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
         return vel_dir_unit_vector
 
 
+class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for flow along a bar, along some axis in the galaxy midplane,
+        with flow velocity that varies with bar distance |xbar| (under reflection symmetry).
+
+    Parameters
+    ----------
+
+    phi : float
+        Azimuthal angle of bar, counter-clockwise from blue major axis. In degrees.
+        Default is 90 (eg, along galaxy minor axis)
+
+    bar_width : float
+        Width of the bar, in kpc.
+        So bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
+
+    Notes
+    -----
+    The following function must also be passed when setting up the model,
+    which takes the bar coordinate xbar as an input:
+        - vbar(xbar)      [Amplidute of flow velocity as a function of bar coordinate |xbar|.
+                           vbar > 0 for outflow, vbar < 0 for inflow.]
+
+    """
+
+    phi = DysmalParameter(default=90.)
+    bar_width = DysmalParameter(default=2.)
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cartesian'
+    outputs = ('vflow',)
+
+    def __init__(self, vbar=None, **kwargs):
+
+        # Set function: MUST TAKE |xbar| as input!
+        self.vbar = vbar
+
+        super(VariableXBarFlow, self).__init__(**kwargs)
+
+    def evaluate(self, x, y, z, phi, bar_width):
+        """Evaluate the bar velocity amplitude as a function of position x, y, z"""
+
+        phi_rad = phi * np.pi / 180.
+        # Rotate by phi_rad:
+        xbar =   np.cos(phi_rad) * x + np.sin(phi_rad) * y
+        ybar = - np.sin(phi_rad) * x + np.cos(phi_rad) * y
+
+        vel = self.vbar(np.abs(xbar))
+        if len(ybar.shape) > 0:
+            # Array-like inputs
+            vel[np.abs(ybar) > 0.5*bar_width] = 0.
+        else:
+            # Float inputs:
+            if np.abs(ybar) > 0.5*bar_width:
+                vel = 0.
+
+        return vel
+
+    def velocity(self, x, y, z):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.phi, self.bar_width)
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the galaxy/bar reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a bar uniform flow, this is the sign(xbar) direction, in cartesian coordinates.
+        """
+        # Rotate by phi_rad:
+        phi_rad = self.phi * np.pi / 180.
+        xbar = np.cos(phi_rad) * x + np.sin(phi_rad) * y
+        if not _save_memory:
+            vel_dir_unit_vector = np.array([ np.cos(phi_rad)*np.sign(xbar),
+                                             np.sin(phi_rad)*np.sign(xbar), z*0.])
+        else:
+            # Only return y direction
+            vel_dir_unit_vector = np.array([ 0., np.sin(phi_rad)*np.sign(xbar), 0.], dtype=object)
+
+
+        return vel_dir_unit_vector
+
 
 class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
@@ -517,9 +609,35 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
     Parameters
     ----------
+    m : int
+        Number of photometric/density spiral arms.
+
+    cs : float
+        Sound speed of medium, in km/s.
+
+    epsilon : float
+        Density contrast of perturbation (unitless).
+
+    Om_p : float
+        Angular speed of the driving force, :math:`\Omega_p`.
+
+    phi0 : float, optional
+        Angle offset of the arm winding, in degreeds. Default: 0.
 
     Notes
     -----
+    This model is implemented following the derivation given in the Appendix of
+    Davies et al. 2009, ApJ, 702, 114.
+
+    Functions for the following must also be passed when setting up the model,
+    which take the midplane galaxy radius R as an input:
+        - Vrot(R)      [Unperturbed rotation velocity of the galaxy]
+        - dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.]
+        - rho0(R)      [Unperturbed midplane density profile of the galaxy]
+        - f(R)         [Function describing the spiral shape, :math:`m\phi = f(R)`,
+                        with :math:`k \equiv df/dR`.]
+        - k(R)         [Function for the radial wavenumber]
+
     """
 
     m = DysmalParameter(default=2., bounds=(0, None))       # Number of photometric arms
@@ -536,7 +654,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
     def __init__(self, Vrot=None, rho0=None,
                  f=None, k=None, dVrot_dR=None,
-                **kwargs):
+                 **kwargs):
 
         # Set functions: MUST TAKE R as input!
         self.Vrot = Vrot
