@@ -1495,21 +1495,52 @@ class ModelSet:
                 #########################
 
                 #######
-                # Higher order components: those that follow general geometry
-                #   (and have same light distribution)
+                # Higher order components: those that have same light distribution
                 for cmp_n in self.higher_order_components:
                     comp = self.higher_order_components[cmp_n]
                     cmps_hiord_geoms = list(self.higher_order_geometries.keys())
 
-                    if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
-                        ## Use general geometry:
-
-                        v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc)
-                        if comp._spatial_type != 'unresolved':
-                            v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
-                                                                               xgal, ygal, zgal)
+                    ####
+                    if (not comp._separate_light_profile) | \
+                        (comp._higher_order_type.lower().strip() == 'perturbation'):
+                        if (comp.name not in cmps_hiord_geoms):
+                            ## Use general geometry:
+                            v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc)
+                            if comp._spatial_type != 'unresolved':
+                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                                                                   xgal, ygal, zgal)
+                            else:
+                                v_hiord_LOS = v_hiord
                         else:
-                            v_hiord_LOS = v_hiord
+                            ## Own geometry:
+                            geom = self.higher_order_geometries[comp.name]
+
+                            nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                                        nx_sky_samp, ny_sky_samp, transform_method, angle='sin')
+                            sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
+
+                            # Apply the geometric transformation to get higher order coordinates
+                            # Account for oversampling
+                            geom.xshift = geom.xshift.value * oversample
+                            geom.yshift = geom.yshift.value * oversample
+                            xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                                            xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
+
+                            # Profiles need positions in kpc
+                            v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
+
+                            # LOS projection
+                            if comp._spatial_type != 'unresolved':
+                                v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                                xhiord, yhiord, zhiord)
+                            else:
+                                v_hiord_LOS = v_hiord
+
+                            # Remove the oversample from the geometry xyshift
+                            geom.xshift = geom.xshift.value / oversample
+                            geom.yshift = geom.yshift.value / oversample
+
+                            sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
                         #   No systemic velocity here bc this is relative to
                         #    the center of the galaxy at rest already
@@ -1581,6 +1612,7 @@ class ModelSet:
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
                 sigmar_transf = self.dispersion_profile(rgal_final*to_kpc)
 
+
                 if zcalc_truncate:
                     # cos_inc = np.cos(self.geometry.inc*np.pi/180.)
                     # maxr_y_final = np.max(np.array([maxr*1.5, np.min(
@@ -1629,29 +1661,58 @@ class ModelSet:
                     # -----------------------
 
                     #######
-                    # Higher order components: those that follow general geometry
-                    #   (and have same light distribution)
+                    # Higher order components: those that have same light distribution
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
 
-                        if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
-                            # Use general geometry:
-
-                            # Get velocity of higher-order component
-                            v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc, zgal_finial*to_kpc)
-                            # Project along LOS
-                            if comp._spatial_type != 'unresolved':
-                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                        ####
+                        if (not comp._separate_light_profile) | \
+                            (comp._higher_order_type.lower().strip() == 'perturbation'):
+                            if (comp.name not in cmps_hiord_geoms):
+                                ## Use general geometry:
+                                v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
+                                                    zgal_final*to_kpc)
+                                if comp._spatial_type != 'unresolved':
+                                    v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
+                                else:
+                                    v_hiord_LOS = v_hiord
                             else:
-                                v_hiord_LOS = v_hiord
+                                ## Own geometry:
+                                geom = self.higher_order_geometries[comp.name]
+
+                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                                            nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
+                                sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
+
+                                # Apply the geometric transformation to get higher order coordinates
+                                # Account for oversampling
+                                geom.xshift = geom.xshift.value * oversample
+                                geom.yshift = geom.yshift.value * oversample
+                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                                                xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
+
+                                # Profiles need positions in kpc
+                                v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
+
+                                # LOS projection
+                                if comp._spatial_type != 'unresolved':
+                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                                    xhiord, yhiord, zhiord)
+                                else:
+                                    v_hiord_LOS = v_hiord
+
+                                # Remove the oversample from the geometry xyshift
+                                geom.xshift = geom.xshift.value / oversample
+                                geom.yshift = geom.yshift.value / oversample
+
+                                sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
-                            vobs_mass += v_hiord_LOS
+                            vobs_mass_transf += v_hiord_LOS
                     #######
-
 
                     #######
                     # Truncate in the z direction by flagging what pixels to include in propogation
@@ -1686,25 +1747,57 @@ class ModelSet:
                     # -----------------------
 
                     #######
-                    # Higher order components: those that follow general geometry
-                    #   (and have same light distribution)
+                    # Higher order components: those that have same light distribution
                     for cmp_n in self.higher_order_components:
                         comp = self.higher_order_components[cmp_n]
                         cmps_hiord_geoms = list(self.higher_order_geometries.keys())
 
-                        if (comp.name not in cmps_hiord_geoms) & (not comp._separate_light_profile):
-                            # Use general geometry:
-
-                            v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc, zgal_final*to_kpc)
-                            if comp._spatial_type != 'unresolved':
-                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                        ####
+                        if (not comp._separate_light_profile) | \
+                            (comp._higher_order_type.lower().strip() == 'perturbation'):
+                            if (comp.name not in cmps_hiord_geoms):
+                                ## Use general geometry:
+                                v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
+                                                    zgal_final*to_kpc)
+                                if comp._spatial_type != 'unresolved':
+                                    v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
+                                else:
+                                    v_hiord_LOS = v_hiord
                             else:
-                                v_hiord_LOS = v_hiord
+                                ## Own geometry:
+                                geom = self.higher_order_geometries[comp.name]
+
+                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                                            nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
+                                sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
+
+                                # Apply the geometric transformation to get higher order coordinates
+                                # Account for oversampling
+                                geom.xshift = geom.xshift.value * oversample
+                                geom.yshift = geom.yshift.value * oversample
+                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                                                xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
+
+                                # Profiles need positions in kpc
+                                v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
+
+                                # LOS projection
+                                if comp._spatial_type != 'unresolved':
+                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                                    xhiord, yhiord, zhiord)
+                                else:
+                                    v_hiord_LOS = v_hiord
+
+                                # Remove the oversample from the geometry xyshift
+                                geom.xshift = geom.xshift.value / oversample
+                                geom.yshift = geom.yshift.value / oversample
+
+                                sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
                             #   No systemic velocity here bc this is relative to
                             #    the center of the galaxy at rest already
-                            vobs_mass += v_hiord_LOS
+                            vobs_mass_transf += v_hiord_LOS
                     #######
 
                     # Do complete cube propogation calculation
@@ -1717,31 +1810,33 @@ class ModelSet:
 
 
         #######
-        # Higher order components: those that DON'T follow general geometry,
-        #                          or have OWN light distribution
+        # Higher order components: those that have OWN light distribution, aren't perturbations
         for cmp_n in self.higher_order_components:
             comp = self.higher_order_components[cmp_n]
             cmps_hiord_geoms = list(self.higher_order_geometries.keys())
             cmps_hiord_disps = list(self.higher_order_dispersions.keys())
 
             _do_comp = False
-            if (comp.name in cmps_hiord_geoms):
-                # Own geometry + light distribution
-                _do_comp = True
-                geom = self.higher_order_geometries[comp.name]
-            elif (comp.name not in cmps_hiord_geoms) & (comp._separate_light_profile):
-                # Own light distribution, uses galaxy geometry
-                _do_comp = True
-                geom = self.geometry
-                logger.warning("The case of higher order component using galaxy geometry "
-                               "but own light profile has not been tested")
+            if (comp._separate_light_profile) & (comp._higher_order_type.lower().strip() != 'perturbation'):
+                if (comp.name in cmps_hiord_geoms):
+                    # Own geometry + light distribution
+                    _do_comp = True
+                    geom = self.higher_order_geometries[comp.name]
+                elif (comp.name not in cmps_hiord_geoms):
+                    # Own light distribution, uses galaxy geometry
+                    _do_comp = True
+                    geom = self.geometry
+                    logger.warning("The case of higher order component using galaxy geometry "
+                                   "but own light profile has not been tested")
 
             ######
             # Catch failure condition: _higher_order_type = 'perturbation' must NOT be included here,
             #       but rather above as a direct perturbation to the mass compoonent velocities.
             if _do_comp & (comp._higher_order_type.lower().strip() == 'perturbation'):
                 msg = "Component with comp._higher_order_type = 'perturbation' "
-                msg += "must NOT have own geometry or separate light profile!"
+                msg += "must NOT have separate light profile!\n"
+                msg += "If comp has own geometry, calculations still must happen "
+                msg += "during the mass model cube creation (as this is a perturbation)."
                 raise ValueError(msg)
 
             if _do_comp:
@@ -1749,7 +1844,7 @@ class ModelSet:
                 # Just create extra cube using the DIRECT calculation method
 
                 nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(geom,
-                            nx_sky_samp, ny_sky_samp, transform_method, angle='sin')
+                            nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
 
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
 
@@ -1759,8 +1854,6 @@ class ModelSet:
                 geom.yshift = geom.yshift.value * oversample
                 xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
                                 xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
-
-                #r_hiord = np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)
 
                 # Profiles need positions in kpc
                 v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
