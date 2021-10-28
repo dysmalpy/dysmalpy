@@ -597,10 +597,10 @@ class LSF(u.Quantity):
                 dispersion = dispersion
             else:
                 logger.warning("Assuming dispersion has been specified in "
-                               "km/s.")
+                               "{}.".format(default_unit))
                 dispersion = dispersion * default_unit
 
-        self = super(LSF, cls).__new__(cls, dispersion.value, u.km/u.s)
+        self = super(LSF, cls).__new__(cls, dispersion.value, default_unit)
         self._dispersion = dispersion
         self.default_unit = default_unit
 

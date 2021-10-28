@@ -2314,8 +2314,12 @@ def plot_channel_maps_3D_cube(gal,
     # center slice: flux limits:
     ind = int(np.round((len(v_slice_lims_arr)-2)/2.))
     v_slice_lims = v_slice_lims_arr[ind:ind+2]
-    subcube = gal.data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
-    im = subcube.moment0().value * gal.data.mask
+    if show_data:
+        subcube = gal.data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+        im = subcube.moment0().value * gal.data.mask
+    else:
+        subcube = gal.model_data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+        im = subcube.moment0().value * gal.model_data.mask
     flux_lims = [im.min(), im.max()]
     fac = 1.
     immax = np.max(np.abs(im))
