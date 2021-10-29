@@ -54,10 +54,21 @@ class _DysmalModel(Model):
     def __setstate__(self, state):
         # Compatibility hack, to handle the changed galaxy structure
         #    (properties, not attributes for data[*], instrument)
-
         self.__dict__ = state
 
-        # Compatibility hack, to handle the changes in astropy.modeling from v3 to v4
+        # Compatibility hacks, to handle the changes in astropy.modeling from v3 to v4
+        if '_inputs' not in state.keys():
+            #inputs = ('x', 'y', 'z') or ('x',)
+            if len(state['_input_units_strict'].keys()) == 1:
+                self.__dict__['_inputs'] =  ('x',)
+            elif len(state['_input_units_strict'].keys()) == 3:
+                self.__dict__['_inputs'] =  ('x', 'y', 'z')
+        if '_outputs' not in state.keys():
+            # Should only be the 1D case
+            if len(state['_input_units_strict'].keys()) == 1:
+                self.__dict__['_outputs'] =  ('y',)
+
+
         if not self.param_names:
             pass
         else:
@@ -117,7 +128,7 @@ class _DysmalFittable3DModel(_DysmalModel):
     col_fit_deriv = True
     fittable = True
 
-    #inputs = ('x', 'y', 'z')
+    # inputs = ('x', 'y', 'z')
     n_inputs = 3
 
 

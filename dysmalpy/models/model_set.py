@@ -414,23 +414,25 @@ class ModelSet:
             migrate_keys = ['outflow', 'flow']
             ends = ['', '_geometry', '_dispersion']
             for mkeyb in migrate_keys:
-                for e in ends:
-                    mkey = mkeyb+e
-                    if state[mkey] is not None:
-                        if e == '':
-                            self.higher_order_components[state[mkey].name] = state[mkey]
-                        elif e == '_geometry':
-                            self.higher_order_geometries[state[mkeyb].name] = state[mkey]
-                        elif e == '_dispersion':
-                            self.higher_order_dispersions[state[mkeyb].name] = state[mkey]
-                        self.mass_components[state[mkey].name] = False
+                if mkeyb in state.keys():
+                    for e in ends:
+                        mkey = mkeyb+e
+                        if state[mkey] is not None:
+                            if e == '':
+                                self.higher_order_components[state[mkey].name] = state[mkey]
+                            elif e == '_geometry':
+                                self.higher_order_geometries[state[mkeyb].name] = state[mkey]
+                            elif e == '_dispersion':
+                                self.higher_order_dispersions[state[mkeyb].name] = state[mkey]
+                            self.mass_components[state[mkey].name] = False
 
             # Cleanup old names:
             del_keys = ['outflow', 'outflow_geometry', 'outflow_dispersion', 'outflow_flux',
                         'inflow', 'inflow_geometry', 'inflow_dispersion', 'inflow_flux',
                         'flow', 'flow_geometry', 'flow_dispersion', 'flow_flux']
             for dkey in del_keys:
-                del self.__dict__[dkey]
+                if dkey in self.__dict__.keys():
+                    del self.__dict__[dkey]
 
 
 

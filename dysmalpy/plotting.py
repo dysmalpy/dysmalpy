@@ -67,7 +67,7 @@ _kwargs_contour_defaults = { 'colors_cont': 'black',
                             'lw_cont': 0.75,
                             'delta_cont_v': 25.,
                             'delta_cont_disp': 25.,
-                            'delta_cont_flux': 5.,
+                            'delta_cont_flux': 20., #5.,
                             ####
                             'lw_cont_minor': 0.2,
                             'alpha_cont_minor': 1.,
@@ -895,11 +895,16 @@ def plot_data_model_comparison_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap = cm.get_cmap("Spectral_r").copy()
-    cmap.set_bad(color='k')
-    color_annotate = 'white'
+
+    # color_bad = 'black'
+    # color_annotate = 'white'
+    color_bad = 'white'
+    color_annotate = 'black'
+
+    cmap.set_bad(color=color_bad)
 
     cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
-    cmap_resid.set_bad(color='k')
+    cmap_resid.set_bad(color=color_bad)
 
 
 
@@ -2916,6 +2921,7 @@ def plot_model_2D(gal,
             inst_corr=True,
             show_contours=True,
             show_ruler=True,
+            apply_mask=True,
             ruler_loc='lowerleft',
             **kwargs_galmodel):
 
@@ -3026,16 +3032,22 @@ def plot_model_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap = cm.get_cmap("Spectral_r").copy()
-    cmap.set_bad(color='k')
-    color_annotate = 'black'
+    # cmap.set_bad(color='k')
+    # color_annotate = 'white'
 
+    cmap.set_bad(color='white')
+    color_annotate = 'black'
 
     for j in range(len(keyyarr)):
         msk = np.isfinite(gal.model_data.data[keyyarr[j]])
+        # Also use mask if defined:
+        msk[~gal.model_data.mask] = False
         grid = grid_arr[j]
 
         for ax, k in zip(grid, keyxarr):
             im = gal.model_data.data[keyyarr[j]].copy()
+            if apply_mask:
+                im[~msk] = np.NaN
             if keyyarr[j] == 'flux':
                 vmin = flux_vmin
                 vmax = flux_vmax
@@ -3451,6 +3463,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
         vcrop_value = 800.,
         inst_corr=True,
         show_contours=True,
+        apply_mask=True,
         **kwargs):
 
     # Set contour defaults, if not specifed:
@@ -3518,11 +3531,15 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     int_mode = "nearest"
     origin = 'lower'
     cmap = cm.get_cmap("Spectral_r").copy()
-    cmap.set_bad(color='k')
+    bad_color = 'white'
+    color_annotate = 'black'
+    # bad_color = 'black'
+    # color_annotate = 'white'
+    cmap.set_bad(color=bad_color)
 
 
     cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
-    cmap_resid.set_bad(color='k')
+    cmap_resid.set_bad(color=bad_color)
     cmap_resid.set_over(color='magenta')
     cmap_resid.set_under(color='blueviolet')
 
@@ -3592,33 +3609,31 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                 elif (k == 'gal2'):
                     gal = gal2
                 if keyxarr[j] == 'velocity':
-                    im = gal.model_data.data['velocity']
-                    im[~gal.model_data.mask] = np.nan
+                    im = gal.model_data.data['velocity'].copy()
+                    im -= gal.model.geometry.vel_shift.value
                     vmin = vel_vmin
                     vmax = vel_vmax
                 elif keyxarr[j] == 'dispersion':
                     im = gal.model_data.data['dispersion'].copy()
                     im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
 
-                    im[~gal.model_data.mask] = np.nan
-
                     vmin = disp_vmin
                     vmax = disp_vmax
 
                 elif keyxarr[j] == 'flux':
                     im = gal.model_data.data['flux'].copy()
-                    im[~gal.model_data.mask] = np.nan
 
                     vmin = flux_vmin
                     vmax = flux_vmax
 
+                mask = gal.model_data.mask
                 cmaptmp = cmap
                 gal = None
 
             elif k == 'residual':
                 if keyxarr[j] == 'velocity':
-                    im = gal2.model_data.data['velocity'] - gal1.model_data.data['velocity']
-                    im[~gal1.model_data.mask] = np.nan
+                    im = gal2.model_data.data['velocity'].copy() - gal1.model_data.data['velocity'].copy()
+                    im -= gal2.model.geometry.vel_shift.value - gal1.model.geometry.vel_shift.value
                     if symmetric_residuals:
                         vmin = -max_residual
                         vmax = max_residual
@@ -3630,14 +3645,12 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                     im_model2 = np.sqrt(im_model2 ** 2 - inst_corr_sigma ** 2)
 
                     im = im_model2 - im_model1
-                    im[~gal1.model_data.mask] = np.nan
 
                     if symmetric_residuals:
                         vmin = -max_residual
                         vmax = max_residual
                 elif keyxarr[j] == 'flux':
                     im = gal2.model_data.data['flux'].copy() - gal1.model_data.data['flux'].copy()
-                    im[~gal1.model_data.mask] = np.nan
 
                     if symmetric_residuals:
                         if show_models:
@@ -3650,12 +3663,14 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                     vmin = im[np.isfinite(im)].min()
                     vmax = im[np.isfinite(im)].max()
 
+                mask = gal1.model_data.mask
                 cmaptmp = cmap_resid
 
             else:
                 raise ValueError("key not supported.")
 
-
+            if apply_mask:
+                im[~mask] = np.NaN
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=vmin, vmax=vmax, origin=origin)
 
@@ -3663,28 +3678,29 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                 ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
                             vmin=vmin, vmax=vmax, kwargs=kwargs)
 
-            # ++++++++++++++++++++++++++
-            imtmp = im.copy()
-            imtmp[gal1.model_data.mask] = vmax #vel_vmax
-            imtmp[~gal1.model_data.mask] = np.nan
-
-            # Create an alpha channel of linearly increasing values moving to the right.
-            alphas = np.ones(im.shape)
-            alphas[~gal1.model_data.mask] = alpha_masked
-            alphas[gal1.model_data.mask] = 1.-alpha_unmasked
-            # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-            imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
-            imtmpalph = cm.Greys_r(imtmpalph)
-            # Now set the alpha channel to the one we created above
-            imtmpalph[..., -1] = alphas
-
-            immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-            # ++++++++++++++++++++++++++
+            # # ++++++++++++++++++++++++++
+            # imtmp = im.copy()
+            # imtmp[gal1.model_data.mask] = vmax #vel_vmax
+            # imtmp[~gal1.model_data.mask] = np.nan
+            #
+            # # Create an alpha channel of linearly increasing values moving to the right.
+            # alphas = np.ones(im.shape)
+            # alphas[~gal1.model_data.mask] = alpha_masked
+            # alphas[gal1.model_data.mask] = 1.-alpha_unmasked
+            # # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+            # imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
+            # imtmpalph = cm.Greys_r(imtmpalph)
+            # # Now set the alpha channel to the one we created above
+            # imtmpalph[..., -1] = alphas
+            #
+            # immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+            # # ++++++++++++++++++++++++++
 
 
             ####################################
             # Show a 1arcsec line:
-            ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1., ruler_loc='lowerright', color='black')
+            ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                      ruler_loc='lowerright', color=color_annotate)
             ####################################
 
 
