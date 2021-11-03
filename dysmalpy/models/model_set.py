@@ -401,6 +401,12 @@ class ModelSet:
         #    higher order components in ModelSet.simulate_cube().
         self.__dict__ = state
 
+        # Check param name order, in case it's changed since the object was pickled:
+        for key in self.components.keys():
+            if list(self.components[key]._param_metrics.keys()) != list(self.components[key].param_names):
+                # Reset param name order to match slice order:
+                self.components[key].param_names = tuple(self.components[key]._param_metrics.keys())
+
         # quick test if necessary to migrate:
         if 'higher_order_components' not in state.keys():
             new_keys = ['higher_order_components', 'higher_order_geometries',
@@ -433,7 +439,6 @@ class ModelSet:
             for dkey in del_keys:
                 if dkey in self.__dict__.keys():
                     del self.__dict__[dkey]
-
 
 
     def add_component(self, model, name=None, light=False,
@@ -653,12 +658,17 @@ class ModelSet:
         except ValueError:
             raise ValueError('Parameter is not part of model.')
 
+        # Check to see if parameter was fixed or free previously:
+        prevstate = self.fixed[model_name][param_name]
+
         self.components[model_name].fixed[param_name] = fix
         self.fixed[model_name][param_name] = fix
-        if fix:
-            self.nparams_free -= 1
-        else:
-            self.nparams_free += 1
+
+        if prevstate != fix:
+            if fix:
+                self.nparams_free -= 1
+            else:
+                self.nparams_free += 1
 
     def update_parameters(self, theta):
         """
