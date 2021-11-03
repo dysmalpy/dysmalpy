@@ -524,7 +524,7 @@ class AzimuthalPlanarRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittab
         vr(R):  Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
     """
     m = DysmalParameter(default=2.)
-    phi0 = DysmalParameter(default=0.)
+    phi0 = DysmalParameter(default=0., bounds=(0.,360.))
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False
@@ -615,8 +615,8 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
 
     vbar = DysmalParameter(default=30.)
-    phi = DysmalParameter(default=90.)
-    bar_width = DysmalParameter(default=2.)
+    phi = DysmalParameter(default=90., bounds=(0.,360.))
+    bar_width = DysmalParameter(default=2., bounds=(0., None))
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False
@@ -708,8 +708,8 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
 
     """
 
-    phi = DysmalParameter(default=90.)
-    bar_width = DysmalParameter(default=2.)
+    phi = DysmalParameter(default=90., bounds=(0.,360.))
+    bar_width = DysmalParameter(default=2., bounds=(0., None))
 
     _spatial_type = 'resolved'
     _multicoord_velocity = False

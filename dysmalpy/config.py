@@ -66,6 +66,8 @@ class Config_create_model_data(ConfigBase):
         self.skip_downsample = False
         self.partial_aperture_weight = False
         #self.partial_weight = False   ## used for rot curve plotting -- but only passed to aperture
+        self.gauss_extract_with_c = None # True or False or None, whether to use faster C++ 1d gaussian spectral fitting
+
 
 class Config_simulate_cube(ConfigBase):
     """
@@ -107,8 +109,6 @@ class Config_simulate_cube(ConfigBase):
         self.lensing_imra = None # lensing image plane image center ra
         self.lensing_imdec = None # lensing image plane image center dec
         self.lensing_transformer = None # a placeholder for the object pointer
-        self.gauss_extract_with_c = None # True or False or None, whether to use faster C++ 1d gaussian spectral fitting
-
 
 
 class ConfigFitBase(ConfigBase):
