@@ -2137,17 +2137,18 @@ def _make_emcee_sampler_dict_v2(sampler, nBurn=0):
                      'acceptance_fraction': sampler.acceptance_fraction,
                      'acor_time': acor_time }
 
-    if len(sampler.blobs) > 0:
-        sampler_dict['blobs'] = np.array(sampler.blobs[nBurn:])
+    if sampler.blobs is not None:
+        if len(sampler.blobs) > 0:
+            sampler_dict['blobs'] = np.array(sampler.blobs[nBurn:])
 
-        if len(np.shape(sampler.blobs)) == 2:
-            # Only 1 blob: nSteps, nWalkers:
-            sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1)
-        elif len(np.shape(sampler.blobs)) == 3:
-            # Multiblobs; nSteps, nWalkers, nBlobs
-            sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
-        else:
-            raise ValueError("Sampler blob length not recognized")
+            if len(np.shape(sampler.blobs)) == 2:
+                # Only 1 blob: nSteps, nWalkers:
+                sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1)
+            elif len(np.shape(sampler.blobs)) == 3:
+                # Multiblobs; nSteps, nWalkers, nBlobs
+                sampler_dict['flatblobs'] = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
+            else:
+                raise ValueError("Sampler blob length not recognized")
 
 
     return sampler_dict
@@ -2180,19 +2181,20 @@ def _make_emcee_sampler_dict_v3(sampler, nBurn=0):
                     'acceptance_fraction':  sampler.acceptance_fraction,
                     'acor_time':            acor_time }
 
-    if len(sampler.blobs) > 0:
-        if len(np.shape(sampler.blobs)) == 2:
-            # Only 1 blob: nSteps, nWalkers:
-            sampler_dict['blobs'] = sampler.blobs[nBurn:, :]
-            flatblobs = np.array(sampler_dict['blobs']).reshape(-1)
-        elif len(np.shape(sampler.blobs)) == 3:
-            # Multiblobs; nSteps, nWalkers, nBlobs
-            sampler_dict['blobs'] = sampler.blobs[nBurn:, :, :]
-            flatblobs = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
-        else:
-            raise ValueError("Sampler blob shape not recognized")
+    if sampler.blobs is not None:
+        if len(sampler.blobs) > 0:
+            if len(np.shape(sampler.blobs)) == 2:
+                # Only 1 blob: nSteps, nWalkers:
+                sampler_dict['blobs'] = sampler.blobs[nBurn:, :]
+                flatblobs = np.array(sampler_dict['blobs']).reshape(-1)
+            elif len(np.shape(sampler.blobs)) == 3:
+                # Multiblobs; nSteps, nWalkers, nBlobs
+                sampler_dict['blobs'] = sampler.blobs[nBurn:, :, :]
+                flatblobs = np.array(sampler_dict['blobs']).reshape(-1,np.shape(sampler.blobs)[2])
+            else:
+                raise ValueError("Sampler blob shape not recognized")
 
-        sampler_dict['flatblobs'] = flatblobs
+            sampler_dict['flatblobs'] = flatblobs
 
     return sampler_dict
 

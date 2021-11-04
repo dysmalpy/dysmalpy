@@ -35,6 +35,8 @@ G = apy_con.G
 Msun = apy_con.M_sun
 pc = apy_con.pc
 
+g_pc_per_Msun_kmssq = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
+
 # # +++++++++++++++++++++++++++++
 # # TEMP:
 # G = 6.67e-11 * u.m**3 / u.kg / (u.s**2)  #(unit='m3 / (kg s2)')
@@ -70,6 +72,60 @@ class DarkMatterHalo(MassModel):
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
     _subtype = 'dark_matter'
 
+    def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
+        self._z = z
+        self._cosmo = cosmo
+        self._set_hz()
+        super(DarkMatterHalo, self).__init__(**kwargs)
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+        # quick test if necessary to migrate:
+        if '_z' in state.keys():
+            pass
+        else:
+            migrate_keys = ['z', 'cosmo']
+            for mkey in migrate_keys:
+                if (mkey in state.keys()) and ('_{}'.format(mkey) not in state.keys()):
+                    self.__dict__['_{}'.format(mkey)] = state[mkey]
+                    del self.__dict__[mkey]
+
+        if '_hz' not in state.keys():
+            self._set_hz()
+
+    @property
+    def z(self):
+        return self._z
+
+    @z.setter
+    def z(self, value):
+        if value < 0:
+            raise ValueError("Redshift can't be negative!")
+        self._z = value
+
+        # Reset hz:
+        self._set_hz()
+
+    @property
+    def cosmo(self):
+        return self._cosmo
+
+    @cosmo.setter
+    def cosmo(self, new_cosmo):
+        if not isinstance(new_cosmo, apy_cosmo.FLRW):
+            raise TypeError("Cosmology must be an astropy.cosmology.FLRW "
+                            "instance.")
+        if new_cosmo is None:
+            self._cosmo = _default_cosmo
+        self._cosmo = new_cosmo
+
+        # Reset hz:
+        self._set_hz()
+
+    def _set_hz(self):
+        self._hz = self.cosmo.H(self.z).value
+
     def calc_rvir(self):
         r"""
         Calculate the virial radius based on virial mass and redshift
@@ -91,10 +147,11 @@ class DarkMatterHalo(MassModel):
         radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
         :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
         """
-        g_new_unit = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
-        hz = self.cosmo.H(self.z).value
-        rvir = ((10 ** self.mvirial * (g_new_unit * 1e-3) /
-                (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+        # hz = self.cosmo.H(self.z).value
+        # rvir = ((10 ** self.mvirial * (g_pc_per_Msun_kmssq * 1e-3) /
+        #         (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+        rvir = ((10 ** self.mvirial * (g_pc_per_Msun_kmssq * 1e-3) /
+                (10 * self._hz * 1e-3) ** 2) ** (1. / 3.))
 
         return rvir
 
@@ -156,7 +213,23 @@ class DarkMatterHalo(MassModel):
             if not np.isfinite(vsqr_dm_re_target):
                 mvirial = np.NaN
             else:
-                mtest = np.arange(-5, 50, 1.0)
+                #mtest = np.arange(-5, 50, 1.0)
+                try:
+                    if ((baryons.total_mass.value >= 8.) & (baryons.total_mass.value <=13.)):
+                        # mtest = np.arange(9., 17., 1.0)
+                        # mtest = np.append(-5., mtest)
+                        # mtest = np.append(mtest, 50.)
+                        rough_mvir = 2.4 - np.log10(1./self.fdm.value-1)+np.log10(0.5)+baryons.total_mass.value
+                        # mtest = np.arange(np.round(rough_mvir)-2., np.round(rough_mvir)+3., 1.0)
+                        #mtest = np.arange(np.round(rough_mvir)-1., np.round(rough_mvir)+1.5, 0.5)
+                        #mtest = np.arange(rough_mvir-1., rough_mvir+1.5, 0.5)
+                        mtest = np.arange(rough_mvir-0.25, rough_mvir+0.5, 0.25)
+                        mtest = np.append(-5., mtest)
+                        mtest = np.append(mtest, 50.)
+                    else:
+                        mtest = np.arange(-5, 50, 2.0)
+                except:
+                    mtest = np.arange(-5, 50, 2.0)
                 if adiabatic_contract:
                     vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
                     # TEST
@@ -253,16 +326,13 @@ class NFW(DarkMatterHalo):
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
-
-        self.z = z
-        self.cosmo = cosmo
-        super(NFW, self).__init__(**kwargs)
+        super(NFW, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
         """Mass density as a function of radius"""
 
         rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
+        rho0 = self.calc_rho0(rvirial=rvirial)
         rs = rvirial / self.conc
 
         return rho0 / (r / rs * (1 + r / rs) ** 2)
@@ -282,8 +352,8 @@ class NFW(DarkMatterHalo):
             Enclosed mass in solar units
         """
 
-        rho0 = self.calc_rho0()
         rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0(rvirial=rvirial)
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
 
@@ -292,7 +362,7 @@ class NFW(DarkMatterHalo):
 
         return aa*bb
 
-    def calc_rho0(self):
+    def calc_rho0(self, rvirial=None):
         r"""
         Normalization of the density distribution
 
@@ -301,7 +371,8 @@ class NFW(DarkMatterHalo):
         rho0 : float
             Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
         """
-        rvirial = self.calc_rvir()
+        if rvirial is None:
+            rvirial = self.calc_rvir()
         aa = 10**self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
         bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 
@@ -369,10 +440,7 @@ class TwoPowerHalo(DarkMatterHalo):
     _subtype = 'dark_matter'
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
-
-        self.z = z
-        self.cosmo = cosmo
-        super(TwoPowerHalo, self).__init__(**kwargs)
+        super(TwoPowerHalo, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
     def evaluate(self, r, mvirial, conc, alpha, beta, fdm):
         """ Mass density for the TwoPowerHalo"""
@@ -406,7 +474,7 @@ class TwoPowerHalo(DarkMatterHalo):
 
         return aa*bb
 
-    def calc_rho0(self):
+    def calc_rho0(self, rvirial=None):
         r"""
         Normalization of the density distribution
 
@@ -415,9 +483,10 @@ class TwoPowerHalo(DarkMatterHalo):
         rho0 : float
             Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
         """
+        if rvirial is None:
+            rvirial = self.calc_rvir()
 
-        rvir = self.calc_rvir()
-        rs = rvir/self.conc
+        rs = rvirial/self.conc
         aa = -10**self.mvirial/(4*np.pi*self.conc**(3-self.alpha)*rs**3)
         bb = (self.alpha - 3) / scp_spec.hyp2f1(3-self.alpha, self.beta-self.alpha, 4-self.alpha, -self.conc)
 
@@ -454,7 +523,11 @@ class TwoPowerHalo(DarkMatterHalo):
             vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
-            alphtest = np.arange(-50, 50, 1.)
+            # alphtest = np.arange(-50, 50, 1.)
+            alphtest = np.arange(0., 5., 1.0)
+            alphtest = np.append(-5., alphtest)
+            alphtest = np.append(alphtest, 50.)
+
             vtest = np.array([self._minfunc_vdm_alpha_from_fdm(alph, vsqr_dm_re_target, self.mvirial, self.conc,
                                     self.beta, self.z, r_fdm) for alph in alphtest])
 
@@ -526,9 +599,7 @@ class Burkert(DarkMatterHalo):
     _subtype = 'dark_matter'
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
-        self.z = z
-        self.cosmo = cosmo
-        super(Burkert, self).__init__(**kwargs)
+        super(Burkert, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
     def evaluate(self, r, mvirial, rB, fdm):
         """Mass density as a function of radius"""
@@ -716,8 +787,6 @@ class Einasto(DarkMatterHalo):
 
     def __init__(self, z=0, cosmo=_default_cosmo,
             Einasto_param='None', alphaEinasto=None, nEinasto=None, **kwargs):
-        self.z = z
-        self.cosmo = cosmo
 
         # Check whether at least *one* of alphaEinasto and nEinasto is set:
         if (alphaEinasto is None) & (nEinasto is None):
@@ -725,7 +794,7 @@ class Einasto(DarkMatterHalo):
         if (alphaEinasto is not None) & (nEinasto is not None) & (Einasto_param == 'None'):
             raise ValueError("If both 'alphaEinasto' and 'nEinasto' are set, must specify which is the fit variable with 'Einasto_param'")
 
-        super(Einasto, self).__init__(**kwargs)
+        super(Einasto, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
         # Setup the "alternating" of whether to use nEinasto or alphaEinasto:
         if (Einasto_param.lower() == 'neinasto') | (alphaEinasto is None):
@@ -746,7 +815,7 @@ class Einasto(DarkMatterHalo):
             nEinasto = 1./alphaEinasto
 
         rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
+        rho0 = self.calc_rho0(rvirial=rvirial)
         rs = rvirial / conc
         h = rs / np.power(2.*nEinasto, nEinasto)
 
@@ -776,7 +845,7 @@ class Einasto(DarkMatterHalo):
         rs = rvirial/self.conc
         h = rs / np.power(2.*self.nEinasto, self.nEinasto)
 
-        rho0 = self.calc_rho0()
+        rho0 = self.calc_rho0(rvirial=rvirial)
 
         # Explicitly substituted for s = r/h before doing s^(1/nEinasto)
         incomp_gam =  scp_spec.gammainc(3*self.nEinasto, 2.*self.nEinasto * np.power(r/rs, 1./self.nEinasto) ) \
@@ -786,7 +855,7 @@ class Einasto(DarkMatterHalo):
 
         return Menc
 
-    def calc_rho0(self):
+    def calc_rho0(self, rvirial=None):
         r"""
         Density at the scale length
 
@@ -795,11 +864,13 @@ class Einasto(DarkMatterHalo):
         rho0 : float
             Mass density at the scale radius in :math:`M_{\odot}/\rm{kpc}^3`
         """
-        rvir = self.calc_rvir()
-        rs = rvir/self.conc
+        if rvirial is None:
+            rvirial = self.calc_rvir()
+        rs = rvirial/self.conc
         h = rs / np.power(2.*self.nEinasto, self.nEinasto)
 
-        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, (2.*self.nEinasto) * np.power(self.conc, 1./self.nEinasto) ) \
+        incomp_gam =  scp_spec.gammainc(3*self.nEinasto, (2.*self.nEinasto) * \
+                        np.power(self.conc, 1./self.nEinasto) ) \
                         * scp_spec.gamma(3*self.nEinasto)
 
         rho0 = 10**self.mvirial / (4.*np.pi*self.nEinasto * np.power(h, 3.) * incomp_gam)
@@ -978,19 +1049,16 @@ class DekelZhao(DarkMatterHalo):
     _subtype = 'dark_matter'
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
-
-        self.z = z
-        self.cosmo = cosmo
-        super(DekelZhao, self).__init__(**kwargs)
+        super(DekelZhao, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
     def evaluate(self, r, mvirial, s1, c2, fdm):
         """ Mass density for the DekelZhao halo profile"""
 
-        rvir = self.calc_rvir()
-        rhoc = self.calc_rho0()
+        rvirial = self.calc_rvir()
         a, c = self.calc_a_c()
+        rhoc = self.calc_rho0(rvirial=rvirial, a=a, c=c)
 
-        rc = rvir / c
+        rc = rvirial / c
         x = r / rc
 
         return rhoc / (np.power(x, a) * np.power((1.+np.sqrt(x)), 2.*(3.5-a)))
@@ -1010,12 +1078,12 @@ class DekelZhao(DarkMatterHalo):
             Enclosed mass in solar units
         """
         mvir = 10**self.mvirial
-        rvir = self.calc_rvir()
+        rvirial = self.calc_rvir()
         a, c = self.calc_a_c()
 
-        rc = rvir / c
+        rc = rvirial / c
         x = r / rc
-        mu = self.calc_mu()
+        mu = self.calc_mu(a=a, c=c)
 
         return mu * mvir / (np.power(x, a-3.)*np.power((1.+np.sqrt(x)), 2.*(3.-a)))
 
@@ -1037,7 +1105,7 @@ class DekelZhao(DarkMatterHalo):
 
         return a, c
 
-    def calc_rho0(self):
+    def calc_rho0(self, rvirial=None, a=None, c=None):
         r"""
         Normalization of the density distribution, rho_c
 
@@ -1046,29 +1114,32 @@ class DekelZhao(DarkMatterHalo):
         rhoc : float
             Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
         """
-        a, c = self.calc_a_c()
+        if (a is None) or (c is None):
+            a, c = self.calc_a_c()
 
-        mu = self.calc_mu()
-        rhovirbar = self.calc_rhovirbar()
+        mu = self.calc_mu(a=a, c=c)
+        rhovirbar = self.calc_rhovirbar(rvirial=rvirial)
         rhocbar = c**3 * mu * rhovirbar
 
         return (1.-a/3.)*rhocbar
 
-    def calc_rhovirbar(self):
+    def calc_rhovirbar(self, rvirial=None):
         """
         Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
         """
         mvir = 10**self.mvirial
-        rvir = self.calc_rvir()
+        if rvirial is None:
+            rvirial = self.calc_rvir()
 
-        rhovirbar = (3.*mvir)/(4.*np.pi*(rvir**3))
+        rhovirbar = (3.*mvir)/(4.*np.pi*(rvirial**3))
         return rhovirbar
 
-    def calc_mu(self):
+    def calc_mu(self, a=None, c=None):
         """
         Subfunction for describing DZ profile
         """
-        a, c = self.calc_a_c()
+        if (a is None) or (c is None):
+            a, c = self.calc_a_c()
 
         mu = np.power(c, a-3.) * np.power((1.+np.sqrt(c)), 2.*(3.-a))
         return mu
@@ -1218,15 +1289,13 @@ class LinearNFW(DarkMatterHalo):
     fdm = DysmalParameter(default=-99.9, fixed=True, bounds=(0,1))
 
     def __init__(self, z=0, cosmo=_default_cosmo, **kwargs):
-        self.z = z
-        self.cosmo = cosmo
-        super(LinearNFW, self).__init__(**kwargs)
+        super(LinearNFW, self).__init__(z=z, cosmo=cosmo, **kwargs)
 
     def evaluate(self, r, mvirial, conc, fdm):
         """Mass density as a function of radius"""
 
         rvirial = self.calc_rvir()
-        rho0 = self.calc_rho0()
+        rho0 = self.calc_rho0(rvirial=rvirial)
         rs = rvirial / self.conc
 
         return rho0 / (r / rs * (1 + r / rs) ** 2)
@@ -1246,8 +1315,8 @@ class LinearNFW(DarkMatterHalo):
             Enclosed mass in solar units
         """
 
-        rho0 = self.calc_rho0()
         rvirial = self.calc_rvir()
+        rho0 = self.calc_rho0(rvirial=rvirial)
         rs = rvirial/self.conc
         aa = 4.*np.pi*rho0*rvirial**3/self.conc**3
 
@@ -1256,7 +1325,7 @@ class LinearNFW(DarkMatterHalo):
 
         return aa*bb
 
-    def calc_rho0(self):
+    def calc_rho0(self, rvirial=None):
         r"""
         Density at the scale radius
 
@@ -1265,7 +1334,8 @@ class LinearNFW(DarkMatterHalo):
         rho0 : float
             Mass density at the scale radius in :math:`M_{\odot}/\rm{kpc}^3`
         """
-        rvirial = self.calc_rvir()
+        if rvirial is None:
+            rvirial = self.calc_rvir()
         aa = self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
         bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 

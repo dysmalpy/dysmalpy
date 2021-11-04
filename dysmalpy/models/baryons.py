@@ -27,7 +27,7 @@ from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-           'sersic_menc_2D_proj', 'apply_noord_flat']
+           'sersic_menc_2D_proj', 'NoordFlat']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -194,42 +194,13 @@ def sersic_menc_2D_proj(r, mass, n, r_eff):
     return menc
 
 
-
-
-def apply_noord_flat(r, r_eff, mass, n, invq):
+##########################
+class NoordFlat(object):
     """
-    Calculate circular velocity for a thick Sersic component
+    Class to handle circular velocities / enclosed mass profiles for a thick Sersic component.
 
-    Parameters
-    ----------
-    r : float or array
-        Radius or radii at which to calculate the circular velocity in kpc
-
-    r_eff : float
-        Effective radius of the Sersic component in kpc
-
-    mass : float
-        Total mass of the Sersic component
-
-    n : float
-        Sersic index
-
-    invq : float
-        Ratio of the effective radius of the Sersic component in the midplane to the
-        effective radius in the z-direction
-
-    Returns
-    -------
-    vcirc : float or array
-        Circular velocity at each given `r`
-
-    Notes
-    -----
-    This function determines the circular velocity as a function of radius for
-    a Sersic component with a total mass, `mass`, Sersic index, `n`, and
-    an effective radius to scale height ratio, `invq`. This uses lookup tables
-    numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
-    properly accounted for the thickness of the mass component.
+    Lookup tables are numerically calculated from the derivations provided in
+    Noordermeer 2008 [1]_ which properly accounted for the thickness of the mass component.
 
     The lookup table provides rotation curves for Sersic components with
     `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
@@ -239,192 +210,518 @@ def apply_noord_flat(r, r_eff, mass, n, invq):
     References
     ----------
     .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+
+    Parameters
+    ----------
+    n : float
+        Sersic index
+
+    invq: float
+        Sersic index
+
     """
 
-    noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
-    noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
-                                 100])  # 1:1, 1:2, 1:3, ...flattening
+    def __init__(self, n=None, invq=None):
+        self._n = n
+        self._invq = invq
+        self._n_current = None
+        self._invq_current = None
 
-    nearest_n = noordermeer_n[
-        np.argmin(np.abs(noordermeer_n - n))]
-    nearest_q = noordermeer_invq[
-        np.argmin(np.abs(noordermeer_invq - invq))]
+        self.rho_interp_func = None
+        self.dlnrhodlnr_interp_func = None
+        self._rho_interp_type = None
+        self._dlnrhodlnr_interp_type = None
 
-    # Need to do this internally instead of relying on IDL save files!!
-    file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
-        nearest_n, nearest_q)
+        self._reset_interps()
 
-    #try:
-    if True:
+    @property
+    def n(self):
+        return self._n
+
+    @n.setter
+    def n(self, value):
+        if value < 0:
+            raise ValueError("Sersic index can't be negative!")
+        self._n = value
+
+        # Reset vcirc interp:
+        self._reset_interps()
+
+    @property
+    def invq(self):
+        return self._invq
+
+    @invq.setter
+    def invq(self, value):
+        if value < 0:
+            raise ValueError("Invq can't be negative!")
+        self._invq = value
+
+        # Reset vcirc interp:
+        self._reset_interps()
+
+    def _reset_interps(self):
+        self._set_vcirc_interp()
+        if self.rho_interp_func is not None:
+            self._set_rho_interp(interp_type=self._rho_interp_type)
+        if self.dlnrhodlnr_interp_func is not None:
+            self._set_dlnrhodlnr_interp(interp_type=self._dlnrhodlnr_interp_type)
+
+
+    def read_noord_flat_SAV(self):
+        """
+        Load table with circular velocity for a thick Sersic component
+        """
+        noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
+        noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
+                                     100])  # 1:1, 1:2, 1:3, ...flattening
+
+        nearest_n = noordermeer_n[np.argmin(np.abs(noordermeer_n - self.n))]
+        nearest_q = noordermeer_invq[np.argmin(np.abs(noordermeer_invq - self.invq))]
+
+        # Need to do this internally instead of relying on IDL save files!!
+        file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
+            nearest_n, nearest_q)
+
         restNVC = scp_io.readsav(file_noord)
-        N2008_vcirc = restNVC.N2008_vcirc
-        N2008_rad = restNVC.N2008_rad
-        N2008_Re = restNVC.N2008_Re
-        N2008_mass = restNVC.N2008_mass
 
-        v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+        return restNVC
+
+    def _set_vcirc_interp(self):
+        # Only set if n, invq has changed:
+        if ((self._n != self._n_current) | (self._invq != self._invq_current)):
+            self._n_current = self._n
+            self._invq_current = self._invq
+
+            restNVC = self.read_noord_flat_SAV()
+
+            N2008_vcirc = restNVC.N2008_vcirc
+            N2008_rad = restNVC.N2008_rad
+
+            self.N2008_Re = restNVC.N2008_Re
+            self.N2008_mass = restNVC.N2008_mass
+
+            self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+                                           fill_value="extrapolate")
+
+
+    def apply_noord_flat(self, r, r_eff, mass):
+        """
+        Calculate circular velocity for a thick Sersic component
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        r_eff : float
+            Effective radius of the Sersic component in kpc
+
+        mass : float
+            Total mass of the Sersic component
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity at each given `r`
+
+        Notes
+        -----
+        This function determines the circular velocity as a function of radius for
+        a Sersic component with a total mass, `mass`, Sersic index, `n`, and
+        an effective radius to scale height ratio, `invq`. This uses lookup tables
+        numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
+        properly accounted for the thickness of the mass component.
+
+        References
+        ----------
+        .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+        """
+        vcirc = (self.vcirc_interp(r / r_eff * self.N2008_Re) * np.sqrt(
+                 mass / self.N2008_mass) * np.sqrt(self.N2008_Re / r_eff))
+
+        return vcirc
+
+
+    def read_sersic_VC_table(self):
+        # Use the "typical" collection of table values:
+        table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
+        table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
+                        1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
+
+        nearest_n = table_n[ np.argmin( np.abs(table_n - self.n) ) ]
+        nearest_invq = table_invq[ np.argmin( np.abs( table_invq - self.invq) ) ]
+
+        file_sersic = _dir_sersic_profile_mass_VC + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
+
+        try:
+            t = Table.read(file_sersic)
+        except:
+            raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic,
+                        _dir_sersic_profile_mass_VC, 'SERSIC_PROFILE_MASS_VC_DATADIR'))
+
+        return t[0]
+
+
+    def _set_vcirc_interp_new(self):
+        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
+        table = self.read_sersic_VC_table()
+
+        N2008_vcirc =   table['vcirc']
+        N2008_rad =     table['R']
+        self.N2008_Re =      table['Reff']
+        self.N2008_mass =    table['total_mass']
+
+        self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
                                        fill_value="extrapolate")
-        vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
-                 mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
+        # vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
+        #          mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
 
-    # except:
-    #     vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
-
-    return vcirc
+        # return vcirc
 
 
-def get_sersic_VC_table_new(n, invq):
-    # Use the "typical" collection of table values:
-    table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
-    table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
-                    1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
+    def rho(self, r, Reff, total_mass, interp_type='linear'):
+        if (self._rho_interp_type != interp_type) | (self.rho_interp_func is None):
+            # Update rho funcs:
+            self._set_rho_interp(interp_type=interp_type)
 
-    nearest_n = table_n[ np.argmin( np.abs(table_n - n) ) ]
-    nearest_invq = table_invq[ np.argmin( np.abs( table_invq - invq) ) ]
-
-    file_sersic = _dir_sersic_profile_mass_VC + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
-
-    try:
-        t = Table.read(file_sersic)
-    except:
-        raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic,
-                    _dir_sersic_profile_mass_VC, 'SERSIC_PROFILE_MASS_VC_DATADIR'))
-
-    return t[0]
-
-def apply_noord_flat_new(r, r_eff, mass, n, invq):
-    # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
-    table = get_sersic_VC_table_new(n, invq)
-
-    N2008_vcirc =   table['vcirc']
-    N2008_rad =     table['r']
-    N2008_Re =      table['Reff']
-    N2008_mass =    table['total_mass']
-
-    v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-                                   fill_value="extrapolate")
-    vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
-             mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
-
-    return vcirc
-
-def sersic_curve_rho(r, Reff, total_mass, n, invq, interp_type='linear'):
-    table = get_sersic_VC_table_new(n, invq)
-
-    table_rho =     table['rho']
-    table_rad =     table['r']
-    table_Reff =    table['Reff']
-    table_mass =    table['total_mass']
-
-    # Drop nonfinite parts:
-    whfin = np.where(np.isfinite(table_rho))[0]
-    table_rho = table_rho[whfin]
-    table_rad = table_rad[whfin]
-
-    # Ensure it's an array:
-    if isinstance(r*1., float):
-        rarr = np.array([r])
-    else:
-        rarr = np.array(r)
-    # Ensure all radii are 0. or positive:
-    rarr = np.abs(rarr)
-
-
-    # # UNIFIED INTERPOLATION/EXTRAPOLATION
-    # r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
-    #                                fill_value='extrapolate', kind='linear')
-    #
-    # rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
-
-    scale_fac = (total_mass / table_mass) * (table_Reff / Reff)**3
-
-    if interp_type.lower().strip() == 'cubic':
-        r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
-        r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
-
-        rho_interp = np.zeros(len(rarr))
-        wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
-        wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
-        rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * scale_fac )
-        rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * scale_fac)
-    elif interp_type.lower().strip() == 'linear':
-        r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate',
-                                       bounds_error=False, kind='linear')
-        rho_interp =     (r_interp(rarr / Reff * table_Reff) * scale_fac )
-
-    else:
-        raise ValueError("interp type '{}' unknown!".format(interp_type))
-
-
-
-    if (len(rarr) > 1):
-        return rho_interp
-    else:
+        # Ensure it's an array:
         if isinstance(r*1., float):
-            # Float input
-            return rho_interp[0]
+            rarr = np.array([r])
         else:
-            # Length 1 array input
+            rarr = np.array(r)
+        # Ensure all radii are 0. or positive:
+        rarr = np.abs(rarr)
+
+        scale_fac = (total_mass / self.table_mass) * (self.table_Reff / Reff)**3
+
+        if interp_type.lower().strip() == 'cubic':
+            rho_interp = np.zeros(len(rarr))
+            wh_in =     np.where((rarr <= self.table_rad_rho.max()) & (rarr >= self.table_rad_rho.min()))[0]
+            wh_extrap = np.where((rarr > self.table_rad_rho.max()) | (rarr < self.table_rad_rho.min()))[0]
+            rho_interp[wh_in] =  (self.rho_interp_func(rarr[wh_in] / Reff * self.table_Reff) * scale_fac )
+            rho_interp[wh_extrap] = (self.rho_interp_extrap_func(rarr[wh_extrap] / Reff * self.table_Reff) * scale_fac)
+        elif interp_type.lower().strip() == 'linear':
+            rho_interp =  (self.rho_interp_func(rarr / Reff * self.table_Reff) * scale_fac )
+
+        else:
+            raise ValueError("interp type '{}' unknown!".format(interp_type))
+
+        if (len(rarr) > 1):
             return rho_interp
-
-    return rho_interp
-
-def sersic_curve_dlnrho_dlnr(r, Reff, n, invq, interp_type='linear'):
-    table = get_sersic_VC_table_new(n, invq)
-
-    table_dlnrho_dlnr =     table['dlnrho_dlnr']
-    table_rad =     table['r']
-    table_Reff =    table['Reff']
-    table_mass =    table['total_mass']
-
-    # Drop nonfinite parts:
-    whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
-    table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
-    table_rad = table_rad[whfin]
-
-
-    # Ensure it's an array:
-    if isinstance(r*1., float):
-        rarr = np.array([r])
-    else:
-        rarr = np.array(r)
-    # Ensure all radii are 0. or positive:
-    rarr = np.abs(rarr)
-
-    #
-    # # UNIFIED INTERPOLATION/EXTRAPOLATION
-    # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
-    #                                fill_value='extrapolate', kind='linear')
-    # dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
-
-    if interp_type.lower().strip() == 'cubic':
-        r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
-        r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
-
-        dlnrho_dlnr_interp = np.zeros(len(rarr))
-        wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
-        wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
-        dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
-        dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff))
-    elif interp_type.lower().strip() == 'linear':
-        r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate',
-                                       bounds_error=False, kind='linear')
-        dlnrho_dlnr_interp =     (r_interp(rarr / Reff * table_Reff)  )
-    else:
-        raise ValueError("interp type '{}' unknown!".format(interp_type))
-
-
-    if (len(rarr) > 1):
-        return dlnrho_dlnr_interp
-    else:
-        if isinstance(r*1., float):
-            # Float input
-            return dlnrho_dlnr_interp[0]
         else:
-            # Length 1 array input
-            return dlnrho_dlnr_interp
+            if isinstance(r*1., float):
+                # Float input
+                return rho_interp[0]
+            else:
+                # Length 1 array input
+                return rho_interp
 
-    return dlnrho_dlnr_interp
+        return rho_interp
+
+    def dlnrho_dlnr(self, r, Reff, interp_type='linear'):
+        if (self._dlnrhodlnr_interp_type != interp_type) | (self.dlnrhodlnr_interp_func is None):
+            # Update rho funcs:
+            self._set_dlnrhodlnr_interp(interp_type=interp_type)
+
+        # Ensure it's an array:
+        if isinstance(r*1., float):
+            rarr = np.array([r])
+        else:
+            rarr = np.array(r)
+        # Ensure all radii are 0. or positive:
+        rarr = np.abs(rarr)
+
+
+        if interp_type.lower().strip() == 'cubic':
+            dlnrho_dlnr_interp = np.zeros(len(rarr))
+            wh_in =     np.where((rarr <= self.table_rad_dlnrhodlnr.max()) & \
+                            (rarr >= self.table_rad_dlnrhodlnr.min()))[0]
+            wh_extrap = np.where((rarr > self.table_rad_dlnrhodlnr.max()) | \
+                            (rarr < self.table_rad_dlnrhodlnr.min()))[0]
+            dlnrho_dlnr_interp[wh_in] = (self.dlnrhodlnr_interp_func(rarr[wh_in] / Reff * self.table_Reff) )
+            dlnrho_dlnr_interp[wh_extrap] = (self.dlnrhodlnr_interp_func_extrap(rarr[wh_extrap] / Reff * self.table_Reff))
+        elif interp_type.lower().strip() == 'linear':
+            dlnrho_dlnr_interp = (self.dlnrhodlnr_interp_func(rarr / Reff * self.table_Reff)  )
+        else:
+            raise ValueError("interp type '{}' unknown!".format(interp_type))
+
+
+        if (len(rarr) > 1):
+            return dlnrho_dlnr_interp
+        else:
+            if isinstance(r*1., float):
+                # Float input
+                return dlnrho_dlnr_interp[0]
+            else:
+                # Length 1 array input
+                return dlnrho_dlnr_interp
+
+        return dlnrho_dlnr_interp
+
+    def _set_rho_interp(self, interp_type='linear'):
+        self._rho_interp_type = interp_type
+
+        table = self.read_sersic_VC_table()
+
+        table_rho =     table['rho']
+        table_rad =     table['R']
+        self.table_Reff =    table['Reff']
+        self.table_mass =    table['total_mass']
+
+        # Drop nonfinite parts:
+        whfin = np.where(np.isfinite(table_rho))[0]
+        table_rho = table_rho[whfin]
+        table_rad = table_rad[whfin]
+
+        self.table_rad_rho  =    table_rad
+
+
+        if interp_type.lower().strip() == 'cubic':
+            self.rho_interp_func = scp_interp.interp1d(table_rad, table_rho,
+                        fill_value=np.NaN, bounds_error=False, kind='cubic')
+            self.rho_interp_extrap_func = scp_interp.interp1d(table_rad, table_rho,
+                    fill_value='extrapolate', kind='linear')
+        elif interp_type.lower().strip() == 'linear':
+            self.rho_interp_func = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate',
+                                           bounds_error=False, kind='linear')
+
+        else:
+            raise ValueError("interp type '{}' unknown!".format(interp_type))
+
+
+    def _set_dlnrhodlnr_interp(self, interp_type='linear'):
+        self._dlnrhodlnr_interp_type = interp_type
+
+        table = self.read_sersic_VC_table()
+
+        table_dlnrho_dlnr =     table['dlnrho_dlnR']
+        table_rad =             table['R']
+        self.table_Reff =       table['Reff']
+        self.table_mass =       table['total_mass']
+
+        # Drop nonfinite parts:
+        whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
+        table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
+        table_rad = table_rad[whfin]
+
+        self.table_rad_dlnrhodlnr = table_rad
+
+
+        if interp_type.lower().strip() == 'cubic':
+            self.dlnrhodlnr_interp_func = scp_interp.interp1d(table_rad, table_dlnrho_dlnr,
+                    fill_value=np.NaN, bounds_error=False, kind='cubic')
+            self.dlnrhodlnr_interp_func_extrap = scp_interp.interp1d(table_rad,
+                    table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+
+        elif interp_type.lower().strip() == 'linear':
+            self.dlnrhodlnr_interp_func = scp_interp.interp1d(table_rad, table_dlnrho_dlnr,
+                    fill_value='extrapolate', bounds_error=False, kind='linear')
+        else:
+            raise ValueError("interp type '{}' unknown!".format(interp_type))
+
+
+
+
+
+# ## ORIGINAL VERSION:
+# def apply_noord_flat(r, r_eff, mass, n, invq):
+#     """
+#     Calculate circular velocity for a thick Sersic component
+#
+#     Parameters
+#     ----------
+#     r : float or array
+#         Radius or radii at which to calculate the circular velocity in kpc
+#
+#     r_eff : float
+#         Effective radius of the Sersic component in kpc
+#
+#     mass : float
+#         Total mass of the Sersic component
+#
+#     n : float
+#         Sersic index
+#
+#     invq : float
+#         Ratio of the effective radius of the Sersic component in the midplane to the
+#         effective radius in the z-direction
+#
+#     Returns
+#     -------
+#     vcirc : float or array
+#         Circular velocity at each given `r`
+#
+#     Notes
+#     -----
+#     This function determines the circular velocity as a function of radius for
+#     a Sersic component with a total mass, `mass`, Sersic index, `n`, and
+#     an effective radius to scale height ratio, `invq`. This uses lookup tables
+#     numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
+#     properly accounted for the thickness of the mass component.
+#
+#     The lookup table provides rotation curves for Sersic components with
+#     `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
+#     If the given `n` and/or `invq` are not one of these values then the nearest
+#     ones are used.
+#
+#     References
+#     ----------
+#     .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+#     """
+#
+#     noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
+#     noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
+#                                  100])  # 1:1, 1:2, 1:3, ...flattening
+#
+#     nearest_n = noordermeer_n[
+#         np.argmin(np.abs(noordermeer_n - n))]
+#     nearest_q = noordermeer_invq[
+#         np.argmin(np.abs(noordermeer_invq - invq))]
+#
+#     # Need to do this internally instead of relying on IDL save files!!
+#     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
+#         nearest_n, nearest_q)
+#
+#     #try:
+#     if True:
+#         restNVC = scp_io.readsav(file_noord)
+#         N2008_vcirc = restNVC.N2008_vcirc
+#         N2008_rad = restNVC.N2008_rad
+#         N2008_Re = restNVC.N2008_Re
+#         N2008_mass = restNVC.N2008_mass
+#
+#         v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+#                                        fill_value="extrapolate")
+#         vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
+#                  mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
+#
+#     # except:
+#     #     vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
+#
+#     return vcirc
+
+
+###########################
+
+#
+# def sersic_curve_rho(r, Reff, total_mass, n, invq, interp_type='linear'):
+#     table = get_sersic_VC_table_new(n, invq)
+#
+#     table_rho =     table['rho']
+#     table_rad =     table['R']
+#     table_Reff =    table['Reff']
+#     table_mass =    table['total_mass']
+#
+#     # Drop nonfinite parts:
+#     whfin = np.where(np.isfinite(table_rho))[0]
+#     table_rho = table_rho[whfin]
+#     table_rad = table_rad[whfin]
+#
+#     # Ensure it's an array:
+#     if isinstance(r*1., float):
+#         rarr = np.array([r])
+#     else:
+#         rarr = np.array(r)
+#     # Ensure all radii are 0. or positive:
+#     rarr = np.abs(rarr)
+#
+#
+#     # # UNIFIED INTERPOLATION/EXTRAPOLATION
+#     # r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
+#     #                                fill_value='extrapolate', kind='linear')
+#     #
+#     # rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
+#
+#     scale_fac = (total_mass / table_mass) * (table_Reff / Reff)**3
+#
+#     if interp_type.lower().strip() == 'cubic':
+#         r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
+#         r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
+#
+#         rho_interp = np.zeros(len(rarr))
+#         wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
+#         wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
+#         rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * scale_fac )
+#         rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * scale_fac)
+#     elif interp_type.lower().strip() == 'linear':
+#         r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate',
+#                                        bounds_error=False, kind='linear')
+#         rho_interp =     (r_interp(rarr / Reff * table_Reff) * scale_fac )
+#
+#     else:
+#         raise ValueError("interp type '{}' unknown!".format(interp_type))
+#
+#
+#
+#     if (len(rarr) > 1):
+#         return rho_interp
+#     else:
+#         if isinstance(r*1., float):
+#             # Float input
+#             return rho_interp[0]
+#         else:
+#             # Length 1 array input
+#             return rho_interp
+#
+#     return rho_interp
+#
+# def sersic_curve_dlnrho_dlnr(r, Reff, n, invq, interp_type='linear'):
+#     table = get_sersic_VC_table_new(n, invq)
+#
+#     table_dlnrho_dlnr =     table['dlnrho_dlnr']
+#     table_rad =     table['R']
+#     table_Reff =    table['Reff']
+#     table_mass =    table['total_mass']
+#
+#     # Drop nonfinite parts:
+#     whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
+#     table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
+#     table_rad = table_rad[whfin]
+#
+#
+#     # Ensure it's an array:
+#     if isinstance(r*1., float):
+#         rarr = np.array([r])
+#     else:
+#         rarr = np.array(r)
+#     # Ensure all radii are 0. or positive:
+#     rarr = np.abs(rarr)
+#
+#     #
+#     # # UNIFIED INTERPOLATION/EXTRAPOLATION
+#     # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
+#     #                                fill_value='extrapolate', kind='linear')
+#     # dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
+#
+#     if interp_type.lower().strip() == 'cubic':
+#         r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
+#         r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
+#
+#         dlnrho_dlnr_interp = np.zeros(len(rarr))
+#         wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
+#         wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
+#         dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
+#         dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff))
+#     elif interp_type.lower().strip() == 'linear':
+#         r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate',
+#                                        bounds_error=False, kind='linear')
+#         dlnrho_dlnr_interp =     (r_interp(rarr / Reff * table_Reff)  )
+#     else:
+#         raise ValueError("interp type '{}' unknown!".format(interp_type))
+#
+#
+#     if (len(rarr) > 1):
+#         return dlnrho_dlnr_interp
+#     else:
+#         if isinstance(r*1., float):
+#             # Float input
+#             return dlnrho_dlnr_interp[0]
+#         else:
+#             # Length 1 array input
+#             return dlnrho_dlnr_interp
+#
+#     return dlnrho_dlnr_interp
 
 
 
@@ -742,9 +1039,49 @@ class Sersic(MassModel):
     def __init__(self, invq=1.0, noord_flat=False, baryon_type='gas+stars', **kwargs):
 
         self.invq = invq
-        self.noord_flat = noord_flat
         self.baryon_type = baryon_type
+        self._noord_flat = noord_flat
         super(Sersic, self).__init__(**kwargs)
+
+        self._initialize_noord_flatteners()
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+
+        if 'baryon_type' in state.keys():
+            pass
+        else:
+            self.baryon_type = 'gas+stars'
+
+
+        if '_noord_flat' in state.keys():
+            pass
+        else:
+            self._noord_flat = state['noord_flat']
+            self._initialize_noord_flatteners()
+
+    @property
+    def noord_flat(self):
+        return self._noord_flat
+
+    @noord_flat.setter
+    def noord_flat(self, value):
+        if type(value) is not bool:
+            raise ValueError("noord_flat must be True/False!")
+        self._noord_flat = value
+        self._initialize_noord_flatteners()
+
+    def _initialize_noord_flatteners(self):
+        # Initialize NoordFlat object:
+        self.noord_flattener = NoordFlat(n=self.n.value, invq=self.invq)
+
+    def _update_noord_flatteners(self):
+        if self.n.value != self.noord_flattener._n:
+            self.noord_flattener.n = self.n.value
+
+        if self.n.value != self.noord_flattener._n:
+            self.noord_flattener.n = self.n.value
 
     @staticmethod
     def evaluate(r, total_mass, r_eff, n):
@@ -770,9 +1107,14 @@ class Sersic(MassModel):
         """
 
         if self.noord_flat:
-            # Take Noordermeer+08 vcirc, and then get Menc from vcirc
-            return menc_from_vcirc(apply_noord_flat(r, self.r_eff, 10**self.total_mass,
-                                     self.n, self.invq), r)
+            ## Take Noordermeer+08 vcirc, and then get Menc from vcirc
+            # return menc_from_vcirc(apply_noord_flat(r, self.r_eff, 10**self.total_mass,
+            #                          self.n, self.invq), r)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            return menc_from_vcirc(self.noord_flattener.apply_noord_flat(r, self.r_eff,
+                                   10**self.total_mass), r)
 
         else:
             return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
@@ -795,8 +1137,12 @@ class Sersic(MassModel):
             Circular velocity in km/s
         """
         if self.noord_flat:
-            vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
-                                     self.n, self.invq)
+            # vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
+            #                          self.n, self.invq)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            vcirc = self.noord_flattener.apply_noord_flat(r, self.r_eff, 10**self.total_mass)
         else:
             vcirc = super(Sersic, self).circular_velocity(r)
 
@@ -836,8 +1182,11 @@ class Sersic(MassModel):
         if 'gas' in self.baryon_type.lower().strip():
 
             if self.noord_flat:
-                rhogas = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
+                #rhogas = sersic_curve_rho(r, self.r_eff, 10**self.total_mass, self.n, self.invq)
 
+                # Check v, invq are right:
+                self._update_noord_flatteners()
+                rhogas = self.noord_flattener.rho(r, self.r_eff, 10**self.total_mass)
             else:
                 rhogas = sersic_mr(r, 10**self.total_mass, self.n, self.r_eff)
         else:
@@ -861,7 +1210,11 @@ class Sersic(MassModel):
         """
         if 'gas' in self.baryon_type.lower().strip():
             if self.noord_flat:
-                dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
+                #dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff, self.n, self.invq)
+
+                # Check v, invq are right:
+                self._update_noord_flatteners()
+                dlnrhogas_dlnr_arr = self.noord_flattener.dlnrho_dlnr(r, self.r_eff)
 
             else:
                 bn = scp_spec.gammaincinv(2. * self.n, 0.5)
@@ -937,12 +1290,55 @@ class DiskBulge(MassModel):
 
         self.invq_disk = invq_disk
         self.invq_bulge = invq_bulge
-        self.noord_flat = noord_flat
         self.light_component = light_component
         self.gas_component = gas_component
         self.baryon_type = baryon_type
 
+        self._noord_flat = noord_flat
+
         super(DiskBulge, self).__init__(**kwargs)
+
+        self._initialize_noord_flatteners()
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+
+        if 'baryon_type' in state.keys():
+            pass
+        else:
+            self.baryon_type = 'gas+stars'
+            self.gas_component = 'disk'
+
+        if '_noord_flat' in state.keys():
+            pass
+        else:
+            self._noord_flat = state['noord_flat']
+            self._initialize_noord_flatteners()
+
+    @property
+    def noord_flat(self):
+        return self._noord_flat
+
+    @noord_flat.setter
+    def noord_flat(self, value):
+        if type(value) is not bool:
+            raise ValueError("noord_flat must be True/False!")
+        self._noord_flat = value
+
+        self._initialize_noord_flatteners()
+
+    def _initialize_noord_flatteners(self):
+        # Initialize NoordFlat objects:
+        self.noord_flattener_disk = NoordFlat(n=self.n_disk.value, invq=self.invq_disk)
+        self.noord_flattener_bulge = NoordFlat(n=self.n_bulge.value, invq=self.invq_bulge)
+
+    def _update_noord_flatteners(self):
+        if self.n_disk.value != self.noord_flattener_disk._n:
+            self.noord_flattener_disk.n = self.n_disk.value
+
+        if self.n_bulge.value != self.noord_flattener_bulge._n:
+            self.noord_flattener_bulge.n = self.n_bulge.value
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -975,11 +1371,20 @@ class DiskBulge(MassModel):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #             self.n_bulge, self.invq_bulge), r)
+            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
+            #             self.n_disk,  self.invq_disk),  r)
+
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                        self.n_bulge, self.invq_bulge), r)
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-                        self.n_disk,  self.invq_disk),  r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
+                        self.r_eff_bulge, mbulge_total), r)
+            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
+                        self.r_eff_disk,  mdisk_total),  r)
+
         else:
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1004,9 +1409,15 @@ class DiskBulge(MassModel):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
+            #             self.n_disk,  self.invq_disk),  r)
+
             # TO FIX
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-                        self.n_disk,  self.invq_disk),  r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
+                        self.r_eff_disk,  mdisk_total),  r)
         else:
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
@@ -1029,9 +1440,16 @@ class DiskBulge(MassModel):
         mbulge_total = 10 ** self.total_mass * self.bt
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #             self.n_bulge, self.invq_bulge), r)
+
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                        self.n_bulge, self.invq_bulge), r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
+                        self.r_eff_bulge, mbulge_total), r)
+
         else:
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1068,8 +1486,13 @@ class DiskBulge(MassModel):
         """
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
-            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-                                     self.n_disk, self.invq_disk)
+            # vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            #                          self.n_disk, self.invq_disk)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            vcirc = self.noord_flattener_disk.apply_noord_flat(r, self.r_eff_disk, mdisk_total)
+
         else:
             mass_enc = self.enclosed_mass_disk(r)
             vcirc = v_circular(mass_enc, r)
@@ -1093,8 +1516,12 @@ class DiskBulge(MassModel):
 
         if self.noord_flat:
             mbulge_total = 10**self.total_mass*self.bt
-            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                                     self.n_bulge, self.invq_bulge)
+            # vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #                          self.n_bulge, self.invq_bulge)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            vcirc = self.noord_flattener_bulge.apply_noord_flat(r, self.r_eff_bulge, mbulge_total)
         else:
             mass_enc = self.enclosed_mass_bulge(r)
             vcirc = v_circular(mass_enc, r)
@@ -1270,8 +1697,12 @@ class DiskBulge(MassModel):
             if self.gas_component in ['total', 'disk']:
                 if self.noord_flat:
                     mdisk_total = 10**self.total_mass*(1 - self.bt)
-                    rhogas = sersic_curve_rho(r, self.r_eff_disk, mdisk_total,
-                                              self.n_disk, self.invq_disk)
+                    # rhogas = sersic_curve_rho(r, self.r_eff_disk, mdisk_total,
+                    #                           self.n_disk, self.invq_disk)
+
+                    # Check v, invq are right:
+                    self._update_noord_flatteners()
+                    rhogas = self.noord_flattener_disk.rho(r, self.r_eff_disk, mdisk_total)
                 else:
                     mdisk_total = 10**self.total_mass*(1 - self.bt)
                     # Just use the surface density as "rho", as this is the razor-thin case
@@ -1303,8 +1734,12 @@ class DiskBulge(MassModel):
             if self.gas_component in ['total']:
                 if self.noord_flat:
                     mbulge_total = 10**self.total_mass*self.bt
-                    rhogas = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total,
-                                              self.n_bulge, self.invq_bulge)
+                    # rhogas = sersic_curve_rho(r, self.r_eff_bulge, mbulge_total,
+                    #                           self.n_bulge, self.invq_bulge)
+
+                    # Check v, invq are right:
+                    self._update_noord_flatteners()
+                    rhogas = self.noord_flattener_bulge.rho(r, self.r_eff_bulge, mbulge_total)
                 else:
                     mbulge_total = 10**self.total_mass*self.bt
                     # Just use the surface density as "rho", as this is the razor-thin case
@@ -1339,8 +1774,11 @@ class DiskBulge(MassModel):
 
     def dlnrhogas_dlnr_disk(self, r):
         if self.noord_flat:
-            dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
+            #dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_disk, self.n_disk, self.invq_disk)
 
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            dlnrhogas_dlnr_arr = self.noord_flattener_disk.dlnrho_dlnr(r, self.r_eff_disk)
             return dlnrhogas_dlnr_arr
         else:
             bn = scp_spec.gammaincinv(2. * self.n_disk, 0.5)
@@ -1348,7 +1786,11 @@ class DiskBulge(MassModel):
 
     def dlnrhogas_dlnr_bulge(self, r):
         if self.noord_flat:
-            dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
+            #dlnrhogas_dlnr_arr = sersic_curve_dlnrho_dlnr(r, self.r_eff_bulge, self.n_bulge, self.invq_bulge)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            dlnrhogas_dlnr_arr = self.noord_flattener_bulge.dlnrho_dlnr(r, self.r_eff_bulge)
 
             return dlnrhogas_dlnr_arr
         else:
@@ -1445,11 +1887,54 @@ class LinearDiskBulge(MassModel):
 
         self.invq_disk = invq_disk
         self.invq_bulge = invq_bulge
-        self.noord_flat = noord_flat
         self.light_component = light_component
         self.baryon_type = baryon_type
 
+        self._noord_flat = noord_flat
+
         super(LinearDiskBulge, self).__init__(**kwargs)
+
+
+        self._initialize_noord_flatteners()
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+        if 'baryon_type' in state.keys():
+            pass
+        else:
+            self.baryon_type = 'gas+stars'
+
+        if '_noord_flat' in state.keys():
+            pass
+        else:
+            self._noord_flat = state['noord_flat']
+            self._initialize_noord_flatteners()
+
+    @property
+    def noord_flat(self):
+        return self._noord_flat
+
+    @noord_flat.setter
+    def noord_flat(self, value):
+        if type(value) is not bool:
+            raise ValueError("noord_flat must be True/False!")
+        self._noord_flat = value
+
+        self._initialize_noord_flatteners()
+
+    def _initialize_noord_flatteners(self):
+        # Initialize NoordFlat objects:
+        self.noord_flattener_disk = NoordFlat(n=self.n_disk.value, invq=self.invq_disk)
+        self.noord_flattener_bulge = NoordFlat(n=self.n_bulge.value, invq=self.invq_bulge)
+
+
+    def _update_noord_flatteners(self):
+        if self.n_disk.value != self.noord_flattener_disk._n:
+            self.noord_flattener_disk.n = self.n_disk.value
+
+        if self.n_bulge.value != self.noord_flattener_bulge._n:
+            self.noord_flattener_bulge.n = self.n_bulge.value
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -1481,11 +1966,21 @@ class LinearDiskBulge(MassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #             self.n_bulge, self.invq_bulge), r)
+            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
+            #             self.n_disk,  self.invq_disk),  r)
+
+
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                        self.n_bulge, self.invq_bulge), r)
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-                        self.n_disk,  self.invq_disk),  r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
+                        self.r_eff_bulge, mbulge_total), r)
+            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
+                        self.r_eff_disk,  mdisk_total),  r)
+
         else:
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1510,9 +2005,15 @@ class LinearDiskBulge(MassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
+            #             self.n_disk,  self.invq_disk),  r)
+
             # TO FIX
-            menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-                        self.n_disk,  self.invq_disk),  r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
+                        self.r_eff_disk,  mdisk_total),  r)
         else:
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
@@ -1536,9 +2037,14 @@ class LinearDiskBulge(MassModel):
         mbulge_total = self.total_mass * self.bt
 
         if self.noord_flat:
+            # # TO FIX
+            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #             self.n_bulge, self.invq_bulge), r)
             # TO FIX
-            menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                        self.n_bulge, self.invq_bulge), r)
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
+                        self.r_eff_bulge, mbulge_total), r)
         else:
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -1561,8 +2067,12 @@ class LinearDiskBulge(MassModel):
         """
         if self.noord_flat:
             mdisk_total = self.total_mass*(1-self.bt)
-            vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-                                     self.n_disk, self.invq_disk)
+            # vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
+            #                          self.n_disk, self.invq_disk)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            vcirc = self.noord_flattener_disk.apply_noord_flat(r, self.r_eff_disk, mdisk_total)
         else:
             mass_enc = self.enclosed_mass_disk(r)
             vcirc = v_circular(mass_enc, r)
@@ -1585,8 +2095,12 @@ class LinearDiskBulge(MassModel):
         """
         if self.noord_flat:
             mbulge_total = self.total_mass*self.bt
-            vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-                                     self.n_bulge, self.invq_bulge)
+            # vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
+            #                          self.n_bulge, self.invq_bulge)
+
+            # Check v, invq are right:
+            self._update_noord_flatteners()
+            vcirc = self.noord_flattener_bulge.apply_noord_flat(r, self.r_eff_bulge, mbulge_total)
         else:
             mass_enc = self.enclosed_mass_bulge(r)
             vcirc = v_circular(mass_enc, r)

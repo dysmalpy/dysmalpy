@@ -9,7 +9,7 @@ from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
                                     ExpDisk, BlackHole, \
                                     surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
                                     sersic_menc_2D_proj, menc_from_vcirc, \
-                                    apply_noord_flat
+                                    NoordFlat
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                   Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
@@ -37,7 +37,7 @@ __all__ = ['ModelSet',
            # Higher-order components
            'BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',
-           'AzimuthalPlanarRadialFlow', 
+           'AzimuthalPlanarRadialFlow',
            'UniformBarFlow', 'VariableXBarFlow',
            'SpiralDensityWave',
            # Light profiles
@@ -55,4 +55,4 @@ __all__ = ['ModelSet',
            # Functions
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
            'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
-           'apply_noord_flat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']
+           'NoordFlat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']

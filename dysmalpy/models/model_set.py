@@ -631,6 +631,12 @@ class ModelSet:
             # Now update all of the tied parameters if there are any
             self._update_tied_parameters()
 
+            if param_name in ['n', 'n_disk', 'n_bulge',
+                              'invq', 'invq_disk', 'invq_bulge']:
+                if getattr(self.components[model_name], 'noord_flat', False):
+                    self.components[model_name]._update_noord_flatteners()
+
+
     def set_parameter_fixed(self, model_name, param_name, fix):
         """
         Change whether a specific parameter is fixed or not
