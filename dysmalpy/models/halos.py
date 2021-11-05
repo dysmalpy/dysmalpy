@@ -50,6 +50,39 @@ logger = logging.getLogger('DysmalPy')
 
 np.warnings.filterwarnings('ignore')
 
+# _dict_lmvir_fac_test_z = {'zarr':   np.array([0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5]),
+#                           'facarr': np.array([1.8, 1.72, 1.65, 1.58, 1.52, 1.46, 1.40, 1.35, 1.3])}
+
+_dict_lmvir_fac_test_z = {'zarr':    np.arange(0.5, 2.75, 0.25),
+                          'fdmarr': np.array([1.e-3, 1.e-2, 0.1, 0.25, 0.5, 0.75, 0.9, 1-1.e-2, 1-1.e-3]),
+                          'facarr': np.array([[ 1.87027726e-01,  6.83525784e-01,  1.70740388e+00,
+                                                 2.43045482e+00,  3.27806760e+00,  4.19108979e+00,
+                                                 5.13078742e+00,  7.20681515e+00,  9.21406239e+00],
+                                               [ 1.42061858e-01,  6.00007080e-01,  1.53906815e+00,
+                                                 2.21927776e+00,  3.03914007e+00,  3.93936616e+00,
+                                                 4.87420697e+00,  6.94791177e+00,  8.95494591e+00],
+                                               [ 1.00551748e-01,  5.24281952e-01,  1.38498363e+00,
+                                                 2.02073465e+00,  2.80851657e+00,  3.69274241e+00,
+                                                 4.62126978e+00,  6.69190395e+00,  8.69865476e+00],
+                                               [ 6.31519829e-02,  4.57268141e-01,  1.24826995e+00,
+                                                 1.84043178e+00,  2.59324412e+00,  3.45844497e+00,
+                                                 4.37910433e+00,  6.44582962e+00,  8.45221694e+00],
+                                               [ 2.97794509e-02,  3.98491637e-01,  1.12869340e+00,
+                                                 1.67974956e+00,  2.39616708e+00,  3.23967562e+00,
+                                                 4.15086381e+00,  6.21275987e+00,  8.21869377e+00],
+                                               [ 5.36103016e-05,  3.46978470e-01,  1.02457472e+00,
+                                                 1.53784436e+00,  2.21772071e+00,  3.03735532e+00,
+                                                 3.93747250e+00,  5.99354714e+00,  7.99892789e+00],
+                                               [-2.64841174e-02,  3.01676546e-01,  9.33823097e-01,
+                                                 1.41290431e+00,  2.05708386e+00,  2.85121748e+00,
+                                                 3.73871828e+00,  5.78791915e+00,  7.79263749e+00],
+                                               [-5.02759808e-02,  2.61622377e-01,  8.54407920e-01,
+                                                 1.30283654e+00,  1.91285041e+00,  2.68042250e+00,
+                                                 3.55386264e+00,  5.59509028e+00,  7.59902746e+00],
+                                               [-7.17141754e-02,  2.25990008e-01,  7.84535250e-01,
+                                                 1.20560418e+00,  1.78340279e+00,  2.52388554e+00,
+                                                 3.38196112e+00,  5.41408290e+00,  7.41711095e+00]])}
+
 
 class DarkMatterHalo(MassModel):
     r"""
@@ -214,35 +247,37 @@ class DarkMatterHalo(MassModel):
                 mvirial = np.NaN
             else:
                 #mtest = np.arange(-5, 50, 1.0)
+                short_mtest = False
                 try:
                     if ((baryons.total_mass.value >= 8.) & (baryons.total_mass.value <=13.)):
-                        # mtest = np.arange(9., 17., 1.0)
-                        # mtest = np.append(-5., mtest)
-                        # mtest = np.append(mtest, 50.)
-                        rough_mvir = 2.4 - np.log10(1./self.fdm.value-1)+np.log10(0.5)+baryons.total_mass.value
-                        # mtest = np.arange(np.round(rough_mvir)-2., np.round(rough_mvir)+3., 1.0)
-                        #mtest = np.arange(np.round(rough_mvir)-1., np.round(rough_mvir)+1.5, 0.5)
+                        whminz = np.argmin(np.abs(_dict_lmvir_fac_test_z['zarr']-self.z))
+                        whminfdm = np.argmin(np.abs(_dict_lmvir_fac_test_z['fdmarr']-self.fdm.value))
+
+                        fac_lmvir = _dict_lmvir_fac_test_z['facarr'][whminz,whminfdm]
+                        rough_mvir = fac_lmvir - np.log10(1./self.fdm.value-1)+np.log10(0.5)+baryons.total_mass.value
+
                         #mtest = np.arange(rough_mvir-1., rough_mvir+1.5, 0.5)
                         mtest = np.arange(rough_mvir-0.25, rough_mvir+0.5, 0.25)
                         mtest = np.append(-5., mtest)
                         mtest = np.append(mtest, 50.)
+                        short_mtest = True
                     else:
-                        mtest = np.arange(-5, 50, 2.0)
+                        mtest = np.arange(-5, 50, 1.0)
                 except:
-                    mtest = np.arange(-5, 50, 2.0)
+                    mtest = np.arange(-5, 50, 1.0)
                 if adiabatic_contract:
                     vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
-                    # TEST
-                    vtest_noAC = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
+                    # # TEST
+                    # vtest_noAC = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
                 else:
                     vtest = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
                 try:
                     a = mtest[vtest < 0][-1]
                     b = mtest[vtest > 0][0]
-                    # TEST
-                    if adiabatic_contract:
-                        a_noAC = mtest[vtest_noAC < 0][-1]
-                        b_noAC = mtest[vtest_noAC > 0][0]
+                    # # TEST
+                    # if adiabatic_contract:
+                    #     a_noAC = mtest[vtest_noAC < 0][-1]
+                    #     b_noAC = mtest[vtest_noAC > 0][0]
                 except:
                     print("adiabatic_contract={}".format(adiabatic_contract))
                     print("fdm={}".format(self.fdm.value))
@@ -250,6 +285,34 @@ class DarkMatterHalo(MassModel):
                     print(mtest, vtest)
                     raise ValueError
 
+                # ------------------------------------------------------------------
+                # Do a quick check to make sure it was inside the inner range:
+                # If not, redo calc with better range:
+                if short_mtest & ((a == mtest[0]) | (b == mtest[-1])):
+                    mtest_orig = mtest[:]
+                    if (a == mtest[0]):
+                        mtest = np.arange(mtest_orig[2]-5., mtest_orig[2]+1, 1.0)
+                        mtest = np.append(-5., mtest)
+                    elif (b == mtest[-1]):
+                        mtest = np.arange(mtest_orig[-3], mtest_orig[-3]+6., 1.0)
+                        mtest = np.append(mtest, 50.)
+
+                    if adiabatic_contract:
+                        vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
+                    else:
+                        vtest = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm) for m in mtest])
+                    try:
+                        a = mtest[vtest < 0][-1]
+                        b = mtest[vtest > 0][0]
+                    except:
+                        print("adiabatic_contract={}".format(adiabatic_contract))
+                        print("fdm={}".format(self.fdm.value))
+                        print("r_fdm={}".format(r_fdm))
+                        print(mtest, vtest)
+                        raise ValueError
+                # ------------------------------------------------------------------
+
+                # Run optimizer:
                 if adiabatic_contract:
                     mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
 
