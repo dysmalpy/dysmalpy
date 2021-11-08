@@ -257,8 +257,7 @@ class DarkMatterHalo(MassModel):
                         fac_lmvir = _dict_lmvir_fac_test_z['facarr'][whminz,whminfdm]
                         rough_mvir = fac_lmvir - np.log10(1./self.fdm.value-1)+np.log10(0.5)+baryons.total_mass.value
 
-                        #mtest = np.arange(rough_mvir-1., rough_mvir+1.5, 0.5)
-                        mtest = np.arange(rough_mvir-0.25, rough_mvir+0.5, 0.25)
+                        mtest = np.arange(rough_mvir-1., rough_mvir+1.5, 0.5)
                         mtest = np.append(-5., mtest)
                         mtest = np.append(mtest, 50.)
                         short_mtest = True
@@ -292,10 +291,12 @@ class DarkMatterHalo(MassModel):
                 if short_mtest & ((a == mtest[0]) | (b == mtest[-1])):
                     mtest_orig = mtest[:]
                     if (a == mtest[0]):
-                        mtest = np.arange(mtest_orig[2]-5., mtest_orig[2]+1, 1.0)
+                        mtest = np.arange(np.ceil(mtest_orig[1])-2., np.ceil(mtest_orig[1])+1., 1.0)
+                        mtest = np.append(np.arange(np.ceil(mtest_orig[1])-22., np.ceil(mtest_orig[1])-2., 2.0), mtest)
                         mtest = np.append(-5., mtest)
                     elif (b == mtest[-1]):
-                        mtest = np.arange(mtest_orig[-3], mtest_orig[-3]+6., 1.0)
+                        mtest = np.arange(np.floor(mtest_orig[-2]), np.floor(mtest_orig[-2])+3., 1.0)
+                        mtest = np.append(mtest, np.arange(np.floor(mtest_orig[-2])+3., np.floor(mtest_orig[-2])+23., 2.0))
                         mtest = np.append(mtest, 50.)
 
                     if adiabatic_contract:
@@ -311,6 +312,7 @@ class DarkMatterHalo(MassModel):
                         print("r_fdm={}".format(r_fdm))
                         print(mtest, vtest)
                         raise ValueError
+
                 # ------------------------------------------------------------------
 
                 # Run optimizer:
