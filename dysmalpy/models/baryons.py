@@ -1046,8 +1046,7 @@ class Sersic(MassModel):
         self._initialize_noord_flatteners()
 
     def __setstate__(self, state):
-        self.__dict__ = state
-
+        super(Sersic, self).__setstate__(state)
 
         if 'baryon_type' in state.keys():
             pass
@@ -1301,8 +1300,7 @@ class DiskBulge(MassModel):
         self._initialize_noord_flatteners()
 
     def __setstate__(self, state):
-        self.__dict__ = state
-
+        super(DiskBulge, self).__setstate__(state)
 
         if 'baryon_type' in state.keys():
             pass
@@ -1898,7 +1896,7 @@ class LinearDiskBulge(MassModel):
         self._initialize_noord_flatteners()
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        super(LinearDiskBulge, self).__setstate__(state)
 
         if 'baryon_type' in state.keys():
             pass

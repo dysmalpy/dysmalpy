@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import abc
 import logging
+import copy
 
 # Third party imports
 import numpy as np
@@ -112,7 +113,7 @@ class DarkMatterHalo(MassModel):
         super(DarkMatterHalo, self).__init__(**kwargs)
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        super(DarkMatterHalo, self).__setstate__(state)
 
         # quick test if necessary to migrate:
         if '_z' in state.keys():
@@ -316,9 +317,9 @@ class DarkMatterHalo(MassModel):
                 if adiabatic_contract:
                     mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
 
-                    # TEST
-                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, r_fdm))
-                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
+                    # # TEST
+                    # mvirial_noAC = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, r_fdm))
+                    # print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
                 else:
                     mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a, b, args=(vsqr_dm_re_target, r_fdm))
         return mvirial

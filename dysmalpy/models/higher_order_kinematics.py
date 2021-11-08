@@ -149,7 +149,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(BiconicalOutflow, self).__setstate__(state)
 
         # Change '_type' from 'outflow' to 'higher_order':
         if self._type == 'outflow':
@@ -290,7 +290,7 @@ class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(UnresolvedOutflow, self).__setstate__(state)
 
         # Change '_type' from 'outflow' to 'higher_order':
         if self._type == 'outflow':
@@ -358,7 +358,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(UniformRadialFlow, self).__setstate__(state)
 
         # Change '_type' from 'flow' to 'higher_order':
         if self._type == 'flow':
