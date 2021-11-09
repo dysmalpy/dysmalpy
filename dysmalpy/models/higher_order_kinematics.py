@@ -149,7 +149,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(BiconicalOutflow, self).__setstate__(state)
 
         # Change '_type' from 'outflow' to 'higher_order':
         if self._type == 'outflow':
@@ -192,7 +192,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.n, self.vmax, self.rturn, self.thetain,
                              self.dtheta, self.rend, self.norm_flux, self.tau_flux)
@@ -290,7 +290,7 @@ class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(UnresolvedOutflow, self).__setstate__(state)
 
         # Change '_type' from 'outflow' to 'higher_order':
         if self._type == 'outflow':
@@ -300,7 +300,7 @@ class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     def evaluate(x, y, z, vcenter, fwhm, amplitude):
         return np.ones(x.shape)*vcenter
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.vcenter, self.fwhm, self.amplitude)
 
@@ -358,7 +358,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
         #    higher order components in ModelSet.simulate_cube().
-        self.__dict__ = state
+        super(UniformRadialFlow, self).__setstate__(state)
 
         # Change '_type' from 'flow' to 'higher_order':
         if self._type == 'flow':
@@ -372,7 +372,7 @@ class UniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.vr)
 
@@ -453,7 +453,7 @@ class PlanarUniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.vr)
 
@@ -520,7 +520,7 @@ class AzimuthalPlanarRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittab
 
     Notes
     -----
-    The following functions must be specified, which take the galaxy radius R:
+    The following functions must be specified, which take the galaxy radius R and model_set:
         vr(R):  Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
     """
     m = DysmalParameter(default=2.)
@@ -537,18 +537,18 @@ class AzimuthalPlanarRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittab
 
         super(AzimuthalPlanarRadialFlow, self).__init__(**kwargs)
 
-    def evaluate(self, x, y, z, m, phi0):
+    def evaluate(self, x, y, z, m, phi0, model_set):
         """Evaluate the radial velocity as a function of position x, y, z"""
         phi0_rad = phi0 * np.pi / 180.
         phi_gal_rad = utils.get_geom_phi_rad_polar(x, y)
         R = np.sqrt(x**2 + y**2)
-        vel = self.vr(R) * np.cos(m*(phi_gal_rad-phi0_rad))
+        vel = self.vr(R, model_set) * np.cos(m*(phi_gal_rad-phi0_rad))
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, model_set, *args):
         """Return the velocity as a function of x, y, z"""
-        return self.evaluate(x, y, z, self.m, self.phi0)
+        return self.evaluate(x, y, z, self.m, self.phi0, model_set)
 
 
     def vel_direction_emitframe(self, x, y, z, _save_memory=False):
@@ -645,7 +645,7 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """Return the velocity as a function of x, y, z"""
         return self.evaluate(x, y, z, self.vbar, self.phi, self.bar_width)
 
@@ -703,7 +703,7 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
     -----
     The following function must also be passed when setting up the model,
     which takes the bar coordinate xbar as an input:
-        - vbar(xbar)      [Amplidute of flow velocity as a function of bar coordinate |xbar|.
+        - vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate |xbar|.
                            vbar > 0 for outflow, vbar < 0 for inflow.]
 
     """
@@ -718,12 +718,12 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
 
     def __init__(self, vbar=None, **kwargs):
 
-        # Set function: MUST TAKE |xbar| as input!
+        # Set function: MUST TAKE |xbar|, model_set as input!
         self.vbar = vbar
 
         super(VariableXBarFlow, self).__init__(**kwargs)
 
-    def evaluate(self, x, y, z, phi, bar_width):
+    def evaluate(self, x, y, z, phi, bar_width, model_set):
         """Evaluate the bar velocity amplitude as a function of position x, y, z"""
 
         phi_rad = phi * np.pi / 180.
@@ -731,7 +731,7 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
         xbar =   np.cos(phi_rad) * x + np.sin(phi_rad) * y
         ybar = - np.sin(phi_rad) * x + np.cos(phi_rad) * y
 
-        vel = self.vbar(np.abs(xbar))
+        vel = self.vbar(np.abs(xbar), model_set)
         if len(ybar.shape) > 0:
             # Array-like inputs
             vel[np.abs(ybar) > 0.5*bar_width] = 0.
@@ -742,9 +742,9 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
 
         return vel
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, model_set, *args):
         """Return the velocity as a function of x, y, z"""
-        return self.evaluate(x, y, z, self.phi, self.bar_width)
+        return self.evaluate(x, y, z, self.phi, self.bar_width, model_set)
 
     def vel_direction_emitframe(self, x, y, z, _save_memory=False):
         r"""
@@ -1023,7 +1023,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         return vLOS1
 
 
-    def velocity(self, x, y, z):
+    def velocity(self, x, y, z, *args):
         """
         Evaluate the spiral density velocity amplitude as a function of position x, y, z,
         for the different radial and phi components.

@@ -631,6 +631,12 @@ class ModelSet:
             # Now update all of the tied parameters if there are any
             self._update_tied_parameters()
 
+            if param_name in ['n', 'n_disk', 'n_bulge',
+                              'invq', 'invq_disk', 'invq_bulge']:
+                if getattr(self.components[model_name], 'noord_flat', False):
+                    self.components[model_name]._update_noord_flatteners()
+
+
     def set_parameter_fixed(self, model_name, param_name, fix):
         """
         Change whether a specific parameter is fixed or not
@@ -1517,7 +1523,7 @@ class ModelSet:
                         (comp._higher_order_type.lower().strip() == 'perturbation'):
                         if (comp.name not in cmps_hiord_geoms):
                             ## Use general geometry:
-                            v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc)
+                            v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc, self)
                             if comp._spatial_type != 'unresolved':
                                 v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                                    xgal, ygal, zgal)
@@ -1539,7 +1545,7 @@ class ModelSet:
                                             xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
 
                             # Profiles need positions in kpc
-                            v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc)
+                            v_hiord = comp.velocity(xhiord*to_kpc, yhiord*to_kpc, zhiord*to_kpc, self)
 
                             # LOS projection
                             if comp._spatial_type != 'unresolved':
@@ -1684,14 +1690,14 @@ class ModelSet:
                             if (comp.name not in cmps_hiord_geoms):
                                 ## Use general geometry:
                                 v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
-                                                    zgal_final*to_kpc)
+                                                    zgal_final*to_kpc, self)
                                 if comp._spatial_type != 'unresolved':
                                     v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                                 else:
                                     v_hiord_LOS = v_hiord
                             else:
-                                ## Own geometry:
+                                ## Own geometry, not perturbation:
                                 geom = self.higher_order_geometries[comp.name]
 
                                 nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
@@ -1770,14 +1776,14 @@ class ModelSet:
                             if (comp.name not in cmps_hiord_geoms):
                                 ## Use general geometry:
                                 v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
-                                                    zgal_final*to_kpc)
+                                                    zgal_final*to_kpc, self)
                                 if comp._spatial_type != 'unresolved':
                                     v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                                 else:
                                     v_hiord_LOS = v_hiord
                             else:
-                                ## Own geometry:
+                                ## Own geometry, not perturbation:
                                 geom = self.higher_order_geometries[comp.name]
 
                                 nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,

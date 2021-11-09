@@ -894,7 +894,7 @@ def plot_data_model_comparison_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap = copy.copy(cm.get_cmap("Spectral_r"))
 
     # color_bad = 'black'
     # color_annotate = 'white'
@@ -903,7 +903,7 @@ def plot_data_model_comparison_2D(gal,
 
     cmap.set_bad(color=color_bad)
 
-    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
     cmap_resid.set_bad(color=color_bad)
 
 
@@ -1375,11 +1375,11 @@ def plot_model_multid_base(gal,
 
         int_mode = "nearest"
         origin = 'lower'
-        cmap = cm.get_cmap("Spectral_r").copy()
+        cmap = copy.copy(cm.get_cmap("Spectral_r"))
         cmap.set_bad(color='k')
 
 
-        cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+        cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
         cmap_resid.set_bad(color='k')
 
         color_annotate = 'white'
@@ -3031,7 +3031,7 @@ def plot_model_2D(gal,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap = copy.copy(cm.get_cmap("Spectral_r"))
     # cmap.set_bad(color='k')
     # color_annotate = 'white'
 
@@ -3252,11 +3252,11 @@ def plot_model_2D_residual(gal,
 
         int_mode = "nearest"
         origin = 'lower'
-        cmap = cm.get_cmap("Spectral_r").copy()
+        cmap = copy.copy(cm.get_cmap("Spectral_r"))
         cmap.set_bad(color='k')
 
 
-        cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+        cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
         cmap_resid.set_bad(color='k')
 
         color_annotate = 'white'
@@ -3530,7 +3530,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = cm.get_cmap("Spectral_r").copy()
+    cmap = copy.copy(cm.get_cmap("Spectral_r"))
     bad_color = 'white'
     color_annotate = 'black'
     # bad_color = 'black'
@@ -3538,7 +3538,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     cmap.set_bad(color=bad_color)
 
 
-    cmap_resid = cm.get_cmap("RdBu_r_stretch").copy()
+    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
     cmap_resid.set_bad(color=bad_color)
     cmap_resid.set_over(color='magenta')
     cmap_resid.set_under(color='blueviolet')
