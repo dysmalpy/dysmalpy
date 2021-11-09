@@ -500,7 +500,9 @@ def _fit_emcee_221(gal, **kwargs ):
     start = time.time()
 
     if sampler.chain.shape[1] > 0:
-        logger.info('\n   Resuming with existing sampler chain'+'\n')
+        logger.info('\n   Resuming with existing sampler chain at iteration ' + 
+                    str(sampler.iteration) + '\n')
+        pos = sampler['chain'][:,-1,:]
 
     # --------------------------------
     # Run sampler: output info at each step
@@ -967,7 +969,9 @@ def _fit_emcee_3(gal, **kwargs ):
     start = time.time()
 
     if sampler.iteration > 0:
-        logger.info('\n   Resuming with existing sampler chain'+'\n')
+        logger.info('\n   Resuming with existing sampler chain at iteration ' + 
+                    str(sampler.iteration) + '\n')
+        pos = sampler.get_last_sample()
 
     # --------------------------------
     # Run sampler: output info at each step
