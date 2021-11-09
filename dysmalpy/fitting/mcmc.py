@@ -967,7 +967,9 @@ def _fit_emcee_3(gal, **kwargs ):
     start = time.time()
 
     if sampler.iteration > 0:
-        logger.info('\n   Resuming with existing sampler chain'+'\n')
+        logger.info('\n   Resuming with existing sampler chain at iteration ' + 
+                    str(sampler.iteration) + '\n')
+        pos = sampler.get_last_sample()
 
     # --------------------------------
     # Run sampler: output info at each step
