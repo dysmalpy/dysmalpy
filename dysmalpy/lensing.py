@@ -22,6 +22,11 @@ import numpy as np
 from distutils.sysconfig import get_config_var
 #mylib = cdll.LoadLibrary(os.path.abspath(os.path.dirname(__file__))+os.sep+"libLensingTransformer.so")
 mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX')
+# <SHP><20211109> ++++++++++++
+if not os.path.isfile(mylibfile):
+    mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensing_transformer"
+    mylibfile += os.sep+"libLensingTransformer.so"
+# <SHP><20211109> ++++++++++++
 mylib = cdll.LoadLibrary(mylibfile)
 cached_lensing_transformer_dict = {'0': None}
 
