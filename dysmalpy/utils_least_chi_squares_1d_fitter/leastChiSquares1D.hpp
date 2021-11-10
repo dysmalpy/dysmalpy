@@ -202,7 +202,15 @@ double *fitLeastChiSquares1DForDataCubeWithMultiThread(\
     int nthread = 4);
 
 // Function exposed to Python to destroy a class.
+// No need to use it because the above function already did 
+// both new and destroy of the class object. 
 void destroyLeastChiSquares1D(void *ptr);
+
+// Function exposed to Python to free the memory
+// of the data array returned by the function
+// "fitLeastChiSquares1DForDataCubeWithMultiThread"
+void freeDataArrayMemory(void *arr);
+
 
 
 #ifdef __cplusplus

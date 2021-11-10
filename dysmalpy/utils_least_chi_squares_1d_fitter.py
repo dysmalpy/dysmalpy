@@ -194,6 +194,12 @@ class LeastChiSquares1D(object):
                     )
 
         outdata = outdata.reshape([(self.nparams*2 + self.nchan*2 + 1), self.ny, self.nx])
+        
+        # free the C data array memory
+        mylib.freeDataArrayMemory.argtypes = [POINTER(c_double)]
+        
+        mylib.freeDataArrayMemory(outcdata)
+        
 
         time_finish = timeit.default_timer()
 
