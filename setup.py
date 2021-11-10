@@ -50,11 +50,11 @@ setup(
     long_description=readme,
     include_package_data=True,
     name='dysmalpy',
-    packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.fitting_wrappers'],
+    packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.models', 'dysmalpy.fitting', 'dysmalpy.fitting_wrappers'],
     package_data={'dysmalpy': ['data/noordermeer/*.save']},
     version=__version__,
     ext_modules=cythonize([
-                    "dysmalpy/cutils.pyx", 
+                    "dysmalpy/models/cutils.pyx", 
                     Extension("dysmalpy.lensingTransformer", 
                         sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                         language="c++",

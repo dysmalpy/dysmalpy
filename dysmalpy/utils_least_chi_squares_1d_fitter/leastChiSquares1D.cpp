@@ -1071,6 +1071,8 @@ double *fitLeastChiSquares1DForDataCubeWithMultiThread(\
 
 void destroyLeastChiSquares1D(void *ptr)
 {
+    /* This function is not used. */
+    
     if (GlobalDebug > 0) 
         std::cout << "destroyLeastChiSquares1D is called." << std::endl;
     //
@@ -1091,6 +1093,23 @@ void destroyLeastChiSquares1D(void *ptr)
         std::cout << "destroyLeastChiSquares1D finished." << std::endl;
 }
 
+
+
+void freeDataArrayMemory(double *arr)
+{
+    /* This function is exposed to Python to free the memory of 
+       the data array "outall" created in the function 
+       "fitLeastChiSquares1DForDataCubeWithMultiThread". */
+       
+    if (GlobalDebug > 0) 
+        std::cout << "freeDataArrayMemory is called." << std::endl;
+    
+    if (arr) {
+        free(arr);
+        arr = NULL;
+    }
+        
+}
 
 
 
