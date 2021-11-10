@@ -209,7 +209,7 @@ void destroyLeastChiSquares1D(void *ptr);
 // Function exposed to Python to free the memory
 // of the data array returned by the function
 // "fitLeastChiSquares1DForDataCubeWithMultiThread"
-void freeDataArrayMemory(void *arr);
+void freeDataArrayMemory(double *arr);
 
 
 

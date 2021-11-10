@@ -16,11 +16,11 @@ from collections import OrderedDict
 from .base import _DysmalModel, menc_from_vcirc
 from .kinematic_options import KinematicOptions
 
-
-try:
-    import utils as model_utils
-except:
-    from . import utils as model_utils
+#try:
+#    import utils as model_utils
+#except:
+#    from . import utils as model_utils
+from . import utils as model_utils
 
 # Third party imports
 import numpy as np

@@ -170,16 +170,16 @@ class LeastChiSquares1D(object):
             int nthread = 4);
         """
 
-        mylib.fitLeastChiSquares1DForDataCubeWithMultiThread.argtypes = [\
+        mylib.fitLeastChiSquares1DForDataCubeWithMultiThread.argtypes = [
             POINTER(c_double), POINTER(c_double), POINTER(c_double),
             c_long, c_long, c_long,
             POINTER(c_double), c_long,
             c_int, c_int, c_int]
 
         mylib.fitLeastChiSquares1DForDataCubeWithMultiThread.restype = \
-            ctypes.POINTER(ctypes.c_double * (self.nparams*2 + self.nchan*2 + 1) * self.ny * self.nx)
+            ctypes.POINTER(c_double)
 
-        outcdata = mylib.fitLeastChiSquares1DForDataCubeWithMultiThread(\
+        outcdata = mylib.fitLeastChiSquares1DForDataCubeWithMultiThread(
             self.cx, self.cdata, self.cdataerr,
             self.nx, self.ny, self.nchan,
             self.cinitparams, self.nparams,
@@ -188,9 +188,9 @@ class LeastChiSquares1D(object):
         #print('ctypes.addressof(outcdata)', hex(ctypes.addressof(outcdata)))
         #print('ctypes.addressof(outcdata.contents)', hex(ctypes.addressof(outcdata.contents)))
 
-        outdata = np.ctypeslib.as_array(\
-                        (ctypes.c_double * (self.nparams*2 + self.nchan*2 + 1) * self.ny * self.nx\
-                        ).from_address(ctypes.addressof(outcdata.contents))\
+        outdata = np.ctypeslib.as_array(
+                        (c_double * (self.nparams*2 + self.nchan*2 + 1) * self.ny * self.nx).from_address(
+                            ctypes.addressof(outcdata.contents))
                     )
 
         outdata = outdata.reshape([(self.nparams*2 + self.nchan*2 + 1), self.ny, self.nx])
@@ -200,7 +200,7 @@ class LeastChiSquares1D(object):
         
         mylib.freeDataArrayMemory(outcdata)
         
-
+        # counting finishing time
         time_finish = timeit.default_timer()
 
         if self.verbose:

@@ -134,7 +134,7 @@ from PyQt5.QtCore import (Qt, QObject, QPoint, QPointF, QRect, QRectF, QSize, QS
 logging.getLogger('DysmalPy').setLevel(logger.level)
 
 
-logger.debug('models._dir_noordermeer: '+str(models._dir_noordermeer))
+#logger.debug('models._dir_noordermeer: '+str(models._dir_noordermeer))
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -462,6 +462,12 @@ class QDysmalPyGUI(QMainWindow):
         #            TODO
         #
         self.LineEditLensingParamsDict = OrderedDict()
+        self.LineEditLensingParamsDict['lensing_datadir'] = QWidgetForParamInput(\
+                    keyname=self.tr('lensing_datadir'),
+                    keycomment=self.tr('Glafic lensing model mesh.dat directory.'),
+                    datatype=str,
+                    fullwidth=True,
+                    isdatadir=True, defaultdir=self.DefaultDirectory, enabled=False)
         self.LineEditLensingParamsDict['lensing_mesh'] = QWidgetForParamInput(\
                     keyname=self.tr('lensing_mesh'),
                     keycomment=self.tr('Glafic lensing model mesh.dat file.'),
@@ -1053,18 +1059,24 @@ class QDysmalPyGUI(QMainWindow):
                      datatype=bool,
                      checkbox=True,
                      default='True')
+        self.CheckBoxModelParamsDict['zheight_tied'].CheckBoxWidget.stateChanged.disconnect()
+        self.CheckBoxModelParamsDict['zheight_tied'].CheckBoxWidget.stateChanged.connect(self.onZheightTiedCheckStateChangedCall)
         self.CheckBoxModelParamsDict['mvirial_tied'] = QWidgetForParamInput(\
                      keyname=self.tr('mvirial_tied'),
                      keycomment=self.tr("For NFW, mvirial_tied=True determines Mvirial from fDM (at r_eff_disk)."),
                      datatype=bool,
                      checkbox=True,
                      default='False')
+        self.CheckBoxModelParamsDict['mvirial_tied'].CheckBoxWidget.stateChanged.disconnect()
+        self.CheckBoxModelParamsDict['mvirial_tied'].CheckBoxWidget.stateChanged.connect(self.onMvirialTiedCheckStateChangedCall)
         self.CheckBoxModelParamsDict['fdm_tied'] = QWidgetForParamInput(\
                      keyname=self.tr('fdm_tied'),
                      keycomment=self.tr("For NFW, fdm_tied=True determines fDM from Mvirial (+baryons)."),
                      datatype=bool,
                      checkbox=True,
                      default='True')
+        self.CheckBoxModelParamsDict['fdm_tied'].CheckBoxWidget.stateChanged.disconnect()
+        self.CheckBoxModelParamsDict['fdm_tied'].CheckBoxWidget.stateChanged.connect(self.onFdmTiedCheckStateChangedCall)
         self.CheckBoxModelParamsDict['zcalc_truncate'] = QWidgetForParamInput(\
                      keyname=self.tr('zcalc_truncate'),
                      keycomment=self.tr("If True, the cube is only filled with flux to within +- 2 * scale length thickness above and below the galaxy midplane"),
@@ -1483,10 +1495,10 @@ class QDysmalPyGUI(QMainWindow):
                 if this_key == 'oversample':
                     if state>0:
                         this_dict[this_key].setEnabled(True)
-                        this_dict[this_key].setText(str(this_dict[this_key].ParamValue))
+                        this_dict[this_key].setText(str(this_dict[this_key].ParamValue), blocksignal=True)
                     else:
                         this_dict[this_key].ParamValue = this_dict[this_key].keyvalue()
-                        this_dict[this_key].setText('1')
+                        this_dict[this_key].setText('1', blocksignal=True)
                         this_dict[this_key].setEnabled(False)
                     is_changed = True
                 if is_changed:
@@ -1502,9 +1514,74 @@ class QDysmalPyGUI(QMainWindow):
             for this_key in this_dict:
                 if this_key == 'overwrite':
                     if state>0:
-                        this_dict[this_key].setText('True')
+                        this_dict[this_key].setText('True', blocksignal=True)
+                        self.logger.debug('QWidgetForParamInput::onOverWritingCheckStateChangedCall() setting overwrite to True')
                     else:
-                        this_dict[this_key].setText('False')
+                        this_dict[this_key].setText('False', blocksignal=True)
+                        self.logger.debug('QWidgetForParamInput::onOverWritingCheckStateChangedCall() setting overwrite to False')
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
+    
+    @pyqtSlot(int)
+    def onZheightTiedCheckStateChangedCall(self, state):
+        self.logger.debug('QWidgetForParamInput::onZheightTiedCheckStateChangedCall()')
+        #for this_dict in self.LineEditModelParamsDicts:
+        #    for this_key in this_dict:
+        #        if this_key == 'moment_calc':
+        #            this_dict[this_key].setText(str(np.invert(state>0)))
+        state_tied = (self.CheckBoxModelParamsDict['zheight_tied'].keyvalue() == True)
+        is_changed = False
+        for this_dict in self.LineEditModelParamsDicts:
+            for this_key in this_dict:
+                if this_key == 'sigmaz_fixed':
+                    if state_tied and this_dict['sigmaz_fixed'].text() == 'True':
+                        this_dict['sigmaz_fixed'].setText('False', blocksignal=True) # if tied, it can not be fixed
+                        self.logger.debug('QWidgetForParamInput::onZheightTiedCheckStateChangedCall() setting sigmaz_fixed to False')
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
+    
+    @pyqtSlot(int)
+    def onMvirialTiedCheckStateChangedCall(self, state):
+        self.logger.debug('QWidgetForParamInput::onMvirialTiedCheckStateChangedCall()')
+        #for this_dict in self.LineEditModelParamsDicts:
+        #    for this_key in this_dict:
+        #        if this_key == 'moment_calc':
+        #            this_dict[this_key].setText(str(np.invert(state>0)))
+        state_tied = (self.CheckBoxModelParamsDict['mvirial_tied'].keyvalue() == True)
+        is_changed = False
+        for this_dict in self.LineEditModelParamsDicts:
+            for this_key in this_dict:
+                if this_key == 'mvirial_fixed':
+                    if state_tied and this_dict['mvirial_fixed'].text() == 'True':
+                        this_dict['mvirial_fixed'].setText('False', blocksignal=True) # if tied, it can not be fixed
+                        self.logger.debug('QWidgetForParamInput::onMvirialTiedCheckStateChangedCall() setting mvirial_fixed to False')
+                    is_changed = True
+                if is_changed:
+                    break
+            if is_changed:
+                break
+    
+    @pyqtSlot(int)
+    def onFdmTiedCheckStateChangedCall(self, state):
+        self.logger.debug('QWidgetForParamInput::onFdmTiedCheckStateChangedCall()')
+        #for this_dict in self.LineEditModelParamsDicts:
+        #    for this_key in this_dict:
+        #        if this_key == 'moment_calc':
+        #            this_dict[this_key].setText(str(np.invert(state>0)))
+        state_tied = (self.CheckBoxModelParamsDict['fdm_tied'].keyvalue() == True)
+        is_changed = False
+        for this_dict in self.LineEditModelParamsDicts:
+            for this_key in this_dict:
+                if this_key == 'fdm_fixed':
+                    if state_tied and this_dict['fdm_fixed'].text() == 'True':
+                        this_dict['fdm_fixed'].setText('False', blocksignal=True) # if tied, it can not be fixed
+                        self.logger.debug('QWidgetForParamInput::onFdmTiedCheckStateChangedCall() setting fdm_fixed to False')
                     is_changed = True
                 if is_changed:
                     break
@@ -1611,30 +1688,41 @@ class QDysmalPyGUI(QMainWindow):
         # fill in GUI LineEdit
         for key in self.LineEditDataParamsDict:
             if key in self.DysmalPyParams:
+                #self.logMessage('Updating LineEditDataParamsDict[%r] = %s'%(key, self.DysmalPyParams[key]))
                 self.LineEditDataParamsDict[key].setText(self.DysmalPyParams[key], blocksignal=True)
         for key in self.LineEditLensingParamsDict:
             if key in self.DysmalPyParams:
+                #self.logMessage('Updating LineEditLensingParamsDict[%r] = %s'%(key, self.DysmalPyParams[key]))
                 self.LineEditLensingParamsDict[key].setText(self.DysmalPyParams[key], blocksignal=True)
         for i in range(len(self.LineEditModelParamsDicts)):
             for key in self.LineEditModelParamsDicts[i]:
                 if key in self.DysmalPyParams:
+                    #self.logMessage('Updating LineEditModelParamsDicts[%r] = %s'%(key, self.DysmalPyParams[key]))
                     self.LineEditModelParamsDicts[i][key].setText(self.DysmalPyParams[key], blocksignal=True)
         for key in self.CheckBoxModelParamsDict:
             if key in self.DysmalPyParams:
                 self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams[key]))
-                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams[key], blocksignal=True)
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams[key]) # , blocksignal=True
+                # if checked state not changed, manually run a changed call
+                if self.CheckBoxModelParamsDict[key].text() == self.CheckBoxModelParamsDict[key].default():
+                    if key == 'zheight_tied':
+                        self.onZheightTiedCheckStateChangedCall(0)
+                    elif key == 'mvirial_tied':
+                        self.onMvirialTiedCheckStateChangedCall(0)
+                    elif key == 'fdm_tied':
+                        self.onFdmTiedCheckStateChangedCall(0)
             # overwrite checkbox depends on the 'overwrite' key
             elif key == '__overwriting__' and 'overwrite' in self.DysmalPyParams:
                 self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['overwrite']))
-                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['overwrite'], blocksignal=True)
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['overwrite']) # , blocksignal=True
             # gauss_extract checkbox depends on the 'moment_calc' key
             elif key == '__gauss_extract__' and 'moment_calc' in self.DysmalPyParams:
                 self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['moment_calc']==False))
-                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False, blocksignal=True)
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False) # , blocksignal=True
             # gauss_extract_with_c checkbox depends on the 'moment_calc' key
             elif key == 'gauss_extract_with_c' and 'moment_calc' in self.DysmalPyParams:
                 self.logMessage('Updating CheckBoxModelParamsDict[%r] = %s'%(key, self.DysmalPyParams['moment_calc']==False))
-                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False, blocksignal=True)
+                self.CheckBoxModelParamsDict[key].setChecked(self.DysmalPyParams['moment_calc']==False) # , blocksignal=True
                 self.DysmalPyParams['gauss_extract_with_c'] = self.CheckBoxModelParamsDict[key].keyvalue()
                 # 'gauss_extract_with_c' is enabled in default in our GUI, 
                 # if it is not specified in the params file, 
@@ -4451,6 +4539,9 @@ class QWidgetForParamInput(QWidget):
         else:
             return ''
 
+    def default(self):
+        return self.ParamDefaultValue
+
     def toolTip(self):
         if self.LineEditWidget is not None:
             return self.LineEditWidget.toolTip()
@@ -4674,6 +4765,7 @@ class QFileDialogRestrictedToDirectory(QFileDialog):
 
 
 class QLineEditForParamInput(QWidget):
+    """ Not used. """
     
     ParamUpdateSignal = pyqtSignal(str, str, type, type)
     
@@ -4755,6 +4847,7 @@ class QLineEditForParamInput(QWidget):
 
 
 class QCheckBoxForParamInput(QWidget):
+    """ Not used. """
     
     ParamUpdateSignal = pyqtSignal(str, str, type, type)
     
