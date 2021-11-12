@@ -108,7 +108,7 @@ class Geometry(_DysmalFittable3DModel):
         if xshift is None:  xshift = self.xshift
         if yshift is None:  yshift = self.yshift
 
-        return self.evaluate(x, y, z, inc, pa, xshift, yshift, self.vel_shit)
+        return self.evaluate(x, y, z, inc, pa, xshift, yshift, self.vel_shift)
 
 
     def inverse_coord_transform(self, xgal, ygal, zgal,

@@ -234,6 +234,27 @@ will be installed using ``pip`` at the end.
         $ pip install spectral-cube radio-beam
 
 
+#. *OPTIONAL*: Install libraries for C++ extensions
+
+    To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
+    the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed.
+
+    These can be installed separately (using your normal means), or can be installed
+    as follows:
+
+    .. code-block:: console
+
+        $ conda install --no-deps gsl cfitsio
+        $ conda install -c conda-forge --no-deps libcblas
+
+
+    Note that the installation directory will be needed later when compiling the
+    extensions. This is either `/PATH/TO/ANACONDA` if using anaconda as above
+    (where the base `/PATH/TO/ANACONDA` should be listed under the "active env location"
+    from the output of `$ conda info`), or whatever directory was specified
+    for the separate install.
+
+
 .. note::
     If AstroPy is already installed, it can be updated to the
     most recent version by running ``$ conda update astropy``.

@@ -69,8 +69,14 @@ After this is completed, you can download the latest DysmalPy package `here`_
 
 .. _here: releases/dysmalpy-1.7.1.tar.gz
 
-From a terminal, change directories to where the package was downloaded
-and type:
+
+Basic Installation
+******************
+
+From a terminal, change directories to where the package was downloaded.
+
+To install the basic DysmalPy functionality (without any of the C++ extensions),
+type (where N.N.N is the current version):
 
 .. code-block:: console
 
@@ -78,5 +84,37 @@ and type:
     $ cd dysmalpy-N.N.N
     $ python setup.py install
 
-N.N.N is the current version. After the installation is complete, you should
+
+
+Installation with extensions
+****************************
+
+In order to install DysmalPy with the C++ extensions, we will need to also
+build the extensions.
+
+If the `gsl` and `cfitsio` are installed in non-standard locations
+(e.g., if they were installed using conda during the dependency setups),
+then we will need specify those directories as below.
+
+Typically, if `BASEDIR` is the relevant absolute directory path (e.g., `/PATH/TO/ANACONDA`
+if installed with conda, as explained in the :ref:`dependencies setup<install_deps>`),
+then `LIBDIR` and `INCLUDEDIR` are `BASEDIR/lib` and `BASEDIR/include`, respectively.
+
+(If they are installed in so the headers are in `/usr/include` or `/usr/local/include`
+and the libraries are in `/usr/lib` or `/usr/local/lib`,
+the `--include-dirs` and `--lib-dirs` flags can be omitted.)
+
+
+From a terminal, change directories to where the package was downloaded,
+then install the package and build the extensions by running:
+
+.. code-block:: console
+
+    $ tar zxvf dysmalpy-N.N.N.tar.gz
+    $ cd dysmalpy-N.N.N
+    $ python setup.py build_ext --include-dirs=INCLUDEDIR --lib-dirs=LIBDIR install
+
+
+
+After the installation is complete, you should
 be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.

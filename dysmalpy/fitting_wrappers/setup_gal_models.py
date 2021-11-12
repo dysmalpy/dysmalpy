@@ -362,6 +362,15 @@ def setup_gal_model_base(params=None,
 
 
     # --------------------------------------
+    # Set dimming, if specified:
+    if 'dimming' in params.keys():
+        try:
+            if params['dimming'].lower().strip() == 'cosmo':
+                mod_set.dimming = models.CosmologicalDimming(z=gal.z)
+        except:
+            mod_set.dimming = models.ConstantDimming(amp_lumtoflux=params['dimming'])
+
+    # --------------------------------------
     # Set up the instrument
     inst = setup_instrument_params(inst=inst, params=params)
 

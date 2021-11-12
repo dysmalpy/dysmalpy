@@ -686,7 +686,7 @@ class UniformBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
 class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
     Model for flow along a bar, along some axis in the galaxy midplane,
-        with flow velocity that varies with bar distance |xbar| (under reflection symmetry).
+        with flow velocity that varies with bar distance abs(xbar) (under reflection symmetry).
 
     Parameters
     ----------
@@ -703,7 +703,7 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
     -----
     The following function must also be passed when setting up the model,
     which takes the bar coordinate xbar as an input:
-        - vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate |xbar|.
+        - vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate abs(xbar).
                            vbar > 0 for outflow, vbar < 0 for inflow.]
 
     """
@@ -1067,7 +1067,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
             vel_dir_matrix = [[Rtox, phitox, ztox],
                               [Rtoy, phitoy, ztoy],
                               [Rtoz, phitoz, ztoz]]
-
+                              
         """
         R = np.sqrt(x ** 2 + y ** 2)
         # vel_dir_matrix = np.array([[x/R, -y/R, 0.*z],

@@ -66,7 +66,8 @@ class Config_create_model_data(ConfigBase):
         self.skip_downsample = False
         self.partial_aperture_weight = False
         #self.partial_weight = False   ## used for rot curve plotting -- but only passed to aperture
-        self.gauss_extract_with_c = None # True or False or None, whether to use faster C++ 1d gaussian spectral fitting
+        self.gauss_extract_with_c = True # True or False or None, whether to use faster C++ 1d gaussian spectral fitting.
+        # Default always try to use the C++ gaussian fitter
 
 
 class Config_simulate_cube(ConfigBase):

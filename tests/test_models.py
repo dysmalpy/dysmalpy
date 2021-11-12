@@ -193,7 +193,8 @@ class HelperSetups(object):
 
     def setup_biconical_outflow(self):
         bicone = models.BiconicalOutflow(n=0.5, vmax=300., rturn=0.5, thetain=30, dtheta=20.,
-                                         rend=1., norm_flux=0., tau_flux=5., name='bicone')
+                                         rend=1., norm_flux=11., tau_flux=5., name='bicone')
+        # To fully match old tests, set norm_flux = 0.
         bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom')
         bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof')
         return bicone, bicone_geom, bicone_disp
@@ -207,6 +208,7 @@ class HelperSetups(object):
         # Negative vbar is inflow; phi=90 is along galaxy minor axis
         bar = models.UniformBarFlow(vbar=-90., phi=90., bar_width=2., name='bar')
         return bar
+
 
     def setup_spiral_density_waves_flatVrot(self):
         def constV(R):
@@ -233,6 +235,16 @@ class HelperSetups(object):
                                                name='spiral')
         return spiral
 
+
+    def setup_massive_gaussian_ring(self):
+        gausring = models.GaussianRing(total_mass=10., R_peak=5., FWHM=2.5, name='gausring')
+        return gausring
+
+    def setup_constant_dimming(self):
+        dimming = models.ConstantDimming(amp_lumtoflux=1.e-10)
+        # To fully match old test cases, set this to 1.e-11 / 0.7
+        return dimming
+
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1, instrument=True):
         # Initialize the Galaxy, Instrument, and Model Set
@@ -244,6 +256,7 @@ class HelperSetups(object):
         disp_prof = self.setup_const_dispprof()
         zheight_prof = self.setup_zheight_prof()
         geom = self.setup_geom()
+        dimming = self.setup_constant_dimming()
 
         # Add all of the model components to the ModelSet
         mod_set.add_component(bary, light=True)
@@ -259,6 +272,8 @@ class HelperSetups(object):
         mod_set.kinematic_options.adiabatic_contract = adiabatic_contract
         mod_set.kinematic_options.pressure_support = pressure_support
         mod_set.kinematic_options.pressure_support_type = pressure_support_type
+
+        mod_set.dimming = dimming
 
         # Add the model set and instrument to the Galaxy
         gal.model = mod_set
@@ -429,6 +444,35 @@ class TestModels:
             assert math.isclose(halo.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
+    def test_massive_gaussian_ring(self):
+        gausring = self.helper.setup_massive_gaussian_ring()
+
+        ftol = 1.e-9
+        #rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
+        rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
+        vcirc = np.array([np.NaN, np.NaN, np.NaN, 55.28490315178013,
+                          115.61430265260948, 116.36168966861332,
+                          97.409470113934, 83.55004344269108, 75.312359412538]) #km/s
+        menc = np.array([0.0, 39716658.10417131, 1187568328.9910522,
+                         4152924363.1541986, 7725273046.944063, 9558434405.20822,
+                         9960786376.52532, 9998475800.392485, 9999974666.918144]) # Msun
+
+        dlnrho_dlnr = np.array([0.0, 5.545177444479562, 3.5489135644669196,
+                                -0.0, -5.323370346700379, -12.42119747563422,
+                                -21.293481386801517, -31.940222080202275, -44.3614195558365])
+        rho = np.array([1825.1474473944347, 7475803.944527601, 76757123.1000771,
+                        119612863.11244161, 76757123.1000771, 20283415.964593038,
+                        2207217.3991932594, 98907.84290890688, 1825.1474473944347])  # msun/kpc^3 ??
+
+        for i, r in enumerate(rarr):
+            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
+            if np.isfinite(vcirc[i]):
+                assert math.isclose(gausring.circular_velocity(r), vcirc[i], rel_tol=ftol)
+            else:
+                assert ~np.isfinite(gausring.circular_velocity(r))
+            assert math.isclose(gausring.enclosed_mass(r), menc[i], rel_tol=ftol)
+            assert math.isclose(gausring.rhogas(r), rho[i], rel_tol=ftol)
+            assert math.isclose(gausring.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_asymm_drift_pressuregradient(self):
         gal = self.helper.setup_fullmodel(pressure_support_type=3)
@@ -523,18 +567,17 @@ class TestModels:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        ## TO FIX THIS!!!
-        arr_pix_values = [[100,18,18, 0.00381117107560445],
-                          [0,0,0, -1.1293772630057338e-22],
-                          [100,18,0, 3.126830600463532e-07],
-                          [50,18,18, 5.320399157467473e-05],
-                          [95,10,10, 0.00025114780006119477],
-                          [100,5,5, 3.765977728305624e-06],
-                          [150,18,18, 5.312417940379806e-05],
-                          [100,15,15, 0.0073600622525440765],
-                          [100,15,21, 0.0022638772935597885],
-                          [90,15,15, 0.010582918504479507],
-                          [90,15,21, 0.0005703088570851938]]
+        arr_pix_values =   [[100,18,18, 0.027185579072496628],
+                            [0,0,0, 2.7105054312137612e-21],
+                            [100,18,0, 2.1887814203259354e-06],
+                            [50,18,18, 0.0005320325936246136],
+                            [95,10,10, 0.001758091539590106],
+                            [100,5,5, 2.6361844098141783e-05],
+                            [150,18,18, 0.0005310729496857921],
+                            [100,15,15, 0.052710956556674675],
+                            [100,15,21, 0.01588655546256837],
+                            [90,15,15, 0.07522552630778426],
+                            [90,15,21, 0.004030068174217149]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -545,7 +588,6 @@ class TestModels:
         gal_inflow = self.helper.setup_fullmodel(instrument=True)
         inflow = self.helper.setup_uniform_inflow()
         gal_inflow.model.add_component(inflow)
-
 
         ##################
         # Create cube:
@@ -562,17 +604,17 @@ class TestModels:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values = [[100,18,18, 0.003457320571479227],
-                          [0,0,0, -2.8234431575143344e-23],
-                          [100,18,0, 4.0604749531378074e-08],
-                          [50,18,18, 1.742931999131984e-08],
-                          [95,10,10, 0.0002149957481730804],
-                          [100,5,5, 1.9462550747610114e-06],
-                          [150,18,18, 2.41902333675964e-07],
-                          [100,15,15, 0.00608786525932501],
-                          [100,15,21, 0.0008705542886999003],
-                          [90,15,15, 0.008899430518199991],
-                          [90,15,21, 0.0001872691725825555]]
+        arr_pix_values =   [[100,18,18, 0.024201244000354585],
+                            [0,0,0, -2.0328790734103207e-21],
+                            [100,18,0, 2.842332467196115e-07],
+                            [50,18,18, 1.2200523993773544e-07],
+                            [95,10,10, 0.0015049702372115622],
+                            [100,5,5, 1.3623785523327364e-05],
+                            [150,18,18, 1.6933163357361428e-06],
+                            [100,15,15, 0.042615056815275054],
+                            [100,15,21, 0.0060938800208993026],
+                            [90,15,15, 0.06229601362739992],
+                            [90,15,21, 0.0013108842080778876]]
 
 
         for arr in arr_pix_values:
@@ -599,17 +641,17 @@ class TestModels:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values = [[100,18,18, 0.002949700703309121],
-                          [0,0,0, 5.646886315028669e-22],
-                          [100,18,0, 3.126434364710052e-07],
-                          [50,18,18, 1.9790117769278557e-07],
-                          [95,10,10, 0.00025092461647796343],
-                          [100,5,5, 3.7659777282734478e-06],
-                          [150,18,18, 5.832715946826883e-07],
-                          [100,15,15, 0.005435609676555287],
-                          [100,15,21, 0.0016775900062652787],
-                          [90,15,15, 0.010250649150114251],
-                          [90,15,21, 0.0003235957967723612]]
+        arr_pix_values =   [[100,18,18, 0.02064790492316384],
+                            [0,0,0, -6.776263578034403e-22],
+                            [100,18,0, 2.1885040552975126e-06],
+                            [50,18,18, 1.3853082438536335e-06],
+                            [95,10,10, 0.0017564723153457415],
+                            [100,5,5, 2.6361844097914003e-05],
+                            [150,18,18, 4.082901162771879e-06],
+                            [100,15,15, 0.038049267735887],
+                            [100,15,21, 0.01174313004385695],
+                            [90,15,15, 0.07175454405079977],
+                            [90,15,21, 0.0022651705774065253]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -636,17 +678,17 @@ class TestModels:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values = [[100,18,18, 0.0034415772446249296],
-                          [0,0,0, -1.1293772630057338e-22],
-                          [100,18,0, 3.2489353151314377e-07],
-                          [50,18,18, 9.813690772519924e-09],
-                          [95,10,10, 0.0003410230937585464],
-                          [100,5,5, 1.5891838480066463e-05],
-                          [150,18,18, 3.4391321564047896e-07],
-                          [100,15,15, 0.006651706667787829],
-                          [100,15,21, 0.002252529641204471],
-                          [90,15,15, 0.009913163947121531],
-                          [90,15,21, 0.0009135913829775011]]
+        arr_pix_values =   [[100,18,18, 0.0240910407123745],
+                            [0,0,0, -1.807003620809174e-21],
+                            [100,18,0, 2.274254720591604e-06],
+                            [50,18,18, 6.869583540925853e-08],
+                            [95,10,10, 0.002387161656309826],
+                            [100,5,5, 0.00011124286936046525],
+                            [150,18,18, 2.4073925094865906e-06],
+                            [100,15,15, 0.04656194667451479],
+                            [100,15,21, 0.015767707488431298],
+                            [90,15,15, 0.06939214762985071],
+                            [90,15,21, 0.006395139680842508]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -669,18 +711,17 @@ class TestModels:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        ## TO FIX THIS!!!
-        arr_pix_values = [[100,18,18, 0.003642043894515958],
-                          [0,0,0, 8.470329472543004e-23],
-                          [100,18,0, 3.1268306004623424e-07],
-                          [50,18,18, 2.440707378333536e-09],
-                          [95,10,10, 0.0002511288203406142],
-                          [100,5,5, 3.7659777283049023e-06],
-                          [150,18,18, 5.6281450732294695e-08],
-                          [100,15,15, 0.006963221989588695],
-                          [100,15,21, 0.0022507391576765032],
-                          [90,15,15, 0.010201219579003603],
-                          [90,15,21, 0.000557673465544929]]
+        arr_pix_values =   [[100,18,18, 0.025494307261611702],
+                            [0,0,0, 6.776263578034403e-22],
+                            [100,18,0, 2.188781420324916e-06],
+                            [50,18,18, 1.7084951645559194e-08],
+                            [95,10,10, 0.0017579017423842986],
+                            [100,5,5, 2.6361844098134272e-05],
+                            [150,18,18, 3.939701551269881e-07],
+                            [100,15,15, 0.04874255392712087],
+                            [100,15,21, 0.015755174103735517],
+                            [90,15,15, 0.07140853705302519],
+                            [90,15,21, 0.003903714258814497]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -710,17 +751,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values = [[100,18,18, 0.008900917775023906],
-                          [  0, 0, 0, 3.3463030014984708e-22],
-                          [100,18, 0, 3.5919506170302206e-07],
-                          [ 50,18,18, 7.63640034138618e-08],
-                          [ 95,10,10, 0.0002370085470795104],
-                          [100, 5, 5, 1.4420204105232684e-05],
-                          [150,18,18, 7.636400341471845e-08],
-                          [100,15,15, 0.0015740863443549139],
-                          [100,15,21, 0.0038719443027728975],
-                          [ 90,15,15, 0.006517270586277637],
-                          [ 90,15,21, 0.002939684687493484]]
+        arr_pix_values =   [[100,18,18, 0.062306424425167345],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 2.5143654319214826e-06],
+                            [50,18,18, 5.345480239025723e-07],
+                            [95,10,10, 0.0016590598295565717],
+                            [100,5,5, 0.0001009414287366288],
+                            [150,18,18, 5.345480239012016e-07],
+                            [100,15,15, 0.011018604410484396],
+                            [100,15,21, 0.027103610119410277],
+                            [90,15,15, 0.045620894103943446],
+                            [90,15,21, 0.02057779281245439]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same

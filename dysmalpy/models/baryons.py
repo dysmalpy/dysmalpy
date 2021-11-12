@@ -22,12 +22,14 @@ import astropy.units as u
 from astropy.table import Table
 
 # Local imports
-from .base import MassModel, v_circular, menc_from_vcirc, sersic_mr
+from .base import MassModel, LightMassModel, v_circular, \
+                  menc_from_vcirc, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
+           'GaussianRing',
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-           'sersic_menc_2D_proj', 'NoordFlat']
+           'sersic_menc_2D_proj', 'NoordFlat', 'InfThinMassiveGaussianRing']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -47,6 +49,10 @@ _dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_s
 #     _sersic_profile_mass_VC_loaded = True
 # except:
 #     _sersic_profile_mass_VC_loaded = False
+
+# MASSIVE RING DIRECTORIES:
+_dir_gaussian_ring_tables_TMP = "/Users/sedona/data/mpe_ir/ring_rot_curves/ring_RC_tables/"
+_dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', _dir_gaussian_ring_tables_TMP)
 
 
 # CONSTANTS
@@ -303,6 +309,7 @@ class NoordFlat(object):
 
             self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
                                            fill_value="extrapolate")
+
 
 
     def apply_noord_flat(self, r, r_eff, mass):
@@ -726,6 +733,190 @@ class NoordFlat(object):
 
 
 
+##########################
+class InfThinMassiveGaussianRing(object):
+    """
+    Class to handle circular velocities / enclosed mass profiles for
+        an infinitely thin, massive Gaussian ring.
+
+    Lookup tables are numerically calculated, following B&T and Bovy online galaxies textbook.
+
+    The lookup table provides rotation curves for Gaussian rings with
+    `invh` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100],
+    where :math:`invh = R_{\mathrm{peak}} / \mathrm{FWHM}_{\mathrm{ring}}`
+    If the given `n` and/or `invq` are not one of these values then the nearest
+    ones are used.
+
+    Parameters
+    ----------
+    invh : float
+        Ratio of R_peak / ring_FWHM
+
+    """
+
+    def __init__(self, invh=None):
+        self._invh = invh
+        self._invh_current = None
+
+        self._reset_interps()
+
+    @property
+    def invh(self):
+        return self._invh
+
+    @invh.setter
+    def invh(self, value):
+        if value < 0:
+            raise ValueError("Invq can't be negative!")
+        self._invh = value
+
+        # Reset vcirc interp:
+        self._reset_interps()
+
+    def _reset_interps(self):
+        self._set_vcirc_interp()
+        self._set_menc_interp()
+
+
+
+    def read_ring_table(self):
+        # Use the "typical" collection of table values:
+        table_invh =    np.array([0.01, 0.05,
+                                  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
+                                  0.25, 0.75,
+                                  1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.,
+                                  2.25, 2.5, 2.75, 3., 3.5,
+                                  3.33, 6.67,
+                                  4., 4.5, 5., 5.5, 6., 6.5, 7., 7.5,
+                                  8., 8.5, 9., 9.5, 10., 12.5,
+                                  15., 20., 25., 50.])
+
+        nearest_invh = table_invh[ np.argmin( np.abs( table_invh - self.invh) ) ]
+
+        if self.invh != nearest_invh:
+            logger.warning('Using table for massive gausring with NON-EXACT invh!!'
+                           'Model invh = {} ; table invh = {}'.format(self.invh, nearest_invh))
+
+        file_gausring = _dir_gaussian_ring_tables + 'gauss_ring_profile_invh{:0.2f}.fits'.format(nearest_invh)
+        try:
+            t = Table.read(file_gausring)
+        except:
+            raise ValueError("File {} not found. _dir_gaussian_ring_tables={}. Check that system var ${} is set correctly.".format(file_gausring,
+                        _dir_gaussian_ring_tables, 'GAUSSIAN_RING_PROFILE_DATADIR'))
+
+        return t[0]
+
+
+    def _set_vcirc_interp(self):
+        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
+        table = self.read_ring_table()
+
+        tab_rad =               table['R']
+        tab_vcirc =             table['vcirc']
+        self.tab_invh =         table['invh']
+        self.tab_R_peak =       table['R_peak']
+        self.tab_ring_FWHM =    table['ring_FWHM']
+        self.tab_mass =         table['total_mass']
+
+        self.vcirc_interp = scp_interp.interp1d(tab_rad, tab_vcirc,
+                                       fill_value="extrapolate")
+
+        # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
+        # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+
+
+    def _set_menc_interp(self):
+        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
+        table = self.read_ring_table()
+
+        tab_rad =               table['R']
+        tab_menc =              table['menc']
+        self.tab_invh =         table['invh']
+        self.tab_R_peak =       table['R_peak']
+        self.tab_ring_FWHM =    table['ring_FWHM']
+        self.tab_mass =         table['total_mass']
+
+        self.menc_interp = scp_interp.interp1d(tab_rad, tab_menc, fill_value="extrapolate")
+
+        # scale_fac = (total_mass / table_mass)
+        # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+
+
+    def vcirc(self, R, R_peak, total_mass):
+        """
+        Calculate circular velocity for a inf thin massive gaussian Ring
+
+        Parameters
+        ----------
+        R : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        R_peak : float
+            Peak of Gaussian ring in kpc
+
+        total_mass : float
+            Total mass of the Gaussian ring component
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity at each given `R`
+
+        Notes
+        -----
+        This function determines the circular velocity as a function of radius for
+        a massive Gaussian ring component with a total mass, `total_mass`,
+        and a ring peak radius to ring FWHM ratio, `invh`.
+        This uses numerically calculated lookup tables.
+
+        """
+        scale_fac = np.sqrt(total_mass / self.tab_mass) * np.sqrt(self.tab_R_peak / R_peak)
+        vcirc = self.vcirc_interp(R / R_peak * self.tab_R_peak) * scale_fac
+
+        # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
+        # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+
+        return vcirc
+
+
+
+    def enclosed_mass(self, R, R_peak, total_mass):
+        """
+        Calculate enclosed mass for a inf thin massive gaussian Ring
+
+        Parameters
+        ----------
+        R : float or array
+            Radius or radii at which to calculate the enclosed in kpc
+
+        R_peak : float
+            Peak of Gaussian ring in kpc
+
+        total_mass : float
+            Total mass of the Gaussian ring component
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity at each given `R`
+
+        Notes
+        -----
+        This function determines the enclosed as a function of radius for
+        a massive Gaussian ring component with a total mass, `total_mass`,
+        and a ring peak radius to ring FWHM ratio, `invh`.
+        This uses numerically calculated lookup tables.
+
+        """
+        scale_fac = total_mass / self.tab_mass
+        menc = self.menc_interp(R / R_peak * self.tab_R_peak) * scale_fac
+
+        # scale_fac = (total_mass / table_mass)
+        # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+
+        return menc
+
+
 
 class BlackHole(MassModel):
     """
@@ -831,7 +1022,7 @@ class BlackHole(MassModel):
         return r * 0.
 
 
-class ExpDisk(MassModel):
+class ExpDisk(MassModel, LightMassModel):
     """
     Infinitely thin exponential disk (i.e. Freeman disk)
 
@@ -915,7 +1106,9 @@ class ExpDisk(MassModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        light = surf_dens_exp_disk(r, 1.0, self.rd)
+        #light = surf_dens_exp_disk(r, 1.0, self.rd)
+
+        light = surf_dens_exp_disk(r, (1./self.mass_to_light) * 10**self.total_mass, self.rd)
         return light
 
     def rhogas(self, r):
@@ -963,7 +1156,7 @@ class ExpDisk(MassModel):
         return -2. * (r / self.rd)
 
 
-class Sersic(MassModel):
+class Sersic(MassModel, LightMassModel):
     """
     Mass distribution following a Sersic profile
 
@@ -1072,15 +1265,16 @@ class Sersic(MassModel):
         self._initialize_noord_flatteners()
 
     def _initialize_noord_flatteners(self):
-        # Initialize NoordFlat object:
-        self.noord_flattener = NoordFlat(n=self.n.value, invq=self.invq)
+        if self.noord_flat:
+            # Initialize NoordFlat object:
+            self.noord_flattener = NoordFlat(n=self.n.value, invq=self.invq)
 
     def _update_noord_flatteners(self):
         if self.n.value != self.noord_flattener._n:
             self.noord_flattener.n = self.n.value
 
-        if self.n.value != self.noord_flattener._n:
-            self.noord_flattener.n = self.n.value
+        if self.invq != self.noord_flattener._invq:
+            self.noord_flattener.invq = self.invq
 
     @staticmethod
     def evaluate(r, total_mass, r_eff, n):
@@ -1161,7 +1355,8 @@ class Sersic(MassModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        return sersic_mr(r, 1.0, self.n, self.r_eff)
+        #return sersic_mr(r, 1.0, self.n, self.r_eff)
+        return sersic_mr(r, (1./self.mass_to_light) * 10**self.total_mass, self.n, self.r_eff)
 
     def rhogas(self, r):
         """
@@ -1224,7 +1419,7 @@ class Sersic(MassModel):
         return dlnrhogas_dlnr_arr
 
 
-class DiskBulge(MassModel):
+class DiskBulge(MassModel, LightMassModel):
     """
     Mass distribution with a disk and bulge
 
@@ -1337,6 +1532,14 @@ class DiskBulge(MassModel):
 
         if self.n_bulge.value != self.noord_flattener_bulge._n:
             self.noord_flattener_bulge.n = self.n_bulge.value
+
+
+        if self.invq_disk != self.noord_flattener_disk._invq:
+            self.noord_flattener_disk.invq = self.invq_disk
+
+        if self.invq_bulge != self.noord_flattener_bulge._invq:
+            self.noord_flattener_bulge.invq = self.invq_bulge
+
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -1655,18 +1858,29 @@ class DiskBulge(MassModel):
 
         if self.light_component == 'disk':
 
-            flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+            #flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+            flux = sersic_mr(r, (1./self.mass_to_light) * (1.0-self.bt) * 10**self.total_mass,
+                             self.n_disk, self.r_eff_disk)
 
         elif self.light_component == 'bulge':
 
-            flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+            #flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+            flux = sersic_mr(r, (1./self.mass_to_light) * self.bt * 10**self.total_mass,
+                             self.n_bulge, self.r_eff_bulge)
 
         elif self.light_component == 'total':
 
-            flux_disk = sersic_mr(r, 1.0-self.bt,
-                                  self.n_disk, self.r_eff_disk)
-            flux_bulge = sersic_mr(r, self.bt,
-                                   self.n_bulge, self.r_eff_bulge)
+            # flux_disk = sersic_mr(r, 1.0-self.bt,
+            #                       self.n_disk, self.r_eff_disk)
+            # flux_bulge = sersic_mr(r, self.bt,
+            #                        self.n_bulge, self.r_eff_bulge)
+
+            flux_disk = sersic_mr(r,
+                        (1./self.mass_to_light) * (1.0-self.bt) * 10**self.total_mass,
+                         self.n_disk, self.r_eff_disk)
+            flux_bulge = sersic_mr(r,
+                        (1./self.mass_to_light) * self.bt * 10**self.total_mass,
+                         self.n_bulge, self.r_eff_bulge)
             flux = flux_disk + flux_bulge
 
         else:
@@ -1825,7 +2039,7 @@ class DiskBulge(MassModel):
         return dlnrhogas_dlnr_tot
 
 
-class LinearDiskBulge(MassModel):
+class LinearDiskBulge(MassModel, LightMassModel):
     """
     Mass distribution with a disk and bulge
 
@@ -1933,6 +2147,12 @@ class LinearDiskBulge(MassModel):
 
         if self.n_bulge.value != self.noord_flattener_bulge._n:
             self.noord_flattener_bulge.n = self.n_bulge.value
+
+        if self.invq_disk != self.noord_flattener_disk._invq:
+            self.noord_flattener_disk.invq = self.invq_disk
+
+        if self.invq_bulge != self.noord_flattener_bulge._invq:
+            self.noord_flattener_bulge.invq = self.invq_bulge
 
     @staticmethod
     def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
@@ -2231,19 +2451,32 @@ class LinearDiskBulge(MassModel):
 
         if self.light_component == 'disk':
 
-            flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+            #flux = sersic_mr(r, 1.0, self.n_disk, self.r_eff_disk)
+            flux = sersic_mr(r, (1./self.mass_to_light) * (1.0-self.bt) * self.total_mass,
+                             self.n_disk, self.r_eff_disk)
 
         elif self.light_component == 'bulge':
 
-            flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+            #flux = sersic_mr(r, 1.0, self.n_bulge, self.r_eff_bulge)
+            flux = sersic_mr(r, (1./self.mass_to_light) * self.bt * self.total_mass,
+                             self.n_bulge, self.r_eff_bulge)
 
         elif self.light_component == 'total':
 
-            flux_disk = sersic_mr(r, 1.0-self.bt,
-                                  self.n_disk, self.r_eff_disk)
-            flux_bulge = sersic_mr(r, self.bt,
-                                   self.n_bulge, self.r_eff_bulge)
+            # flux_disk = sersic_mr(r, 1.0-self.bt,
+            #                       self.n_disk, self.r_eff_disk)
+            # flux_bulge = sersic_mr(r, self.bt,
+            #                        self.n_bulge, self.r_eff_bulge)
+
+            flux_disk = sersic_mr(r,
+                        (1./self.mass_to_light) * (1.0-self.bt) * self.total_mass,
+                         self.n_disk, self.r_eff_disk)
+            flux_bulge = sersic_mr(r,
+                        (1./self.mass_to_light) * self.bt * self.total_mass,
+                         self.n_bulge, self.r_eff_bulge)
             flux = flux_disk + flux_bulge
+
+
 
         else:
 
@@ -2251,3 +2484,196 @@ class LinearDiskBulge(MassModel):
                              "or 'total.'")
 
         return flux
+
+
+class GaussianRing(MassModel, LightMassModel):
+    """
+    Mass distribution following an infinitely thin Gaussian ring profile.
+
+    Parameters
+    ----------
+
+    total_mass : float
+        Log10 of the total mass in solar units
+
+    R_peak : float
+        Peak of gaussian (radius) in kpc
+
+    FWHM: float
+        FWHM of gaussian, in kpc
+
+    baryon_type : {'gas+stars', 'stars', 'gas'}
+        What type of baryons are included. Used for dlnrhogas/dlnr
+
+    Notes
+    -----
+    Model formula:
+
+    .. math::
+
+        M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
+        sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
+
+
+    """
+
+    total_mass = DysmalParameter(default=1, bounds=(5, 14))
+    R_peak = DysmalParameter(default=1, bounds=(0, 50))
+    #sigma_R = DysmalParameter(default=1, bounds=(0, 50))
+    FWHM = DysmalParameter(default=1, bounds=(0, 50))
+
+    _subtype = 'baryonic'
+
+    def __init__(self, baryon_type='gas+stars', **kwargs):
+
+        self.baryon_type = baryon_type
+        super(GaussianRing, self).__init__(**kwargs)
+
+        self._initialize_ring_table()
+
+    def __setstate__(self, state):
+        super(GaussianRing, self).__setstate__(state)
+
+        if 'baryon_type' in state.keys():
+            pass
+        else:
+            self.baryon_type = 'gas+stars'
+
+        if 'ring_table' in state.keys():
+            pass
+        else:
+            self._initialize_ring_table()
+
+    def _initialize_ring_table(self):
+        # Initialize InfThinMassiveGaussianRing object:
+        self.ring_table = InfThinMassiveGaussianRing(invh=self.ring_invh())
+
+    def _update_ring_table(self):
+        if self.ring_invh() != self.ring_table._invh:
+            self.ring_table.invh = self.ring_invh()
+
+    # def ring_FWHM(self):
+    #     return self.sigma_R.value * (2.*np.sqrt(2.*np.log(2.)))
+
+    def sigma_R(self):
+        return self.FWHM.value / (2.*np.sqrt(2.*np.log(2.)))
+
+    def ring_invh(self):
+        return self.R_peak.value / self.FWHM.value
+
+    @staticmethod
+    def evaluate(r, total_mass, R_peak, FWHM):
+        """ Gaussian ring mass surface density """
+        sigma_R = FWHM/ (2.*np.sqrt(2.*np.log(2.)))
+        I0 = _I0_gaussring(R_peak, sigma_R, 10**total_mass)
+        return I0*np.exp(-(r-R_peak)**2/(2.*sigma_R**2))
+
+    def surface_density(self, r):
+        """ Gaussian ring mass surface density """
+        return self.evaluate(r, self.total_mass.value, self.R_peak.value, self.FWHM.value)
+
+    def enclosed_mass(self, r):
+        """
+        Sersic enclosed mass
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass profile
+        """
+        # Check invh is correct
+        self._update_ring_table()
+
+        return self.ring_table.enclosed_mass(r, self.R_peak.value, 10**self.total_mass.value)
+
+    def projected_enclosed_mass(self, r):
+        """ Same as enclosed mass as this is infinitely thin gaussian ring """
+        return self.enclosed_mass(r)
+
+
+    def circular_velocity(self, r):
+        """
+        Circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity in km/s
+        """
+        # Check invh is correct
+        self._update_ring_table()
+
+        return self.ring_table.vcirc(r, self.R_peak.value, 10**self.total_mass.value)
+
+
+    def light_profile(self, r):
+        """
+        Conversion from mass to light as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        light : float or array
+            Relative line flux as a function of radius
+        """
+        #return 1.*np.exp(-(r-self.R_peak.value)**2/(2.*self.sigma_R()**2))
+        return self.surface_density(r) * (1./self.mass_to_light) 
+
+    def rhogas(self, r):
+        """
+        Mass density as a function of radius (if noord_flat; otherwise surface density)
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        dens : float or array
+            Mass density at `r` in units of Msun/kpc^3 (if noord_flat; otherwise surface density)
+        """
+
+        if 'gas' in self.baryon_type.lower().strip():
+            # Inf thin: rho(R,z=0) = Sigma(R)
+            rhogas = self.surface_density(r)
+        else:
+            rhogas = r * 0.
+
+        return rhogas
+
+    def dlnrhogas_dlnr(self, r):
+        """
+        Sersic asymmetric drift term
+
+        Parameters
+        ----------
+        r : float or array
+            Radius in kpc
+
+        Returns
+        -------
+        log_drhodr : float or array
+            Log surface density derivative as a function or radius
+        """
+        if 'gas' in self.baryon_type.lower().strip():
+            # Inf thin: rho(R,z=0) = Sigma(R)
+            dlnrhogas_dlnr_arr = - r * (r-self.R_peak.value) / (self.sigma_R()**2)
+        else:
+            dlnrhogas_dlnr_arr = r * 0.
+
+        return dlnrhogas_dlnr_arr
