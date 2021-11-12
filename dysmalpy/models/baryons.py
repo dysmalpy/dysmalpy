@@ -22,7 +22,7 @@ import astropy.units as u
 from astropy.table import Table
 
 # Local imports
-from .base import MassModel, LightMassModel, v_circular, \
+from .base import MassModel, _LightMassModel, v_circular, \
                   menc_from_vcirc, sersic_mr, _I0_gaussring
 from dysmalpy.parameters import DysmalParameter
 
@@ -1022,7 +1022,7 @@ class BlackHole(MassModel):
         return r * 0.
 
 
-class ExpDisk(MassModel, LightMassModel):
+class ExpDisk(MassModel, _LightMassModel):
     """
     Infinitely thin exponential disk (i.e. Freeman disk)
 
@@ -1041,6 +1041,7 @@ class ExpDisk(MassModel, LightMassModel):
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
+    mass_to_light = DysmalParameter(default=1, fixed=True)
     _subtype = 'baryonic'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
@@ -1156,7 +1157,7 @@ class ExpDisk(MassModel, LightMassModel):
         return -2. * (r / self.rd)
 
 
-class Sersic(MassModel, LightMassModel):
+class Sersic(MassModel, _LightMassModel):
     """
     Mass distribution following a Sersic profile
 
@@ -1226,6 +1227,7 @@ class Sersic(MassModel, LightMassModel):
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     n = DysmalParameter(default=1, bounds=(0, 8))
+    mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
 
@@ -1419,7 +1421,7 @@ class Sersic(MassModel, LightMassModel):
         return dlnrhogas_dlnr_arr
 
 
-class DiskBulge(MassModel, LightMassModel):
+class DiskBulge(MassModel, _LightMassModel):
     """
     Mass distribution with a disk and bulge
 
@@ -1475,6 +1477,7 @@ class DiskBulge(MassModel, LightMassModel):
     r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
     n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
     bt = DysmalParameter(default=0.2, bounds=(0, 1))
+    mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
 
@@ -2039,7 +2042,7 @@ class DiskBulge(MassModel, LightMassModel):
         return dlnrhogas_dlnr_tot
 
 
-class LinearDiskBulge(MassModel, LightMassModel):
+class LinearDiskBulge(MassModel, _LightMassModel):
     """
     Mass distribution with a disk and bulge
 
@@ -2091,6 +2094,7 @@ class LinearDiskBulge(MassModel, LightMassModel):
     r_eff_bulge = DysmalParameter(default=1, bounds=(0, 50))
     n_bulge = DysmalParameter(default=4., fixed=True, bounds=(0, 8))
     bt = DysmalParameter(default=0.2, bounds=(0, 1))
+    mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
 
@@ -2486,7 +2490,7 @@ class LinearDiskBulge(MassModel, LightMassModel):
         return flux
 
 
-class GaussianRing(MassModel, LightMassModel):
+class GaussianRing(MassModel, _LightMassModel):
     """
     Mass distribution following an infinitely thin Gaussian ring profile.
 
@@ -2519,8 +2523,8 @@ class GaussianRing(MassModel, LightMassModel):
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
     R_peak = DysmalParameter(default=1, bounds=(0, 50))
-    #sigma_R = DysmalParameter(default=1, bounds=(0, 50))
     FWHM = DysmalParameter(default=1, bounds=(0, 50))
+    mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
 

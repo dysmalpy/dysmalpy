@@ -12,6 +12,9 @@ import logging
 # Third party imports
 import numpy as np
 
+# Local imports
+from dysmalpy.parameters import DysmalParameter
+
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
@@ -56,3 +59,18 @@ def replace_values_by_refarr(arr, ref_arr, excise_val, subs_val):
         arr[ref_arr==excise_val] = subs_val
 
     return arr
+
+
+def insert_param_state(state, pn, value=None, fixed=True, tied=False, bounds=None, prior=None):
+    state[pn] = DysmalParameter(default=value, fixed=fixed, tied=tied, bounds=bounds,prior=prior)
+    for cnst in ['fixed', 'tied', 'bounds', 'prior']:
+        state['_constraints'][cnst][pn] = state[pn].__dict__["_{}".format(cnst)]
+
+    pmdict = {'shape': (), 'orig_unit': None, 'raw_unit': None, 'size': 1}
+    ind_pn = len(state['_parameters'])
+    pmdict['slice'] = slice(ind_pn, ind_pn+1, None)
+    state['_param_metrics'][pn] = pmdict
+
+    state['_parameters'] = np.append(state['_parameters'], value)
+
+    return state

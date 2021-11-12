@@ -2,7 +2,7 @@
 #
 # Submodule for handling of DysmalPy ModelSets (and Models) to use build the galaxy model
 
-from dysmalpy.models.base import MassModel, LightModel, LightMassModel, \
+from dysmalpy.models.base import MassModel, LightModel, \
                                  HigherOrderKinematicsSeparate, HigherOrderKinematicsPerturbation, \
                                  v_circular, sersic_mr, truncate_sersic_mr
 from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \

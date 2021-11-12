@@ -17,14 +17,14 @@ import astropy.constants as apy_con
 import scipy.special as scp_spec
 
 # Local imports
-from dysmalpy.parameters import DysmalParameter
+from dysmalpy.parameters import DysmalParameter, UniformPrior
 
 try:
     import utils
 except:
     from . import utils
 
-__all__ = ['MassModel', 'LightModel', 'LightMassModel',
+__all__ = ['MassModel', 'LightModel', 
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
@@ -288,15 +288,18 @@ class LightModel(_DysmalModel):
         """Evaluate the enclosed mass as a function of radius"""
 
 
-class LightMassModel(_DysmalModel):
+class _LightMassModel(_DysmalModel):
     """
     Abstract model for mass model that also emits light
     """
 
-    mass_to_light = DysmalParameter(default=1, fixed=True)
-
     def __setstate__(self, state):
-        super(LightMassModel, self).__setstate__(state)
+        if 'mass_to_light' not in state.keys():
+            state = utils.insert_param_state(state, 'mass_to_light', value=1., 
+                                             fixed=True, tied=False, 
+                                             bounds=(0.,10.), prior=UniformPrior)
+
+        super(_LightMassModel, self).__setstate__(state)
 
 
 
