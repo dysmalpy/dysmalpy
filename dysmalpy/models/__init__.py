@@ -2,14 +2,14 @@
 #
 # Submodule for handling of DysmalPy ModelSets (and Models) to use build the galaxy model
 
-from dysmalpy.models.base import MassModel, LightModel, \
+from dysmalpy.models.base import MassModel, LightModel, LightMassModel, \
                                  HigherOrderKinematicsSeparate, HigherOrderKinematicsPerturbation, \
                                  v_circular, sersic_mr, truncate_sersic_mr
 from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
-                                    ExpDisk, BlackHole, \
+                                    ExpDisk, BlackHole, GaussianRing, \
                                     surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
                                     sersic_menc_2D_proj, menc_from_vcirc, \
-                                    NoordFlat
+                                    NoordFlat, InfThinMassiveGaussianRing
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                   Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
@@ -24,6 +24,7 @@ from dysmalpy.models.light_distributions import LightTruncateSersic, LightGaussi
 from dysmalpy.models.extinction import ThinCentralPlaneDustExtinction, \
                                        ForegroundConstantExtinction, \
                                        ForegroundExponentialExtinction
+from dysmalpy.models.dimming import ConstantDimming, CosmologicalDimming
 from dysmalpy.models.kinematic_options import KinematicOptions
 from dysmalpy.models.geometry import Geometry
 from dysmalpy.models.model_set import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
@@ -32,6 +33,7 @@ from dysmalpy.models.model_set import ModelSet, calc_1dprofile, calc_1dprofile_c
 __all__ = ['ModelSet',
            # Baryons
            'Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
+           'GaussianRing',
            # Halos
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            # Higher-order components
@@ -48,11 +50,14 @@ __all__ = ['ModelSet',
            # Extinction
            'ThinCentralPlaneDustExtinction', 'ForegroundConstantExtinction',
            'ForegroundExponentialExtinction',
+           # Dimming
+           'ConstantDimming', 'CosmologicalDimming', 
            # Geometry and optoins
            'Geometry', 'KinematicOptions',
            # Zheight profiles
            'ZHeightGauss', 'ZHeightExp',
            # Functions
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-           'sersic_mr', 'sersic_menc', 'v_circular', 'menc_from_vcirc',
-           'NoordFlat', 'calc_1dprofile', 'calc_1dprofile_circap_pv']
+           'sersic_mr', 'sersic_menc_2D_proj', 'v_circular', 'menc_from_vcirc',
+           'NoordFlat', 'InfThinMassiveGaussianRing',
+           'calc_1dprofile', 'calc_1dprofile_circap_pv']

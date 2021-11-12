@@ -501,7 +501,7 @@ class Galaxy:
         n_wholepix_z_min: int
             Minimum number of whole pixels to include in the z direction when trunctating.
             Default: 3
-
+            
         """
         if line_center is None:
             line_center = self.model.line_center

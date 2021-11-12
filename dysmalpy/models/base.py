@@ -24,7 +24,7 @@ try:
 except:
     from . import utils
 
-__all__ = ['MassModel', 'LightModel',
+__all__ = ['MassModel', 'LightModel', 'LightMassModel',
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
@@ -286,6 +286,20 @@ class LightModel(_DysmalModel):
     @abc.abstractmethod
     def light_profile(self, *args, **kwargs):
         """Evaluate the enclosed mass as a function of radius"""
+
+
+class LightMassModel(_DysmalModel):
+    """
+    Abstract model for mass model that also emits light
+    """
+
+    mass_to_light = DysmalParameter(default=1, fixed=True)
+
+    def __setstate__(self, state):
+        super(LightMassModel, self).__setstate__(state)
+
+
+
 
 
 class HigherOrderKinematics(_DysmalModel):

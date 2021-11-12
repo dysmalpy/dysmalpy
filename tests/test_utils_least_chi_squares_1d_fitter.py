@@ -26,16 +26,16 @@ _dir_tests_data = _dir_tests+'test_data_lensing/'
 
 
 class TestUtilsLeastChiSquares():
-    
+
     def test_read_data(self):
-        
+
         # load data cube
-        self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits'))
-        self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits'))
-        
+        self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits.gz'))
+        self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits.gz'))
+
         assert self.data_cube is not None
         assert self.data_mask is not None
-        
+
         # compute moment maps as initial guess
         self.mom0 = self.data_cube.moment0().to(u.km/u.s).value
         self.mom1 = self.data_cube.moment1().to(u.km/u.s).value
@@ -47,16 +47,16 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         this_fitting_mask = self.data_mask.unmasked_data[:,:,:].value
         this_fitting_verbose = True
-        
+
         my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                        x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                        data = self.data_cube.unmasked_data[:,:,:].value, 
-                        dataerr = None, 
-                        datamask = this_fitting_mask, 
+                        x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = self.data_cube.unmasked_data[:,:,:].value,
+                        dataerr = None,
+                        datamask = this_fitting_mask,
                         initparams = self.initparams,
-                        nthread = 4, 
+                        nthread = 4,
                         verbose = this_fitting_verbose)
-        
+
         assert my_least_chi_squares_1d_fitter is not None
 
 
@@ -64,16 +64,16 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         this_fitting_mask = np.all(self.data_mask.unmasked_data[:,:,:].value > 0, axis=0).astype(int)
         this_fitting_verbose = True
-        
+
         my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                        x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                        data = self.data_cube.unmasked_data[:,:,:].value, 
-                        dataerr = None, 
-                        datamask = this_fitting_mask, 
+                        x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = self.data_cube.unmasked_data[:,:,:].value,
+                        dataerr = None,
+                        datamask = this_fitting_mask,
                         initparams = self.initparams,
-                        nthread = 4, 
+                        nthread = 4,
                         verbose = this_fitting_verbose)
-        
+
         assert my_least_chi_squares_1d_fitter is not None
 
 
@@ -81,14 +81,14 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         with pytest.raises(Exception) as e:
             my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                            x = None, 
-                            data = self.data_cube.unmasked_data[:,:,:].value, 
-                            dataerr = None, 
-                            datamask = 'auto', 
+                            x = None,
+                            data = self.data_cube.unmasked_data[:,:,:].value,
+                            dataerr = None,
+                            datamask = 'auto',
                             initparams = self.initparams,
-                            nthread = 4, 
+                            nthread = 4,
                             verbose = True)
-        
+
         assert str(e.value) == 'Please input x.'
 
 
@@ -96,14 +96,14 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         with pytest.raises(Exception) as e:
             my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                            x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                            data = None, 
-                            dataerr = None, 
-                            datamask = 'auto', 
+                            x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                            data = None,
+                            dataerr = None,
+                            datamask = 'auto',
                             initparams = self.initparams,
-                            nthread = 4, 
+                            nthread = 4,
                             verbose = True)
-        
+
         assert str(e.value) == 'Please input data.'
 
 
@@ -111,14 +111,14 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         with pytest.raises(Exception) as e:
             my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                            x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                            data = self.data_cube.unmasked_data[:,:,:].value, 
-                            dataerr = None, 
-                            datamask = np.array([1,1,1]), 
+                            x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                            data = self.data_cube.unmasked_data[:,:,:].value,
+                            dataerr = None,
+                            datamask = np.array([1,1,1]),
                             initparams = self.initparams,
-                            nthread = 4, 
+                            nthread = 4,
                             verbose = True)
-        
+
         assert str(e.value) == 'Error! datamask should be a 2D or 3D array!'
 
 
@@ -127,16 +127,16 @@ class TestUtilsLeastChiSquares():
         this_fitting_dataerr = np.full(self.data_cube.shape, fill_value = np.nanmax(self.data_cube) * 0.05)
         this_fitting_mask = 'auto'
         this_fitting_verbose = True
-        
+
         my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                        x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                        data = self.data_cube.unmasked_data[:,:,:].value, 
-                        dataerr = this_fitting_dataerr, 
-                        datamask = this_fitting_mask, 
+                        x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = self.data_cube.unmasked_data[:,:,:].value,
+                        dataerr = this_fitting_dataerr,
+                        datamask = this_fitting_mask,
                         initparams = self.initparams,
-                        nthread = 4, 
+                        nthread = 4,
                         verbose = this_fitting_verbose)
-        
+
         assert my_least_chi_squares_1d_fitter is not None
 
 
@@ -145,16 +145,16 @@ class TestUtilsLeastChiSquares():
         this_fitting_data = -np.abs(self.data_cube.unmasked_data[:,:,:].value)
         this_fitting_mask = 'auto'
         this_fitting_verbose = True
-        
+
         my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                        x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                        data = this_fitting_data, 
-                        dataerr = None, 
-                        datamask = this_fitting_mask, 
+                        x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = this_fitting_data,
+                        dataerr = None,
+                        datamask = this_fitting_mask,
                         initparams = self.initparams,
-                        nthread = 4, 
+                        nthread = 4,
                         verbose = this_fitting_verbose)
-        
+
         assert my_least_chi_squares_1d_fitter is not None
 
 
@@ -162,47 +162,47 @@ class TestUtilsLeastChiSquares():
         self.test_read_data()
         # TODO
         pass
-        
+
 
     def test_utils_least_chi_squares_1d_fitter(self):
         self.test_read_data()
-        
+
         # prepare method 1 output array
         flux = np.zeros(self.mom0.shape)
         vel = np.zeros(self.mom0.shape)
         disp = np.zeros(self.mom0.shape)
-        
+
         # run method 1
         this_fitting_mask = 'auto'
         this_fitting_verbose = True
-        
+
         my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                        x = self.data_cube.spectral_axis.to(u.km/u.s).value, 
-                        data = self.data_cube.unmasked_data[:,:,:].value, 
-                        dataerr = None, 
-                        datamask = this_fitting_mask, 
+                        x = self.data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = self.data_cube.unmasked_data[:,:,:].value,
+                        dataerr = None,
+                        datamask = this_fitting_mask,
                         initparams = self.initparams,
-                        nthread = 4, 
+                        nthread = 4,
                         verbose = this_fitting_verbose)
-        
+
         assert my_least_chi_squares_1d_fitter is not None
-        
+
         my_least_chi_squares_1d_fitter.printLibInfo()
-        
+
         print('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
         my_least_chi_squares_1d_fitter.runFitting()
         flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
         vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
         disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
-        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug 
+        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
         print('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-        
-        
+
+
         # prepare method 2 output array
         flux2 = np.zeros(self.mom0.shape)
         vel2 = np.zeros(self.mom0.shape)
         disp2 = np.zeros(self.mom0.shape)
-        
+
         # run method 2 to compare the results
         for i in range(self.mom0.shape[0]):
             for j in range(self.mom0.shape[1]):
@@ -216,23 +216,20 @@ class TestUtilsLeastChiSquares():
                 disp2[i,j] = best_fit[2]
                 if i==self.mom0.shape[0]-1 and j==self.mom0.shape[1]-1:
                     print('gaus_fit_sp_opt_leastsq '+str(self.mom0.shape[0])+'x'+str(self.mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-        
-        # compare 
+
+        # compare
         mask = np.logical_and(np.isfinite(vel), np.isfinite(vel2))
         assert np.all(np.isclose(vel[mask], vel2[mask], rtol=0.05))
-    
+
 
 
 
 # pragma: no cover
 
 if __name__ == '__main__':
-    
+
     TestUtilsLeastChiSquares().test_object_construction_with_mask_3d()
-    
+
     #TestUtilsLeastChiSquares().test_utils_least_chi_squares_1d_fitter()
-    
+
     print('All done!')
-
-
-

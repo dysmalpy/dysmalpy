@@ -193,13 +193,13 @@ class LeastChiSquares1D(object):
                             ctypes.addressof(outcdata.contents))
                     )
 
-        outdata = outdata.reshape([(self.nparams*2 + self.nchan*2 + 1), self.ny, self.nx])
-        
+        outdata = outdata.reshape([(self.nparams*2 + self.nchan*2 + 1), self.ny, self.nx]).copy()
+
         # free the C data array memory
         mylib.freeDataArrayMemory.argtypes = [POINTER(c_double)]
-        
+
         mylib.freeDataArrayMemory(outcdata)
-        
+
         # counting finishing time
         time_finish = timeit.default_timer()
 

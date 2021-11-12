@@ -71,6 +71,10 @@ zcalc_truncate,      True      # Truncate in zgal direction when calculating or 
 n_wholepix_z_min,    3         # Minimum number of whole pixels in zgal dir, if zcalc_truncate=True
 
 
+dimming,             1.e-10    # Optional, for flux scaling.
+                               # Pass either a float for constant dimming,
+                               # or 'cosmo' to use cosmological dimming
+
 # ********************************************************************************
 # DISK + BULGE
 # ------------

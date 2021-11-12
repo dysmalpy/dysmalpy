@@ -556,6 +556,7 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
         Sampler chains for photocenter positions
     bins: integer
         The number of bins to use in the 2D histogram
+
     Returns
     -------
     PA, stddev_x, stddev_y:
@@ -563,7 +564,7 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
         stddev_x:   stddev of the "x" axis of the 2D gaussian;
                             double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
         stddev_y:   stddev of the "y" axis of the 2D gaussian
-
+        
     """
 
     nSamp = len(chain_x)

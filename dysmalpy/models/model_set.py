@@ -15,12 +15,12 @@ from collections import OrderedDict
 # Local imports
 from .base import _DysmalModel, menc_from_vcirc
 from .kinematic_options import KinematicOptions
+from .dimming import ConstantDimming
 
-#try:
-#    import utils as model_utils
-#except:
-#    from . import utils as model_utils
-from . import utils as model_utils
+try:
+   import dysmalpy.models.utils as model_utils
+except:
+   from . import utils as model_utils
 
 # Third party imports
 import numpy as np
@@ -380,6 +380,7 @@ class ModelSet:
         self.higher_order_geometries = OrderedDict()
         self.higher_order_dispersions = OrderedDict()
 
+        self.dimming = None
         self.extinction = None
 
         self.parameters = None
@@ -391,6 +392,7 @@ class ModelSet:
         self.nparams_free = 0
         self.nparams_tied = 0
         self.kinematic_options = KinematicOptions()
+        self.dimming = ConstantDimming()
         self.line_center = None
 
         # Option for dealing with 3D data:
@@ -431,6 +433,10 @@ class ModelSet:
                             elif e == '_dispersion':
                                 self.higher_order_dispersions[state[mkeyb].name] = state[mkey]
                             self.mass_components[state[mkey].name] = False
+
+            # Add dimming, if missing
+            if 'dimming' not in state.keys():
+                self.dimming = ConstantDimming()
 
             # Cleanup old names:
             del_keys = ['outflow', 'outflow_geometry', 'outflow_dispersion', 'outflow_flux',
@@ -1599,6 +1605,10 @@ class ModelSet:
             if self.extinction is not None:
                 flux_mass *= self.extinction(xsky, ysky, zsky)
 
+            # Apply dimming if a component exists
+            if self.dimming is not None:
+                flux_mass *= self.dimming(xsky, ysky, zsky)
+
             if transform_method.lower().strip() == 'direct':
                 sigmar = self.dispersion_profile(rgal*to_kpc)
 
@@ -1880,6 +1890,10 @@ class ModelSet:
                 # Apply extinction if it exists
                 if self.extinction is not None:
                     f_hiord *= self.extinction(xsky, ysky, zsky)
+
+                # Apply dimming if a component exists
+                if self.dimming is not None:
+                    f_hiord *= self.dimming(xsky, ysky, zsky)
 
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
