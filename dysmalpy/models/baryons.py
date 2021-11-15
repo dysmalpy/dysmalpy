@@ -775,6 +775,7 @@ class InfThinMassiveGaussianRing(object):
 
     def _reset_interps(self):
         self._set_vcirc_interp()
+        self._set_potential_gradient_interp()
         self._set_menc_interp()
 
 
@@ -806,9 +807,7 @@ class InfThinMassiveGaussianRing(object):
 
         return t[0]
 
-
     def _set_vcirc_interp(self):
-        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
         table = self.read_ring_table()
 
         tab_rad =               table['R']
@@ -824,6 +823,22 @@ class InfThinMassiveGaussianRing(object):
         # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
         # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
+
+    def _set_potential_gradient_interp(self):
+        table = self.read_ring_table()
+
+        tab_rad =               table['R']
+        tab_potl_grad =         table['potential_gradient']
+        self.tab_invh =         table['invh']
+        self.tab_R_peak =       table['R_peak']
+        self.tab_ring_FWHM =    table['ring_FWHM']
+        self.tab_mass =         table['total_mass']
+
+        self.potl_grad_interp = scp_interp.interp1d(tab_rad, tab_potl_grad,
+                                       fill_value="extrapolate")
+
+        # scale_fac = (total_mass / table_mass) * (table_Rpeak / R_peak)**2
+        # potential_gradient_interp = potl_grad_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
     def _set_menc_interp(self):
         # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
@@ -879,6 +894,38 @@ class InfThinMassiveGaussianRing(object):
         return vcirc
 
 
+    def potential_gradient(self, R, R_peak, total_mass):
+        """
+        Calculate potential gradient for a inf thin massive gaussian Ring
+
+        Parameters
+        ----------
+        R : float or array
+            Radius or radii at which to calculate the potential gradient in kpc
+
+        R_peak : float
+            Peak of Gaussian ring in kpc
+
+        total_mass : float
+            Total mass of the Gaussian ring component
+
+        Returns
+        -------
+        potl_grad : float or array
+            Potential gradient at each given `R`
+
+        Notes
+        -----
+        This function determines the potential gradient as a function of radius for
+        a massive Gaussian ring component with a total mass, `total_mass`,
+        and a ring peak radius to ring FWHM ratio, `invh`.
+        This uses numerically calculated lookup tables.
+
+        """
+        scale_fac = total_mass / self.tab_mass * (self.tab_R_peak / R_peak)**2
+        potential_gradient_interp = self.potl_grad_interp(R / R_peak * self.tab_R_peak) * scale_fac
+
+        return potential_gradient_interp
 
     def enclosed_mass(self, R, R_peak, total_mass):
         """
@@ -2527,6 +2574,7 @@ class GaussianRing(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    _potential_gradient_has_neg = True
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
 
@@ -2619,6 +2667,34 @@ class GaussianRing(MassModel, _LightMassModel):
 
         return self.ring_table.vcirc(r, self.R_peak.value, 10**self.total_mass.value)
 
+    def potential_gradient(self, r):
+        r"""
+        Default method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate circular velocity in kpc
+
+        Returns
+        -------
+        dPhidr : float or array
+            Gradient of the potential at `r`
+
+        Notes
+        -----
+        Calculates the gradient of the potential from the circular velocity
+        using :math:`\del\Phi(r)/\del r = v_{c}^2(r)/r`.
+        An alternative should be written for components where the
+        potential gradient is ever *negative* (i.e., rings).
+
+        Can be coupled with setting & checking `model._potential_gradient_has_neg` flag
+        for mass models.
+        """
+        # Check invh is correct
+        self._update_ring_table()
+
+        return self.ring_table.potential_gradient(r, self.R_peak.value, 10**self.total_mass.value)
 
     def light_profile(self, r):
         """
@@ -2635,7 +2711,7 @@ class GaussianRing(MassModel, _LightMassModel):
             Relative line flux as a function of radius
         """
         #return 1.*np.exp(-(r-self.R_peak.value)**2/(2.*self.sigma_R()**2))
-        return self.surface_density(r) * (1./self.mass_to_light) 
+        return self.surface_density(r) * (1./self.mass_to_light)
 
     def rhogas(self, r):
         """

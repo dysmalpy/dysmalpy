@@ -1112,37 +1112,49 @@ class ModelSet:
             raise AttributeError("There are no mass components so a velocity "
                                  "can't be calculated.")
         else:
-            vdm = r*0.
-            vbaryon = r*0.
+            # vdm = r*0.
+            # vbaryon = r*0.
+            vdm_sq = r*0.
+            vbaryon_sq = r*0.
 
             for cmp in self.mass_components:
 
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
 
-                    # if isinstance(mcomp, DiskBulge) | isinstance(mcomp, LinearDiskBulge):
-                    #     cmpnt_v = mcomp.circular_velocity(r)
-                    # else:
-                    #     cmpnt_v = mcomp.circular_velocity(r)
+                    if mcomp._potential_gradient_has_neg:
+                        cmpnt_v_sq = r * mcomp.potential_gradient(r)
+                    else:
+                        cmpnt_v_sq = mcomp.circular_velocity(r) **2
 
-                    cmpnt_v = mcomp.circular_velocity(r)
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
-
-                        vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
+                        #vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
+                        vdm_sq = vdm_sq + cmpnt_v_sq
 
                     elif mcomp._subtype == 'baryonic':
-
-                        vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
+                        #vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
+                        vbaryon_sq = vbaryon_sq + cmpnt_v_sq
 
                     else:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
-            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
+
+            # vbaryon = np.sqrt(vbaryon_sq)
+            # vdm = np.sqrt(vdm_sq)
+            # vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
+            #                                                        compute_dm=compute_dm,
+            #                                                        model_key_re=model_key_re,
+            #                                                        step1d=step1d)
+
+            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon_sq, vdm_sq,
                                                                    compute_dm=compute_dm,
                                                                    model_key_re=model_key_re,
                                                                    step1d=step1d)
+
+            if compute_baryon:
+                vbaryon = np.sqrt(vbaryon_sq)
 
             if compute_dm:
                 vel = vels[0]

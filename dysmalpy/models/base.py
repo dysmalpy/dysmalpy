@@ -24,7 +24,7 @@ try:
 except:
     from . import utils
 
-__all__ = ['MassModel', 'LightModel', 
+__all__ = ['MassModel', 'LightModel',
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
            'v_circular', 'menc_from_vcirc', 'sersic_mr', 'truncate_sersic_mr']
 
@@ -143,6 +143,20 @@ class MassModel(_DysmalFittable1DModel):
     _multicoord_velocity = False
     _native_geometry = 'cylindrical'  ## possibility for further vel direction abstractioin
     _potential_gradient_has_neg = False
+
+    def __setstate__(self, state):
+        super(MassModel, self).__setstate__(state)
+
+        # Set defaults: no neg potential gradient
+        dict_defaults = {'_axisymmetric': True,
+                         '_multicoord_velocity': False,
+                         '_native_geometry': 'cylindrical',
+                         '_potential_gradient_has_neg': False}
+        for key in dict_defaults.keys():
+            if key in state.keys():
+                pass
+            else:
+                self.__dict__[key] = dict_defaults[key]
 
 
     @property
@@ -295,8 +309,8 @@ class _LightMassModel(_DysmalModel):
 
     def __setstate__(self, state):
         if 'mass_to_light' not in state.keys():
-            state = utils.insert_param_state(state, 'mass_to_light', value=1., 
-                                             fixed=True, tied=False, 
+            state = utils.insert_param_state(state, 'mass_to_light', value=1.,
+                                             fixed=True, tied=False,
                                              bounds=(0.,10.), prior=UniformPrior)
 
         super(_LightMassModel, self).__setstate__(state)
