@@ -448,7 +448,6 @@ class TestModels:
         gausring = self.helper.setup_massive_gaussian_ring()
 
         ftol = 1.e-9
-        #rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
         rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
         vcirc = np.array([np.NaN, np.NaN, np.NaN, 55.28490315178013,
                           115.61430265260948, 116.36168966861332,
