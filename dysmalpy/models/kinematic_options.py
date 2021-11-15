@@ -116,7 +116,7 @@ class KinematicOptions:
         self.pressure_support_n = pressure_support_n
         self.pressure_support_type = pressure_support_type
 
-    
+
     # def apply_adiabatic_contract(self, model, r, vbaryon, vhalo,
     #                              compute_dm=False,
     #                              model_key_re=['disk+bulge', 'r_eff_disk'],
@@ -307,7 +307,6 @@ class KinematicOptions:
         """
 
         if self.adiabatic_contract:
-            #logger.info("Applying adiabatic contraction.")
 
             # Define 1d radius array for calculation
             #step1d = 0.2  # kpc
@@ -352,15 +351,12 @@ class KinematicOptions:
                         raise TypeError("{} mass model subtype not recognized"
                                         " for {} component. Only 'dark_matter'"
                                         " or 'baryonic' accepted.".format(mcomp._subtype, cmp))
-            #vbaryon = np.sqrt(vbaryon_sq)
-            vhalo1d = np.sqrt(vhalo1d_sq)
-            vbaryon1d = np.sqrt(vbaryon1d_sq)
 
             converged = np.zeros(len(r1d), dtype=bool)
             for i in range(len(r1d)):
                 try:
-                    result = scp_opt.newton(_adiabatic, r1d[i] + 1.,
-                                        args=(r1d[i], vhalo1d, r1d, vbaryon1d[i]),
+                    result = scp_opt.newton(_adiabatic_sq, r1d[i] + 1.,
+                                        args=(r1d[i], vhalo1d_sq, r1d, vbaryon1d_sq[i]),
                                         maxiter=200)
                     converged[i] = True
                 except:
@@ -372,15 +368,14 @@ class KinematicOptions:
                 if ('adiabatic_contract_modify_small_values' in self.__dict__.keys()):
                     if self.adiabatic_contract_modify_small_values:
                         if ((result < 0.) | (result > 5*max(r1d))):
-                            #print("tossing, mvir={}".format(model.components['halotmp'].mvirial.value))
                             result = r1d[i]
                             converged[i] = False
                 # ------------------------------------------------------------------
 
                 rprime_all_1d[i] = result
 
-
-            vhalo_adi_interp_1d = scp_interp.interp1d(r1d, vhalo1d, fill_value='extrapolate', kind='linear')   # linear interpolation
+            ###########################
+            vhalo_adi_interp_1d = scp_interp.interp1d(r1d, np.sqrt(vhalo1d_sq), fill_value='extrapolate', kind='linear')
 
             # Just calculations:
             if converged.sum() < len(r1d):
@@ -393,7 +388,6 @@ class KinematicOptions:
             vhalo_adi_interp_map_3d = scp_interp.interp1d(r1d, vhalo_adi_1d, fill_value='extrapolate', kind='linear')
 
             vhalo_adi = vhalo_adi_interp_map_3d(r)
-
 
             #vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
             vel = np.sqrt(vhalo_adi ** 2 + vbaryon_sq)
@@ -608,9 +602,9 @@ def _adiabatic_sq(rprime, r_adi, adia_v_dm_sq, adia_x_dm, adia_v_disk_sq):
         rprime = 0.1
     if rprime < adia_x_dm[1]:
         rprime = adia_x_dm[1]
-    rprime_interp = scp_interp.interp1d(adia_x_dm, adia_v_dm_sq,
+    rprime_interp = scp_interp.interp1d(adia_x_dm, np.sqrt(adia_v_dm_sq),
                                         fill_value="extrapolate")
     result = (r_adi + r_adi * ((r_adi*adia_v_disk_sq) /
-                               (rprime*(rprime_interp(rprime)))) - rprime)
+                               (rprime*(rprime_interp(rprime))**2)) - rprime)
 
     return result
