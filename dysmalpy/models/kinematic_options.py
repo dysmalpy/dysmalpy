@@ -266,6 +266,7 @@ class KinematicOptions:
 
     def apply_adiabatic_contract(self, model, r, vbaryon_sq, vhalo_sq,
                                  compute_dm=False,
+                                 return_vsq=False,
                                  model_key_re=['disk+bulge', 'r_eff_disk'],
                                  step1d = 0.2):
         """
@@ -287,6 +288,9 @@ class KinematicOptions:
 
         compute_dm : bool
             If True, will return the adiabatically contracted halo velocities.
+
+        return_vsq : bool
+            If True, return square velocities instead of taking sqrt.
 
         model_key_re : list
             Two element list which contains the name of the model component
@@ -334,10 +338,8 @@ class KinematicOptions:
             for cmp in model.mass_components:
                 if model.mass_components[cmp]:
                     mcomp = model.components[cmp]
-                    if mcomp._potential_gradient_has_neg:
-                        cmpnt_v_sq = r * mcomp.potential_gradient(r1d)
-                    else:
-                        cmpnt_v_sq = mcomp.circular_velocity(r1d) **2
+
+                    cmpnt_v_sq = mcomp.vcirc_sq(r1d)
 
                     if mcomp._subtype == 'dark_matter':
                         vhalo1d_sq = vhalo1d_sq + cmpnt_v_sq
@@ -389,21 +391,35 @@ class KinematicOptions:
 
             vhalo_adi = vhalo_adi_interp_map_3d(r)
 
-            #vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
-            vel = np.sqrt(vhalo_adi ** 2 + vbaryon_sq)
+            # #vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
+            # vel = np.sqrt(vhalo_adi ** 2 + vbaryon_sq)
 
+            vel_sq = vhalo_adi ** 2 + vbaryon_sq
         else:
-            vel = np.sqrt(vhalo_sq + vbaryon_sq)
+            #vel = np.sqrt(vhalo_sq + vbaryon_sq)
+
+            vel_sq = vhalo_sq + vbaryon_sq
+            # if compute_dm:
+            #     vhalo = np.sqrt(vhalo_sq)
+
+        if return_vsq:
             if compute_dm:
-                vhalo = np.sqrt(vhalo_sq)
-
-        if compute_dm:
-            if self.adiabatic_contract:
-                return vel, vhalo_adi
+                if self.adiabatic_contract:
+                    return vel_sq, vhalo_adi ** 2
+                else:
+                    return vel_sq, vhalo_sq
             else:
-                return vel, vhalo
+                return vel_sq
         else:
-            return vel
+            vel = np.sqrt(vel_sq)
+            if compute_dm:
+                if self.adiabatic_contract:
+                    return vel, vhalo_adi
+                else:
+                    vhalo = np.sqrt(vhalo_sq)
+                    return vel, vhalo
+            else:
+                return vel
 
 
     def apply_pressure_support(self, r, model, vel):

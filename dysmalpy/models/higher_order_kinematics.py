@@ -28,6 +28,7 @@ __all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',
            'AzimuthalPlanarRadialFlow',
            'UniformBarFlow', 'VariableXBarFlow',
+           'UniformWedgeFlow',
            'SpiralDensityWave']
 
 # LOGGER SETTINGS
@@ -780,6 +781,104 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
         return vel_dir_unit_vector
 
 
+class UniformWedgeFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for a uniform planar radial flow (only in the plane of the galaxy),
+        but that only has flow within two wedges of a given opening angle,
+        centered at an angle phi relative to the galaxy major axis.
+
+    Parameters
+    ----------
+
+    vr : float
+        Radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
+
+    theta: float
+        Opening angle of wedge (the full angular span)
+
+    phi : float
+        Angle offset relative to the galaxy angle, so the wedge center is at phi.
+        (phi_gal - phi)
+
+    """
+
+    vr = DysmalParameter(default=30.)
+    theta = DysmalParameter(default=60., bounds=(0.,180.))
+    phi = DysmalParameter(default=0., bounds=(0.,360.))
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cylindrical'
+    outputs = ('vrad',)
+
+    def __init__(self, **kwargs):
+        super(UniformWedgeFlow, self).__init__(**kwargs)
+
+    def evaluate(self, x, y, z, vr, theta, phi):
+        """Evaluate the radial velocity as a function of position x, y, z"""
+        phi_rad = phi * np.pi / 180.
+        theta_rad = theta * np.pi / 180.
+        phi_gal_rad = utils.get_geom_phi_rad_polar(x, y)
+
+        vel = np.ones(x.shape) * (vr)
+        if len(x.shape) > 0:
+            # Array-like inputs
+            vel[np.abs(np.cos(phi_gal_rad-phi_rad)) < np.abs(np.cos(0.5*theta_rad))] = 0.
+        else:
+            # Float inputs:
+            if np.abs(np.cos(phi_gal_rad-phi_rad)) < np.abs(np.cos(0.5*theta_rad)):
+                vel = 0.
+
+        return vel
+
+    def velocity(self, x, y, z, *args):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.vr, self.theta, self.phi)
+
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a planar uniform radial flow, this is the +Rhat direction, in cylindrical coordinates
+            (R,phi,z).
+        """
+
+        R = np.sqrt(x ** 2 + y ** 2)
+
+        vhat_y = y/R
+
+        # Excise rgal=0 values
+        vhat_y = utils.replace_values_by_refarr(vhat_y, R, 0., 0.)
+
+        if not _save_memory:
+            vhat_x = x/R
+            vhat_z = z * 0.
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, R, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only y direction: z is by definition 0.
+            vel_dir_unit_vector = np.array([0., vhat_y, 0.], dtype=object)
+
+        return vel_dir_unit_vector
+
 class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
     Model for a spiral density wave, assumed in the galaxy midplane.
@@ -817,7 +916,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
     """
 
-    m = DysmalParameter(default=2., bounds=(0, None))       # Number of photometric arms
+    m = DysmalParameter(default=2., bounds=(0, None), fixed=True)       # Number of photometric arms
     phi0 = DysmalParameter(default=0., bounds=(0, 360))     # Angle offset of arm winding, in degrees
     cs = DysmalParameter(default=50., bounds=(0, None))     # Speed of sound, in km/s
     epsilon = DysmalParameter(default=0.1, bounds=(0,None)) # Density contrast of perturbation
@@ -1067,7 +1166,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
             vel_dir_matrix = [[Rtox, phitox, ztox],
                               [Rtoy, phitoy, ztoy],
                               [Rtoz, phitoz, ztoz]]
-                              
+
         """
         R = np.sqrt(x ** 2 + y ** 2)
         # vel_dir_matrix = np.array([[x/R, -y/R, 0.*z],

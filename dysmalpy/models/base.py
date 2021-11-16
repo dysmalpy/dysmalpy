@@ -141,23 +141,7 @@ class MassModel(_DysmalFittable1DModel):
     _type = 'mass'
     _axisymmetric = True
     _multicoord_velocity = False
-    _native_geometry = 'cylindrical'  ## possibility for further vel direction abstractioin
-    _potential_gradient_has_neg = False
-
-    def __setstate__(self, state):
-        super(MassModel, self).__setstate__(state)
-
-        # Set defaults: no neg potential gradient
-        dict_defaults = {'_axisymmetric': True,
-                         '_multicoord_velocity': False,
-                         '_native_geometry': 'cylindrical',
-                         '_potential_gradient_has_neg': False}
-        for key in dict_defaults.keys():
-            if key in state.keys():
-                pass
-            else:
-                self.__dict__[key] = dict_defaults[key]
-
+    _native_geometry = 'cylindrical'  ## possibility for further vel direction abstraction
 
     @property
     @abc.abstractmethod
@@ -194,6 +178,28 @@ class MassModel(_DysmalFittable1DModel):
 
         return vcirc
 
+    def vcirc_sq(self, r):
+        r"""
+        Default method to evaluate the square of the circular velocity
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate circular velocity in kpc
+
+        Returns
+        -------
+        vcirc_sq : float or array
+            Square of circular velocity at `r`
+
+        Notes
+        -----
+        Calculates the circular velocity as a function of radius
+        as just the square of self.circular_velocity().
+
+        This can be overwritten for inheriting classes with negative potential gradients.
+        """
+        return self.circular_velocity(r)**2
 
     def potential_gradient(self, r):
         r"""
@@ -216,8 +222,6 @@ class MassModel(_DysmalFittable1DModel):
         An alternative should be written for components where the
         potential gradient is ever *negative* (i.e., rings).
 
-        Can be coupled with setting & checking `model._potential_gradient_has_neg` flag
-        for mass models.
         """
         vcirc = self.circular_velocity(r)
         dPhidr = vcirc ** 2 / r
