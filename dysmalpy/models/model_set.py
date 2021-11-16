@@ -1069,11 +1069,67 @@ class ModelSet:
             return enc_mass
 
 
-
     def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
                             model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        compute_baryon : bool
+            If True, also return the circular velocity due to the baryons
+
+        compute_dm : bool
+            If True, also return the circular velocity due to the halo
+
+        model_key_re : list, optional
+            Two element list which contains the name of the model component
+            and parameter to use for the effective radius.
+            Default is ['disk+bulge', 'r_eff_disk'].
+
+        step1d : float, optional
+            Step size in kpc to use during adiabatic contraction calculation
+
+        Returns
+        -------
+        vel : float or array
+            Total circular velocity in km/s
+
+        vbaryon : float or array, only if `compute_baryon` = True
+            Circular velocity due to the baryons
+
+        vdm : float or array, only if `compute_dm` = True
+            Circular velocity due to the halo
+        """
+
+        vels_sq = self.vcirc_sq(r, compute_baryon=compute_baryon, compute_dm=compute_dm,
+                                model_key_re=model_key_re, step1d=step1d)
+
+        if (compute_baryon and compute_dm):
+            vel = np.sqrt(vels_sq[0])
+            vbaryon = np.sqrt(vels_sq[1])
+            vdm = np.sqrt(vels_sq[2])
+            return vel, vbaryon, vdm
+        elif (compute_dm and (not compute_baryon)):
+            vel = np.sqrt(vels_sq[0])
+            vdm = np.sqrt(vels_sq[1])
+            return vel, vdm
+        elif (compute_baryon and (not compute_dm)):
+            vel = np.sqrt(vels_sq[0])
+            vbaryon = np.sqrt(vels_sq[1])
+            return vel, vbaryon
+        else:
+            vel = np.sqrt(vels_sq)
+            return vel
+
+
+    def vcirc_sq(self, r, compute_baryon=False, compute_dm=False,
+                            model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+        """
+        Calculate the square of the total circular velocity as a function of radius
 
         Parameters
         ----------
@@ -1122,10 +1178,7 @@ class ModelSet:
                 if self.mass_components[cmp]:
                     mcomp = self.components[cmp]
 
-                    if mcomp._potential_gradient_has_neg:
-                        cmpnt_v_sq = r * mcomp.potential_gradient(r)
-                    else:
-                        cmpnt_v_sq = mcomp.circular_velocity(r) **2
+                    cmpnt_v_sq = mcomp.vcirc_sq(r)
 
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
                         #vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
@@ -1148,28 +1201,26 @@ class ModelSet:
             #                                                        model_key_re=model_key_re,
             #                                                        step1d=step1d)
 
-            vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon_sq, vdm_sq,
+            vels_sq = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon_sq, vdm_sq,
                                                                    compute_dm=compute_dm,
+                                                                   return_vsq=True,
                                                                    model_key_re=model_key_re,
                                                                    step1d=step1d)
 
-            if compute_baryon:
-                vbaryon = np.sqrt(vbaryon_sq)
-
             if compute_dm:
-                vel = vels[0]
-                vdm = vels[1]
+                vel_sq = vels_sq[0]
+                vdm_sq = vels_sq[1]
             else:
-                vel = vels
+                vel_sq = vels_sq
 
             if (compute_baryon and compute_dm):
-                return vel, vbaryon, vdm
+                return vel_sq, vbaryon_sq, vdm_sq
             elif (compute_dm and (not compute_baryon)):
-                return vel, vdm
+                return vel_sq, vdm_sq
             elif (compute_baryon and (not compute_dm)):
-                return vel, vbaryon
+                return vel_sq, vbaryon_sq
             else:
-                return vel
+                return vel_sq
 
     def velocity_profile(self, r, compute_dm=False):
         """

@@ -28,8 +28,9 @@ from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'GaussianRing',
-           'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
-           'sersic_menc_2D_proj', 'NoordFlat', 'InfThinMassiveGaussianRing']
+           'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk', 'sersic_menc_2D_proj',
+           'mass_comp_conditional_ring',
+           'NoordFlat', 'InfThinMassiveGaussianRing']
 
 # NOORDERMEER DIRECTORY
 path = os.path.abspath(__file__)
@@ -41,10 +42,9 @@ _dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
 
 
 # ALT NOORDERMEER DIRECTORY:
-# TEMP:
-#_dir_sersic_profile_mass_VC_TMP = "/Users/sedona/data/sersic_profile_mass_VC/"
-_dir_sersic_profile_mass_VC_TMP = os.sep.join(["", "Users", "sedona", "data", "sersic_profile_mass_VC", ""])
-_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
+# _dir_sersic_profile_mass_VC_TMP = os.sep.join(["", "Users", "sedona", "data", "sersic_profile_mass_VC", ""])
+#_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
+_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None)
 
 # try:
 #     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
@@ -53,11 +53,10 @@ _dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_s
 #     _sersic_profile_mass_VC_loaded = False
 
 # MASSIVE RING DIRECTORIES:
-#_dir_gaussian_ring_tables_TMP = "/Users/sedona/data/mpe_ir/ring_rot_curves/ring_RC_tables/"
-_dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",
-                                             "mpe_ir", "ring_rot_curves", "ring_RC_tables"])
-_dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', _dir_gaussian_ring_tables_TMP)
-
+# _dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",
+#                                              "mpe_ir", "ring_rot_curves", "ring_RC_tables"])
+# _dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', _dir_gaussian_ring_tables_TMP)
+_dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', None)
 
 # CONSTANTS
 G = apy_con.G
@@ -202,6 +201,27 @@ def sersic_menc_2D_proj(r, mass, n, r_eff):
     menc = norm*integ
 
     return menc
+
+
+def mass_comp_conditional_ring(param, modelset):
+    """
+    Basic conditional prior on the mass of the other component(s) (i.e., a bulge or halo)
+    when fitting both a massive ring and one or more other mass components, returning True/False
+
+    This conditional could apply to the bulge mass, or to the halo mass (probably best to not do both).
+
+    Intended to be passed as f_bounds function when setting, e.g.,
+        sersic_comp.total_mass.prior = ConditionalEmpiricalUniformPrior(f_cond=mass_comp_conditional_bounds_ring)
+    """
+    # Double check param + model values are same:
+    if param.value != modelset.components[param._model._name].__getattribute__(param._name).value:
+        raise ValueError
+
+    # Test radius array:
+    rarr = np.arange(0., 10.1, 0.1)
+
+    return np.all(np.isfinite(modelset.circular_velocity(rarr)))
+
 
 
 ##########################
@@ -778,7 +798,7 @@ class InfThinMassiveGaussianRing(object):
         self._reset_interps()
 
     def _reset_interps(self):
-        self._set_vcirc_interp()
+        # self._set_vcirc_interp()
         self._set_potential_gradient_interp()
         self._set_menc_interp()
 
@@ -811,21 +831,21 @@ class InfThinMassiveGaussianRing(object):
 
         return t[0]
 
-    def _set_vcirc_interp(self):
-        table = self.read_ring_table()
-
-        tab_rad =               table['R']
-        tab_vcirc =             table['vcirc']
-        self.tab_invh =         table['invh']
-        self.tab_R_peak =       table['R_peak']
-        self.tab_ring_FWHM =    table['ring_FWHM']
-        self.tab_mass =         table['total_mass']
-
-        self.vcirc_interp = scp_interp.interp1d(tab_rad, tab_vcirc,
-                                       fill_value="extrapolate")
-
-        # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
-        # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+    # def _set_vcirc_interp(self):
+    #     table = self.read_ring_table()
+    #
+    #     tab_rad =               table['R']
+    #     tab_vcirc =             table['vcirc']
+    #     self.tab_invh =         table['invh']
+    #     self.tab_R_peak =       table['R_peak']
+    #     self.tab_ring_FWHM =    table['ring_FWHM']
+    #     self.tab_mass =         table['total_mass']
+    #
+    #     self.vcirc_interp = scp_interp.interp1d(tab_rad, tab_vcirc,
+    #                                    fill_value="extrapolate")
+    #
+    #     # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
+    #     # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
 
     def _set_potential_gradient_interp(self):
@@ -860,42 +880,41 @@ class InfThinMassiveGaussianRing(object):
         # scale_fac = (total_mass / table_mass)
         # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
-
-    def vcirc(self, R, R_peak, total_mass):
-        """
-        Calculate circular velocity for a inf thin massive gaussian Ring
-
-        Parameters
-        ----------
-        R : float or array
-            Radius or radii at which to calculate the circular velocity in kpc
-
-        R_peak : float
-            Peak of Gaussian ring in kpc
-
-        total_mass : float
-            Total mass of the Gaussian ring component
-
-        Returns
-        -------
-        vcirc : float or array
-            Circular velocity at each given `R`
-
-        Notes
-        -----
-        This function determines the circular velocity as a function of radius for
-        a massive Gaussian ring component with a total mass, `total_mass`,
-        and a ring peak radius to ring FWHM ratio, `invh`.
-        This uses numerically calculated lookup tables.
-
-        """
-        scale_fac = np.sqrt(total_mass / self.tab_mass) * np.sqrt(self.tab_R_peak / R_peak)
-        vcirc = self.vcirc_interp(R / R_peak * self.tab_R_peak) * scale_fac
-
-        # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
-        # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
-
-        return vcirc
+    # def vcirc(self, R, R_peak, total_mass):
+    #     """
+    #     Calculate circular velocity for a inf thin massive gaussian Ring
+    #
+    #     Parameters
+    #     ----------
+    #     R : float or array
+    #         Radius or radii at which to calculate the circular velocity in kpc
+    #
+    #     R_peak : float
+    #         Peak of Gaussian ring in kpc
+    #
+    #     total_mass : float
+    #         Total mass of the Gaussian ring component
+    #
+    #     Returns
+    #     -------
+    #     vcirc : float or array
+    #         Circular velocity at each given `R`
+    #
+    #     Notes
+    #     -----
+    #     This function determines the circular velocity as a function of radius for
+    #     a massive Gaussian ring component with a total mass, `total_mass`,
+    #     and a ring peak radius to ring FWHM ratio, `invh`.
+    #     This uses numerically calculated lookup tables.
+    #
+    #     """
+    #     scale_fac = np.sqrt(total_mass / self.tab_mass) * np.sqrt(self.tab_R_peak / R_peak)
+    #     vcirc = self.vcirc_interp(R / R_peak * self.tab_R_peak) * scale_fac
+    #
+    #     # scale_fac = np.sqrt(total_mass / table_mass) * np.sqrt(table_Rpeak / R_peak)
+    #     # vcirc_interp = v_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+    #
+    #     return vcirc
 
 
     def potential_gradient(self, R, R_peak, total_mass):
@@ -2578,11 +2597,10 @@ class GaussianRing(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
-    _potential_gradient_has_neg = True
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
-
         self.baryon_type = baryon_type
+
         super(GaussianRing, self).__init__(**kwargs)
 
         self._initialize_ring_table()
@@ -2607,9 +2625,6 @@ class GaussianRing(MassModel, _LightMassModel):
     def _update_ring_table(self):
         if self.ring_invh() != self.ring_table._invh:
             self.ring_table.invh = self.ring_invh()
-
-    # def ring_FWHM(self):
-    #     return self.sigma_R.value * (2.*np.sqrt(2.*np.log(2.)))
 
     def sigma_R(self):
         return self.FWHM.value / (2.*np.sqrt(2.*np.log(2.)))
@@ -2666,14 +2681,38 @@ class GaussianRing(MassModel, _LightMassModel):
         vcirc : float or array
             Circular velocity in km/s
         """
-        # Check invh is correct
-        self._update_ring_table()
+        # # Check invh is correct
+        # self._update_ring_table()
 
-        return self.ring_table.vcirc(r, self.R_peak.value, 10**self.total_mass.value)
+        # return self.ring_table.vcirc(r, self.R_peak.value, 10**self.total_mass.value)
+
+        return np.sqrt(self.vcirc_sq(r))
+
+    def vcirc_sq(self, r):
+        """
+        Square of circular velocity as a function of radius
+
+        Parameters
+        ----------
+        r : float or array
+            Radii at which to calculate the enclosed mass
+
+        Returns
+        -------
+        vcirc_sq : float or array
+            Square of circular velocity in km^2/s^2
+
+        Notes
+        -----
+        Calculated as :math:`v_{\mathrm{circ}}^2(R) = R * \partial \Phi / \partial R`
+        from the gradient of the potential, as the potential gradient has negative values.
+        """
+        return r * self.potential_gradient(r)
+
 
     def potential_gradient(self, r):
         r"""
-        Default method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+        Method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
 
         Parameters
         ----------
@@ -2685,15 +2724,6 @@ class GaussianRing(MassModel, _LightMassModel):
         dPhidr : float or array
             Gradient of the potential at `r`
 
-        Notes
-        -----
-        Calculates the gradient of the potential from the circular velocity
-        using :math:`\del\Phi(r)/\del r = v_{c}^2(r)/r`.
-        An alternative should be written for components where the
-        potential gradient is ever *negative* (i.e., rings).
-
-        Can be coupled with setting & checking `model._potential_gradient_has_neg` flag
-        for mass models.
         """
         # Check invh is correct
         self._update_ring_table()

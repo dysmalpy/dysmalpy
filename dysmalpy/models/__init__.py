@@ -9,6 +9,7 @@ from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
                                     ExpDisk, BlackHole, GaussianRing, \
                                     surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
                                     sersic_menc_2D_proj, menc_from_vcirc, \
+                                    mass_comp_conditional_ring, \
                                     NoordFlat, InfThinMassiveGaussianRing
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                   Einasto, DekelZhao, LinearNFW
@@ -51,7 +52,7 @@ __all__ = ['ModelSet',
            'ThinCentralPlaneDustExtinction', 'ForegroundConstantExtinction',
            'ForegroundExponentialExtinction',
            # Dimming
-           'ConstantDimming', 'CosmologicalDimming', 
+           'ConstantDimming', 'CosmologicalDimming',
            # Geometry and optoins
            'Geometry', 'KinematicOptions',
            # Zheight profiles

@@ -500,7 +500,7 @@ def _fit_emcee_221(gal, **kwargs ):
     start = time.time()
 
     if sampler.chain.shape[1] > 0:
-        logger.info('\n   Resuming with existing sampler chain at iteration ' + 
+        logger.info('\n   Resuming with existing sampler chain at iteration ' +
                     str(sampler.iteration) + '\n')
         pos = sampler['chain'][:,-1,:]
 
@@ -969,7 +969,7 @@ def _fit_emcee_3(gal, **kwargs ):
     start = time.time()
 
     if sampler.iteration > 0:
-        logger.info('\n   Resuming with existing sampler chain at iteration ' + 
+        logger.info('\n   Resuming with existing sampler chain at iteration ' +
                     str(sampler.iteration) + '\n')
         pos = sampler.get_last_sample()
 
@@ -1892,7 +1892,8 @@ def initialize_walkers(model, nWalkers=None):
         for paramn in params_names:
             if (pfree_dict[compn][paramn] >= 0) :
                 # Free parameter: randomly sample from prior nWalker times:
-                param_rand = comp.__getattribute__(paramn).prior.sample_prior(comp.__getattribute__(paramn), N=nWalkers)
+                param_rand = comp.__getattribute__(paramn).prior.sample_prior(comp.__getattribute__(paramn),
+                                    modelset=model, N=nWalkers)
                 stack_rand.append(param_rand)
     pos = np.array(list(zip(*stack_rand)))        # should have shape:   (nWalkers, nDim)
     return pos
