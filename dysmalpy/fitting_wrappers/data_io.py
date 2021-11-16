@@ -117,14 +117,24 @@ def read_fitting_params(fname=None):
         fit_method = None
         params = {'outdir': None, 'overwrite': False}
 
-    params.update(params_wrapper_specific)
+    ## Add other defaults if not specified:
+    #params.update(params_wrapper_specific)
+    for key in params_wrapper_specific.keys():
+        if key not in params.keys():
+            params[key] = params_wrapper_specific[key]
 
     # param_filename
-    fname_split = fname.split('/')
+    fname_split = fname.split(os.sep)
     params['param_filename'] = fname_split[-1]
 
     for key in param_input.keys():
         params[key] = param_input[key]
+
+    # Clean up outdir, datadir: ensure separators are os.sep:
+    for key in ['outdir', 'datadir']:
+        if key in params.keys():
+            if params[key] is not None:
+                params[key] = os.sep.join(os.sep.join(params[key].split("/")).split("\\"))
 
     # Catch depreciated case:
     if 'halo_inner_slope_fit' in params.keys():
@@ -177,8 +187,6 @@ def read_fitting_params(fname=None):
             if ('mvirial_tied' not in params.keys()):
                 if params['halo_profile_type'].upper() == 'NFW':
                     params['mvirial_tied'] = False
-                #elif ((params['halo_profile_type'].lower() == 'twopowerhalo') | \
-                #            (params['halo_profile_type'].lower() == 'burkert')):
                 else:
                     # Default to the "old" behavior
                     params['mvirial_tied'] = True
@@ -934,8 +942,8 @@ def save_3D_mask(gal=None, mask=None, filename=None, overwrite=False, save_uncro
     return None
 
 def ensure_path_trailing_slash(path):
-    if (path[-1] != '/'):
-        path += '/'
+    if (path[-1] != os.sep):
+        path += os.sep
     return path
 
 ####
@@ -969,7 +977,7 @@ def get_ndim_fit_from_paramfile(params=None, param_filename=None):
 
 def stub_paramfile_dir(param_filename):
     try:
-        delim = '/'
+        delim = os.sep
         # Strip dir from param_filename
         pf_arr = param_filename.split(delim)
         if len(pf_arr) > 1:
@@ -990,7 +998,7 @@ def check_outdir_specified(params, outdir, param_filename=None):
                 stub_paramfilepath = True
         except:
             print("Performing string splitting")
-            delim = '/'
+            delim = os.sep
             od_arr = outdir.split(delim)
             od_arr_nonempt = []
             for od_d in od_arr:
@@ -1032,8 +1040,7 @@ def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
 
     if not os.path.isfile(fdata):
         # Try relative WRT current dir
-        delim = '/'
-        datadir = os.getcwd() + delim
+        datadir = os.getcwd() + os.sep
         fdata = "{}{}".format(datadir, fdata_orig)
 
     if not os.path.isfile(fdata):
@@ -1055,8 +1062,7 @@ def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
 
 def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
     # Copy paramfile that is OS independent
-    delim = '/'
-    param_filename_nopath = param_filename.split(delim)[-1]
+    param_filename_nopath = param_filename.split(os.sep)[-1]
     galID_strp = "".join(params['galID'].strip().split("_"))
     galID_strp = "".join(galID_strp.split("-"))
     galID_strp = "".join(galID_strp.split(" "))

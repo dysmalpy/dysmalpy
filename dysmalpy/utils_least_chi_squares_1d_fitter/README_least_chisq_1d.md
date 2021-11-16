@@ -52,6 +52,20 @@ g++ -std=c++11 -pthread -shared -fPIC \
         leastChiSquares1D.cpp
 ```
 
+On AFS:
+
+```
+g++ -std=c++11 -pthread -shared -fPIC \
+        -I/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/include \
+        -I/usr/include \
+        -L/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/lib \
+        -Wl,-rpath=/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/lib \
+        -Wl,--no-as-needed \
+        -L/usr/lib/x86_64-linux-gnu -L/usr/lib -lgsl -lgslcblas -lpthread \
+        -o libLeastChiSquares1D.so \
+        leastChiSquares1D.cpp
+```
+
 
 ### Compiling the Testing Program Manually
 

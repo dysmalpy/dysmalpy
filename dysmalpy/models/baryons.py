@@ -35,13 +35,15 @@ __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 # located one up:
-dir_path = '/'.join(dir_path.split('/')[:-1])
-_dir_noordermeer = dir_path+"/data/noordermeer/"
+dir_path = os.sep.join(dir_path.split(os.sep)[:-1])
+# _dir_noordermeer = dir_path+"/data/noordermeer/"
+_dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
 
 
 # ALT NOORDERMEER DIRECTORY:
 # TEMP:
-_dir_sersic_profile_mass_VC_TMP = "/Users/sedona/data/sersic_profile_mass_VC/"
+#_dir_sersic_profile_mass_VC_TMP = "/Users/sedona/data/sersic_profile_mass_VC/"
+_dir_sersic_profile_mass_VC_TMP = os.sep.join(["", "Users", "sedona", "data", "sersic_profile_mass_VC", ""])
 _dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
 
 # try:
@@ -51,7 +53,9 @@ _dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_s
 #     _sersic_profile_mass_VC_loaded = False
 
 # MASSIVE RING DIRECTORIES:
-_dir_gaussian_ring_tables_TMP = "/Users/sedona/data/mpe_ir/ring_rot_curves/ring_RC_tables/"
+#_dir_gaussian_ring_tables_TMP = "/Users/sedona/data/mpe_ir/ring_rot_curves/ring_RC_tables/"
+_dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",
+                                             "mpe_ir", "ring_rot_curves", "ring_RC_tables"])
 _dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', _dir_gaussian_ring_tables_TMP)
 
 

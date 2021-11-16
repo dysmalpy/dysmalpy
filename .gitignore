@@ -66,6 +66,8 @@ distribute-*.tar.gz
 
 # Private data
 tests/test_data/PYTEST_OUTPUT/
+tests/test_data_lensing/PYTEST_OUTPUT/
+tests/test_data_lensing/mesh.dat
 examples/example_single_1D/COS3_18434.obs_prof.txt
 examples/example_single_1D/COS3_18434_1D_out/
 examples/example_single_1D/COS3_18434_1D_out.nosymm_accid/

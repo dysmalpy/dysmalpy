@@ -18,12 +18,8 @@ from dysmalpy import fitting
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)
-_dir_tests = os.path.dirname(path) + '/'
-_dir_tests_data = _dir_tests+'test_data/'
-
-skip_fits = False   # normal
-#skip_fits = True    # DEBUGGING
-
+_dir_tests = os.path.dirname(path) + os.sep
+_dir_tests_data = _dir_tests+'test_data' + os.sep
 
 
 def read_params(param_filename=None):
@@ -32,17 +28,16 @@ def read_params(param_filename=None):
     return params
 
 def run_fit(param_filename=None):
-    if not skip_fits:
-        param_filename_full=_dir_tests_data+param_filename
+    param_filename_full=_dir_tests_data+param_filename
 
-        # Delete existing folder:
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-        outdir = _dir_tests_data+params['outdir']
-        if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+    # Delete existing folder:
+    params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+    outdir = _dir_tests_data+params['outdir']
+    if os.path.isdir(outdir):
+        shutil.rmtree(outdir)
 
-        # Run fit
-        dysmalpy_fit_single.dysmalpy_fit_single(param_filename=param_filename_full)
+    # Run fit
+    dysmalpy_fit_single.dysmalpy_fit_single(param_filename=param_filename_full)
 
 def check_output_files(outdir, list_files):
     outfiles = os.listdir(outdir)

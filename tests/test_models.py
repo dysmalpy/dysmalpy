@@ -20,8 +20,8 @@ from dysmalpy import galaxy, models, parameters, instrument, config
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)
-_dir_tests = os.path.dirname(path) + '/'
-_dir_tests_data = _dir_tests+'test_data/'
+_dir_tests = os.path.dirname(path) + os.sep
+_dir_tests_data = _dir_tests+'test_data' + os.sep
 
 
 

@@ -20,8 +20,8 @@ from dysmalpy.utils import gaus_fit_sp_opt_leastsq
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)
-_dir_tests = os.path.dirname(path) + '/'
-_dir_tests_data = _dir_tests+'test_data_lensing/'
+_dir_tests = os.path.dirname(path) + os.sep
+_dir_tests_data = _dir_tests+'test_data_lensing' + os.sep
 
 
 
