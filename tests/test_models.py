@@ -209,6 +209,10 @@ class HelperSetups(object):
         bar = models.UniformBarFlow(vbar=-90., phi=90., bar_width=2., name='bar')
         return bar
 
+    def setup_wedge_inflow(self):
+        # Negative vbar is inflow; phi=90 is along galaxy minor axis
+        wedge = models.UniformWedgeFlow(vr=-90., phi=90., theta=60, name='wedge')
+        return wedge
 
     def setup_spiral_density_waves_flatVrot(self):
         def constV(R):
@@ -651,6 +655,42 @@ class TestModels:
                             [100,15,21, 0.01174313004385695],
                             [90,15,15, 0.07175454405079977],
                             [90,15,21, 0.0022651705774065253]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+    def test_wedge_inflow(self):
+        gal_wedge = self.helper.setup_fullmodel(instrument=True)
+        wedge = self.helper.setup_wedge_inflow()
+        gal_wedge.model.add_component(wedge)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_wedge.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_wedge.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+
+        arr_pix_values =   [[100,18,18, 0.019586006862063132],
+                            [0,0,0, 1.1293772630057337e-21],
+                            [100,18,0, 4.4833603035803543e-07],
+                            [50,18,18, 1.7163234226902357e-08],
+                            [95,10,10, 0.0016784517511998372],
+                            [100,5,5, 2.636047616113313e-05],
+                            [150,18,18, 3.9468783100682355e-07],
+                            [100,15,15, 0.03645396056094084],
+                            [100,15,21, 0.006016831537326521],
+                            [90,15,15, 0.06634179926804772],
+                            [90,15,21, 0.001189154821866105]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same

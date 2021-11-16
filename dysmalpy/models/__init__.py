@@ -17,6 +17,7 @@ from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, Unresolved
                                                     UniformRadialFlow, PlanarUniformRadialFlow, \
                                                     AzimuthalPlanarRadialFlow, \
                                                     UniformBarFlow, VariableXBarFlow, \
+                                                    UniformWedgeFlow, \
                                                     SpiralDensityWave
 from dysmalpy.models.zheight import ZHeightGauss, ZHeightExp
 from dysmalpy.models.dispersion_profiles import DispersionConst
@@ -42,6 +43,7 @@ __all__ = ['ModelSet',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',
            'AzimuthalPlanarRadialFlow',
            'UniformBarFlow', 'VariableXBarFlow',
+           'UniformWedgeFlow', 
            'SpiralDensityWave',
            # Light profiles
            'LightTruncateSersic', 'LightGaussianRing',
