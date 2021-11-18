@@ -122,6 +122,7 @@ class ConfigFitBase(ConfigBase):
     def set_defaults(self):
         # Fitting defaults that are shared between all fitting methods
 
+        self.fitvelocity = True
         self.fitdispersion = True
         self.fitflux = False
 

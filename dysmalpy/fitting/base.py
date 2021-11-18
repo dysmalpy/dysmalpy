@@ -158,7 +158,8 @@ class FitResults(object):
         :return:
         """
 
-    def plot_bestfit(self, gal, fitdispersion=True, fitflux=False, fileout=None, overwrite=False, **kwargs_galmodel):
+    def plot_bestfit(self, gal, fitvelocity=True, fitdispersion=True,
+                     fitflux=False, fileout=None, overwrite=False, **kwargs_galmodel):
         """Plot/replot the bestfit for the MCMC fitting"""
         # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
         # f_plot_spaxel=None,
@@ -171,8 +172,9 @@ class FitResults(object):
             if os.path.isfile(fileout):
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
                 return None
-        plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                             fileout=fileout, overwrite=overwrite, **kwargs_galmodel)
+        plotting.plot_bestfit(self, gal, fitvelocity=fitvelocity,
+                              fitdispersion=fitdispersion, fitflux=fitflux,
+                              fileout=fileout, overwrite=overwrite, **kwargs_galmodel)
 
     def reload_results(self, filename=None):
         """Reload MCMC results saved earlier: the whole object"""
@@ -206,7 +208,7 @@ class FitResults(object):
 
 ###############################################################
 
-def chisq_eval(gal, fitdispersion=True, fitflux=False,
+def chisq_eval(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
                 use_weights=False,
                 model_key_re=['disk+bulge','r_eff_disk']):
     #
@@ -285,14 +287,17 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
 
         # Includes velocity shift
 
-        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
         invnu = 1.
+        chisq_sum = 0.
 
-        chisq_sum = chisq_arr_raw_vel.sum()
+        if fitvelocity:
+            chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
+            chisq_sum += chisq_arr_raw_vel.sum()
 
         if fitdispersion:
             chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
             chisq_sum += chisq_arr_raw_disp.sum()
+
         if fitflux:
             chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
             chisq_sum += chisq_arr_raw_flux.sum()
@@ -329,8 +334,8 @@ def chisq_eval(gal, fitdispersion=True, fitflux=False,
     return chsq
 
 
-def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
-                model_key_re=['disk+bulge','r_eff_disk']):
+def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
+              use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
     red_chisq = True
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
@@ -363,30 +368,31 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
 
     elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
 
-        #msk = gal.data.mask
-        if hasattr(gal.data, 'mask_velocity'):
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
+        if fitvelocity:
+            #msk = gal.data.mask
+            if hasattr(gal.data, 'mask_velocity'):
+                if gal.data.mask_velocity is not None:
+                    msk = gal.data.mask_velocity
+                else:
+                    msk = gal.data.mask
             else:
                 msk = gal.data.mask
-        else:
-            msk = gal.data.mask
 
-        vel_dat = gal.data.data['velocity'][msk]
-        vel_mod = gal.model_data.data['velocity'][msk]
-        vel_err = gal.data.error['velocity'][msk]
+            vel_dat = gal.data.data['velocity'][msk]
+            vel_mod = gal.model_data.data['velocity'][msk]
+            vel_err = gal.data.error['velocity'][msk]
 
-        #
-        if hasattr(gal.data, 'mask_vel_disp'):
-            if gal.data.mask_vel_disp is not None:
-                msk = gal.data.mask_vel_disp
+        if fitdispersion:
+            if hasattr(gal.data, 'mask_vel_disp'):
+                if gal.data.mask_vel_disp is not None:
+                    msk = gal.data.mask_vel_disp
+                else:
+                    msk = gal.data.mask
             else:
                 msk = gal.data.mask
-        else:
-            msk = gal.data.mask
-        disp_dat = gal.data.data['dispersion'][msk]
-        disp_mod = gal.model_data.data['dispersion'][msk]
-        disp_err = gal.data.error['dispersion'][msk]
+            disp_dat = gal.data.data['dispersion'][msk]
+            disp_mod = gal.model_data.data['dispersion'][msk]
+            disp_err = gal.data.error['dispersion'][msk]
 
         if fitflux:
             msk = gal.data.mask
@@ -406,23 +412,26 @@ def chisq_red(gal, fitdispersion=True, fitflux=False, use_weights=False,
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
 
-
-        # Correct model for instrument dispersion if the data is instrument corrected:
-        if 'inst_corr' in gal.data.data.keys():
-            if gal.data.data['inst_corr']:
-                disp_mod = np.sqrt(disp_mod**2 -
-                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
-                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
-                                                       # below the instrumental dispersion
+        if fitdispersion:
+            # Correct model for instrument dispersion if the data is instrument corrected:
+            if 'inst_corr' in gal.data.data.keys():
+                if gal.data.data['inst_corr']:
+                    disp_mod = np.sqrt(disp_mod**2 -
+                                       gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                    disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                           # below the instrumental dispersion
 
 
         #####
+        fac_mask = 0
+        chisq_arr_sum = 0
 
-        ### Data includes velocity
-        # Includes velocity shift
-        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
-        fac_mask = 1
-        chisq_arr_sum = chisq_arr_raw_vel.sum()
+        if fitvelocity:
+            fac_mask += 1
+            ### Data includes velocity
+            # Includes velocity shift
+            chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
+            chisq_arr_sum += chisq_arr_raw_vel.sum()
 
         if fitdispersion:
             fac_mask += 1

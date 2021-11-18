@@ -272,7 +272,8 @@ def _fit_emcee_221(gal, **kwargs ):
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict_mcmc = {'fitdispersion':kwargs_fit['fitdispersion'],
+    kwargs_dict_mcmc = {'fitvelocity':kwargs_fit['fitvelocity'],
+                    'fitdispersion':kwargs_fit['fitdispersion'],
                     'fitflux':kwargs_fit['fitflux'],
                     'blob_name': kwargs_fit['blob_name'],
                     'model_key_re':kwargs_fit['model_key_re'],
@@ -793,7 +794,8 @@ def _fit_emcee_3(gal, **kwargs ):
 
     # --------------------------------
     # Initialize emcee sampler
-    kwargs_dict_mcmc = {'fitdispersion':kwargs_fit['fitdispersion'],
+    kwargs_dict_mcmc = {'fitvelocity':kwargs_fit['fitvelocity'],
+                    'fitdispersion':kwargs_fit['fitdispersion'],
                     'fitflux':kwargs_fit['fitflux'],
                     'blob_name': kwargs_fit['blob_name'],
                     'model_key_re':kwargs_fit['model_key_re'],
@@ -802,8 +804,6 @@ def _fit_emcee_3(gal, **kwargs ):
                     'oversampled_chisq': kwargs_fit['oversampled_chisq']}
 
     kwargs_dict = {**kwargs_dict_mcmc, **kwargs_galmodel}
-
-    # kwargs_dict = {**kwargs_fit, **kwargs_galmodel}
 
     nBurn_orig = kwargs_fit['nBurn']
 
@@ -1143,6 +1143,7 @@ class MCMCResults(FitResults):
                 nPostBins=50,
                 model_key_re=None,
                 model_key_halo=None,
+                fitvelocity=True,
                 fitdispersion=True,
                 fitflux=False,
                 save_data=True,
@@ -1190,9 +1191,11 @@ class MCMCResults(FitResults):
 
         gal.create_model_data(**kwargs_galmodel)
 
-        self.bestfit_redchisq = chisq_red(gal, fitdispersion=fitdispersion, fitflux=fitflux,
+        self.bestfit_redchisq = chisq_red(gal, fitvelocity=fitvelocity,
+                        fitdispersion=fitdispersion, fitflux=fitflux,
                         model_key_re=model_key_re)
-        self.bestfit_chisq = chisq_eval(gal, fitdispersion=fitdispersion, fitflux=fitflux,
+        self.bestfit_chisq = chisq_eval(gal, fitvelocity=fitvelocity,
+                                fitdispersion=fitdispersion, fitflux=fitflux,
                                 model_key_re=model_key_re)
 
         if model_key_re is not None:
@@ -1230,7 +1233,8 @@ class MCMCResults(FitResults):
             plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=self.blob_name, overwrite=overwrite)
 
         if (do_plotting) & (self.f_plot_bestfit is not None):
-            plotting.plot_bestfit(self, gal, fitdispersion=fitdispersion, fitflux=fitflux,
+            plotting.plot_bestfit(self, gal, fitvelocity=fitvelocity,
+                                  fitdispersion=fitdispersion, fitflux=fitflux,
                                   fileout=self.f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
 
         # --------------------------------
@@ -1561,7 +1565,7 @@ class MCMCResults(FitResults):
 
 
 
-    def plot_results(self, gal, fitdispersion=True, fitflux=False,
+    def plot_results(self, gal, fitvelocity=True, fitdispersion=True, fitflux=False,
                      f_plot_param_corner=None, f_plot_bestfit=None,
                      f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
                      f_plot_trace=None,
@@ -1569,7 +1573,8 @@ class MCMCResults(FitResults):
         """Plot/replot the corner plot and bestfit for the MCMC fitting"""
         # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
         self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
-        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
+        self.plot_bestfit(gal, fitvelocity=fitvelocity,
+                fitdispersion=fitdispersion, fitflux=fitflux,
                 fileout=f_plot_bestfit, fileout_aperture=f_plot_aperture,
                 fileout_spaxel=f_plot_spaxel, fileout_channel=f_plot_channel,
                 overwrite=overwrite, **kwargs_galmodel)
@@ -1591,6 +1596,7 @@ class MCMCResults(FitResults):
 def log_prob(theta, gal,
              red_chisq=False,
              oversampled_chisq=None,
+             fitvelocity=True,
              fitdispersion=True,
              fitflux=False,
              blob_name = None,
@@ -1623,6 +1629,7 @@ def log_prob(theta, gal,
         # Evaluate likelihood prob of theta
         llike = log_like(gal, red_chisq=red_chisq,
                     oversampled_chisq=oversampled_chisq,
+                    fitvelocity=fitvelocity,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     blob_name=blob_name,
@@ -1648,6 +1655,7 @@ def log_prob(theta, gal,
 
 def log_like(gal, red_chisq=False,
                 oversampled_chisq=None,
+                fitvelocity=True,
                 fitdispersion=True,
                 fitflux=False,
                 blob_name=None,
@@ -1741,15 +1749,16 @@ def log_like(gal, red_chisq=False,
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
 
-        # Includes velocity shift
-        chisq_arr_raw_vel = ((((vel_dat - vel_mod)/vel_err)**2) * wgt +
-                               np.log( (2.*np.pi*vel_err**2) / wgt ))
-
         #####
-        # Data includes velocity
-        fac_mask = 1
-        chisq_arr_sum = chisq_arr_raw_vel.sum()
-
+        fac_mask = 0
+        chisq_arr_sum = 0
+        if fitvelocity:
+            # Data includes velocity
+            fac_mask += 1
+            # Includes velocity shift
+            chisq_arr_raw_vel = ((((vel_dat - vel_mod)/vel_err)**2) * wgt +
+                                   np.log( (2.*np.pi*vel_err**2) / wgt ))
+            chisq_arr_sum += chisq_arr_raw_vel.sum()            
         if fitdispersion:
             fac_mask += 1
             chisq_arr_raw_disp = ((((disp_dat - disp_mod)/disp_err)**2) * wgt +

@@ -168,7 +168,8 @@ def fit_mpfit(gal, **kwargs):
 
     # Setup dictionary of arguments that mpfit_chisq needs
 
-    fa_init = {'gal':gal, 'fitdispersion':kwargs_fit['fitdispersion'],
+    fa_init = {'gal':gal, 'fitvelocity':kwargs_fit['fitvelocity'],
+                'fitdispersion':kwargs_fit['fitdispersion'],
                 'fitflux':kwargs_fit['fitflux'], 'use_weights': kwargs_fit['use_weights']}
     fa = {**fa_init, **kwargs_galmodel}
 
@@ -271,10 +272,12 @@ class MPFITResults(FitResults):
         gal.create_model_data(**kwargs_galmodel)
 
         ###
-        self.bestfit_redchisq = chisq_red(gal, fitdispersion=kwargs_fit['fitdispersion'],
+        self.bestfit_redchisq = chisq_red(gal, fitvelocity=kwargs_fit['fitvelocity'],
+                        fitdispersion=kwargs_fit['fitdispersion'],
                         fitflux=kwargs_fit['fitflux'],
                         model_key_re=kwargs_fit['model_key_re'])
-        self.bestfit_chisq = chisq_eval(gal, fitdispersion=kwargs_fit['fitdispersion'],
+        self.bestfit_chisq = chisq_eval(gal, fitvelocity=kwargs_fit['fitvelocity'],
+                        fitdispersion=kwargs_fit['fitdispersion'],
                         fitflux=kwargs_fit['fitflux'],
                         model_key_re=kwargs_fit['model_key_re'])
 
@@ -305,7 +308,8 @@ class MPFITResults(FitResults):
             gal.model_cube.data.write(kwargs_fit['f_cube'], overwrite=kwargs_fit['overwrite'])
 
         if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
-            plotting.plot_bestfit(self, gal, fitdispersion=kwargs_fit['fitdispersion'],
+            plotting.plot_bestfit(self, gal, fitvelocity=kwargs_fit['fitvelocity'],
+                            fitdispersion=kwargs_fit['fitdispersion'],
                             fitflux=kwargs_fit['fitflux'], fileout=kwargs_fit['f_plot_bestfit'],
                             fileout_aperture=kwargs_fit['f_plot_aperture'],
                             fileout_spaxel=kwargs_fit['f_plot_spaxel'],
@@ -379,19 +383,21 @@ class MPFITResults(FitResults):
         self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
 
 
-    def plot_results(self, gal, fitdispersion=True, fitflux=False,
+    def plot_results(self, gal, fitvelocity=True, fitdispersion=True, fitflux=False,
                      f_plot_bestfit=None,
                      f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
                      overwrite=False, **kwargs_galmodel):
-        """Plot/replot the corner plot and bestfit for the MPFIT fitting"""
+        """Plot/replot the bestfit for the MPFIT fitting"""
         # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        self.plot_bestfit(gal, fitdispersion=fitdispersion, fitflux=fitflux,
-                         fileout=f_plot_bestfit, fileout_aperture=f_plot_aperture,
-                         fileout_spaxel=f_plot_spaxel, fileout_channel=f_plot_channel,
+        self.plot_bestfit(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
+                         fitflux=fitflux, fileout=f_plot_bestfit,
+                         fileout_aperture=f_plot_aperture, fileout_spaxel=f_plot_spaxel,
+                         fileout_channel=f_plot_channel,
                          overwrite=overwrite, **kwargs_galmodel)
 
 
-def mpfit_chisq(theta, fjac=None, gal=None,fitdispersion=True, fitflux=False,
+def mpfit_chisq(theta, fjac=None, gal=None,fitvelocity=True,
+                fitdispersion=True, fitflux=False,
                 use_weights=False, **kwargs_galmodel):
 
     gal.model.update_parameters(theta)
@@ -421,16 +427,6 @@ def mpfit_chisq(theta, fjac=None, gal=None,fitdispersion=True, fitflux=False,
         chisq_arr_raw = chisq_arr_raw.flatten()
 
     elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
-
-        #msk = gal.data.mask
-        if hasattr(gal.data, 'mask_velocity'):
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
-            else:
-                msk = gal.data.mask
-        else:
-            msk = gal.data.mask
-
         # Weights:
         if use_weights:
             if hasattr(gal.data, 'weight'):
@@ -443,20 +439,40 @@ def mpfit_chisq(theta, fjac=None, gal=None,fitdispersion=True, fitflux=False,
         else:
             wgt = 1.
 
-        vel_dat = gal.data.data['velocity'][msk]
-        vel_mod = gal.model_data.data['velocity'][msk]
-        vel_err = gal.data.error['velocity'][msk]
-
-        if hasattr(gal.data, 'mask_vel_disp'):
-            if gal.data.mask_vel_disp is not None:
-                msk = gal.data.mask_vel_disp
+        if fitvelocity:
+            #msk = gal.data.mask
+            if hasattr(gal.data, 'mask_velocity'):
+                if gal.data.mask_velocity is not None:
+                    msk = gal.data.mask_velocity
+                else:
+                    msk = gal.data.mask
             else:
                 msk = gal.data.mask
-        else:
-            msk = gal.data.mask
-        disp_dat = gal.data.data['dispersion'][msk]
-        disp_mod = gal.model_data.data['dispersion'][msk]
-        disp_err = gal.data.error['dispersion'][msk]
+
+
+            vel_dat = gal.data.data['velocity'][msk]
+            vel_mod = gal.model_data.data['velocity'][msk]
+            vel_err = gal.data.error['velocity'][msk]
+
+        if fitdispersion:
+            if hasattr(gal.data, 'mask_vel_disp'):
+                if gal.data.mask_vel_disp is not None:
+                    msk = gal.data.mask_vel_disp
+                else:
+                    msk = gal.data.mask
+            else:
+                msk = gal.data.mask
+            disp_dat = gal.data.data['dispersion'][msk]
+            disp_mod = gal.model_data.data['dispersion'][msk]
+            disp_err = gal.data.error['dispersion'][msk]
+
+
+            # Correct model for instrument dispersion if the data is instrument corrected:
+            if 'inst_corr' in gal.data.data.keys():
+                if gal.data.data['inst_corr']:
+                    disp_mod = np.sqrt(
+                        disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
+                            u.km / u.s).value ** 2)
 
 
         if fitflux:
@@ -468,31 +484,46 @@ def mpfit_chisq(theta, fjac=None, gal=None,fitdispersion=True, fitflux=False,
             except:
                 flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
 
-        # Correct model for instrument dispersion if the data is instrument corrected:
-        if 'inst_corr' in gal.data.data.keys():
-            if gal.data.data['inst_corr']:
-                disp_mod = np.sqrt(
-                    disp_mod ** 2 - gal.instrument.lsf.dispersion.to(
-                        u.km / u.s).value ** 2)
 
-        chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err) * np.sqrt(wgt)
+        # chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err) * np.sqrt(wgt)
+        # if fitdispersion:
+        #     chisq_arr_raw_disp = ((disp_dat - disp_mod) / disp_err) * np.sqrt(wgt)
+        #     if fitflux:
+        #         chisq_arr_raw_flux = ((flux_dat - flux_mod) / flux_err) * np.sqrt(wgt)
+        #         chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
+        #                                    chisq_arr_raw_disp.flatten(),
+        #                                    chisq_arr_raw_flux.flatten()])
+        #     else:
+        #         chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
+        #                                    chisq_arr_raw_disp.flatten()])
+        # else:
+        #     if fitflux:
+        #         chisq_arr_raw_flux = ((flux_dat - flux_mod) / flux_err) * np.sqrt(wgt)
+        #         chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
+        #                                    chisq_arr_raw_flux.flatten()])
+        #     else:
+        #         chisq_arr_raw = chisq_arr_raw_vel.flatten()
+
+        chisq_arr_stack = []
+        count = 0
+        if fitvelocity:
+            count += 1
+            chisq_arr_raw_vel = ((vel_dat - vel_mod) / vel_err) * np.sqrt(wgt)
+            chisq_arr_stack.append(chisq_arr_raw_vel.flatten())
         if fitdispersion:
+            count += 1
             chisq_arr_raw_disp = ((disp_dat - disp_mod) / disp_err) * np.sqrt(wgt)
-            if fitflux:
-                chisq_arr_raw_flux = ((flux_dat - flux_mod) / flux_err) * np.sqrt(wgt)
-                chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
-                                           chisq_arr_raw_disp.flatten(),
-                                           chisq_arr_raw_flux.flatten()])
-            else:
-                chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
-                                           chisq_arr_raw_disp.flatten()])
+            chisq_arr_stack.append(chisq_arr_raw_disp.flatten())
+        if fitflux:
+            count += 1
+            chisq_arr_raw_flux = ((flux_dat - flux_mod) / flux_err) * np.sqrt(wgt)
+            chisq_arr_stack.append(chisq_arr_raw_flux.flatten())
+
+        if count > 1:
+            chisq_arr_raw = np.hstack(chisq_arr_stack)
         else:
-            if fitflux:
-                chisq_arr_raw_flux = ((flux_dat - flux_mod) / flux_err) * np.sqrt(wgt)
-                chisq_arr_raw = np.hstack([chisq_arr_raw_vel.flatten(),
-                                           chisq_arr_raw_flux.flatten()])
-            else:
-                chisq_arr_raw = chisq_arr_raw_vel.flatten()
+            chisq_arr_raw = chisq_arr_stack[0]
+
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError

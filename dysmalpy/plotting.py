@@ -96,6 +96,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 def plot_bestfit(mcmcResults, gal,
+                 fitvelocity=True,
                  fitdispersion=True,
                  fitflux=False,
                  show_1d_apers=False,
@@ -114,7 +115,8 @@ def plot_bestfit(mcmcResults, gal,
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
-            fitdispersion=fitdispersion, fitflux=fitflux, fileout=fileout,
+            fitvelocity=fitvelocity, fitdispersion=fitdispersion,
+            fitflux=fitflux, fileout=fileout,
             fileout_aperture=fileout_aperture, fileout_spaxel=fileout_spaxel,
             fileout_channel=fileout_channel,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
@@ -377,6 +379,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
 
 
 def plot_data_model_comparison(gal,theta = None,
+                               fitvelocity=True,
                                fitdispersion=True,
                                fitflux=False,
                                fileout=None,
@@ -418,6 +421,7 @@ def plot_data_model_comparison(gal,theta = None,
         plot_data_model_comparison_1D(dummy_gal,
                     data = None,
                     theta = theta,
+                    fitvelocity=fitvelocity,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     fileout=fileout,
@@ -426,6 +430,7 @@ def plot_data_model_comparison(gal,theta = None,
     elif gal.data.ndim == 2:
         plot_data_model_comparison_2D(dummy_gal,
                     theta = theta,
+                    fitvelocity=fitvelocity,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     fileout=fileout,
@@ -524,12 +529,11 @@ def plot_data_model_comparison_0D(gal, data = None, fileout=None,
 def plot_data_model_comparison_1D(gal,
             data = None,
             theta = None,
+            fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
             fileout=None, overwrite=False,
             **kwargs_galmodel):
-
-    fitvelocity = True
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -744,6 +748,7 @@ def plot_data_model_comparison_1D(gal,
 
 def plot_data_model_comparison_2D(gal,
             theta = None,
+            fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
             fileout=None,
@@ -756,7 +761,6 @@ def plot_data_model_comparison_2D(gal,
             ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    fitvelocity = True
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
@@ -1058,7 +1062,7 @@ def plot_data_model_comparison_3D(gal,
                     fileout=fileout,
                     symmetric_residuals=symmetric_residuals, max_residual=max_residual,
                     show_1d_apers=show_1d_apers,
-                    fitdispersion=True, fitflux=True,
+                    fitvelocity=True, fitdispersion=True, fitflux=True,
                     inst_corr=True,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
@@ -1097,7 +1101,8 @@ def plot_data_model_comparison_3D(gal,
 #############################################################
 #############################################################
 
-def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
+def plot_model_multid(gal, theta=None, fitvelocity=True,
+            fitdispersion=True, fitflux=False,
             fileout=None,
             symmetric_residuals=True, max_residual=100.,
             show_1d_apers=False, inst_corr=None,
@@ -1122,7 +1127,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
 
     if gal.data.ndim == 1:
         plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d,
-                    theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
+                    theta=theta,fitvelocity=fitvelocity,
+                    fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals, max_residual=max_residual,
                     show_contours=show_contours, show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
@@ -1134,7 +1140,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
                     overwrite=overwrite, **kwargs_galmodel)
     elif gal.data.ndim == 2:
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data,
-                    theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
+                    theta=theta,fitvelocity=fitvelocity,
+                    fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
                     show_contours=show_contours, show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
@@ -1174,7 +1181,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
 
 
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data2d,
-                    theta=theta,fitdispersion=fitdispersion, fitflux=fitflux,
+                    theta=theta,fitvelocity=fitvelocity,
+                    fitdispersion=fitdispersion, fitflux=fitflux,
                     symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
                     show_contours=show_contours, show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
@@ -1190,10 +1198,8 @@ def plot_model_multid(gal, theta=None, fitdispersion=True, fitflux=False,
 
 #############################################################
 
-def plot_model_multid_base(gal,
-            data1d=None, data2d=None,
-            theta=None,
-            fitdispersion=True, fitflux=False,
+def plot_model_multid_base(gal, data1d=None, data2d=None, theta=None,
+            fitvelocity=True, fitdispersion=True, fitflux=False,
             symmetric_residuals=True,
             max_residual=100.,
             xshift = None,
@@ -1212,7 +1218,6 @@ def plot_model_multid_base(gal,
             ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    fitvelocity = True
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
@@ -2843,6 +2848,7 @@ def plot_3D_data_automask_info(gal, mask_dict, axes=None):
 #############################################################
 
 def plot_model_1D(gal,
+            fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
             best_dispersion=None,
@@ -2865,22 +2871,39 @@ def plot_model_1D(gal,
     # Setup plot:
     f = plt.figure()
     scale = 3.5
-    ncols = 1
-    if fitdispersion:
-        ncols += 1
+    ncols = 0
+    nrows = 1
+
+    keyxtitle = r'$r$ [arcsec]'
+    # keyyarr = ['velocity', 'dispersion', 'flux']
+    # keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
+    # keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
+    #                 r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
+    #                 r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
+    keyyarr = []
+    keyytitlearr = []
+    keyyresidtitlearr = []
+
     if fitflux:
         ncols += 1
-    nrows = 1
+        keyyarr.append('flux')
+        keyytitlearr.append('Flux [arb]')
+        keyyresidtitlearr.append(r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]')
+    if fitvelocity:
+        ncols += 1
+        keyyarr.append('velocity')
+        keyytitlearr.append(r'$V$ [km/s]')
+        keyyresidtitlearr.append(r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]')
+    if fitdispersion:
+        ncols += 1
+        keyyarr.append('dispersion')
+        keyytitlearr.append(r'$\sigma$ [km/s]')
+        keyyresidtitlearr.append(r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]')
+
 
     f.set_size_inches(1.1*ncols*scale, nrows*scale)
     gs = gridspec.GridSpec(nrows, ncols, wspace=0.35, hspace=0.2)
 
-    keyxtitle = r'$r$ [arcsec]'
-    keyyarr = ['velocity', 'dispersion', 'flux']
-    keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
-    keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-                    r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
-                    r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
 
     errbar_lw = 0.5
     errbar_cap = 1.5
@@ -2913,6 +2936,7 @@ def plot_model_1D(gal,
 
 
 def plot_model_2D(gal,
+            fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
             fileout=None,
@@ -2925,7 +2949,6 @@ def plot_model_2D(gal,
             ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    fitvelocity = True
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
@@ -3109,12 +3132,8 @@ def plot_model_2D(gal,
 
 
 
-def plot_model_2D_residual(gal,
-            data1d=None,
-            data2d=None,
-            theta=None,
-            fitdispersion=True,
-            fitflux=False,
+def plot_model_2D_residual(gal, data1d=None, data2d=None, theta=None,
+            fitvelocity=True, fitdispersion=True, fitflux=False,
             symmetric_residuals=True,
             max_residual=100.,
             xshift = None,
@@ -3130,7 +3149,6 @@ def plot_model_2D_residual(gal,
             ruler_loc='lowerleft',
             **kwargs_galmodel):
 
-    fitvelocity = True
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
