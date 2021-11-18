@@ -26,7 +26,7 @@ from dysmalpy.utils import fit_uncertainty_ellipse
 from dysmalpy import utils_io as dpy_utils_io
 
 # Local imports:
-from .base import FitResults, make_arr_cmp_params, chisq_eval, chisq_red
+from .base import FitResults, make_arr_cmp_params, chisq_eval, chisq_red, chisq_red_per_type
 
 # Third party imports
 import os
@@ -1198,6 +1198,16 @@ class MCMCResults(FitResults):
                                 fitdispersion=fitdispersion, fitflux=fitflux,
                                 model_key_re=model_key_re)
 
+        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
+            kwargs_fit = {'fitvelocity': fitvelocity,
+                          'fitdispersion': fitdispersion,
+                          'fitflux': fitflux}
+            for k in ['velocity', 'dispersion', 'flux']:
+                if kwargs_fit['fit{}'.format(k)]:
+                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal,
+                                type=k, model_key_re=model_key_re)
+
+
         if model_key_re is not None:
             comp = gal.model.components.__getitem__(model_key_re[0])
             param_i = comp.param_names.index(model_key_re[1])
@@ -1758,7 +1768,7 @@ def log_like(gal, red_chisq=False,
             # Includes velocity shift
             chisq_arr_raw_vel = ((((vel_dat - vel_mod)/vel_err)**2) * wgt +
                                    np.log( (2.*np.pi*vel_err**2) / wgt ))
-            chisq_arr_sum += chisq_arr_raw_vel.sum()            
+            chisq_arr_sum += chisq_arr_raw_vel.sum()
         if fitdispersion:
             fac_mask += 1
             chisq_arr_raw_disp = ((((disp_dat - disp_mod)/disp_err)**2) * wgt +

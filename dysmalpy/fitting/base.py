@@ -24,7 +24,8 @@ import astropy.units as u
 import dill as _pickle
 import copy
 
-__all__ = ['FitResults']
+__all__ =  ['FitResults',
+            'chisq_red', 'chisq_eval', 'chisq_red_per_type']
 
 
 # LOGGER SETTINGS
@@ -208,135 +209,12 @@ class FitResults(object):
 
 ###############################################################
 
-def chisq_eval(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-                use_weights=False,
-                model_key_re=['disk+bulge','r_eff_disk']):
-    #
-    if gal.data.ndim == 3:
-        # Will have problem with vel shift: data, model won't match...
 
-        msk = gal.data.mask
-        dat = gal.data.data.unmasked_data[:].value[msk]
-        mod = gal.model_data.data.unmasked_data[:].value[msk]
-        err = gal.data.error.unmasked_data[:].value[msk]
-
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight[msk]
-
-
-        # Artificially mask zero errors which are masked
-        #err[((err==0) & (msk==0))] = 99.
-        chisq_arr_raw = (((dat - mod)/err)**2) * wgt
-        invnu = 1.
-        chsq = chisq_arr_raw.sum() * invnu
-
-    elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
-
-        #msk = gal.data.mask
-        if hasattr(gal.data, 'mask_velocity'):
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
-            else:
-                msk = gal.data.mask
-        else:
-            msk = gal.data.mask
-
-        vel_dat = gal.data.data['velocity'][msk]
-        vel_mod = gal.model_data.data['velocity'][msk]
-        vel_err = gal.data.error['velocity'][msk]
-
-        if hasattr(gal.data, 'mask_vel_disp'):
-            if gal.data.mask_vel_disp is not None:
-                msk = gal.data.mask_vel_disp
-            else:
-                msk = gal.data.mask
-        else:
-            msk = gal.data.mask
-
-        disp_dat = gal.data.data['dispersion'][msk]
-        disp_mod = gal.model_data.data['dispersion'][msk]
-        disp_err = gal.data.error['dispersion'][msk]
-
-        if fitflux:
-            msk = gal.data.mask
-            flux_dat = gal.data.data['flux'][msk]
-            flux_mod = gal.model_data.data['flux'][msk]
-            try:
-                flux_err = gal.data.error['flux'][msk]
-            except:
-                flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
-
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight[msk]
-
-        # Correct model for instrument dispersion if the data is instrument corrected:
-        if 'inst_corr' in gal.data.data.keys():
-            if gal.data.data['inst_corr']:
-                disp_mod = np.sqrt(disp_mod**2 -
-                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
-                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
-                                                       # below the instrumental dispersion
-
-        # Includes velocity shift
-
-        invnu = 1.
-        chisq_sum = 0.
-
-        if fitvelocity:
-            chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
-            chisq_sum += chisq_arr_raw_vel.sum()
-
-        if fitdispersion:
-            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
-            chisq_sum += chisq_arr_raw_disp.sum()
-
-        if fitflux:
-            chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
-            chisq_sum += chisq_arr_raw_flux.sum()
-
-
-        chsq = ( chisq_sum ) * invnu
-
-
-
-    elif gal.data.ndim == 0:
-
-        msk = gal.data.mask
-        data = gal.data.data
-        mod = gal.model_data.data
-        err = gal.data.error
-
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight
-
-
-        chisq_arr = ((data - mod)/err)**2 * wgt
-
-        chsq = chisq_arr.sum()
-
-    else:
-        logger.warning("ndim={} not supported!".format(gal.data.ndim))
-        raise ValueError
-
-
-    return chsq
-
-
-def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-              use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
-    red_chisq = True
+def _chisq_generalized(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
+              use_weights=False, model_key_re=['disk+bulge','r_eff_disk'],
+              red_chisq=None):
+    if red_chisq is None:
+        raise ValueError("'red_chisq' must be True or False!")
     if gal.data.ndim == 3:
         # Will have problem with vel shift: data, model won't match...
 
@@ -362,11 +240,11 @@ def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
             invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
         else:
             invnu = 1.
-        redchsq = chisq_arr_raw.sum() * invnu
+        chsq_general = chisq_arr_raw.sum() * invnu
 
 
 
-    elif (gal.data.ndim == 1) or (gal.data.ndim ==2):
+    elif ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
 
         if fitvelocity:
             #msk = gal.data.mask
@@ -394,6 +272,14 @@ def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
             disp_mod = gal.model_data.data['dispersion'][msk]
             disp_err = gal.data.error['dispersion'][msk]
 
+            # Correct model for instrument dispersion if the data is instrument corrected:
+            if 'inst_corr' in gal.data.data.keys():
+                if gal.data.data['inst_corr']:
+                    disp_mod = np.sqrt(disp_mod**2 -
+                                       gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                    disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                           # below the instrumental dispersion
+
         if fitflux:
             msk = gal.data.mask
             flux_dat = gal.data.data['flux'][msk]
@@ -411,15 +297,6 @@ def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
             if hasattr(gal.data, 'weight'):
                 if gal.data.weight is not None:
                     wgt = gal.data.weight[msk]
-
-        if fitdispersion:
-            # Correct model for instrument dispersion if the data is instrument corrected:
-            if 'inst_corr' in gal.data.data.keys():
-                if gal.data.data['inst_corr']:
-                    disp_mod = np.sqrt(disp_mod**2 -
-                                       gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
-                    disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
-                                                           # below the instrumental dispersion
 
 
         #####
@@ -448,11 +325,11 @@ def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
             if gal.model.nparams_free > fac_mask*np.sum(msk) :
                 raise ValueError("More free parameters than data points!")
             invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
-
+        else:
+            invnu = 1.
 
         ####
-        redchsq = (chisq_arr_sum) * invnu
-
+        chsq_general = (chisq_arr_sum) * invnu
 
     elif gal.data.ndim == 0:
 
@@ -468,33 +345,157 @@ def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
                 if gal.data.weight is not None:
                     wgt = gal.data.weight
 
-
         chisq_arr = (((data - mod)/err)**2) * wgt
         if red_chisq:
             if gal.model.nparams_free > np.sum(msk):
                 raise ValueError("More free parameters than data points!")
-
             invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free))
-
         else:
             invnu = 1.
 
-        redchsq = -0.5*chisq_arr.sum() * invnu
+        chsq_general = chisq_arr.sum() * invnu
 
     else:
         logger.warning("ndim={} not supported!".format(gal.data.ndim))
         raise ValueError
 
-
-    return redchsq
-
+    return chsq_general
 
 
-def make_arr_cmp_params(mcmcResults):
+def chisq_eval(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
+               use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+    """
+    Evaluate chi square of model, relative to the data.
+    """
+    return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
+                  fitflux=fitflux, use_weights=use_weights, model_key_re=model_key_re,
+                  red_chisq=False)
+
+
+def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
+              use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+    """
+    Evaluate reduced chi square of model, relative to the data.
+    """
+    return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
+                  fitflux=fitflux, use_weights=use_weights, model_key_re=model_key_re,
+                  red_chisq=True)
+
+
+def _chisq_general_per_type(gal, type=None, use_weights=False,
+            model_key_re=['disk+bulge','r_eff_disk'], red_chisq=True):
+    """
+    Evaluate reduced chi square of model for one specific map/profile
+    (i.e., flux/velocity/dispersion), relative to the data.
+    """
+    # type = 'velocity', 'disperesion', or 'flux'
+
+    if ((gal.data.ndim != 1) & (gal.data.ndim != 2)):
+        msg = "_chisq_general_per_type() can only be called when\n"
+        msg += "gal.data.ndim = 1 or 2!"
+        raise ValueError(msg)
+
+
+    if (type.strip().lower() == 'velocity'):
+        #msk = gal.data.mask
+        if hasattr(gal.data, 'mask_velocity'):
+            if gal.data.mask_velocity is not None:
+                msk = gal.data.mask_velocity
+            else:
+                msk = gal.data.mask
+        else:
+            msk = gal.data.mask
+
+        vel_dat = gal.data.data['velocity'][msk]
+        vel_mod = gal.model_data.data['velocity'][msk]
+        vel_err = gal.data.error['velocity'][msk]
+
+    if (type.strip().lower() == 'dispersion'):
+        if hasattr(gal.data, 'mask_vel_disp'):
+            if gal.data.mask_vel_disp is not None:
+                msk = gal.data.mask_vel_disp
+            else:
+                msk = gal.data.mask
+        else:
+            msk = gal.data.mask
+        disp_dat = gal.data.data['dispersion'][msk]
+        disp_mod = gal.model_data.data['dispersion'][msk]
+        disp_err = gal.data.error['dispersion'][msk]
+
+        # Correct model for instrument dispersion if the data is instrument corrected:
+        if 'inst_corr' in gal.data.data.keys():
+            if gal.data.data['inst_corr']:
+                disp_mod = np.sqrt(disp_mod**2 -
+                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                       # below the instrumental dispersion
+
+    if (type.strip().lower() == 'flux'):
+        msk = gal.data.mask
+        flux_dat = gal.data.data['flux'][msk]
+        flux_mod = gal.model_data.data['flux'][msk]
+        try:
+            flux_err = gal.data.error['flux'][msk]
+        except:
+            flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
+
+    # Weights:
+    wgt = 1.
+    if use_weights:
+        if hasattr(gal.data, 'weight'):
+            if gal.data.weight is not None:
+                wgt = gal.data.weight[msk]
+
+
+    #####
+    fac_mask = 0
+    chisq_arr_sum = 0
+
+    if (type.strip().lower() == 'velocity'):
+        fac_mask += 1
+        ### Data includes velocity
+        # Includes velocity shift
+        chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
+        chisq_arr_sum += chisq_arr_raw_vel.sum()
+
+    if (type.strip().lower() == 'dispersion'):
+        fac_mask += 1
+        chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
+        chisq_arr_sum += chisq_arr_raw_disp.sum()
+
+    if (type.strip().lower() == 'flux'):
+        fac_mask += 1
+        chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
+        chisq_arr_sum += chisq_arr_raw_flux.sum()
+
+    ####
+    if red_chisq:
+        if gal.model.nparams_free > fac_mask*np.sum(msk) :
+            raise ValueError("More free parameters than data points!")
+        invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
+    else:
+        invnu = 1.
+
+    ####
+    chsq_general = (chisq_arr_sum) * invnu
+
+    return chsq_general
+
+def chisq_red_per_type(gal, type=None, use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+    """
+    Evaluate reduced chi square of the model velocity/dispersion/flux map/profile
+    """
+    if type is None:
+        raise ValueError("'type' mustu be 'velocity', 'dispersion', or 'flux'!")
+    return _chisq_general_per_type(gal, type=type, use_weights=use_weights,
+                    model_key_re=model_key_re, red_chisq=True)
+
+
+def make_arr_cmp_params(results):
     arr = np.array([])
-    for cmp in mcmcResults.free_param_names.keys():
-        for i in six.moves.xrange(len(mcmcResults.free_param_names[cmp])):
-            param = mcmcResults.free_param_names[cmp][i]
+    for cmp in results.free_param_names.keys():
+        for i in six.moves.xrange(len(results.free_param_names[cmp])):
+            param = results.free_param_names[cmp][i]
             arr = np.append( arr, cmp.strip().lower()+':'+param.strip().lower() )
 
     return arr

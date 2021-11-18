@@ -19,7 +19,7 @@ from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
 
 # Local imports:
-from .base import FitResults, chisq_eval, chisq_red
+from .base import FitResults, chisq_eval, chisq_red, chisq_red_per_type
 
 # Third party imports
 import os
@@ -280,6 +280,13 @@ class MPFITResults(FitResults):
                         fitdispersion=kwargs_fit['fitdispersion'],
                         fitflux=kwargs_fit['fitflux'],
                         model_key_re=kwargs_fit['model_key_re'])
+
+        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
+            for k in ['velocity', 'dispersion', 'flux']:
+                if kwargs_fit['fit{}'.format(k)]:
+                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal,
+                                type=k, model_key_re=kwargs_fit['model_key_re'])
+
 
         # Get vmax and vrot
         if kwargs_fit['model_key_re'] is not None:
