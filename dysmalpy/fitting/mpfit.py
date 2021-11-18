@@ -182,8 +182,8 @@ def fit_mpfit(gal, **kwargs):
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
 
-    #logger.info('\n')
-    if 'halo' in gal.model.components.keys():
+
+    if ('halo' in gal.model.components.keys()):
         logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
     if 'disk+bulge' in gal.model.components.keys():
         if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():

@@ -357,16 +357,17 @@ def _fit_emcee_221(gal, **kwargs ):
     logger.info('lnlike: red_chisq={}'.format(kwargs_fit['red_chisq']))
     logger.info('lnlike: oversampled_chisq={}'.format(kwargs_fit['oversampled_chisq']))
 
-    #logger.info('\n')
     logger.info('\n'+'blobs: {}'.format(kwargs_fit['blob_name']))
 
 
-    #logger.info('\n')
-    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
-    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    if ('halo' in gal.model.components.keys()):
+        logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+
+    if ('disk+bulge' in gal.model.components.keys()):
+        if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+        if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
     ################################################################
@@ -856,11 +857,14 @@ def _fit_emcee_3(gal, **kwargs ):
     logger.info('\n'+'blobs: {}'.format(kwargs_fit['blob_name']))
 
 
-    logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
-    if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
-        logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+    if ('halo' in gal.model.components.keys()):
+        logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+
+    if ('disk+bulge' in gal.model.components.keys()):
+        if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+        if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+            logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
     logger.info('nSubpixels: {}'.format(kwargs_galmodel['oversample']))
 
 
