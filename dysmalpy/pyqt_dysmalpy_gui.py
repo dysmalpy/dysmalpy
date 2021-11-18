@@ -43,8 +43,9 @@ logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 logger.setLevel(logging.INFO)
 
-import multiprocessing
-from multiprocessing import Process, Queue, Pipe
+#import multiprocessing
+import dill, multiprocessing
+multiprocessing.reduction.ForkingPickler.dumps = dill.dumps
 from queue import Empty as QueueEmpty
 if sys.version_info >= (3, 9):
     from multiprocessing.managers import SharedMemoryManager
@@ -2306,6 +2307,12 @@ class QDysmalPyGUI(QMainWindow):
     
     def initRandomParams(self):
         self.logMessage(self.tr('Initializing DysmalPyParams with random values...'))
+        # calling the setText() function of these QWidgetForParamInput
+        # will invoke onLineEditTextChangedCall/onCheckBoxStateChangedCall/onComboBoxIndexChangedCall
+        # because in class QWidgetForParamInput the signal is connected as
+        # `self.LineEditWidget.textChanged.connect(self.onLineEditTextChangedCall)`
+        # `self.CheckBoxWidget.stateChanged.connect(self.onCheckBoxStateChangedCall)`
+        # `self.ComboBoxWidget.currentIndexChanged.connect(self.onComboBoxIndexChangedCall)`
         if self.LineEditDataParamsDict['galID'].text() == '':
             self.LineEditDataParamsDict['galID'].setText('galID')
         if self.LineEditDataParamsDict['z'].text() == '':
@@ -2335,7 +2342,7 @@ class QDysmalPyGUI(QMainWindow):
         if self.LineEditDataParamsDict['slit_pa'].text() == '':
             self.LineEditDataParamsDict['slit_pa'].setText(str(np.round(np.random.uniform(low=0.0, high=180.0, size=(1))[0], 3)))
         #
-        self.LineEditModelParamsDictForBulgeDisk['total_mass'].setText(str(np.round(np.random.uniform(low=10.5, high=13.0, size=(1))[0], 3)))
+        self.LineEditModelParamsDictForBulgeDisk['total_mass'].setText(str(np.round(np.random.uniform(low=10.0, high=12.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForBulgeDisk['bt'].setText(str(np.round(np.random.uniform(low=0.0, high=1.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForBulgeDisk['r_eff_disk'].setText(str(np.round(np.random.uniform(low=5.0, high=27.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForBulgeDisk['n_disk'].setText(str(np.round(np.random.uniform(low=1.0, high=4.0, size=(1))[0], 3)))
@@ -2349,6 +2356,12 @@ class QDysmalPyGUI(QMainWindow):
         self.LineEditModelParamsDictForDarkMatterHalo['mvirial'].setText(str(np.round(self.LineEditModelParamsDictForBulgeDisk['total_mass'].keyvalue()+np.random.uniform(low=0.5, high=1.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForDarkMatterHalo['halo_conc'].setText(str(np.round(np.random.uniform(low=3.0, high=6.0, size=(1))[0], 3)))
         self.LineEditModelParamsDictForDarkMatterHalo['fdm'].setText(str(np.round(np.random.uniform(low=0.1, high=0.6, size=(1))[0], 3)))
+        # 
+        for key in self.CheckBoxModelParamsDict:
+            if self.CheckBoxModelParamsDict[key].isEnabled():
+                #self.CheckBoxModelParamsDict[key].setChecked(self.CheckBoxModelParamsDict[key].keyvalue())
+                #print(f'self.CheckBoxModelParamsDict[{key!r}].stateChanged.emit(1)')
+                self.CheckBoxModelParamsDict[key].CheckBoxWidget.stateChanged.emit(1)
         #
         self.setButtonsEnabledDisabled()
         #
@@ -3121,7 +3134,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
     def __init__(self, tower = None, queue_in = None, queue_out = None, queue_logging = None, ship_name = None):
         #
         # super(QDysmalPyFittingStarship, self).__init__()
-        Process.__init__(self)
+        multiprocessing.context.SpawnProcess.__init__(self)
         #
         import logging
         logging.basicConfig()
@@ -3494,6 +3507,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             return
         if self.shared_dict is not None:
             for i, data_name in enumerate(list_of_data_name):
+                #print('DEBUG', 'data_name', data_name)
                 if list_of_data_content is None:
                     self.shared_dict[data_name] = getattr(self, data_name)
                 else:
@@ -3687,13 +3701,42 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             else:
                 self.log_message('Output to '+str(output_pickle_file)+'.')
             # 
-            # Save results
+            # Save text results
             # see dysmalpy_fit_single.py
             utils_io.save_results_ascii_files(
                 fit_results=fit_results, 
                 gal=gal, 
                 params=params,
                 overwrite=overwrite)
+            # 
+            # Save more results
+            # see XXX.py
+            fit_results.results_report(
+                gal=gal,
+                params=params,
+                overwrite=overwrite,
+                filename=os.path.join(params['outdir'], 
+                    str(params['galID'])+'_'+str(params['fit_method'])+'_fit_report.txt'), 
+                )
+            # 
+            # Save more results
+            # see XXX.py
+            if True:
+                kwargs_contour_data = {
+                    'lw_cont': 0.75,
+                    'delta_cont_v': 100.,
+                    'delta_cont_disp': 25.,
+                    'delta_cont_flux': 50.,
+                    'delta_cont_v_minor': 10.,
+                    'max_residual': 100.,
+                    }
+                plotting.plot_data_model_comparison(
+                    gal=gal,
+                    show_contours=True, 
+                    fitflux=False, #<TODO>#
+                    fileout=os.path.join(params['outdir'], 
+                        str(params['galID'])+'_'+str(params['fit_method'])+'_fit_datmod_comp.pdf'),
+                    **kwargs_contour_data)
             # 
             # Save params file
             # see dysmalpy_fit_single.py
@@ -3836,6 +3879,11 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         #    kwargs_galmodel['pix_length'] = 20
         kwargs_galmodel = setup_lensing_dict(params)
         kwargs_galmodel['lensing_transformer'] = self.lensing_transformer
+        #kwargs_galmodel['gauss_extract_with_c'] = params['gauss_extract_with_c'] #20211111
+        for key in ['moment_calc', 'gauss_extract_with_c']:
+            if key in params:
+                kwargs_galmodel[key] = params[key] #20211111
+                print(f'kwargs_galmodel[{key!r}] = params[{key!r}]') #20211111 DEBUG
         from_data = False # must set from_data = False to let the input ndim_final = 3 in effect
         self.logger.debug("self.lensing_transformer " + str(self.lensing_transformer))
         self.logger.debug("kwargs_galmodel['lensing_transformer'] " + str(kwargs_galmodel['lensing_transformer']))
@@ -4156,6 +4204,11 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
         #
         kwargs_galmodel = setup_lensing_dict(params)
         kwargs_galmodel['lensing_transformer'] = self.lensing_transformer
+        #kwargs_galmodel['gauss_extract_with_c']
+        for key in ['moment_calc', 'gauss_extract_with_c']:
+            if key in params:
+                kwargs_galmodel[key] = params[key] #20211111
+                print(f'kwargs_galmodel[{key!r}] = params[{key!r}]') #20211111 DEBUG
         #
         # Get 1d flux, vel and disp from model.
         # If input data is 1d, i.e., having 'fdata' in params, then we can directly use the

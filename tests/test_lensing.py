@@ -2,6 +2,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 #
 # Testing of DYSMALPY model (component) calculations
+# Note that the tests will create a "PYTEST_OUTPUT"
 
 import copy
 import datetime
@@ -34,17 +35,31 @@ _dir_tests_data = _dir_tests+'test_data_lensing' + os.sep
 
 class TestLensing():
 
-    def _unzip_lens_mesh(self, mesh_file):
+    def _unzip_lens_mesh(self, mesh_file, outdir=None):
         # unzip
         if mesh_file.endswith('.gz'):
             import gzip
             import shutil
-            unzip_mesh_file = mesh_file.rstrip('.gz')
+            if outdir is None:
+                unzip_mesh_file = mesh_file.rstrip('.gz')
+            else:
+                unzip_mesh_file = os.path.join(outdir, os.path.basename(mesh_file).rstrip('.gz'))
+                if not os.path.isdir(outdir):
+                    os.makedirs(outdir)
             with gzip.open(mesh_file, 'rb') as f_in:
                 with open(unzip_mesh_file, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
-            mesh_file = unzip_mesh_file
-        return mesh_file
+            return unzip_mesh_file
+        else:
+            if outdir is None:
+                return mesh_file
+            else:
+                if not os.path.isdir(outdir):
+                    os.makedirs(outdir)
+                copied_mesh_file = os.path.join(outdir, os.path.basename(mesh_file))
+                shutil.copy2(mesh_file, copied_mesh_file)
+                return copied_mesh_file
+    
 
     def test_read_params(self):
 
@@ -67,12 +82,12 @@ class TestLensing():
         fitting.ensure_dir(self.outdir)
         assert os.path.isdir(self.outdir)
 
-        self.params['lensing_mesh'] = os.path.basename(
-            self._unzip_lens_mesh(
-                os.path.join(_dir_tests_data,
-                    self.params['lensing_mesh'])
-            )
-        )
+        _lens_mesh_file = os.path.join(_dir_tests_data, self.params['lensing_mesh'])
+        assert os.path.isfile(_lens_mesh_file)
+        _lens_mesh_file = self._unzip_lens_mesh(_lens_mesh_file, outdir=self.outdir) # copy the mesh.dat file to output dir
+        assert os.path.isfile(_lens_mesh_file)
+        self.params['lensing_datadir'] = self.outdir
+        self.params['lensing_mesh'] = os.path.basename(_lens_mesh_file)
 
 
     def test_read_data(self):
@@ -281,7 +296,7 @@ class TestLensing():
 
         # then change params and reuse
         params_changed = OrderedDict()
-        params_changed['mesh_file'] = os.path.join(self.outdir, 'lensing_mesh_copy.dat')
+        #params_changed['mesh_file'] = os.path.join(self.outdir, 'lensing_mesh_copy.dat') # 20211118 now the mesh_file has already been copied to outdir in self.test_read_params()
         params_changed['mesh_ra'] = kwargs['lensing_ra']*1.05
         params_changed['mesh_dec'] = kwargs['lensing_dec']*1.05
         params_changed['source_plane_cenra'] = kwargs['lensing_sra']*1.05
@@ -295,8 +310,8 @@ class TestLensing():
         params_changed['image_plane_pixsc'] = kwargs['pixscale']*1.05
         params_changed['image_plane_sizex'] = kwargs['fov_npix']+5
         params_changed['image_plane_sizey'] = kwargs['fov_npix']+5
-        shutil.copy2(os.path.join(_dir_tests_data, kwargs['lensing_mesh']),
-                     params_changed['mesh_file'])
+        #shutil.copy2(os.path.join(_dir_tests_data, kwargs['lensing_mesh']),
+        #             params_changed['mesh_file']) # 20211118 now the mesh_file has already been copied to outdir in self.test_read_params()
         for key in params_changed:
             # test changing each lensing key
             print('testing params changed: ' + str(key))
@@ -341,7 +356,7 @@ class TestLensing():
 
 
     def test_lensing_transformation(self):
-        #self.test_read_params()
+        self.test_read_params()
         self.test_read_data()
 
         kwargs = self.params
@@ -437,7 +452,7 @@ class TestLensing():
 
 
     def test_lensing_transformation_in_a_wrong_way(self):
-        #self.test_read_params()
+        self.test_read_params()
         self.test_read_data()
 
         kwargs = self.params
@@ -458,7 +473,7 @@ class TestLensing():
 
 if __name__ == '__main__':
 
-    # TestLensing().test_lensing_transformation()
+    TestLensing().test_lensing_transformation()
 
     TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
 
