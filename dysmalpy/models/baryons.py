@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import os
 import logging
+import glob
 
 # Third party imports
 import numpy as np
@@ -806,15 +807,30 @@ class InfThinMassiveGaussianRing(object):
 
     def read_ring_table(self):
         # Use the "typical" collection of table values:
-        table_invh =    np.array([0.01, 0.05,
-                                  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
-                                  0.25, 0.75,
-                                  1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.,
-                                  2.25, 2.5, 2.75, 3., 3.5,
-                                  3.33, 6.67,
-                                  4., 4.5, 5., 5.5, 6., 6.5, 7., 7.5,
-                                  8., 8.5, 9., 9.5, 10., 12.5,
-                                  15., 20., 25., 50.])
+
+        #--------------------------------
+        # Glob values from path:
+        table_invh = []
+        name_base = 'gauss_ring_profile_invh'
+        fnames_glob = glob.glob(_dir_gaussian_ring_tables+name_base+'*.fits')
+        for fn in fnames_glob:
+            invh_str = fn.split(name_base)[-1].split('.fits')[0]
+            table_invh.append(float(invh_str))
+
+        table_invh = np.array(table_invh)
+        table_invh.sort()
+
+        # #--------------------------------
+        # table_invh =    np.array([0.01, 0.05,
+        #                           0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
+        #                           0.25, 0.75,
+        #                           1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.,
+        #                           2.25, 2.5, 2.75, 3., 3.5,
+        #                           3.33, 6.67,
+        #                           4., 4.5, 5., 5.5, 6., 6.5, 7., 7.5,
+        #                           8., 8.5, 9., 9.5, 10., 12.5,
+        #                           15., 20., 25., 50.])
+        # #--------------------------------
 
         nearest_invh = table_invh[ np.argmin( np.abs( table_invh - self.invh) ) ]
 

@@ -374,10 +374,13 @@ class Report(object):
             self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
 
 
+        fitvelocity = True
         fitdispersion = fitflux = None
         weighting_method = moment_calc = partial_weight = zcalc_truncate = None
         n_wholepix_z_min = oversample = oversize = None
         if params is not None:
+            if 'fitvelocity' in params.keys():
+                fitvelocity = params['fitvelocity']
             if 'fitdispersion' in params.keys():
                 fitdispersion = params['fitdispersion']
             if 'fitflux' in params.keys():
@@ -435,6 +438,8 @@ class Report(object):
                 oversize = "[Default: {}]".format(config_sim_cube.oversize)
 
         # Save info on fitdispersion / fitflux
+        if fitvelocity is not None:
+            self.add_line( 'fitvelocity:           {}'.format(fitvelocity))
         if fitdispersion is not None:
             self.add_line( 'fitdispersion:         {}'.format(fitdispersion))
         if fitflux is not None:
@@ -553,6 +558,13 @@ class Report(object):
             datstr = 'Red. chisq: {}'.format(results.bestfit_redchisq)
         self.add_line( datstr )
 
+        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
+            for k in ['flux', 'velocity', 'dispersion']:
+                if 'bestfit_redchisq_{}'.format(k) in results.__dict__.keys():
+                    datstr = '    Red. chisq {}: {:0.4f}'.format(k,
+                                    results.__dict__['bestfit_redchisq_{}'.format(k)])
+                    self.add_line( datstr )
+
         if gal.data.ndim == 2:
             Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
             self.add_line( '' )
@@ -638,6 +650,14 @@ class Report(object):
                     '-----', results.bestfit_redchisq, -99, -99)
         self.add_line( datstr )
 
+
+
+        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
+            for k in ['flux', 'velocity', 'dispersion']:
+                if 'bestfit_redchisq_{}'.format(k) in results.__dict__.keys():
+                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq_{}'.format(k), '-----',
+                            '-----', results.__dict__['bestfit_redchisq_{}'.format(k)], -99, -99)
+                    self.add_line( datstr )
 
         if 'profile1d_type' in gal.data.__dict__.keys():
             datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
