@@ -582,9 +582,13 @@ class LSF(u.Quantity):
 
         Parameters
         ----------
+
         dispersion : :class:`~astropy.units.Quantity` with speed equivalency
+            The standard deviation of the Gaussian LSF.
+
         default_unit : :class:`~astropy.units.Unit`
             The unit to impose on dispersion if they are specified as floats
+            
         """
 
         # TODO: Allow for wavelength dispersion to be specified
