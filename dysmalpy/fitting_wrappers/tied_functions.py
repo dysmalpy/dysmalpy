@@ -241,7 +241,7 @@ def tie_lmvirial_to_fdm(model_set):
 
     for cmp in model_set.mass_components:
         if model_set.mass_components[cmp]:
-            mcomp = model_set.components.__getitem__(cmpn)
+            mcomp = model_set.components.__getitem__(cmp)
 
             if (mcomp._subtype == 'dark_matter'):
                 if comp_halo is not None:
@@ -268,7 +268,7 @@ def tie_alpha_TwoPower(model_set):
 
     for cmp in model_set.mass_components:
         if model_set.mass_components[cmp]:
-            mcomp = model_set.components.__getitem__(cmpn)
+            mcomp = model_set.components.__getitem__(cmp)
 
             if (mcomp._subtype == 'dark_matter'):
                 if comp_halo is not None:
@@ -281,7 +281,7 @@ def tie_alpha_TwoPower(model_set):
 
     bar_dict = {'components': comps_bar,
                 'light': light_bar}
-                
+
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     alpha = comp_halo.calc_alpha_from_fdm(bar_dict, r_fdm)
     return alpha
