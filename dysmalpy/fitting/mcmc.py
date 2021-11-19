@@ -1196,11 +1196,9 @@ class MCMCResults(FitResults):
         gal.create_model_data(**kwargs_galmodel)
 
         self.bestfit_redchisq = chisq_red(gal, fitvelocity=fitvelocity,
-                        fitdispersion=fitdispersion, fitflux=fitflux,
-                        model_key_re=model_key_re)
+                        fitdispersion=fitdispersion, fitflux=fitflux)
         self.bestfit_chisq = chisq_eval(gal, fitvelocity=fitvelocity,
-                                fitdispersion=fitdispersion, fitflux=fitflux,
-                                model_key_re=model_key_re)
+                                fitdispersion=fitdispersion, fitflux=fitflux)
 
         if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
             kwargs_fit = {'fitvelocity': fitvelocity,
@@ -1208,8 +1206,7 @@ class MCMCResults(FitResults):
                           'fitflux': fitflux}
             for k in ['velocity', 'dispersion', 'flux']:
                 if kwargs_fit['fit{}'.format(k)]:
-                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal,
-                                type=k, model_key_re=model_key_re)
+                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal, type=k)
 
 
         if model_key_re is not None:

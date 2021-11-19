@@ -273,19 +273,14 @@ class MPFITResults(FitResults):
 
         ###
         self.bestfit_redchisq = chisq_red(gal, fitvelocity=kwargs_fit['fitvelocity'],
-                        fitdispersion=kwargs_fit['fitdispersion'],
-                        fitflux=kwargs_fit['fitflux'],
-                        model_key_re=kwargs_fit['model_key_re'])
+                        fitdispersion=kwargs_fit['fitdispersion'], fitflux=kwargs_fit['fitflux'])
         self.bestfit_chisq = chisq_eval(gal, fitvelocity=kwargs_fit['fitvelocity'],
-                        fitdispersion=kwargs_fit['fitdispersion'],
-                        fitflux=kwargs_fit['fitflux'],
-                        model_key_re=kwargs_fit['model_key_re'])
+                        fitdispersion=kwargs_fit['fitdispersion'], fitflux=kwargs_fit['fitflux'])
 
         if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
             for k in ['velocity', 'dispersion', 'flux']:
                 if kwargs_fit['fit{}'.format(k)]:
-                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal,
-                                type=k, model_key_re=kwargs_fit['model_key_re'])
+                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal, type=k)
 
 
         # Get vmax and vrot

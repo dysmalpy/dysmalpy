@@ -211,8 +211,7 @@ class FitResults(object):
 
 
 def _chisq_generalized(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-              use_weights=False, model_key_re=['disk+bulge','r_eff_disk'],
-              red_chisq=None):
+              use_weights=False, red_chisq=None, **kwargs):
     if red_chisq is None:
         raise ValueError("'red_chisq' must be True or False!")
     if gal.data.ndim == 3:
@@ -241,8 +240,6 @@ def _chisq_generalized(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
         else:
             invnu = 1.
         chsq_general = chisq_arr_raw.sum() * invnu
-
-
 
     elif ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
 
@@ -363,27 +360,24 @@ def _chisq_generalized(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
 
 
 def chisq_eval(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-               use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+               use_weights=False, **kwargs):
     """
     Evaluate chi square of model, relative to the data.
     """
     return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
-                  fitflux=fitflux, use_weights=use_weights, model_key_re=model_key_re,
-                  red_chisq=False)
+                  fitflux=fitflux, use_weights=use_weights, red_chisq=False)
 
 
 def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-              use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+              use_weights=False, **kwargs):
     """
     Evaluate reduced chi square of model, relative to the data.
     """
     return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
-                  fitflux=fitflux, use_weights=use_weights, model_key_re=model_key_re,
-                  red_chisq=True)
+                  fitflux=fitflux, use_weights=use_weights, red_chisq=True)
 
 
-def _chisq_general_per_type(gal, type=None, use_weights=False,
-            model_key_re=['disk+bulge','r_eff_disk'], red_chisq=True):
+def _chisq_general_per_type(gal, type=None, use_weights=False, red_chisq=True, **kwargs):
     """
     Evaluate reduced chi square of model for one specific map/profile
     (i.e., flux/velocity/dispersion), relative to the data.
@@ -481,14 +475,13 @@ def _chisq_general_per_type(gal, type=None, use_weights=False,
 
     return chsq_general
 
-def chisq_red_per_type(gal, type=None, use_weights=False, model_key_re=['disk+bulge','r_eff_disk']):
+def chisq_red_per_type(gal, type=None, use_weights=False, **kwargs):
     """
     Evaluate reduced chi square of the model velocity/dispersion/flux map/profile
     """
     if type is None:
         raise ValueError("'type' mustu be 'velocity', 'dispersion', or 'flux'!")
-    return _chisq_general_per_type(gal, type=type, use_weights=use_weights,
-                    model_key_re=model_key_re, red_chisq=True)
+    return _chisq_general_per_type(gal, type=type, use_weights=use_weights, red_chisq=True)
 
 
 def make_arr_cmp_params(results):
