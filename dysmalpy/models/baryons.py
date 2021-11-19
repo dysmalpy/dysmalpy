@@ -792,7 +792,8 @@ class InfThinMassiveGaussianRing(object):
     @invh.setter
     def invh(self, value):
         if value < 0:
-            raise ValueError("Invq can't be negative!")
+            #raise ValueError("Invh can't be negative!")
+            logger.warning('Invh is negative -- undefined, so interps will be all NaN!!')
         self._invh = value
 
         # Reset vcirc interp:
@@ -865,36 +866,41 @@ class InfThinMassiveGaussianRing(object):
 
 
     def _set_potential_gradient_interp(self):
-        table = self.read_ring_table()
+        if self.invh < 0:
+            self.potl_grad_interp = None
+        else:
+            table = self.read_ring_table()
 
-        tab_rad =               table['R']
-        tab_potl_grad =         table['potential_gradient']
-        self.tab_invh =         table['invh']
-        self.tab_R_peak =       table['R_peak']
-        self.tab_ring_FWHM =    table['ring_FWHM']
-        self.tab_mass =         table['total_mass']
+            tab_rad =               table['R']
+            tab_potl_grad =         table['potential_gradient']
+            self.tab_invh =         table['invh']
+            self.tab_R_peak =       table['R_peak']
+            self.tab_ring_FWHM =    table['ring_FWHM']
+            self.tab_mass =         table['total_mass']
 
-        self.potl_grad_interp = scp_interp.interp1d(tab_rad, tab_potl_grad,
-                                       fill_value="extrapolate")
+            self.potl_grad_interp = scp_interp.interp1d(tab_rad, tab_potl_grad,
+                                           fill_value="extrapolate")
 
-        # scale_fac = (total_mass / table_mass) * (table_Rpeak / R_peak)**2
-        # potential_gradient_interp = potl_grad_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+            # scale_fac = (total_mass / table_mass) * (table_Rpeak / R_peak)**2
+            # potential_gradient_interp = potl_grad_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
     def _set_menc_interp(self):
-        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
-        table = self.read_ring_table()
+        if self.invh < 0:
+            self.menc_interp = None
+        else:
+            table = self.read_ring_table()
 
-        tab_rad =               table['R']
-        tab_menc =              table['menc']
-        self.tab_invh =         table['invh']
-        self.tab_R_peak =       table['R_peak']
-        self.tab_ring_FWHM =    table['ring_FWHM']
-        self.tab_mass =         table['total_mass']
+            tab_rad =               table['R']
+            tab_menc =              table['menc']
+            self.tab_invh =         table['invh']
+            self.tab_R_peak =       table['R_peak']
+            self.tab_ring_FWHM =    table['ring_FWHM']
+            self.tab_mass =         table['total_mass']
 
-        self.menc_interp = scp_interp.interp1d(tab_rad, tab_menc, fill_value="extrapolate")
+            self.menc_interp = scp_interp.interp1d(tab_rad, tab_menc, fill_value="extrapolate")
 
-        # scale_fac = (total_mass / table_mass)
-        # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
+            # scale_fac = (total_mass / table_mass)
+            # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
 
     # def vcirc(self, R, R_peak, total_mass):
     #     """
@@ -961,10 +967,13 @@ class InfThinMassiveGaussianRing(object):
         This uses numerically calculated lookup tables.
 
         """
-        scale_fac = total_mass / self.tab_mass * (self.tab_R_peak / R_peak)**2
-        potential_gradient_interp = self.potl_grad_interp(R / R_peak * self.tab_R_peak) * scale_fac
+        if self.potl_grad_interp is not None:
+            scale_fac = total_mass / self.tab_mass * (self.tab_R_peak / R_peak)**2
+            potential_gradient_interp = self.potl_grad_interp(R / R_peak * self.tab_R_peak) * scale_fac
 
-        return potential_gradient_interp
+            return potential_gradient_interp
+        else:
+            return R*np.NaN
 
     def enclosed_mass(self, R, R_peak, total_mass):
         """
@@ -994,14 +1003,13 @@ class InfThinMassiveGaussianRing(object):
         This uses numerically calculated lookup tables.
 
         """
-        scale_fac = total_mass / self.tab_mass
-        menc = self.menc_interp(R / R_peak * self.tab_R_peak) * scale_fac
+        if self.menc_interp is not None:
+            scale_fac = total_mass / self.tab_mass
+            menc = self.menc_interp(R / R_peak * self.tab_R_peak) * scale_fac
 
-        # scale_fac = (total_mass / table_mass)
-        # menc_interp = m_interp(Rarr / R_peak * table_Rpeak) * scale_fac
-
-        return menc
-
+            return menc
+        else:
+            return R*np.NaN
 
 
 class BlackHole(MassModel):
@@ -2697,10 +2705,6 @@ class GaussianRing(MassModel, _LightMassModel):
         vcirc : float or array
             Circular velocity in km/s
         """
-        # # Check invh is correct
-        # self._update_ring_table()
-
-        # return self.ring_table.vcirc(r, self.R_peak.value, 10**self.total_mass.value)
 
         return np.sqrt(self.vcirc_sq(r))
 

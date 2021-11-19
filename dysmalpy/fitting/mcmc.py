@@ -351,7 +351,7 @@ def _fit_emcee_221(gal, **kwargs ):
     if gal.data.filename_dispersion is not None:
         logger.info("    dispers. file: {}".format(gal.data.filename_dispersion))
 
-    #logger.info('\n')
+
     logger.info('\n'+'nCPUs: {}'.format(kwargs_fit['nCPUs']))
     logger.info('nWalkers: {}'.format(kwargs_fit['nWalkers']))
     logger.info('lnlike: red_chisq={}'.format(kwargs_fit['red_chisq']))
