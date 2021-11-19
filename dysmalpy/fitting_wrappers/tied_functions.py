@@ -215,27 +215,75 @@ def tied_mhalo_mstar_fixed_lmstar(model_set):
 ############################################################################
 # Tied functions for halo fitting:
 def tie_lmvirial_NFW(model_set):
-    # comp_halo = model_set.components.__getitem__('halo')
-    # comp_baryons = model_set.components.__getitem__('disk+bulge')
-    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    # mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm,
-    #                 adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
-    # return mvirial
     return tie_lmvirial_to_fdm(model_set)
 
+# def tie_lmvirial_to_fdm(model_set):
+#     comp_halo = model_set.components.__getitem__('halo')
+#     comp_baryons = model_set.components.__getitem__('disk+bulge')
+#     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+#     mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm,
+#                     adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
+#     return mvirial
+#
+#
+# def tie_alpha_TwoPower(model_set):
+#     comp_halo = model_set.components.__getitem__('halo')
+#     comp_baryons = model_set.components.__getitem__('disk+bulge')
+#     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+#     alpha = comp_halo.calc_alpha_from_fdm(comp_baryons, r_fdm)
+#     return alpha
+#
+
 def tie_lmvirial_to_fdm(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    comp_halo = None
+    comps_bar = []
+    light_bar = []
+
+    for cmp in model_set.mass_components:
+        if model_set.mass_components[cmp]:
+            mcomp = model_set.components.__getitem__(cmpn)
+
+            if (mcomp._subtype == 'dark_matter'):
+                if comp_halo is not None:
+                    raise ValueError("Overwriting halo component!")
+                comp_halo = mcomp
+
+            elif mcomp._subtype == 'baryonic':
+                comps_bar.append(mcomp)
+                light_bar.append(model_set.light_components[cmp])
+
+    bar_dict = {'components': comps_bar,
+                'light': light_bar}
+
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    mvirial = comp_halo.calc_mvirial_from_fdm(comp_baryons, r_fdm,
+
+    mvirial = comp_halo.calc_mvirial_from_fdm(bar_dict, r_fdm,
                     adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
     return mvirial
 
 def tie_alpha_TwoPower(model_set):
-    comp_halo = model_set.components.__getitem__('halo')
-    comp_baryons = model_set.components.__getitem__('disk+bulge')
+    comp_halo = None
+    comps_bar = []
+    light_bar = []
+
+    for cmp in model_set.mass_components:
+        if model_set.mass_components[cmp]:
+            mcomp = model_set.components.__getitem__(cmpn)
+
+            if (mcomp._subtype == 'dark_matter'):
+                if comp_halo is not None:
+                    raise ValueError("Overwriting halo component!")
+                comp_halo = mcomp
+
+            elif mcomp._subtype == 'baryonic':
+                comps_bar.append(mcomp)
+                light_bar.append(model_set.light_components[cmp])
+
+    bar_dict = {'components': comps_bar,
+                'light': light_bar}
+                
     r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
-    alpha = comp_halo.calc_alpha_from_fdm(comp_baryons, r_fdm)
+    alpha = comp_halo.calc_alpha_from_fdm(bar_dict, r_fdm)
     return alpha
 
 def tie_rB_Burkert(model_set):

@@ -213,8 +213,10 @@ class DarkMatterHalo(MassModel):
 
         Parameters
         ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
+        baryons : `~dysmalpy.models.MassModel` or dictionary
+            Model component representing the baryons (assumed to be light emitting),
+            or dictionary containing a list of the baryon components (baryons['components'])
+            and a list of whether the baryon components are light emitting or not (baryons['light'])
 
         r_fdm : float
             Radius at which the dark matter fraction is determined
@@ -241,7 +243,16 @@ class DarkMatterHalo(MassModel):
         elif (r_fdm < 0.):
             mvirial = np.NaN
         else:
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            if isinstance(baryons, dict):
+                vsqr_bar_re = 0
+                bar_mtot = 0
+                for bcmp in baryons['components']:
+                    vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
+                    bar_mtot += bcmp.total_mass.value
+            else:
+                vsqr_bar_re = baryons.vcirc_sq(r_fdm)
+                bar_mtot = baryons.total_mass.value
+
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
 
             if not np.isfinite(vsqr_dm_re_target):
@@ -250,12 +261,12 @@ class DarkMatterHalo(MassModel):
                 #mtest = np.arange(-5, 50, 1.0)
                 short_mtest = False
                 try:
-                    if ((baryons.total_mass.value >= 8.) & (baryons.total_mass.value <=13.)):
+                    if ((bar_mtot >= 8.) & (bar_mtot <=13.)):
                         whminz = np.argmin(np.abs(_dict_lmvir_fac_test_z['zarr']-self.z))
                         whminfdm = np.argmin(np.abs(_dict_lmvir_fac_test_z['fdmarr']-self.fdm.value))
 
                         fac_lmvir = _dict_lmvir_fac_test_z['facarr'][whminz,whminfdm]
-                        rough_mvir = fac_lmvir - np.log10(1./self.fdm.value-1)+np.log10(0.5)+baryons.total_mass.value
+                        rough_mvir = fac_lmvir - np.log10(1./self.fdm.value-1)+np.log10(0.5)+bar_mtot
 
                         mtest = np.arange(rough_mvir-1., rough_mvir+1.5, 0.5)
                         mtest = np.append(-5., mtest)
@@ -314,7 +325,6 @@ class DarkMatterHalo(MassModel):
                         raise ValueError
 
                 # ------------------------------------------------------------------
-
                 # Run optimizer:
                 if adiabatic_contract:
                     mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
@@ -326,24 +336,30 @@ class DarkMatterHalo(MassModel):
                     mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a, b, args=(vsqr_dm_re_target, r_fdm))
         return mvirial
 
-    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vtarget, r_fdm):
+
+    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vsqtarget, r_fdm, bary):
         halotmp = self.copy()
         halotmp.__setattr__('mvirial', mvirial)
-        return halotmp.circular_velocity(r_fdm) ** 2 - vtarget
+        return halotmp.vcirc_sq(r_fdm)- vsqtarget
 
-    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vtarget, r_fdm, bary):
+    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vsqtarget, r_fdm, bary):
         halotmp = self.copy()
         halotmp.__setattr__('mvirial', mvirial)
 
         modtmp = ModelSet()
-        modtmp.add_component(bary, light=True)
+        if isinstance(baryons, dict):
+            for bcmp,b_light in zip(baryons['components'], baryons['light']):
+                modtmp.add_component(bcmp, light=b_light)
+        else:
+            modtmp.add_component(bary, light=True)
         modtmp.add_component(halotmp)
         modtmp.kinematic_options.adiabatic_contract = True
         modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
+        modtmp._update_tied_parameters()
 
-        vc, vc_dm = modtmp.circular_velocity(r_fdm, compute_dm=True)
+        vc_sq, vc_sq_dm = modtmp.vcirc_sq(r_fdm, compute_dm=True)
+        return vc_sq_dm - vsqtarget
 
-        return vc_dm **2 - vtarget
 
 
 class NFW(DarkMatterHalo):
@@ -566,8 +582,10 @@ class TwoPowerHalo(DarkMatterHalo):
 
         Parameters
         ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
+        baryons : `~dysmalpy.models.MassModel` or dictionary
+            Model component representing the baryons (assumed to be light emitting),
+            or dictionary containing a list of the baryon components (baryons['components'])
+            and a list of whether the baryon components are light emitting or not (baryons['light'])
 
         r_fdm : float
             Radius at which the dark matter fraction is determined
@@ -586,7 +604,13 @@ class TwoPowerHalo(DarkMatterHalo):
                 ((self.fdm.value < self.bounds['fdm'][0])):
             alpha = np.NaN
         else:
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            if isinstance(baryons, dict):
+                vsqr_bar_re = 0
+                for bcmp in baryons['components']:
+                    vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
+            else:
+                vsqr_bar_re = baryons.vcirc_sq(r_fdm)
+
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             # alphtest = np.arange(-50, 50, 1.)
@@ -613,9 +637,9 @@ class TwoPowerHalo(DarkMatterHalo):
 
         return alpha
 
-    def _minfunc_vdm_alpha_from_fdm(self, alpha, vtarget, mass, conc, beta, z, r_eff):
+    def _minfunc_vdm_alpha_from_fdm(self, alpha, vsqtarget, mass, conc, beta, z, r_fdm):
         halo = TwoPowerHalo(mvirial=mass, conc=conc, alpha=alpha, beta=beta, z=z)
-        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        return halo.vcirc_sq(r_fdm)- vsqtarget
 
 
 
@@ -737,8 +761,10 @@ class Burkert(DarkMatterHalo):
 
         Parameters
         ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
+        baryons : `~dysmalpy.models.MassModel` or dictionary
+            Model component representing the baryons (assumed to be light emitting),
+            or dictionary containing a list of the baryon components (baryons['components'])
+            and a list of whether the baryon components are light emitting or not (baryons['light'])
 
         r_fdm : float
             Radius at which the dark matter fraction is determined
@@ -757,7 +783,12 @@ class Burkert(DarkMatterHalo):
                 ((self.fdm.value < self.bounds['fdm'][0])):
             rB = np.NaN
         else:
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            if isinstance(baryons, dict):
+                vsqr_bar_re = 0
+                for bcmp in baryons['components']:
+                    vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
+            else:
+                vsqr_bar_re = baryons.vcirc_sq(r_fdm)
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             rBtest = np.arange(0., 250., 5.0)
@@ -782,9 +813,9 @@ class Burkert(DarkMatterHalo):
 
         return rB
 
-    def _minfunc_vdm_rB_from_fDM(self, rB, vtarget, mass, z, r_eff):
+    def _minfunc_vdm_rB_from_fDM(self, rB, vsqtarget, mass, z, r_fdm):
         halo = Burkert(mvirial=mass, rB=rB, z=z)
-        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        return halo.vcirc_sq(r_fdm) - vsqtarget
 
 
 
@@ -949,8 +980,10 @@ class Einasto(DarkMatterHalo):
 
         Parameters
         ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
+        baryons : `~dysmalpy.models.MassModel` or dictionary
+            Model component representing the baryons (assumed to be light emitting),
+            or dictionary containing a list of the baryon components (baryons['components'])
+            and a list of whether the baryon components are light emitting or not (baryons['light'])
 
         r_fdm : float
             Radius at which the dark matter fraction is determined
@@ -978,8 +1011,10 @@ class Einasto(DarkMatterHalo):
 
         Parameters
         ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
+        baryons : `~dysmalpy.models.MassModel` or dictionary
+            Model component representing the baryons (assumed to be light emitting),
+            or dictionary containing a list of the baryon components (baryons['components'])
+            and a list of whether the baryon components are light emitting or not (baryons['light'])
 
         r_fdm : float
             Radius at which the dark matter fraction is determined
@@ -1002,7 +1037,13 @@ class Einasto(DarkMatterHalo):
 
             # NOTE: have not tested this yet
 
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
+            if isinstance(baryons, dict):
+                vsqr_bar_re = 0
+                for bcmp in baryons['components']:
+                    vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
+            else:
+                vsqr_bar_re = baryons.vcirc_sq(r_fdm)
+
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm - 1)
 
             nEinastotest = np.arange(-50, 50, 1.)
@@ -1026,9 +1067,9 @@ class Einasto(DarkMatterHalo):
 
         return nEinasto
 
-    def _minfunc_vdm_nEin_from_fdm(self, nEinasto, vtarget, mass, conc, alphaEinasto, z, r_eff):
+    def _minfunc_vdm_nEin_from_fdm(self, nEinasto, vsqtarget, mass, conc, alphaEinasto, z, r_fdm):
         halo = Einasto(mvirial=mass, conc=conc, nEinasto=nEinasto, alphaEinasto=alphaEinasto, z=z)
-        return halo.circular_velocity(r_eff) ** 2 - vtarget
+        return halo.vcirc_sq(r_fdm) - vsqtarget
 
     def tie_nEinasto(self, model_set):
         """
@@ -1210,103 +1251,43 @@ class DekelZhao(DarkMatterHalo):
         mu = np.power(c, a-3.) * np.power((1.+np.sqrt(c)), 2.*(3.-a))
         return mu
 
-    def calc_mvirial_from_fdm(self, baryons, r_fdm, adiabatic_contract=False):
-        """
-        Calculate virial mass given dark matter fraction and baryonic distribution
-
-        Parameters
-        ----------
-        baryons : `~dysmalpy.models.MassModel`
-            Model component representing the baryons
-
-        r_fdm : float
-            Radius at which the dark matter fraction is determined
-
-        Returns
-        -------
-        mvirial : float
-            Virial mass in logarithmic solar units
-
-        Notes
-        -----
-        This uses the current value of `fdm` together with
-        the input baryon distribution to calculate the inferred `mvirial`.
-        """
-        if (self.fdm.value > self.bounds['fdm'][1]) | \
-                ((self.fdm.value < self.bounds['fdm'][0])):
-            mvirial = np.NaN
-        elif (self.fdm.value == 1.):
-            mvirial = np.inf
-        elif (self.fdm.value == 0.):
-            mvirial = -np.inf #-5.  # as a small but finite value
-        elif (self.fdm.value < 1.e-10):
-            mvirial = -np.inf
-        elif (r_fdm < 0.):
-            mvirial = np.NaN
-        else:
-            vsqr_bar_re = baryons.circular_velocity(r_fdm)**2
-            vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
-
-            if not np.isfinite(vsqr_dm_re_target):
-                mvirial = np.NaN
-            else:
-                mtest = np.arange(-5, 50, 1.0)
-                if adiabatic_contract:
-                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm_AC(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
-                    # TEST
-                    vtest_noAC = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
-                else:
-                    vtest = np.array([self._minfunc_vdm_mvir_from_fdm(m, vsqr_dm_re_target, r_fdm, baryons) for m in mtest])
-                try:
-                    a = mtest[vtest < 0][-1]
-                    b = mtest[vtest > 0][0]
-                    # TEST
-                    if adiabatic_contract:
-                        a_noAC = mtest[vtest_noAC < 0][-1]
-                        b_noAC = mtest[vtest_noAC > 0][0]
-                except:
-                    print("adiabatic_contract={}".format(adiabatic_contract))
-                    print("fdm={}".format(self.fdm.value))
-                    print("r_fdm={}".format(r_fdm))
-                    print(mtest, vtest)
-                    raise ValueError
-
-                if adiabatic_contract:
-                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm_AC, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
-
-                    # TEST
-                    mvirial_noAC = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a_noAC, b_noAC, args=(vsqr_dm_re_target, r_fdm, baryons))
-                    print("mvirial={}, mvirial_noAC={}".format(mvirial, mvirial_noAC))
-                else:
-                    mvirial = scp_opt.brentq(self._minfunc_vdm_mvir_from_fdm, a, b, args=(vsqr_dm_re_target, r_fdm, baryons))
-        return mvirial
-
-    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vtarget, r_fdm, bary):
+    def _minfunc_vdm_mvir_from_fdm(self, mvirial, vsqtarget, r_fdm, bary):
         halotmp = self.copy()
         halotmp.__setattr__('mvirial', mvirial)
 
         modtmp = ModelSet()
-        modtmp.add_component(bary, light=True)
+        if isinstance(baryons, dict):
+            for bcmp,b_light in zip(baryons['components'], baryons['light']):
+                modtmp.add_component(bcmp, light=b_light)
+        else:
+            modtmp.add_component(bary, light=True)
         modtmp.add_component(halotmp)
         modtmp.kinematic_options.adiabatic_contract = False
         modtmp._update_tied_parameters()
 
-        return modtmp.components['halo'].circular_velocity(r_fdm) ** 2 - vtarget
+        return modtmp.components['halo'].vcirc_sq(r_fdm) - vsqtarget
 
-    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vtarget, r_fdm, bary):
+    def _minfunc_vdm_mvir_from_fdm_AC(self, mvirial, vsqtarget, r_fdm, bary):
         halotmp = self.copy()
         halotmp.__setattr__('mvirial', mvirial)
 
         modtmp = ModelSet()
-        modtmp.add_component(bary, light=True)
+        if isinstance(baryons, dict):
+            for bcmp,b_light in zip(baryons['components'], baryons['light']):
+                modtmp.add_component(bcmp, light=b_light)
+        else:
+            modtmp.add_component(bary, light=True)
         modtmp.add_component(halotmp)
         modtmp.kinematic_options.adiabatic_contract = True
         modtmp.kinematic_options.adiabatic_contract_modify_small_values = True
         modtmp._update_tied_parameters()
 
-        vc, vc_dm = modtmp.circular_velocity(r_fdm, compute_dm=True)
+        #vc, vc_dm = modtmp.circular_velocity(r_fdm, compute_dm=True)
 
-        return vc_dm **2 - vtarget
+        #return vc_dm **2 - vsqtarget
+
+        vc_sq, vc_sq_dm = modtmp.vcirc_sq(r_fdm, compute_dm=True)
+        return vc_sq_dm - vsqtarget
 
 
 class LinearNFW(DarkMatterHalo):
