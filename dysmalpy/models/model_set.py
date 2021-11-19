@@ -568,6 +568,15 @@ class ModelSet:
 
         """
 
+        # Ensure the tied parameters have fixed=False:
+        for pn in model.param_names:
+            if not model.tied[pn]:
+                # Parameter not tied
+                pass
+            else:
+                # Parameter is tied
+                model.fixed[pn] = False
+
         # Update the components list
         self.components[model.name] = model
 
@@ -579,8 +588,8 @@ class ModelSet:
             self.parameters = np.concatenate([self.parameters,
                                               model.parameters])
         self.param_names[model.name] = model.param_names
-        self.fixed[model.name] = model.fixed
         self.tied[model.name] = model.tied
+        self.fixed[model.name] = model.fixed
 
         # Update the dictionaries containing the locations of the parameters
         # in the parameters array. Also count number of tied parameters
