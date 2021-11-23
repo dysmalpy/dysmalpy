@@ -13,6 +13,7 @@ import six
 
 # DYSMALPY code
 from dysmalpy import plotting
+from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 
@@ -123,16 +124,14 @@ class FitResults(object):
         if filename is not None:
             dump_pickle(self, filename=filename, overwrite=overwrite)  # Save FitResults class to a pickle file
 
-    def save_bestfit_vel_ascii(self, gal, filename=None, model_key_re=['disk+bulge', 'r_eff_disk'], overwrite=False):
+    def save_bestfit_vel_ascii(self, gal, filename=None,
+                               model_aperture_r=config._model_aperture_r, overwrite=False):
         if filename is not None:
             try:
-                # RE needs to be in kpc
-                comp = gal.model.components.__getitem__(model_key_re[0])
-                param_i = comp.param_names.index(model_key_re[1])
-                r_eff = comp.parameters[param_i]
+                r_ap = model_aperture_r(self)
             except:
-                r_eff = 10. / 3.
-            rmax = np.max([3. * r_eff, 10.])
+                r_ap = 10./3.
+            rmax = np.max([3. * r_ap, 10.])
             stepsize = 0.1  # stepsize 0.1 kpc
             r = np.arange(0., rmax + stepsize, stepsize)
 

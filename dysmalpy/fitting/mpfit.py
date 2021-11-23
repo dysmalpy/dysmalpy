@@ -226,7 +226,7 @@ def fit_mpfit(gal, **kwargs):
                                 f_results=kwargs_fit['f_results'],
                                 blob_name=kwargs_fit['blob_name'])
 
-    mpfitResults.input_results(m, gal=gal, model_key_re=kwargs_fit['model_key_re'],
+    mpfitResults.input_results(m, gal=gal, model_aperture_r=kwargs_fit['model_aperture_r'],
                     model_key_halo=kwargs_fit['model_key_halo'])
 
     #####
@@ -283,15 +283,15 @@ class MPFITResults(FitResults):
                     self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal, type=k)
 
 
-        # Get vmax and vrot
-        if kwargs_fit['model_key_re'] is not None:
-            if kwargs_fit['model_key_re'][0] in gal.model.components.keys():
-                comp = gal.model.components.__getitem__(kwargs_fit['model_key_re'][0])
-                param_i = comp.param_names.index(kwargs_fit['model_key_re'][1])
-                r_eff = comp.parameters[param_i]
-                self.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
-            else:
-                self.vrot_bestfit = np.NaN
+        # # Get vmax and vrot
+        # if kwargs_fit['model_aperture_r'] is not None:
+        #     if kwargs_fit['model_key_re'][0] in gal.model.components.keys():
+        #         comp = gal.model.components.__getitem__(kwargs_fit['model_key_re'][0])
+        #         param_i = comp.param_names.index(kwargs_fit['model_key_re'][1])
+        #         r_eff = comp.parameters[param_i]
+        #     r_ap = model_aperture_r(self)
+        #     #self.vrot_bestfit = gal.model.velocity_profile(1.38 * r_eff, compute_dm=False)
+        #     self.vrot_bestfit = gal.model.velocity_profile(r_ap, compute_dm=False)
 
         self.vmax_bestfit = gal.model.get_vmax()
 
@@ -321,7 +321,7 @@ class MPFITResults(FitResults):
         # Save velocity / other profiles to ascii file:
         if kwargs_fit['f_vel_ascii'] is not None:
             self.save_bestfit_vel_ascii(gal, filename=kwargs_fit['f_vel_ascii'],
-                    model_key_re=kwargs_fit['model_key_re'], overwrite=kwargs_fit['overwrite'])
+                    model_aperture_r=kwargs_fit['model_aperture_r'], overwrite=kwargs_fit['overwrite'])
 
         if (kwargs_fit['f_vcirc_ascii'] is not None) or (kwargs_fit['f_mass_ascii'] is not None):
             self.save_bestfit_vcirc_mass_profiles(gal, outpath=kwargs_fit['outdir'],
@@ -330,7 +330,7 @@ class MPFITResults(FitResults):
 
 
     def input_results(self, mpfit_obj, gal=None,
-                    model_key_re=None, model_key_halo=None):
+                    model_aperture_r=None, model_key_halo=None):
         """
         Save the best fit results from MPFIT in the MPFITResults object
         """
@@ -361,7 +361,7 @@ class MPFITResults(FitResults):
 
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
-                    param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+                    param_bestfit = gal.model.get_dm_frac_effrad(model_aperture_r=model_aperture_r)
                 elif blobn.lower() == 'mvirial':
                     param_bestfit = gal.model.get_mvirial(model_key_halo=model_key_halo)
                 elif blobn.lower() == 'alpha':
