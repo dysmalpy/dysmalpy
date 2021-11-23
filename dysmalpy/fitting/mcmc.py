@@ -82,7 +82,6 @@ def fit_mcmc(gal, **kwargs):
 
     config_fit = config.Config_fit_mcmc(**kwargs)
     kwargs_fit = config_fit.dict
-
     # --------------------------------
     # Check option validity:
     if kwargs_fit['blob_name'] is not None:
@@ -276,7 +275,7 @@ def _fit_emcee_221(gal, **kwargs ):
                     'fitdispersion':kwargs_fit['fitdispersion'],
                     'fitflux':kwargs_fit['fitflux'],
                     'blob_name': kwargs_fit['blob_name'],
-                    'model_key_re':kwargs_fit['model_key_re'],
+                    'model_aperture_r':kwargs_fit['model_aperture_r'],
                     'model_key_halo': kwargs_fit['model_key_halo'],
                     'red_chisq': kwargs_fit['red_chisq'],
                     'oversampled_chisq': kwargs_fit['oversampled_chisq']}
@@ -799,7 +798,7 @@ def _fit_emcee_3(gal, **kwargs ):
                     'fitdispersion':kwargs_fit['fitdispersion'],
                     'fitflux':kwargs_fit['fitflux'],
                     'blob_name': kwargs_fit['blob_name'],
-                    'model_key_re':kwargs_fit['model_key_re'],
+                    'model_aperture_r':kwargs_fit['model_aperture_r'],
                     'model_key_halo': kwargs_fit['model_key_halo'],
                     'red_chisq': kwargs_fit['red_chisq'],
                     'oversampled_chisq': kwargs_fit['oversampled_chisq']}
@@ -1145,7 +1144,7 @@ class MCMCResults(FitResults):
     def analyze_plot_save_results(self, gal,
                 linked_posterior_names=None,
                 nPostBins=50,
-                model_key_re=None,
+                model_aperture_r=None,
                 model_key_halo=None,
                 fitvelocity=True,
                 fitdispersion=True,
@@ -1184,7 +1183,7 @@ class MCMCResults(FitResults):
 
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
-                    self.analyze_dm_posterior_dist(gal=gal, model_key_re=model_key_re, blob_name=self.blob_name)  # here blob_name should be the *full* list
+                    self.analyze_dm_posterior_dist(gal=gal, model_aperture_r=model_aperture_r, blob_name=self.blob_name)  # here blob_name should be the *full* list
                 elif blobn.lower() == 'mvirial':
                     self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
                 elif blobn.lower() == 'alpha':
@@ -1209,11 +1208,10 @@ class MCMCResults(FitResults):
                     self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal, type=k)
 
 
-        if model_key_re is not None:
-            comp = gal.model.components.__getitem__(model_key_re[0])
-            param_i = comp.param_names.index(model_key_re[1])
-            r_eff = comp.parameters[param_i]
-            self.vrot_bestfit = gal.model.velocity_profile(1.38*r_eff, compute_dm=False)
+        # if model_aperture_r is not None:
+        #     r_ap = model_aperture_r(self)
+        #     #self.vrot_bestfit = gal.model.velocity_profile(1.38*r_eff, compute_dm=False)
+        #     self.vrot_bestfit = gal.model.velocity_profile(r_ap, compute_dm=False)
 
 
         self.vmax_bestfit = gal.model.get_vmax()
@@ -1251,7 +1249,8 @@ class MCMCResults(FitResults):
         # --------------------------------
         # Save velocity / other profiles to ascii file:
         if f_vel_ascii is not None:
-            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii, model_key_re=model_key_re, overwrite=overwrite)
+            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii,
+                                        model_aperture_r=model_aperture_r, overwrite=overwrite)
 
         if (f_vcirc_ascii is not None) or (f_mass_ascii is not None):
             self.save_bestfit_vcirc_mass_profiles(gal, fname_intrinsic=f_vcirc_ascii,
@@ -1464,7 +1463,7 @@ class MCMCResults(FitResults):
         self.__dict__['bestfit_{}_u68_err_percentile'.format(pname)] = mcmc_limits_percentile[1] - bestfit
 
 
-    def analyze_dm_posterior_dist(self, gal=None, model_key_re=None, blob_name=None):
+    def analyze_dm_posterior_dist(self, gal=None, model_aperture_r=None, blob_name=None):
         """
         Default analysis of posterior distributions of fDM from MCMC fitting:
             look at marginalized posterior distributions, and
@@ -1472,7 +1471,7 @@ class MCMCResults(FitResults):
             (eg, the 16%/84% distribution of posteriors)
 
         """
-        fdm_mcmc_param_bestfit = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+        fdm_mcmc_param_bestfit = gal.model.get_dm_frac_r_ap(model_aperture_r=model_aperture_r)
         self.analyze_blob_posterior_dist(bestfit=fdm_mcmc_param_bestfit, parname='fdm', blob_name=blob_name)
 
     def analyze_mvirial_posterior_dist(self, gal=None, model_key_halo=None, blob_name=None):
@@ -1611,7 +1610,7 @@ def log_prob(theta, gal,
              fitdispersion=True,
              fitflux=False,
              blob_name = None,
-             model_key_re=None,
+             model_aperture_r=None,
              model_key_halo=None,
              **kwargs_galmodel):
     """
@@ -1644,7 +1643,8 @@ def log_prob(theta, gal,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     blob_name=blob_name,
-                    model_key_re=model_key_re, model_key_halo=model_key_halo)
+                    model_aperture_r=model_aperture_r,
+                    model_key_halo=model_key_halo)
 
         if blob_name is not None:
             lprob = lprior + llike[0]
@@ -1670,7 +1670,7 @@ def log_like(gal, red_chisq=False,
                 fitdispersion=True,
                 fitflux=False,
                 blob_name=None,
-                model_key_re=None,
+                model_aperture_r=None,
                 model_key_halo=None):
 
     # Temporary: testing:
@@ -1844,7 +1844,7 @@ def log_like(gal, red_chisq=False,
         blobvals = []
         for blobn in blob_arr:
             if blobn.lower() == 'fdm':
-                blobv = gal.model.get_dm_frac_effrad(model_key_re=model_key_re)
+                blobv = gal.model.get_dm_frac_effrad(model_aperture_r=model_aperture_r)
             elif blobn.lower() == 'mvirial':
                 blobv = gal.model.get_mvirial(model_key_halo=model_key_halo)
             elif blobn.lower() == 'alpha':

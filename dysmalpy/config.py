@@ -14,6 +14,18 @@ import numpy as np
 import astropy.units as u
 
 
+def _model_aperture_r(model, model_key_re = ['disk+bulge','r_eff_disk']):
+    # Default: use old behavior of model_key_re = ['disk+bulge','r_eff_disk']:
+
+    comp = model.components.__getitem__(model_key_re[0])
+    param_i = comp.param_names.index(model_key_re[1])
+    r_eff = comp.parameters[param_i]
+
+    return r_eff
+
+
+
+
 class ConfigBase:
     """
     Base class to handle settings for different functions.
@@ -119,6 +131,14 @@ class ConfigFitBase(ConfigBase):
     def __init__(self, **kwargs):
         super(ConfigFitBase, self).__init__(**kwargs)
 
+
+    def fill_values(self, **kwargs):
+        super(ConfigFitBase, self).fill_values(**kwargs)
+        # Backwards compatibility:
+        if (('model_key_re' in kwargs.keys()) & ('model_aperture_r' not in kwargs.keys()) \
+            & ('model_key_re' not in self.__dict__.keys())):
+            self.model_aperture_r = (lambda modelset: _model_aperture_r(modelset, model_key_re=self.model_key_re))
+
     def set_defaults(self):
         # Fitting defaults that are shared between all fitting methods
 
@@ -128,7 +148,7 @@ class ConfigFitBase(ConfigBase):
 
         self.blob_name = None
 
-        self.model_key_re = ['disk+bulge','r_eff_disk']
+        self.model_aperture_r = _model_aperture_r
         self.model_key_halo=['halo']
 
         self.save_model = True

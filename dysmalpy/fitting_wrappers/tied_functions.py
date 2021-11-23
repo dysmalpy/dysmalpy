@@ -214,8 +214,6 @@ def tied_mhalo_mstar_fixed_lmstar(model_set):
 
 ############################################################################
 # Tied functions for halo fitting:
-def tie_lmvirial_NFW(model_set):
-    return tie_lmvirial_to_fdm(model_set)
 
 # def tie_lmvirial_to_fdm(model_set):
 #     comp_halo = model_set.components.__getitem__('halo')
@@ -234,6 +232,9 @@ def tie_lmvirial_NFW(model_set):
 #     return alpha
 #
 
+def tie_lmvirial_NFW(model_set):
+    return tie_lmvirial_to_fdm(model_set)
+    
 def tie_lmvirial_to_fdm(model_set):
     comp_halo = None
     comps_bar = []

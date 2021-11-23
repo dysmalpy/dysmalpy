@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import os
 import logging
+import warnings
 import six
 from collections import OrderedDict
 
@@ -21,6 +22,9 @@ try:
    import dysmalpy.models.utils as model_utils
 except:
    from . import utils as model_utils
+
+
+from dysmalpy import config
 
 # Third party imports
 import numpy as np
@@ -814,7 +818,7 @@ class ModelSet:
                     log_prior_model += comp.__getattribute__(paramn).prior.log_prior(comp.__getattribute__(paramn), modelset=self)
         return log_prior_model
 
-    def get_dm_aper(self, r):
+    def get_dm_aper(self, r, model_aperture_r=config._model_aperture_r):
         """
         Calculate the enclosed dark matter fraction
 
@@ -829,33 +833,63 @@ class ModelSet:
         dm_frac: array
             Enclosed dark matter fraction at `r`
         """
-        vc, vdm = self.circular_velocity(r, compute_dm=True)
-        dm_frac = vdm**2/vc**2
+        # vc, vdm = self.circular_velocity(r, compute_dm=True)
+        # dm_frac = vdm**2/vc**2
+
+        vcsq, vdmsq = self.vcirc_sq(r, compute_dm=True, model_aperture_r=model_aperture_r)
+        dm_frac = vdmsq/vcsq
+
         return dm_frac
 
-    def get_dm_frac_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
+    def get_dm_frac_effrad(self, model_key_re=['disk+bulge','r_eff_disk']):
         """
         Calculate the dark matter fraction within the effective radius
 
         Parameters
         ----------
-        model_key_re : list
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius.
-            Default is ['disk+bulge', 'r_eff_disk'].
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         Returns
         -------
         dm_frac : float
             Dark matter fraction within the specified effective radius
         """
-        # RE needs to be in kpc
-        comp = self.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i]
-        dm_frac = self.get_dm_aper(r_eff)
+        warnings.warn("Depreciated: now use ModelSet.get_dm_frac_r_ap() with a "
+                      "model_aperture_r() function that returns the appropriate radius",
+                      DeprecationWarning)
+
+        # r_eff needs to be in kpc
+        r_eff = config._model_aperture_r(self, model_key_re=model_key_re)
+        dm_frac = self.get_dm_aper(r_eff, model_aperture_r=config._model_aperture_r)
 
         return dm_frac
+
+
+    def get_dm_frac_r_ap(self, model_aperture_r=config._model_aperture_r):
+        """
+        Calculate the dark matter fraction within the effective radius
+
+        Parameters
+        ----------
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
+
+        Returns
+        -------
+        dm_frac : float
+            Dark matter fraction within the specified effective radius
+        """
+        # r_ap needs to be in kpc
+        r_ap = model_aperture_r(self)
+        dm_frac = self.get_dm_aper(r_ap, model_aperture_r=model_aperture_r)
+
+        return dm_frac
+
 
     def get_mvirial(self, model_key_halo=['halo']):
         """
@@ -993,18 +1027,52 @@ class ModelSet:
         based on v^2 = GM/r.
         """
 
-        comp = self.components.__getitem__(model_key_re[0])
-        param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i]
-        r = r_eff
+        warnings.warn("Depreciated: now use ModelSet.get_dm_frac_r_ap() with a "
+                      "model_aperture_r() function that returns the appropriate radius",
+                      DeprecationWarning)
 
-        vc = self.circular_velocity(r)
+        # r_eff needs to be in kpc
+        r_eff = config._model_aperture_r(self, model_key_re=model_key_re)
+
+        vc = self.circular_velocity(r_eff)
         menc = menc_from_vcirc(vc, r_eff)
 
         return menc
 
+
+    def get_encl_mass_r_ap(self, model_aperture_r=config._model_aperture_r):
+        """
+        Calculate the total enclosed mass within the effective radius
+
+        Parameters
+        ----------
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
+
+        Returns
+        -------
+        menc : float
+            Total enclosed mass within the specified effective radius
+
+        Notes
+        -----
+        This method uses the total circular velocity to determine the enclosed mass
+        based on v^2 = GM/r.
+        """
+        # r_ap needs to be in kpc
+        r_ap = model_aperture_r(self)
+
+        vc = self.circular_velocity(r_ap)
+        menc = menc_from_vcirc(vc, r_ap)
+
+        return menc
+
+
+
     def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False,
-                        model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+                      model_aperture_r=config._model_aperture_r, step1d=0.2):
         """
         Calculate the total enclosed mass
 
@@ -1019,10 +1087,10 @@ class ModelSet:
         compute_dm : bool
             If True, also return the enclosed mass of the halo
 
-        model_key_re : list, optional
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius. Only necessary
-            if adiabatic contraction is used. Default is ['disk+bulge', 'r_eff_disk'].
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1062,7 +1130,7 @@ class ModelSet:
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
                 vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True,
-                                    model_key_re=model_key_re, step1d=step1d)
+                                    model_aperture_r=model_aperture_r, step1d=step1d)
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
                 enc_mass = enc_mass - enc_dm + enc_dm_adi
                 enc_dm = enc_dm_adi
@@ -1079,7 +1147,7 @@ class ModelSet:
 
 
     def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
-                            model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+                          model_aperture_r=config._model_aperture_r, step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
 
@@ -1094,10 +1162,10 @@ class ModelSet:
         compute_dm : bool
             If True, also return the circular velocity due to the halo
 
-        model_key_re : list, optional
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius.
-            Default is ['disk+bulge', 'r_eff_disk'].
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1115,7 +1183,7 @@ class ModelSet:
         """
 
         vels_sq = self.vcirc_sq(r, compute_baryon=compute_baryon, compute_dm=compute_dm,
-                                model_key_re=model_key_re, step1d=step1d)
+                                model_aperture_r=model_aperture_r, step1d=step1d)
 
         if (compute_baryon and compute_dm):
             vel = np.sqrt(vels_sq[0])
@@ -1136,7 +1204,7 @@ class ModelSet:
 
 
     def vcirc_sq(self, r, compute_baryon=False, compute_dm=False,
-                            model_key_re=['disk+bulge', 'r_eff_disk'], step1d=0.2):
+                 model_aperture_r=config._model_aperture_r, step1d=0.2):
         """
         Calculate the square of the total circular velocity as a function of radius
 
@@ -1151,10 +1219,10 @@ class ModelSet:
         compute_dm : bool
             If True, also return the circular velocity due to the halo
 
-        model_key_re : list, optional
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius.
-            Default is ['disk+bulge', 'r_eff_disk'].
+        model_aperture_r : function
+            Function that takes the model set as input and returns the aperture radius (in kpc).
+            The default returns the disk effective radius
+            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1203,17 +1271,10 @@ class ModelSet:
                                         " or 'baryonic' accepted.".format(
                                         mcomp._subtype, cmp))
 
-            # vbaryon = np.sqrt(vbaryon_sq)
-            # vdm = np.sqrt(vdm_sq)
-            # vels = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon, vdm,
-            #                                                        compute_dm=compute_dm,
-            #                                                        model_key_re=model_key_re,
-            #                                                        step1d=step1d)
-
             vels_sq = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon_sq, vdm_sq,
                                                                    compute_dm=compute_dm,
                                                                    return_vsq=True,
-                                                                   model_key_re=model_key_re,
+                                                                   model_aperture_r=model_aperture_r,
                                                                    step1d=step1d)
 
             if compute_dm:

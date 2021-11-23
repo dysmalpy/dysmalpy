@@ -13,6 +13,7 @@ from dysmalpy import parameters
 from dysmalpy import fitting
 from dysmalpy import galaxy, instrument, models
 from dysmalpy import aperture_classes
+from dysmalpy import config
 
 try:
     import tied_functions, data_io
@@ -1634,10 +1635,8 @@ def setup_mcmc_dict(params=None, ndim_data=None):
         mcmc_dict['linked_posterior_names'] = None
 
 
-    #
-    mcmc_dict['model_key_re'] = ['disk+bulge', 'r_eff_disk']
+    mcmc_dict['model_aperture_r'] = config._model_aperture_r
     mcmc_dict['model_key_halo'] = ['halo']
-
 
     if 'continue_steps' not in mcmc_dict.keys():
         mcmc_dict['continue_steps'] = False
