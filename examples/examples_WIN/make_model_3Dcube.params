@@ -129,7 +129,7 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 # # Initial values
 # L_tot_gaus_ring,     1.      # arbitrary units
 # r_peak_gaus_ring,    6.      # kpc
-# sigma_r_gaus_ring,   1.      # kpc
+# FWHM_gaus_ring,   1.      # kpc
 
 
 # ********************************************************************************
