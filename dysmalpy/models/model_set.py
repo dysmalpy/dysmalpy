@@ -1313,19 +1313,24 @@ class ModelSet:
             Circular velocity due to the dark matter halo in km/s
             Only returned if `compute_dm` = True
        """
-        vels = self.circular_velocity(r, compute_dm=compute_dm)
+        vels_sq = self.vcirc_sq(r, compute_dm=compute_dm)
         if compute_dm:
-            vcirc = vels[0]
-            vdm = vels[1]
-        else:
-            vcirc = vels
+            vcirc_sq = vels_sq[0]
+            vdm_sq = vels_sq[1]
 
-        vel = self.kinematic_options.apply_pressure_support(r, self, vcirc)
+            vdm = np.sqrt(vdm_sq)
+        else:
+            vcirc_sq = vels_sq
+
+        vel_sq = self.kinematic_options.apply_pressure_support(r, self, vcirc_sq)
+        vel = np.sqrt(vel_sq)
 
         if compute_dm:
             return vel, vdm
         else:
             return vel
+
+
 
     def get_vmax(self, r=None):
         """

@@ -276,7 +276,7 @@ class KinematicOptions:
                 return vel
 
 
-    def apply_pressure_support(self, r, model, vel):
+    def apply_pressure_support(self, r, model, vel_sq):
         """
         Function to apply asymmetric drift correction
 
@@ -288,18 +288,18 @@ class KinematicOptions:
         model : `ModelSet`
             ModelSet for which the correction is applied to
 
-        vel : float or array
-            Circular velocity in km/s
+        vel_sq : float or array
+            Square of circular velocity in km^2/s^2
 
         Returns
         -------
-        vel : float or array
-            Rotational velocity with asymmetric drift applied in km/s
+        vel_sq : float or array
+            Square of rotational velocity with asymmetric drift applied, in km^2/s^2
 
         """
         if self.pressure_support:
-            vel_asymm_drift = self.get_asymm_drift_profile(r, model)
-            vel_squared = (vel **2 - vel_asymm_drift**2)
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            vel_squared = vel_sq - vel_asymm_drift_sq
 
             # if array:
             try:
@@ -308,11 +308,11 @@ class KinematicOptions:
                 # if float single value:
                 if vel_squared < 0:
                     vel_squared = 0.
-            vel = np.sqrt(vel_squared)
+            #vel = np.sqrt(vel_squared)
 
-        return vel
+        return vel_squared
 
-    def correct_for_pressure_support(self, r, model, vel):
+    def correct_for_pressure_support(self, r, model, vel_sq):
         """
         Remove asymmetric drift effect from input velocities
 
@@ -324,18 +324,18 @@ class KinematicOptions:
         model : `ModelSet`
             ModelSet the correction is applied to
 
-        vel : float or array
-            Rotational velocities in km/s from which to remove asymmetric drift
+        vel_sq : float or array
+            Square of rotational velocities in km^2/s^2 from which to remove asymmetric drift
 
         Returns
         -------
-        vel : float or array
-            Circular velocity after asymmetric drift is removed in km/s
+        vel_sq : float or array
+            Square of circular velocity after asymmetric drift is removed, in km^2/s^2
         """
         if self.pressure_support:
             #
-            vel_asymm_drift = self.get_asymm_drift_profile(r, model)
-            vel_squared = (vel **2 + vel_asymm_drift**2)
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            vel_squared = vel_sq + vel_asymm_drift_sq
 
             # if array:
             try:
@@ -344,9 +344,9 @@ class KinematicOptions:
                 # if float single value:
                 if (vel_squared < 0):
                     vel_squared = 0.
-            vel = np.sqrt(vel_squared)
+            #vel = np.sqrt(vel_squared)
 
-        return vel
+        return vel_squared
 
     def get_asymm_drift_profile(self, r, model):
         """
@@ -362,8 +362,8 @@ class KinematicOptions:
 
         Returns
         -------
-        vel_asymm_drift : float or array
-            Velocity correction in km/s associated with asymmetric drift
+        vel_asymm_drift_sq : float or array
+            Square velocity correction in km^2/s^2 associated with asymmetric drift
         """
         # Compatibility hack, to handle the changed galaxy structure
         #    (properties, not attributes for data[*], instrument
@@ -383,13 +383,13 @@ class KinematicOptions:
         sigma = model.dispersion_profile(r)
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
-            vel_asymm_drift = np.sqrt( 3.36 * (r / pre) * sigma ** 2 )
+            vel_asymm_drift_sq = 3.36 * (r / pre) * sigma ** 2
         elif self.pressure_support_type == 2:
             # Modified derivation that takes into account n_disk / n
             pn = self.get_pressure_support_param(model, param='n')
             bn = scp_spec.gammaincinv(2. * pn, 0.5)
 
-            vel_asymm_drift = np.sqrt( 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2 )
+            vel_asymm_drift_sq = 2. * (bn/pn) * np.power((r/pre), 1./pn) * sigma**2
 
         elif self.pressure_support_type == 3:
             # Direct calculation from sig0^2 dlnrho/dlnr:
@@ -397,9 +397,9 @@ class KinematicOptions:
 
             # NEEDS TO BE JUST RHO FOR THE GAS:
             dlnrhogas_dlnr = model.get_dlnrhogas_dlnr(r)
-            vel_asymm_drift = np.sqrt( - dlnrhogas_dlnr * sigma**2 )
+            vel_asymm_drift_sq = - dlnrhogas_dlnr * sigma**2
 
-        return vel_asymm_drift
+        return vel_asymm_drift_sq
 
     def get_pressure_support_param(self, model, param=None):
         """

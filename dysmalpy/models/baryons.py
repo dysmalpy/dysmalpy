@@ -1871,9 +1871,10 @@ class DiskBulge(MassModel, _LightMassModel):
         correction due to the gas turbulence.
 
         """
+        vcirc_sq = self.vcirc_sq(r)
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
 
-        vcirc = self.circular_velocity(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
     def velocity_profile_disk(self, r, modelset):
@@ -1899,9 +1900,10 @@ class DiskBulge(MassModel, _LightMassModel):
         correction due to the gas turbulence.
 
         """
+        vcirc_sq = self.circular_velocity_disk(r) ** 2
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
 
-        vcirc = self.circular_velocity_disk(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
     def velocity_profile_bulge(self, r, modelset):
@@ -1926,9 +1928,10 @@ class DiskBulge(MassModel, _LightMassModel):
         This method requires a `ModelSet` input to be able to apply the pressure support
         correction due to the gas turbulence.
         """
+        vcirc_sq = self.circular_velocity_bulge(r) ** 2
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
 
-        vcirc = self.circular_velocity_bulge(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
         return vrot
 
 
@@ -2467,8 +2470,10 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         correction due to the gas turbulence.
 
         """
-        vcirc = self.circular_velocity(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vcirc_sq = self.vcirc_sq(r)
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
+
         return vrot
 
     def velocity_profile_disk(self, r, modelset):
@@ -2494,8 +2499,9 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         correction due to the gas turbulence.
 
         """
-        vcirc = self.circular_velocity_disk(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vcirc_sq = self.circular_velocity_disk(r) ** 2
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
         return vrot
 
     def velocity_profile_bulge(self, r, modelset):
@@ -2521,8 +2527,10 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         correction due to the gas turbulence.
 
         """
-        vcirc = self.circular_velocity_bulge(r)
-        vrot = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc)
+        vcirc_sq = self.circular_velocity_bulge(r) ** 2
+        vrot_sq = modelset.kinematic_options.apply_pressure_support(r, modelset, vcirc_sq)
+        vrot = np.sqrt(vrot_sq)
+
         return vrot
 
 
