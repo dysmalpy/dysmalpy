@@ -138,11 +138,11 @@ class LightGaussianRing(LightModel, _DysmalFittable1DModel):
 
     Parameters
     ----------
-    r_peak : float
+    R_peak : float
         Peak of gaussian (radius) in kpc
 
-    sigma_r: float
-        Standard deviation of gaussian, in kpc
+    FWHM: float
+        FWHM of gaussian, in kpc
 
     L_tot: float
         Total luminsoity of component. Arbitrary units
@@ -154,25 +154,29 @@ class LightGaussianRing(LightModel, _DysmalFittable1DModel):
 
     .. math::
 
-        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_r^2}\right]
+        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right]
 
 
     """
-    r_peak = DysmalParameter(default=1, bounds=(0, 50))
-    sigma_r = DysmalParameter(default=1, bounds=(0, 50))
+    R_peak = DysmalParameter(default=1, bounds=(0, 50))
+    FWHM = DysmalParameter(default=1, bounds=(0, 50))
     L_tot = DysmalParameter(default=1, bounds=(0, 50))
 
     def __init__(self, **kwargs):
         super(LightGaussianRing, self).__init__(**kwargs)
 
+    def sigma_R(self):
+        return self.FWHM.value / (2.*np.sqrt(2.*np.log(2.)))
+
     @staticmethod
-    def evaluate(r, r_peak, sigma_r, L_tot):
+    def evaluate(r, R_peak, FWHM, L_tot):
         """
         Gaussian ring light surface density.
         Radius r must be in kpc
         """
-        I0 = _I0_gaussring(r_peak, sigma_r, L_tot)
-        return I0*np.exp(-(r-r_peak)**2/(2.*sigma_r**2))
+        sigma_R = FWHM/ (2.*np.sqrt(2.*np.log(2.)))
+        I0 = _I0_gaussring(R_peak, sigma_R, L_tot)
+        return I0*np.exp(-(r-R_peak)**2/(2.*sigma_R**2))
 
     def light_profile(self, r):
         """
@@ -188,10 +192,7 @@ class LightGaussianRing(LightModel, _DysmalFittable1DModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        # I0 = _I0_gaussring(self.r_peak, self.sigma_r, self.L_tot)
-        # return I0*np.exp(-(r-self.r_peak)**2/(2.*self.sigma_r**2))
-
-        return self.evaluate(r, self.r_peak, self.sigma_r, self.L_tot)
+        return self.evaluate(r, self.R_peak, self.FWHM, self.L_tot)
 
 
 class LightClump(LightModel, _DysmalFittable3DModel):
@@ -289,11 +290,11 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
 
     Parameters
     ----------
-    r_peak : float
+    R_peak : float
         Peak of gaussian (radius) in kpc
 
-    sigma_r: float
-        Standard deviation of gaussian, in kpc
+    FWHM: float
+        FWHM of gaussian, in kpc
 
     L_tot: float
         Total luminsoity of component. Arbitrary units
@@ -313,14 +314,14 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
 
     .. math::
 
-        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_r^2}\right]
+        I(r)=I_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right]
 
 
     """
 
     _axisymmetric = False
-    r_peak = DysmalParameter(default=1, bounds=(0, 50))
-    sigma_r = DysmalParameter(default=1, bounds=(0, 50))
+    R_peak = DysmalParameter(default=1, bounds=(0, 50))
+    FWHM = DysmalParameter(default=1, bounds=(0, 50))
     L_tot = DysmalParameter(default=1, bounds=(0, 50))
     phi = DysmalParameter(default=0., bounds=(0, 360))
     contrast = DysmalParameter(default=1., bounds=(0., 1.))
@@ -329,15 +330,19 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
     def __init__(self, **kwargs):
         super(LightGaussianRingAzimuthal, self).__init__(**kwargs)
 
+    def sigma_R(self):
+        return self.FWHM.value / (2.*np.sqrt(2.*np.log(2.)))
+        
     @staticmethod
-    def evaluate(x, y, z, r_peak, sigma_r, L_tot, phi, contrast, gamma):
+    def evaluate(x, y, z, R_peak, FWHM, L_tot, phi, contrast, gamma):
         """
         Azimuthally varying Gaussian ring light surface density.
         Positions x,y,z in kpc
         """
-        I0 = _I0_gaussring(r_peak, sigma_r, L_tot)
+        sigma_R = FWHM / (2.*np.sqrt(2.*np.log(2.)))
+        I0 = _I0_gaussring(R_peak, sigma_R, L_tot)
         r = np.sqrt( x ** 2 + y ** 2 )
-        gaus_symm = I0*np.exp(-(r-r_peak)**2/(2.*sigma_r**2))
+        gaus_symm = I0*np.exp(-(r-R_peak)**2/(2.*sigma_R**2))
 
         # Assume ring is in midplane
         phi_rad = phi * np.pi / 180.
@@ -363,5 +368,5 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        return self.evaluate(x, y, z, self.r_peak, self.sigma_r, self.L_tot,
+        return self.evaluate(x, y, z, self.R_peak, self.FWHM, self.L_tot,
                     self.phi, self.contrast, self.gamma)
