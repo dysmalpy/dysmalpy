@@ -1019,33 +1019,33 @@ def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None, light_comp
     params = _preprocess_light_gaus_ring_parameters(params=params)
 
     L_tot =        params['L_tot_gaus_ring']        # Arbitrary
-    r_peak =       params['r_peak_gaus_ring']       # kpc
-    sigma_r =      params['sigma_r_gaus_ring']      # kpc
+    R_peak =       params['R_peak_gaus_ring']       # kpc
+    FWHM =      params['FWHM_gaus_ring']      # kpc
 
     # Fix components
     GR_fixed = {'L_tot': params['L_tot_gaus_ring_fixed'],
-                'r_peak': params['r_peak_gaus_ring_fixed'],
-                'sigma_r': params['sigma_r_gaus_ring_fixed']}
+                'R_peak': params['R_peak_gaus_ring_fixed'],
+                'FWHM': params['FWHM_gaus_ring_fixed']}
 
     # Set bounds
     GR_bounds = {'L_tot': (params['L_tot_gaus_ring_bounds'][0], params['L_tot_gaus_ring_bounds'][1]),
-                'r_peak': (params['r_peak_gaus_ring_bounds'][0], params['r_peak_gaus_ring_bounds'][1]),
-                'sigma_r':     (params['sigma_r_gaus_ring_bounds'][0], params['sigma_r_gaus_ring_bounds'][1])}
+                'R_peak': (params['R_peak_gaus_ring_bounds'][0], params['R_peak_gaus_ring_bounds'][1]),
+                'FWHM':     (params['FWHM_gaus_ring_bounds'][0], params['FWHM_gaus_ring_bounds'][1])}
 
     if 'light_gaussian_ring' in light_components_list:
         light = True
     else:
         light = False
 
-    GR = models.LightGaussianRing(r_peak=r_peak, sigma_r=sigma_r, L_tot=L_tot,
+    GR = models.LightGaussianRing(R_peak=R_peak, sigma_r=sigma_r, L_tot=L_tot,
                         name='lgausring',fixed=GR_fixed, bounds=GR_bounds)
 
     GR = set_comp_param_prior(comp=GR, param_name='L_tot', params=params,
                                     param_name_alias='L_tot_gaus_ring')
-    GR = set_comp_param_prior(comp=GR, param_name='r_peak', params=params,
-                                    param_name_alias='r_peak_gaus_ring')
-    GR = set_comp_param_prior(comp=GR, param_name='sigma_r', params=params,
-                                    param_name_alias='sigma_r_gaus_ring')
+    GR = set_comp_param_prior(comp=GR, param_name='R_peak', params=params,
+                                    param_name_alias='R_peak_gaus_ring')
+    GR = set_comp_param_prior(comp=GR, param_name='FWHM', params=params,
+                                    param_name_alias='FWHM_gaus_ring')
     # --------------------------------------
     # Add the model component to the ModelSet
     mod_set.add_component(GR, light=light)
@@ -1321,7 +1321,7 @@ def _preprocess_light_gaus_ring_parameters(params=None):
     if 'L_tot_gaus_ring' not in list(params.keys()):
         params['L_tot_gaus_ring'] = 1.
 
-    for key in ['L_tot_gaus_ring', 'r_peak_gaus_ring', 'sigma_r_gaus_ring']:
+    for key in ['L_tot_gaus_ring', 'R_peak_gaus_ring', 'FWHM_gaus_ring']:
         if '{}_fixed'.format(key) not in list(params.keys()):
             params['{}_fixed'.format(key)] = True
 
@@ -1331,10 +1331,10 @@ def _preprocess_light_gaus_ring_parameters(params=None):
 
     if 'L_tot_gaus_ring_bounds' not in list(params.keys()):
         params['L_tot_gaus_ring_bounds'] = (0., 2.)
-    if 'r_peak_gaus_ring_bounds' not in list(params.keys()):
-        params['r_peak_gaus_ring_bounds'] = (1., 15.)
-    if 'sigma_r_gaus_ring_bounds' not in list(params.keys()):
-        params['sigma_r_gaus_ring_bounds'] = (0.2, 10.)
+    if 'R_peak_gaus_ring_bounds' not in list(params.keys()):
+        params['R_peak_gaus_ring_bounds'] = (1., 15.)
+    if 'FWHM_gaus_ring_bounds' not in list(params.keys()):
+        params['FWHM_gaus_ring_bounds'] = (0.2, 10.)
 
     return params
 

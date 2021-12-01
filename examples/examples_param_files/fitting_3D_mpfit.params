@@ -200,18 +200,18 @@ n_bulge_bounds,      1.0  8.0
 # # ------------
 # # Initial values
 # L_tot_gaus_ring,     1.      # arbitrary units
-# r_peak_gaus_ring,    6.      # kpc
-# sigma_r_gaus_ring,   1.      # kpc
+# R_peak_gaus_ring,    6.      # kpc
+# FWHM_gaus_ring,   1.      # kpc
 #
 # # Fixed? True if its a fixed parameter, False otherwise
 # L_tot_gaus_ring_fixed,    True
-# r_peak_gaus_ring_fixed,   True
-# sigma_r_gaus_ring_fixed,  True
+# R_peak_gaus_ring_fixed,   True
+# FWHM_gaus_ring_fixed,  True
 #
 # # Parameter bounds. Lower and upper bounds
 # L_tot_gaus_ring_bounds,   0.  2.    # arbitrary units
-# r_peak_gaus_ring_bounds,  0.  15.   # kpc
-# sigma_r_gaus_ring_bounds, 0.1 10.   # kpc
+# R_peak_gaus_ring_bounds,  0.  15.   # kpc
+# FWHM_gaus_ring_bounds, 0.1 10.   # kpc
 
 
 
