@@ -3827,8 +3827,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         deg2rad = np.pi/180.
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
 
-        vel_asymm_drift = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
-        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift**2
+        vel_asymm_drift_sq = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
+        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift_sq
         vsq[vsq<0] = 0.
 
         model_int.data['vrot'] = np.sqrt(vsq)
@@ -3838,8 +3838,9 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
         sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
 
-        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift**2 )
-        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift**2 )
+        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift_sq )
+        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift_sq )
+
 
         ######################################
         # Setup plot:
@@ -3886,6 +3887,14 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         xlim2 = np.array(xlim) / gal.dscale
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
 
+
+
+        ax.plot( model_obs.rarr, model_obs.data['velocity'],
+            c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
+
+        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet',
+                zorder=-20., label=r'Intrinsic $\sigma_0$')
+
         if hasattr(gal.data, 'mask_velocity'):
             if gal.data.mask_velocity is not None:
                 msk = gal.data.mask_velocity
@@ -3910,12 +3919,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ax.scatter( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
             edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
 
-
-        ax.plot( model_obs.rarr, model_obs.data['velocity'],
-            c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
-
-        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet',
-                zorder=-20., label=r'Intrinsic $\sigma_0$')
 
         ax2 = ax.twiny()
 
@@ -3984,8 +3987,11 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
         for ind,text in enumerate(legend.get_texts()):
             legend.legendHandles[ind].set_visible(False)
-            text.set_color(color_arr[ind])
-
+            #text.set_color(color_arr[ind])
+            try:
+                text.set_color(legend.legendHandles[ind]._color)
+            except:
+                text.set_color(legend.legendHandles[ind]._original_edgecolor)
 
         # ++++++++++++++++++++++++++++++++++++
         ax = axes[1]
