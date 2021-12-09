@@ -477,7 +477,11 @@ class Report(object):
 
 
         # --------------------------------------
-        if (((self.fit_method.upper() == 'MPFIT') & results.status>=0) | (self.fit_method.upper() == 'MCMC')):
+        if 'status' in results.__dict__.keys():
+            results_status = results.status
+        else:
+            results_status = -99
+        if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
             self.add_line( '' )
             self.add_line( '###############################' )
             self.add_line( ' Fitting results' )
@@ -598,7 +602,12 @@ class Report(object):
         namestr = '# component             param_name    fixed       best_value   l68_err     u68_err'
         self.add_line( namestr )
 
-        if (((self.fit_method.upper() == 'MPFIT') & results.status>=0) | (self.fit_method.upper() == 'MCMC')):
+
+        if 'status' in results.__dict__.keys():
+            results_status = results.status
+        else:
+            results_status = -99
+        if (((self.fit_method.upper() == 'MPFIT') & results_status>=0) | (self.fit_method.upper() == 'MCMC')):
             for cmp_n in gal.model.param_names.keys():
                 for param_n in gal.model.param_names[cmp_n]:
 
