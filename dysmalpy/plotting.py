@@ -2945,8 +2945,12 @@ def plot_model_2D(gal,
             inst_corr=True,
             show_contours=True,
             show_ruler=True,
+            len_ruler=None,
+            ruler_unit='arcsec',
             apply_mask=True,
             ruler_loc='lowerleft',
+            color_annotate='black',
+            color_bad='white', 
             **kwargs_galmodel):
 
     if show_contours:
@@ -3057,9 +3061,12 @@ def plot_model_2D(gal,
     cmap = copy.copy(cm.get_cmap("Spectral_r"))
     # cmap.set_bad(color='k')
     # color_annotate = 'white'
+    #
+    # cmap.set_bad(color='white')
+    # color_annotate = 'black'
 
-    cmap.set_bad(color='white')
-    color_annotate = 'black'
+    cmap.set_bad(color=color_bad)
+    #color_annotate = 'black'
 
     for j in range(len(keyyarr)):
         msk = np.isfinite(gal.model_data.data[keyyarr[j]])
@@ -3113,8 +3120,16 @@ def plot_model_2D(gal,
             ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
             if show_ruler:
                 pixscale = gal.instrument.pixscale.value
-                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
-                                            ruler_loc=ruler_loc,  color=color_annotate)
+                if (len_ruler is None):
+                    len_arcsec = 1.
+                elif (len_ruler is not None):
+                    if ruler_unit.lower() == 'arcsec':
+                        len_arcsec = len_ruler
+                    elif ruler_unit.lower() == 'kpc':
+                        len_arcsec = len_ruler * gal.dscale
+                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=len_arcsec,
+                                            ruler_loc=ruler_loc,  color=color_annotate,
+                                            ruler_unit=ruler_unit, dscale=gal.dscale)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
@@ -4684,6 +4699,7 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
 
 
 def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
+        ruler_unit='arcsec', dscale=None,
         ruler_loc='lowerright', color='black', ybase_offset=0.02,
         delx=0.075, dely=0.075, dely_text=0.06):
     ####################################
@@ -4693,12 +4709,18 @@ def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
 
     #len_line_angular = 0.5/(pixscale)
     len_line_angular = len_arcsec/(pixscale)
-    if len_arcsec % 1. == 0.:
-        string = r'{}"'.format(int(len_arcsec))
-    else:
-        intpart = str(len_arcsec).split('.')[0]
-        decpart = str(len_arcsec).split('.')[1]
-        string = r'0."{}'.format()
+    if ruler_unit.lower() == 'arcsec':
+        if len_arcsec % 1. == 0.:
+            string = r'{}"'.format(int(len_arcsec))
+        else:
+            intpart = str(len_arcsec).split('.')[0]
+            decpart = str(len_arcsec).split('.')[1]
+            string = r'0."{}'.format()
+    elif ruler_unit.lower() == 'kpc':
+        if len_arcsec/dscale % 1. == 0.:
+            string = r'{:0.0f} kpc'.format(int(len_arcsec/dscale))
+        else:
+            string = r'{:0.1f} kpc'.format(int(len_arcsec/dscale))
 
 
     #ybase_offset = 0.02 #0.035 #0.065

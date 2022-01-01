@@ -1403,7 +1403,7 @@ def setup_instrument_params(inst=None, params=None):
         if 'psf_fwhm1_minor' in params.keys():
             psf_fwhm1_minor = params['psf_fwhm1_minor']
         else:
-            psf_fwhm1_minor = params['psf_fwhm']
+            psf_fwhm1_minor = params['psf_fwhm1']
         if 'psf_PA1' in params.keys():
             psf_PA1 = params['psf_PA1']
         else:
