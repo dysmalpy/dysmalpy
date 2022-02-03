@@ -187,7 +187,7 @@ sigma0_prior,        flat
 # No effect if Flat prior is chosen
 sigma0_stddev,       25.0
 
-
+# ********************************************************************************
 # ZHEIGHT PROFILE
 # ---------------
 

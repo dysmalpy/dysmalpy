@@ -320,7 +320,7 @@ class UnresolvedOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
         r = np.sqrt(x**2 + y**2 + z**2)
         ind_min = r.argmin()
         flux = x*0.
-        flux[ind_min] = self.amplitude
+        flux.flat[ind_min] = self.amplitude.value
 
         return flux
 
@@ -898,7 +898,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         Angular speed of the driving force, :math:`\Omega_p`.
 
     phi0 : float, optional
-        Angle offset of the arm winding, in degreeds. Default: 0.
+        Angle offset of the arm winding, in degreed. Default: 0.
 
     Notes
     -----
@@ -910,10 +910,9 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         - Vrot(R)      [Unperturbed rotation velocity of the galaxy]
         - dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.]
         - rho0(R)      [Unperturbed midplane density profile of the galaxy]
-        - f(R)         [Function describing the spiral shape, :math:`m\phi = f(R)`,
+        - f(R, m, cs, Om_p, Vrot) [Function describing the spiral shape, :math:`m\phi = f(R)`,
                         with :math:`k \equiv df/dR`.]
-        - k(R)         [Function for the radial wavenumber]
-
+        - k(R, m, cs, Om_p, Vrot) [Function for the radial wavenumber]
     """
 
     m = DysmalParameter(default=2., bounds=(0, None), fixed=True)       # Number of photometric arms

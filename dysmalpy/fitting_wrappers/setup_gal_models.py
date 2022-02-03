@@ -340,9 +340,44 @@ def setup_gal_model_base(params=None,
         mod_set = add_geometry_comp(gal=gal, mod_set=mod_set, params=params)
 
     # ------------------------------------------------------------
-    # Uniform radial component: inflow / outflow:
-    if 'radial_flow' in components_list:
+    # ------------------------------------------------------------
+    # HIGHER ORDER COMPONENTS: INFLOW, OUTFLOW, ETC
+
+    # ------------------------------------------------------------
+    # Uniform SPHERICAL radial component: inflow / outflow:
+    if ('radial_flow' in components_list) | ('uniform_spherical_radial_flow' in components_list):
         mod_set = add_uniform_radial_flow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('uniform_planar_radial_flow' in components_list):
+        mod_set = add_planar_uniform_radial_flow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('uniform_bar_flow' in components_list):
+        mod_set = add_uniform_bar_flow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('uniform_wedge_flow' in components_list):
+        mod_set = add_uniform_wedge_flow(gal=gal, mod_set=mod_set, params=params)
+
+
+    if ('unresolved_outflow' in components_list):
+        mod_set = add_unresolved_outflow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('biconical_outflow' in components_list):
+        mod_set = add_biconical_outflow(gal=gal, mod_set=mod_set, params=params)
+
+
+    # CAUTION: TAKES FUNCTION AS INPUT, VERY SPECIFIC STRINGS!
+    if ('azimuthal_planar_radial_flow' in components_list):
+        mod_set = add_azimuthal_planar_radial_flow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('variable_bar_flow' in components_list):
+        mod_set = add_variable_bar_flow(gal=gal, mod_set=mod_set, params=params)
+
+    if ('spiral_flow' in components_list):
+        mod_set = add_spiral_flow(gal=gal, mod_set=mod_set, params=params,
+                                  light_components_list=light_components_list)
+
+    # ------------------------------------------------------------
+    # ------------------------------------------------------------
 
     # --------------------------------------
     # Additional / Separate light components
@@ -864,21 +899,26 @@ def add_halo_comp(gal=None, mod_set=None, params=None,
 
     return mod_set
 
-def add_const_disp_prof_comp(gal=None, mod_set=None, params=None):
-    params = _preprocess_const_disp_prof_parameters(params=params)
+def add_const_disp_prof_comp(gal=None, mod_set=None, params=None, key='sigma0', disp_type='galaxy'):
+    params = _preprocess_const_disp_prof_parameters(params=params, key=key)
 
-    sigma0 = params['sigma0']       # km/s
-    disp_fixed = {'sigma0': params['sigma0_fixed']}
-    disp_bounds = {'sigma0': (params['sigma0_bounds'][0], params['sigma0_bounds'][1])}
+    keyout = 'sigma0'
+    sigma0 = params[key]       # km/s
+    disp_fixed = {keyout: params['{}_fixed'.format(key)]}
+    disp_bounds = {keyout: (params['{}_bounds'.format(key)][0], params['{}_bounds'.format(key)][1])}
 
+    if disp_type != 'galaxy':
+        name = 'dispprof_{}'.format(disp_type)
+    else:
+        name = 'dispprof'
     disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
-                        bounds=disp_bounds, name='dispprof')
+                        bounds=disp_bounds, name=name)
 
-    disp_prof = set_comp_param_prior(comp=disp_prof, param_name='sigma0', params=params)
+    disp_prof = set_comp_param_prior(comp=disp_prof, param_name=key, params=params)
 
     # --------------------------------------
     # Add the model component to the ModelSet
-    mod_set.add_component(disp_prof)
+    mod_set.add_component(disp_prof, disp_type=disp_type)
 
     return mod_set
 
@@ -952,19 +992,259 @@ def add_uniform_radial_flow(gal=None, mod_set=None, params=None):
     vr = params['vr']                # km/s;  outflow is positive, inflow is negative
 
     radialflow_fixed = {'vr': params['vr_fixed']}
-    radialflow_bounds = {'vr':  (params['vr_bounds'][0], params['vr_bounds'][1])}
+    pradialflow_bounds = {}
+    if params['vr_bounds'] is not None:
+        pradialflow_bounds['vr'] =  (params['vr_bounds'][0], params['vr_bounds'][1])
 
     radialflow = models.UniformRadialFlow(vr=vr,  name='radialflow',
-                           fixed=radialflow_fixed, bounds=radialflow_bounds,)
+                           fixed=radialflow_fixed, bounds=pradialflow_bounds)
     radialflow = set_comp_param_prior(comp=radialflow, param_name='vr', params=params)
 
     # --------------------------------------
     # Add the model component to the ModelSet
-
     mod_set.add_component(radialflow)
 
+    return mod_set
+
+def add_planar_uniform_radial_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_planar_uniform_radial_flow_parameters(params=params)
+
+    vr = params['vr']                # km/s;  outflow is positive, inflow is negative
+
+    pradialflow_fixed = {'vr': params['vr_fixed']}
+    pradialflow_bounds = {}
+    if params['vr_bounds'] is not None:
+        pradialflow_bounds['vr'] =  (params['vr_bounds'][0], params['vr_bounds'][1])
+
+    pradialflow = models.PlanarUniformRadialFlow(vr=vr,  name='planarradialflow',
+                           fixed=pradialflow_fixed, bounds=pradialflow_bounds)
+    pradialflow = set_comp_param_prior(comp=pradialflow, param_name='vr', params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(pradialflow)
 
     return mod_set
+
+def add_azimuthal_planar_radial_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_azimuthal_planar_radial_flow_parameters(params=params)
+
+    vrdef_key = 'vr_func_azimuthal_planar_flow'
+
+    pnames = ['m', 'phi0']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    str_vrdef = 'global vrazpfunc\ndef vrazpfunc(R, model_set):  return {}'.format(params[vrdef_key])
+    exec(str_vrdef)
+
+    azpradialflow = models.AzimuthalPlanarRadialFlow(**vals_dict, vr=vrazpfunc,
+                        name='azplanarradialflow', fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        azpradialflow = set_comp_param_prior(comp=azpradialflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(azpradialflow)
+
+    return mod_set
+
+
+
+
+def add_uniform_bar_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_uniform_bar_flow_parameters(params=params)
+
+    pnames = ['vbar', 'phi', 'bar_width']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    barflow = models.UniformBarFlow(**vals_dict,  name='barflow',
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        barflow = set_comp_param_prior(comp=barflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(barflow)
+
+    return mod_set
+
+
+
+def add_variable_bar_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_variable_bar_flow_parameters(params=params)
+
+    vXbardef_key =  'vbar_func_bar_flow'
+    pnames = ['phi', 'bar_width']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+
+    str_vXbardef = 'global vXbarfunc\ndef vXbarfunc(R, model_set):  return {}'.format(params[vXbardef_key])
+    exec(str_vXbardef)
+
+    barflow = models.VariableXBarFlow(**vals_dict,  name='variable_barflow', vbar=vXbarfunc,
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        barflow = set_comp_param_prior(comp=barflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(barflow)
+
+    return mod_set
+
+def add_spiral_flow(gal=None, mod_set=None, params=None, light_components_list=None):
+    params = _preprocess_spiral_flow_parameters(params=params)
+
+    pnames = ['m', 'phi0', 'cs', 'epsilon', 'Om_p']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    fkeyend = '_func_spiral_flow'
+    func_keys =  ['Vrot', 'rho0', 'dVrot_dR']
+    funcs_dict = {}
+    for fnk in func_keys:
+        fn_p = fnk + fkeyend
+        fn_f = fnk + 'spiralfunc'
+        str_funcdef = 'global {}\ndef {}(R):  return {}'.format(fn_f, fn_f, params[fn_p])
+        exec(str_funcdef)
+        exec("funcs_dict['{}'] = {}".format(fnk, fn_f))
+
+    func_keys =  ['f', 'k']
+    for fnk in func_keys:
+        fn_p = fnk + fkeyend
+        fn_f = fnk + 'spiralfunc'
+        str_funcdef = 'global {}\ndef {}(R, m, cs, Om_p, Vrot):  return {}'.format(fn_f, fn_f, params[fn_p])
+        exec(str_funcdef)
+        exec("funcs_dict['{}'] = {}".format(fnk, fn_f))
+
+    if 'spiral_flow' in light_components_list:
+        light = True
+    else:
+        light = False
+
+    spiralflow = models.SpiralDensityWave(**vals_dict,  name='spiral_flow', **funcs_dict,
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        spiralflow = set_comp_param_prior(comp=spiralflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(spiralflow, light=light)
+
+    return mod_set
+
+
+def add_uniform_wedge_flow(gal=None, mod_set=None, params=None):
+    params = _preprocess_uniform_wedge_flow_parameters(params=params)
+
+    pnames = ['vr', 'theta', 'phi']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    wedgeflow = models.UniformWedgeFlow(**vals_dict,  name='wedgeflow',
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        wedgeflow = set_comp_param_prior(comp=wedgeflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(wedgeflow)
+
+    return mod_set
+
+
+
+def add_biconical_outflow(gal=None, mod_set=None, params=None):
+    params = _preprocess_biconical_outflow_parameters(params=params)
+
+    pnames = ['n', 'vmax', 'rturn', 'thetain', 'dtheta', 'rend', 'norm_flux', 'tau_flux']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    biconicaloutflow = models.BiconicalOutflow(**vals_dict,
+                           profile_type=params['biconical_profile_type'],
+                           name='biconical_outflow',
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        biconicaloutflow = set_comp_param_prior(comp=biconicaloutflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(biconicaloutflow)
+
+
+    # Setup and add the dispersion component:
+    mod_set = add_const_disp_prof_comp(gal=gal, mod_set=mod_set, params=params,
+                        key='biconical_outflow_dispersion',
+                        disp_type='biconical_outflow')
+
+    return mod_set
+
+
+def add_unresolved_outflow(gal=None, mod_set=None, params=None):
+    params = _preprocess_unresolved_outflow_parameters(params=params)
+
+    pnames = ['vcenter', 'fwhm', 'amplitude']
+    vals_dict = {}
+    fixed = {}
+    bounds = {}
+    for pn in pnames:
+        vals_dict[pn] = params[pn]
+        fixed[pn] = params["{}_fixed".format(pn)]
+        if params["{}_bounds".format(pn)] is not None:
+            bounds[pn] = (params["{}_bounds".format(pn)][0], params["{}_bounds".format(pn)][1])
+
+    unresoutflow = models.UnresolvedOutflow(**vals_dict,
+                           name='unresolved_outflow',
+                           fixed=fixed, bounds=bounds)
+    for pn in pnames:
+        unresoutflow = set_comp_param_prior(comp=unresoutflow, param_name=pn, params=params)
+
+    # --------------------------------------
+    # Add the model component to the ModelSet
+    mod_set.add_component(unresoutflow)
+
+    return mod_set
+
 
 
 def add_light_sersic_comp(gal=None, mod_set=None, params=None, light_components_list=None):
@@ -1228,8 +1508,8 @@ def _preprocess_halo_parameters(params=None):
 
     return params
 
-def _preprocess_const_disp_prof_parameters(params=None):
-    bounds_dict = {'sigma0': [5., 300.]}
+def _preprocess_const_disp_prof_parameters(params=None, key='sigma0'):
+    bounds_dict = {key: [5., 300.]}
 
     params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
 
@@ -1277,6 +1557,75 @@ def _preprocess_uniform_radial_flow_parameters(params=None):
     params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
     return params
 
+def _preprocess_planar_uniform_radial_flow_parameters(params=None):
+    bounds_dict = {'vr': [-100., 100.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_azimuthal_planar_radial_flow_parameters(params=None):
+    bounds_dict = {'m': [1., 3.],
+                   'phi0':  [0., 360.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+
+def _preprocess_uniform_bar_flow_parameters(params=None):
+    bounds_dict = {'vbar': [-100., 100.],
+                   'phi':  [0., 360.],
+                   'bar_width': [0., 15.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+
+def _preprocess_variable_bar_flow_parameters(params=None):
+    bounds_dict = {'phi':  [0., 360.],
+                   'bar_width': [0., 15.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+
+def _preprocess_uniform_wedge_flow_parameters(params=None):
+    bounds_dict = {'vr': [-100., 100.],
+                   'theta':  [0., 180.],
+                   'phi': [0., 360.]}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_spiral_flow_parameters(params=None):
+    bounds_dict = {'m': [0., None],
+                   'phi0':  [0., 360.],
+                   'cs': [0., None],
+                   'epsilon': [0., None],
+                   'Om_p': None}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_biconical_outflow_parameters(params=None):
+    bounds_dict = {'n':  None,
+                   'vmax': None,
+                   'rturn': None,
+                   'thetain': [0., 90.],
+                   'dtheta': [0., 90.],
+                   'rend': None,
+                   'norm_flux': None,
+                   'tau_flux': None}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
+
+def _preprocess_unresolved_outflow_parameters(params=None):
+    bounds_dict = {'vcenter':  None,
+                   'fwhm': None,
+                   'amplitude': None}
+
+    params = _preprocess_params_defaults(params=params, bounds_dict=bounds_dict)
+    return params
 
 def _preprocess_light_sersic_parameters(params=None):
     if 'lsersic_n' not in list(params.keys()):

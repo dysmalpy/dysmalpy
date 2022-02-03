@@ -805,3 +805,343 @@ class TestModelsFittingWrappers:
         for arr in arr_pix_values:
             # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_radial_flow(self):
+        param_filename = 'make_model_3Dcube_radial_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.05289229590921311],
+                            [0,0,0, 0.0],
+                            [100,18,0, 6.08081831144031e-07],
+                            [50,18,18, 2.5394868500877555e-06],
+                            [95,10,10, 0.0012018147554400322],
+                            [100,5,5, 6.240538925948083e-05],
+                            [150,18,18, 2.5394868500927814e-06],
+                            [100,15,15, 0.011393115571699731],
+                            [100,15,21, 0.02203820364233378],
+                            [90,15,15, 0.03784075512013737],
+                            [90,15,21, 0.010338744289985281]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_planar_radial_flow(self):
+        param_filename = 'make_model_3Dcube_planar_radial_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.05279108769198229],
+                            [0,0,0, -8.923474670662589e-22],
+                            [100,18,0, 5.829535971686665e-07],
+                            [50,18,18, 1.6023518969472919e-06],
+                            [95,10,10, 0.001182408713692744],
+                            [100,5,5, 6.172078700674826e-05],
+                            [150,18,18, 1.6023518969472919e-06],
+                            [100,15,15, 0.011200194989420681],
+                            [100,15,21, 0.021796598886909838],
+                            [90,15,15, 0.037539158849834955],
+                            [90,15,21, 0.010076756380715115]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_uniform_bar_flow(self):
+        param_filename = 'make_model_3Dcube_uniform_bar_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.049436951836480725],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 2.514365215564211e-06],
+                            [50,18,18, 1.3672043804203988e-05],
+                            [95,10,10, 0.001659058962060482],
+                            [100,5,5, 0.00010094142873662862],
+                            [150,18,18, 1.3672043804205359e-05],
+                            [100,15,15, 0.009804466102837077],
+                            [100,15,21, 0.020668291051880523],
+                            [90,15,15, 0.045366403861279395],
+                            [90,15,21, 0.015600750987785348]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+
+    def test_fitting_wrapper_model_uniform_wedge_flow(self):
+        param_filename = 'make_model_3Dcube_uniform_wedge_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.046355793187690814],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 1.2981907321834523e-06],
+                            [50,18,18, 5.379775661284546e-07],
+                            [95,10,10, 0.0016570420573892048],
+                            [100,5,5, 0.00010094141728171345],
+                            [150,18,18, 5.379775661279977e-07],
+                            [100,15,15, 0.008759122487890474],
+                            [100,15,21, 0.020035373406315067],
+                            [90,15,15, 0.04308626032574506],
+                            [90,15,21, 0.009778660629345865]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+
+    def test_fitting_wrapper_model_unresolved_outflow(self):
+        param_filename = 'make_model_3Dcube_unresolved_outflow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.14992331513995502],
+                            [0,0,0, 8.120361950302955e-20],
+                            [100,18,0, 2.51436543192309e-06],
+                            [50,18,18, 0.0442424643698038],
+                            [95,10,10, 0.0016590607812486358],
+                            [100,5,5, 0.00010094142873662856],
+                            [150,18,18, 0.04424246436980381],
+                            [100,15,15, 0.017672175408640557],
+                            [100,15,21, 0.033757181117566454],
+                            [90,15,15, 0.052095072283084846],
+                            [90,15,21, 0.027051970991595804]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_biconical_outflow(self):
+        param_filename = 'make_model_3Dcube_biconical_outflow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.06644021853315027],
+                            [0,0,0, 8.923474670662589e-22],
+                            [100,18,0, 2.533418537505829e-06],
+                            [50,18,18, 0.002507881854599829],
+                            [95,10,10, 0.0016699828684078382],
+                            [100,5,5, 0.00010094142970317003],
+                            [150,18,18, 0.002507881854599829],
+                            [100,15,15, 0.012829616313384517],
+                            [100,15,21, 0.03606346296698132],
+                            [90,15,15, 0.048294386479868084],
+                            [90,15,21, 0.028127203803675047]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_variable_bar_flow(self):
+        param_filename = 'make_model_3Dcube_variable_bar_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.05901650542176798],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 2.5143654309156026e-06],
+                            [50,18,18, 1.205654170222069e-05],
+                            [95,10,10, 0.0016590596033040968],
+                            [100,5,5, 0.00010094142873662871],
+                            [150,18,18, 1.2056541702219777e-05],
+                            [100,15,15, 0.01070841016380301],
+                            [100,15,21, 0.02620604457113305],
+                            [90,15,15, 0.04547514330653823],
+                            [90,15,21, 0.017880950006750315]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+    def test_fitting_wrapper_model_azimuthal_planar_radial_flow(self):
+        param_filename = 'make_model_3Dcube_azimuthal_planar_radial_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.056778986180900354],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 2.5270060135964004e-06],
+                            [50,18,18, 6.962378894060093e-07],
+                            [95,10,10, 0.001629922739873721],
+                            [100,5,5, 0.00010017612936480282],
+                            [150,18,18, 6.962378894046386e-07],
+                            [100,15,15, 0.011069858082284945],
+                            [100,15,21, 0.025089408659842063],
+                            [90,15,15, 0.04487368036335876],
+                            [90,15,21, 0.02469265352009432]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+    def test_fitting_wrapper_model_spiral_flow(self):
+        param_filename = 'make_model_3Dcube_spiral_flow.params'
+        param_filename_full=_dir_tests_data+param_filename
+
+        # Delete existing folder:
+        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
+        outdir = _dir_tests_data+params['outdir']
+        if os.path.isdir(outdir):
+            shutil.rmtree(outdir)
+
+        # Make model
+        dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
+
+        # Load cube:
+        f_cube = outdir+'{}_model_cube.fits'.format(params['galID'])
+        cube = fits.getdata(f_cube)
+
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.06214084407576038],
+                            [0,0,0, 1.7846949341325177e-21],
+                            [100,18,0, 2.413427431561494e-06],
+                            [50,18,18, 5.649122109342417e-07],
+                            [95,10,10, 0.0016684203374615159],
+                            [100,5,5, 0.00010265137792981161],
+                            [150,18,18, 5.649122109383537e-07],
+                            [100,15,15, 0.011069093580124412],
+                            [100,15,21, 0.026981243904103936],
+                            [90,15,15, 0.04555353748217607],
+                            [90,15,21, 0.02057394395279147]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+
+# # GETTING TEST CUBE NUMBERS:
+# for arr in arr_pix_values:
+#     print("[{},{},{}, {}],".format(arr[0],arr[1],arr[2],cube[arr[0],arr[1],arr[2]]))

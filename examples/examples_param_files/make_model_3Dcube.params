@@ -64,10 +64,13 @@ psf_beta,         -99.         # Beta parameter for a Moffat PSF
 ## MUST always keep:            geometry   zheight_gaus
 ## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof
 components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
+
 # possible options:
 #       disk+bulge, sersic, blackhole
 #       const_disp_prof,   geometry,   zheight_gaus,  halo,
-#       radial_flow
+#       radial_flow, uniform_planar_radial_flow, uniform_bar_flow, uniform_wedge_flow,
+#       unresolved_outflow, biconical_outflow,
+#       CAUTION: azimuthal_planar_radial_flow, variable_bar_flow, spiral_flow
 
 # List of components that emit light. SEPARATE WITH SPACES
 ##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
@@ -220,12 +223,136 @@ fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvir
 sigma0,              39.0      # Constant intrinsic dispersion value
 
 
+# ********************************************************************************
+# ********************************************************************************
+# ********************************************************************************
+# HIGHER ORDER COMPONENTS: INFLOW, OUTFLOW
+# ----------------------------------------
 
 # # ********************************************************************************
-# # UNIFORM RADIAL FLOW
+# # UNIFORM SPHERICAL RADIAL FLOW -- in rhat direction in spherical coordinates
+# # radial_flow
 # # -------------------
 #
-# vr,       0.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
+# vr,     -90.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
+
+
+# # ********************************************************************************
+# # UNIFORM PLANAR RADIAL FLOW -- in Rhat direction in cylindrical coordinates
+# #                               (eg, radial in galaxy midplane)
+# # uniform_planar_radial_flow
+# # -------------------
+#
+# vr,     -90.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
+
+
+# # ********************************************************************************
+# # UNIFORM BAR FLOW -- in xhat direction along bar in cartesian coordinates,
+# #                     with bar at an angle relative to galaxy major axis (blue)
+# # uniform_bar_flow
+# # -------------------
+#
+# vbar,     -90.             # Bar flow [km/s]. Positive: Outflow. Negative: Inflow.
+# phi,       90.             # Azimuthal angle of bar [degrees], counter-clockwise from blue major axis.
+#                            # Default is 90 (eg, along galaxy minor axis)
+# bar_width,  2              # Width of the bar perpendicular to bar direction.
+#                            # Bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
+
+
+# # ********************************************************************************
+# # UNIFORM WEDGE FLOW -- in planar radial flow in cylindrical coordinates, restricted to pos, neg wedges
+# # uniform_wedge_flow
+# # -------------------
+#
+# vr,       -90.             # Radial flow [km/s]. Positive: Outflow. Negative: Inflow.
+# theta,     60.             # Opening angle of wedge [deg]. (the full angular span)
+# phi,       90.             # Angle offset relative to the galaxy angle, so the wedge center is at phi.
+#                            # Default: 90 deg, so centered along minor axis
+
+
+# # ********************************************************************************
+# # UNRESOLVED OUTFLOW -- at galaxy center (ie, AGN unresolved outflow)
+# # unresolved_outflow
+# # -------------------
+#
+# vcenter,    0.             # Central velocity of the Gaussian in km/s
+# fwhm,       1000.          # FWHM of the Gaussian in km/s
+# amplitude,  1.e12          # Amplitude of the Gaussian, for flux in ~M/L=1 luminosity units
+#                            # with the dimming applied ... roughly ....
+
+
+# # ********************************************************************************
+# # BICONICAL OUTFLOW
+# # biconical_outflow
+# # -------------------
+#
+# n,          0.5                 # Power law index
+# vmax,       500.                # Maximum velocity of the outflow in km/s
+# rturn,       5.                 # Turn-over radius in kpc of the velocty profile
+# thetain,     30.                # Half inner opening angle in degrees. Measured from the bicone axis
+# dtheta,      20.                # Difference between inner and outer opening angle in degrees
+# rend,        10.                # Maximum radius of the outflow in kpc
+# norm_flux,   8.                 # Log flux amplitude of the outflow at r = 0.
+#                                 # Need to check dimming/flux conventions
+# tau_flux,    1.                 # Exponential decay rate of the flux
+# biconical_profile_type, both    # Type of velocity profile:
+#                                 # 'both', 'increase', 'decrease', 'constant'
+# biconical_outflow_dispersion, 80.  # Dispersion (stddev of gaussian) of biconical outflow, km/s
+
+
+# # ********************************************************************************
+# # VARIABLE BAR FLOW -- in xhat direction along bar in cartesian coordinates,
+# #                      with bar at an angle relative to galaxy major axis (blue)
+# #                      CAUTION!!!
+# # variable_bar_flow
+# # -------------------
+#
+# vbar_func_bar_flow,   -90.*np.exp(-R/5.)  # Bar flow FUNCTION [km/s]. Positive: Outflow. Negative: Inflow.
+# phi,       90.             # Azimuthal angle of bar [degrees], counter-clockwise from blue major axis.
+#                            # Default is 90 (eg, along galaxy minor axis)
+# bar_width,  2              # Width of the bar perpendicular to bar direction.
+#                            # Bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
+
+
+# # ********************************************************************************
+# # AZIMUTHAL PLANAR RADIAL FLOW -- in Rhat direction in cylindrical coordinates
+# #                               (eg, radial in galaxy midplane), with an added azimuthal term
+# #                               CAUTION!!!
+# # azimuthal_planar_radial_flow
+# # -------------------
+#
+# vr_func_azimuthal_planar_flow,    -90.*np.exp(-R/5.)  # Radial flow [km/s].
+#                                                       # Positive: Outflow. Negative: Inflow.
+# m,          2               #  Number of modes in the azimuthal pattern. m=0 gives a purely radial profile.
+# phi0,       0.              # Angle offset relative to the galaxy angle [deg],
+#                             # so the azimuthal variation goes as cos(m(phi_gal - phi0))
+
+
+
+# # ********************************************************************************
+# # SPIRAL DENSIY WAVE FLOW -- as in Davies et al. 2009, ApJ, 702, 114
+# #                           Here assuming CONSTANT velocity -- try to match real Vrot...
+# #                           CAUTION!!!  NO SPACES IN FUNCTION DEFINITONS!
+# # spiral_flow
+# # -------------------
+#
+# Vrot_func_spiral_flow,   150.+0.*R        # Unperturbed rotation velocity of the galaxy
+# dVrot_dR_func_spiral_flow, 0.*R             # Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.
+# rho0_func_spiral_flow, 1.e11*np.exp(-R/5.)  # Unperturbed midplane density profile of the galaxy
+# f_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)*np.log(R)  # Function describing the spiral shape, m*phi = f(R)
+#                                                                     # with k = df/dR
+# k_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)/R            # Function for radial wavenumber
+#
+# m,       2              # Number of photometric/density spiral arms.
+# cs,     10.             # Sound speed of medium, in km/s.
+# epsilon, 1.             # Density contrast of perturbation (unitless).
+# Om_p,   0.              # Angular speed of the driving force, Omega_p
+# phi0,   0.              # Angle offset of the arm winding, in degrees. Default: 0.
+
+
+# ********************************************************************************
+# ********************************************************************************
+# ********************************************************************************
 
 
 
