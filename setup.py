@@ -91,10 +91,10 @@ except ext_errors as ex:
     log.warn(ex)
     log.warn("The C extension could not be compiled")
 
-    ## Retry to install the module without C extensions :
-    # Remove any previously defined build_ext command class.
-    if 'build_ext' in setup_args['cmdclass']:
-        del setup_args['cmdclass']['build_ext']
+    # ## Retry to install the module without C extensions :
+    # # Remove any previously defined build_ext command class.
+    # if 'build_ext' in setup_args['cmdclass']:
+    #     del setup_args['cmdclass']['build_ext']
 
     # If this new 'setup' call don't fail, the module
     # will be successfully installed, without the C extension :
