@@ -5,10 +5,15 @@
 (2) Download to local machine
 
 (3) Unpack folder, rename and move:
+    (A) Move old dysmalpy folder C:\Programme\dysmalpy.old\
 
+    (B) Move untarred folder (has name dysmalpy-X.X.X [version number]) & rename to
+        C:\Programme\dysmalpy\
 
 (4) Install
-    Open conda terminal
+    (A) Open "Anaconda prompt" terminal
+    (B) cd C:\Programme\dysmalpy\
+    (C) python setup.py install
 
 (5) Make sure BAT files are in correct location
     Located on (Desktop ??)
@@ -17,4 +22,3 @@
     (Use conda terminal to run basic test model suite?)
 
 (6) Test example
-    
