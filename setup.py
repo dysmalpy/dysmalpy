@@ -40,53 +40,53 @@ setup_requirements = ['Cython', 'numpy']
 try:
     # try building with c code :
 
-setup(
-    author="Taro Shimizu & Sedona Price",
-    author_email='shimizu@mpe.mpg.de',
-    python_requires='>=3.5',
-    classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: 3-clause BSD',
-        'Natural Language :: English',
-        "Topic :: Scientific/Engineering",
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-    ],
-    description="A modelling and fitting package for galaxy kinematics.",
-    install_requires=requirements,
-    setup_requires=setup_requirements,
-    license="3-clause BSD",
-    long_description=readme,
-    include_package_data=True,
-    name='dysmalpy',
-    packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.models', 'dysmalpy.fitting', 'dysmalpy.fitting_wrappers'],
-    package_data={'dysmalpy': ['data/noordermeer/*.save']},
-    version=__version__,
-    ext_modules=cythonize([
-                    "dysmalpy/models/cutils.pyx",
-                    Extension("dysmalpy.lensingTransformer",
-                        sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
-                        language="c++",
-                        include_dirs=["lensing_transformer", "/usr/include", "/usr/local/include"],
-                        libraries=['gsl', 'gslcblas', 'cfitsio'],
-                        lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
-                        depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
-                        extra_compile_args=['-std=c++11']
-                    ),
-                    Extension("dysmalpy.leastChiSquares1D",
-                        sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
-                        language="c++",
-                        include_dirs=["utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include"],
-                        libraries=['gsl', 'gslcblas', 'pthread'],
-                        lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
-                        depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
-                                "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
-                        extra_compile_args=['-std=c++11']
-                    )
-                 ])
-)
+    setup(
+        author="Taro Shimizu & Sedona Price",
+        author_email='shimizu@mpe.mpg.de',
+        python_requires='>=3.5',
+        classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Science/Research',
+            'License :: OSI Approved :: 3-clause BSD',
+            'Natural Language :: English',
+            "Topic :: Scientific/Engineering",
+            'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
+        ],
+        description="A modelling and fitting package for galaxy kinematics.",
+        install_requires=requirements,
+        setup_requires=setup_requirements,
+        license="3-clause BSD",
+        long_description=readme,
+        include_package_data=True,
+        name='dysmalpy',
+        packages=['dysmalpy', 'dysmalpy.extern', 'dysmalpy.models', 'dysmalpy.fitting', 'dysmalpy.fitting_wrappers'],
+        package_data={'dysmalpy': ['data/noordermeer/*.save']},
+        version=__version__,
+        ext_modules=cythonize([
+                        "dysmalpy/models/cutils.pyx",
+                        Extension("dysmalpy.lensingTransformer",
+                            sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
+                            language="c++",
+                            include_dirs=["lensing_transformer", "/usr/include", "/usr/local/include"],
+                            libraries=['gsl', 'gslcblas', 'cfitsio'],
+                            lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
+                            depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
+                            extra_compile_args=['-std=c++11']
+                        ),
+                        Extension("dysmalpy.leastChiSquares1D",
+                            sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
+                            language="c++",
+                            include_dirs=["utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include"],
+                            libraries=['gsl', 'gslcblas', 'pthread'],
+                            lib_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"],
+                            depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
+                                    "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
+                            extra_compile_args=['-std=c++11']
+                        )
+                     ])
+    )
 except ext_errors as ex:
     log.warn(ex)
     log.warn("The C extension could not be compiled")
