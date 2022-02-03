@@ -87,8 +87,9 @@ try:
                         )
                      ])
     )
-except ext_errors as ex:
-    log.warn(ex)
+#except ext_errors as ex:
+except:
+    #log.warn(ex)
     log.warn("The C extension could not be compiled")
 
     # ## Retry to install the module without C extensions :
