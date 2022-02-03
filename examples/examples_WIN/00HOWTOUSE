@@ -1,11 +1,12 @@
 ###### Steps for using DysmalPy on Windows ######
 
-* Location of BAT files:
+* Location of BAT files: C:\Programme\dysmalpy_batch\
+(originally: C:\Programme\dysmalpy\examples\examples_WIN\)
 
 (1) Prepare *.param file with galaxy settings.
     (A) ENSURE OUTPUT PATH IS SET
 
-(2) Click on BAT file for
+(2) Click on BAT file / shortcut for
     (A) Making 3D model ("make_model_dysmalpy.bat")
     (B) Fitting with MPFIT ("fitting_dysmalpy_MPFIT.bat")
 
