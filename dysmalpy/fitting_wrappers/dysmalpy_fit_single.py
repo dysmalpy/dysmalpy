@@ -191,6 +191,13 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
             elif ndim == 3:
                 pass
 
+
+        print('------------------------------------------------------------------')
+        print(' Dysmalpy MPFIT fitting complete for: {}'.format(params['galID']))
+        print('   output folder: {}'.format(outdir))
+        print('------------------------------------------------------------------')
+        print(' ')
+
     return None
 
 

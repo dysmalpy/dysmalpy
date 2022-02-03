@@ -115,6 +115,13 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
         # Save cube
         gal.model_cube.data.write(f_cube, overwrite=overwrite)
 
+        print('------------------------------------------------------------------')
+        print(' Dysmalpy model complete for: {}'.format(params['galID']))
+        print('   output folder: {}'.format(outdir))
+        print('------------------------------------------------------------------')
+        print(' ')
+
+
 
     return None
 

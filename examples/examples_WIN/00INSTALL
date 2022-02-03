@@ -16,7 +16,10 @@
     (C) python setup.py install
 
 (5) Make sure BAT files are in correct location
-    Located on (Desktop ??)
+    Copy make_model_dysmalpy.bat, fitting_dysmalpy_MPFIT.bat to C:\Programme\dysmalpy_batch
+    Also copy make_model_3Dcube.params, fitting_1D_mpfit.params to an example location (or so).
+
+(6) Make / ensure shortcuts to BAT files on Desktop
 
 (5) Test
     (Use conda terminal to run basic test model suite?)

@@ -977,7 +977,8 @@ def get_ndim_fit_from_paramfile(params=None, param_filename=None):
 
 def stub_paramfile_dir(param_filename):
     try:
-        delim = os.sep
+        #delim = os.sep
+        delim = '/'
         # Strip dir from param_filename
         pf_arr = param_filename.split(delim)
         if len(pf_arr) > 1:
@@ -1062,7 +1063,8 @@ def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
 
 def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
     # Copy paramfile that is OS independent
-    param_filename_nopath = param_filename.split(os.sep)[-1]
+    param_filename_nopath = param_filename.split(os.sep)[-1].split('/')[-1]
+    # FORCE, as python will often use "/" even for windows!
     galID_strp = "".join(params['galID'].strip().split("_"))
     galID_strp = "".join(galID_strp.split("-"))
     galID_strp = "".join(galID_strp.split(" "))
