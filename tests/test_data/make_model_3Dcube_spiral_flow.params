@@ -3,7 +3,7 @@
 # See README for a description of each parameter and its available options.
 
 # ******************************* OBJECT INFO **********************************
-galID,    GS4_43501    # Name of your object
+galID,    GS4_43501_spiral_flow    # Name of your object
 z,        1.613        # Redshift
 
 
@@ -15,7 +15,7 @@ ycenter,              None                       # Center position in cube, y co
 
 
 # ***************************** OUTPUT *****************************************
-outdir,           PYTEST_OUTPUT/GS4_43501_3D_model_cube/         # Full path for output directory
+outdir,           PYTEST_OUTPUT/GS4_43501_3D_model_cube_hiord/         # Full path for output directory
 
 
 # ***************************** OBSERVATION SETUP ******************************
@@ -48,19 +48,20 @@ psf_beta,         -99.         # Beta parameter for a Moffat PSF
 # List of components to use:  SEPARATE WITH SPACES
 ## MUST always keep:            geometry   zheight_gaus
 ## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof
-components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo
+components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo   spiral_flow
 
 # possible options:
-#       disk+bulge, sersic, blackhole
+#       disk+bulge, sersic, blackhole,
 #       const_disp_prof,   geometry,   zheight_gaus,  halo,
 #       radial_flow, uniform_planar_radial_flow, uniform_bar_flow, uniform_wedge_flow,
 #       unresolved_outflow, biconical_outflow,
 #       CAUTION: azimuthal_planar_radial_flow, variable_bar_flow, spiral_flow
 
+
 # List of components that emit light. SEPARATE WITH SPACES
 ##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
-##              also:    light_sersic, light_gaussian_ring, spiral_flow
-light_components_list,   disk
+##              also:    light_sersic, light_gaussian_ring
+light_components_list,   disk, spiral_flow
 # NOTE: if a separate light profile (eg light_sersic) is used,
 #       this MUST be changed to  e.g., 'light_components_list,   light_sersic'
 
@@ -125,14 +126,6 @@ fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvir
 # Initial Values
 sigma0,              39.0      # Constant intrinsic dispersion value
 
-
-
-
-# ********************************************************************************
-# ********************************************************************************
-# ********************************************************************************
-# HIGHER ORDER COMPONENTS: INFLOW, OUTFLOW
-# ----------------------------------------
 
 # # ********************************************************************************
 # # UNIFORM SPHERICAL RADIAL FLOW -- in rhat direction in spherical coordinates
@@ -234,30 +227,28 @@ sigma0,              39.0      # Constant intrinsic dispersion value
 
 
 
-# # ********************************************************************************
-# # SPIRAL DENSIY WAVE FLOW -- as in Davies et al. 2009, ApJ, 702, 114
-# #                           Here assuming CONSTANT velocity -- try to match real Vrot...
-# #                           CAUTION!!!  NO SPACES IN FUNCTION DEFINITONS!
-# # spiral_flow
-# # -------------------
-#
-# Vrot_func_spiral_flow,   150.+0.*R        # Unperturbed rotation velocity of the galaxy
-# dVrot_dR_func_spiral_flow, 0.*R             # Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.
-# rho0_func_spiral_flow, 1.e11*np.exp(-R/5.)  # Unperturbed midplane density profile of the galaxy
-# f_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)*np.log(R)  # Function describing the spiral shape, m*phi = f(R)
-#                                                                     # with k = df/dR
-# k_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)/R            # Function for radial wavenumber
-#
-# m,       2              # Number of photometric/density spiral arms.
-# cs,     10.             # Sound speed of medium, in km/s.
-# epsilon, 1.             # Density contrast of perturbation (unitless).
-# Om_p,   0.              # Angular speed of the driving force, Omega_p
-# phi0,   0.              # Angle offset of the arm winding, in degrees. Default: 0.
+# ********************************************************************************
+# SPIRAL DENSIY WAVE FLOW -- as in Davies et al. 2009, ApJ, 702, 114
+#                           Here assuming CONSTANT velocity -- try to match real Vrot...
+#                           CAUTION!!!  NO SPACES IN FUNCTION DEFINITONS!
+# spiral_flow
+# -------------------
+
+Vrot_func_spiral_flow,   150.+0.*R        # Unperturbed rotation velocity of the galaxy
+dVrot_dR_func_spiral_flow, 0.*R             # Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.
+rho0_func_spiral_flow, 1.e11*np.exp(-R/5.)  # Unperturbed midplane density profile of the galaxy
+f_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)*np.log(R)  # Function describing the spiral shape, m*phi = f(R)
+                                                                    # with k = df/dR
+k_func_spiral_flow, (np.sqrt(m**2-2.)*Vrot(R)/cs)/R            # Function for radial wavenumber
+
+m,       2              # Number of photometric/density spiral arms.
+cs,     10.             # Sound speed of medium, in km/s.
+epsilon, 1.             # Density contrast of perturbation (unitless).
+Om_p,   0.              # Angular speed of the driving force, Omega_p
+phi0,   0.              # Angle offset of the arm winding, in degrees. Default: 0.
 
 
-# ********************************************************************************
-# ********************************************************************************
-# ********************************************************************************
+
 
 # ********************************************************************************
 # ZHEIGHT PROFILE

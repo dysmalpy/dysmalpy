@@ -1,0 +1,164 @@
+# Example parameters file for fitting a single object with 1D data
+# Note: DO NOT CHANGE THE NAMES IN THE 1ST COLUMN AND KEEP THE COMMAS!!
+# See README for a description of each parameter and its available options.
+
+# ******************************* OBJECT INFO **********************************
+galID,    GS4_43501_uniform_bar_flow    # Name of your object
+z,        1.613        # Redshift
+
+
+## GALAXY CENTER:
+# IMPORTANT: 0 indexed, so coordinates go from [0, nX-1] and [0, nY-1].
+# So if using QFitsView, will need to subtract 1 from both coords (as QFitsView goes from [1,nX] and [1,nY])
+xcenter,              None                       # Center position in cube, x coord. Default: (nX-1)/2.
+ycenter,              None                       # Center position in cube, y coord. Default: (nY-1)/2.
+
+
+# ***************************** OUTPUT *****************************************
+outdir,           PYTEST_OUTPUT/GS4_43501_3D_model_cube_hiord/         # Full path for output directory
+
+
+# ***************************** OBSERVATION SETUP ******************************
+
+# Instrument Setup
+# ------------------
+pixscale,         0.125        # Pixel scale in arcsec/pixel
+fov_npix,         37           # Number of pixels on a side of model cube
+spec_type,   velocity          # DON'T CHANGE!
+spec_start,     -1000.         # Starting value for spectral axis       // generally don't change
+spec_step,         10.         # Step size for spectral axis in km/s    // generally don't change
+nspec,            201          # Number of spectral steps               // generally don't change
+
+# LSF Setup
+# ---------
+use_lsf,          True         # True/False if using an LSF
+sig_inst_res,     51.0         # Instrumental dispersion in km/s
+
+
+# PSF Setup
+# ---------
+psf_type,         Gaussian     # Gaussian, Moffat, or DoubleGaussian
+psf_fwhm,         0.55         # PSF FWHM in arcsecs
+psf_beta,         -99.         # Beta parameter for a Moffat PSF
+
+# **************************** SETUP MODEL *************************************
+
+# Model Settings
+# -------------
+# List of components to use:  SEPARATE WITH SPACES
+## MUST always keep:            geometry   zheight_gaus
+## RECOMMENDED:   always keep:   disk+bulge   const_disp_prof
+components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus  halo   uniform_bar_flow
+# possible options:
+#       disk+bulge, sersic, blackhole
+#       const_disp_prof,   geometry,   zheight_gaus,  halo,
+#       radial_flow, uniform_planar_radial_flow, uniform_bar_flow, uniform_wedge_flow,
+#       unresolved_outflow, biconical_outflow,
+#       CAUTION: azimuthal_planar_radial_flow, variable_bar_flow, spiral_flow
+
+
+# List of components that emit light. SEPARATE WITH SPACES
+##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
+##              also:    light_sersic, light_gaussian_ring
+light_components_list,   disk
+# NOTE: if a separate light profile (eg light_sersic) is used,
+#       this MUST be changed to  e.g., 'light_components_list,   light_sersic'
+
+adiabatic_contract,  False     # Apply adiabatic contraction?
+pressure_support,    True      # Apply assymmetric drift correction?
+noord_flat,          True      # Apply Noordermeer flattenning?
+oversample,          3         # Spatial oversample factor
+oversize,            1         # Oversize factor
+
+zcalc_truncate,      True      # Truncate in zgal direction when calculating or not
+n_wholepix_z_min,    3         # Minimum number of whole pixels in zgal dir, if zcalc_truncate=True
+
+
+dimming,             1.e-10    # Optional, for flux scaling.
+                               # Pass either a float for constant dimming,
+                               # or 'cosmo' to use cosmological dimming
+
+# ********************************************************************************
+# DISK + BULGE
+# ------------
+
+# Initial Values
+total_mass,           11.0     # Total mass of disk and bulge log(Msun)
+bt,                   0.3     # Bulge-to-Total Ratio
+r_eff_disk,           5.0     # Effective radius of disk in kpc
+n_disk,               1.0      # Sersic index for disk
+invq_disk,            5.0      # disk scale length to zheight ratio for disk
+
+n_bulge,              4.0      # Sersic index for bulge
+invq_bulge,           1.0      # disk scale length to zheight ratio for bulge
+r_eff_bulge,          1.0      # Effective radius of bulge in kpc
+
+
+# ********************************************************************************
+# ********************************************************************************
+# ********************************************************************************
+# DARK MATTER HALO
+# ----------------
+
+# Halo type: options: NFW / twopowerhalo / burkert / einasto / dekelzhao
+halo_profile_type,   NFW
+
+# ** NOTE **: Uncomment the section below corresponding to the selected halo type.
+
+# ********************************************************************************
+#    NFW halo
+
+# Initial Values
+mvirial,             11.5       # Halo virial mass in log(Msun)
+halo_conc,           5.0        # Halo concentration parameter
+fdm,                 -99        # Dark matter fraction at r_eff_disk
+
+# Tie the parameters?
+fdm_tied,            True      # for NFW, fdm_tied=True determines fDM from Mvirial (+baryons)
+# ********************************************************************************
+
+
+# ********************************************************************************
+# INTRINSIC DISPERSION PROFILE
+# ----------------------------
+
+# Initial Values
+sigma0,              39.0      # Constant intrinsic dispersion value
+
+
+# ********************************************************************************
+# UNIFORM BAR FLOW -- in xhat direction along bar in cartesian coordinates,
+#                     with bar at an angle relative to galaxy major axis (blue)
+# -------------------
+
+vbar,     -90.             # Bar flow [km/s]. Positive: Outflow. Negative: Inflow.
+phi,       90.             # Azimuthal angle of bar [degrees], counter-clockwise from blue major axis.
+                           # Default is 90 (eg, along galaxy minor axis)
+bar_width,  2              # Width of the bar perpendicular to bar direction.
+                           # Bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
+
+
+# ********************************************************************************
+# ZHEIGHT PROFILE
+# ---------------
+
+# Initial Values
+sigmaz,              0.9      # Gaussian width of the galaxy in z, in kpc
+
+# Tie the zheight to the effective radius of the disk?
+# If set to True, make sure sigmaz_fixed is False
+zheight_tied,        True
+
+
+# GEOMETRY
+# --------
+
+# Initial Values
+inc,                 62.   # Inclination of galaxy, 0=face-on, 90=edge-on
+pa,                  142.
+xshift,              0.        # pixels
+yshift,              0.        # pixels
+vel_shift,           0.      # km/s
+
+
+overwrite,         True

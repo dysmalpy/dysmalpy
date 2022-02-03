@@ -194,7 +194,7 @@ class EllipAperture(Aperture):
             else:
                 do_partial_weight = False
         except:
-            do_partial_weight = False
+            do_partial_weight = True
 
         if do_partial_weight:
             if shapely_installed:
@@ -272,7 +272,7 @@ class RectAperture(Aperture):
             else:
                 do_partial_weight = False
         except:
-            do_partial_weight = False
+            do_partial_weight = True
 
         if do_partial_weight:
             if shapely_installed:

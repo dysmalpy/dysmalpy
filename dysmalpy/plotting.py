@@ -2945,8 +2945,12 @@ def plot_model_2D(gal,
             inst_corr=True,
             show_contours=True,
             show_ruler=True,
+            len_ruler=None,
+            ruler_unit='arcsec',
             apply_mask=True,
             ruler_loc='lowerleft',
+            color_annotate='black',
+            color_bad='white', 
             **kwargs_galmodel):
 
     if show_contours:
@@ -3057,9 +3061,12 @@ def plot_model_2D(gal,
     cmap = copy.copy(cm.get_cmap("Spectral_r"))
     # cmap.set_bad(color='k')
     # color_annotate = 'white'
+    #
+    # cmap.set_bad(color='white')
+    # color_annotate = 'black'
 
-    cmap.set_bad(color='white')
-    color_annotate = 'black'
+    cmap.set_bad(color=color_bad)
+    #color_annotate = 'black'
 
     for j in range(len(keyyarr)):
         msk = np.isfinite(gal.model_data.data[keyyarr[j]])
@@ -3113,8 +3120,16 @@ def plot_model_2D(gal,
             ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
             if show_ruler:
                 pixscale = gal.instrument.pixscale.value
-                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
-                                            ruler_loc=ruler_loc,  color=color_annotate)
+                if (len_ruler is None):
+                    len_arcsec = 1.
+                elif (len_ruler is not None):
+                    if ruler_unit.lower() == 'arcsec':
+                        len_arcsec = len_ruler
+                    elif ruler_unit.lower() == 'kpc':
+                        len_arcsec = len_ruler * gal.dscale
+                ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=len_arcsec,
+                                            ruler_loc=ruler_loc,  color=color_annotate,
+                                            ruler_unit=ruler_unit, dscale=gal.dscale)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
@@ -3827,8 +3842,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         deg2rad = np.pi/180.
         sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
 
-        vel_asymm_drift = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
-        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift**2
+        vel_asymm_drift_sq = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
+        vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift_sq
         vsq[vsq<0] = 0.
 
         model_int.data['vrot'] = np.sqrt(vsq)
@@ -3838,8 +3853,9 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
         sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
 
-        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift**2 )
-        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift**2 )
+        model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift_sq )
+        model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift_sq )
+
 
         ######################################
         # Setup plot:
@@ -3886,6 +3902,14 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         xlim2 = np.array(xlim) / gal.dscale
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
 
+
+
+        ax.plot( model_obs.rarr, model_obs.data['velocity'],
+            c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
+
+        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet',
+                zorder=-20., label=r'Intrinsic $\sigma_0$')
+
         if hasattr(gal.data, 'mask_velocity'):
             if gal.data.mask_velocity is not None:
                 msk = gal.data.mask_velocity
@@ -3910,12 +3934,6 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ax.scatter( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
             edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
 
-
-        ax.plot( model_obs.rarr, model_obs.data['velocity'],
-            c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
-
-        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet',
-                zorder=-20., label=r'Intrinsic $\sigma_0$')
 
         ax2 = ax.twiny()
 
@@ -3984,8 +4002,11 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
         for ind,text in enumerate(legend.get_texts()):
             legend.legendHandles[ind].set_visible(False)
-            text.set_color(color_arr[ind])
-
+            #text.set_color(color_arr[ind])
+            try:
+                text.set_color(legend.legendHandles[ind]._color)
+            except:
+                text.set_color(legend.legendHandles[ind]._original_edgecolor)
 
         # ++++++++++++++++++++++++++++++++++++
         ax = axes[1]
@@ -4678,6 +4699,7 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
 
 
 def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
+        ruler_unit='arcsec', dscale=None,
         ruler_loc='lowerright', color='black', ybase_offset=0.02,
         delx=0.075, dely=0.075, dely_text=0.06):
     ####################################
@@ -4687,12 +4709,18 @@ def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
 
     #len_line_angular = 0.5/(pixscale)
     len_line_angular = len_arcsec/(pixscale)
-    if len_arcsec % 1. == 0.:
-        string = r'{}"'.format(int(len_arcsec))
-    else:
-        intpart = str(len_arcsec).split('.')[0]
-        decpart = str(len_arcsec).split('.')[1]
-        string = r'0."{}'.format()
+    if ruler_unit.lower() == 'arcsec':
+        if len_arcsec % 1. == 0.:
+            string = r'{}"'.format(int(len_arcsec))
+        else:
+            intpart = str(len_arcsec).split('.')[0]
+            decpart = str(len_arcsec).split('.')[1]
+            string = r'0."{}'.format()
+    elif ruler_unit.lower() == 'kpc':
+        if len_arcsec/dscale % 1. == 0.:
+            string = r'{:0.0f} kpc'.format(int(len_arcsec/dscale))
+        else:
+            string = r'{:0.1f} kpc'.format(int(len_arcsec/dscale))
 
 
     #ybase_offset = 0.02 #0.035 #0.065

@@ -9,7 +9,7 @@ z,        1.613        # Redshift
 
 # ****************************** DATA INFO *************************************
 
-datadir,          None                       # Optional: Full path to data directory. 
+datadir,          None                       # Optional: Full path to data directory.
 
 fdata,            GS4_43501.obs_prof.txt     # Full path to your data. Alternatively, just the filename if 'datadir' is set.
 data_inst_corr,   True                       # Is the dispersion corrected for
@@ -18,9 +18,9 @@ slit_width,       0.55                       # arcsecs
 slit_pa,          142.                       # Degrees from N towards blue
 symmetrize_data,  False                      # Symmetrize data before fitting?
 profile1d_type,   circ_ap_cube               # Default 1D aperture extraction shape
-aperture_radius,  0.275                      # Circular aperture radius, in ARCSEC. Have used half slit width in past 
-                                             # -- Eg, aperture diam = slit width 
-                                             
+aperture_radius,  0.275                      # Circular aperture radius, in ARCSEC. Have used half slit width in past
+                                             # -- Eg, aperture diam = slit width
+
 moment_calc,      False
 overwrite, True
 
@@ -116,7 +116,7 @@ total_mass_stddev,   1.0
 
 n_disk_stddev,       0.1
 r_eff_bulge_stddev,  1.0
-n_bulge_stddev,      0.1 
+n_bulge_stddev,      0.1
 
 
 # DARK MATTER HALO
@@ -172,6 +172,7 @@ sigma0_prior,        flat
 sigma0_stddev,       25.0
 
 
+# ********************************************************************************
 # ZHEIGHT PROFILE
 # ---------------
 
@@ -214,7 +215,7 @@ inc_prior,           sine_gaussian
 # Standard deviation of Gaussian Prior, if chosen
 # No effect if Flat prior is chosen
 
-# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and 
+# Note: if sine_gaussian is chosen, this is the stddev of sin_i, even though bounds and
 #       center of prior are defined in angle space (inc)
 inc_stddev,          0.1
 
@@ -243,5 +244,3 @@ scale_param_a,      3.
 minAF,           None      # Minimum acceptance fraction
 maxAF,           None      # Maximum acceptance fraction
 nEff,              10      # Number of auto-correlation times before convergence
-
-

@@ -364,6 +364,8 @@ class Report(object):
 
         self.add_line( '' )
         self.add_line( 'Fitting method: {}'.format(results.fit_method.upper()))
+        if 'status' in results.__dict__.keys():
+            self.add_line( '    fit status: {}'.format(results.status))
         self.add_line( '' )
         if params is not None:
             if 'fit_module' in params.keys():
@@ -473,75 +475,84 @@ class Report(object):
         if gal.model.kinematic_options.pressure_support:
             self.add_line( 'pressure_support_type: {}'.format(gal.model.kinematic_options.pressure_support_type))
 
+
         # --------------------------------------
-        self.add_line( '' )
-        self.add_line( '###############################' )
-        self.add_line( ' Fitting results' )
+        if 'status' in results.__dict__.keys():
+            results_status = results.status
+        else:
+            results_status = -99
+        if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
+            self.add_line( '' )
+            self.add_line( '###############################' )
+            self.add_line( ' Fitting results' )
 
-        for cmp_n in gal.model.param_names.keys():
-            self.add_line( '-----------' )
-            self.add_line( ' {}'.format(cmp_n) )
-
-            nfixedtied = 0
-            nfree = 0
-
-            for param_n in gal.model.param_names[cmp_n]:
-                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
-                    nfree += 1
-                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
-                    best = results.bestfit_parameters[whparam]
-
-                    # MCMC
-                    if self.fit_method.upper() == 'MCMC':
-                        l68 = results.bestfit_parameters_l68_err[whparam]
-                        u68 = results.bestfit_parameters_u68_err[whparam]
-                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
-
-                    # MPFIT
-                    elif self.fit_method.upper() == 'MPFIT':
-                        err = results.bestfit_parameters_err[whparam]
-                        datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
-
-                    self.add_line( datstr )
-                else:
-                    nfixedtied += 1
-            #
-            if (nfree > 0) & (nfixedtied > 0):
-                self.add_line( '' )
-
-            for param_n in gal.model.param_names[cmp_n]:
-                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) not in results.chain_param_names:
-                    best = getattr(gal.model.components[cmp_n], param_n).value
-
-                    if not getattr(gal.model.components[cmp_n], param_n).tied:
-                        if getattr(gal.model.components[cmp_n], param_n).fixed:
-                            fix_tie = '[FIXED]'
-                        else:
-                            fix_tie = '[UNKNOWN]'
-                    else:
-                        fix_tie = '[TIED]'
-
-                    datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
-
-                    self.add_line( datstr )
-
-            if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
-                self.add_line( '' )
-                datstr = '    {: <11}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
-                self.add_line( datstr )
-
-        ####
-        if blob_names is not None:
-            # MCMC
-            if self.fit_method.upper() == 'MCMC':
-                self.add_line( '' )
+            for cmp_n in gal.model.param_names.keys():
                 self.add_line( '-----------' )
-                for blobn in blob_names:
-                    blob_best = results.__dict__['bestfit_{}'.format(blobn)]
-                    l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                    u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                    datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                self.add_line( ' {}'.format(cmp_n) )
+
+                nfixedtied = 0
+                nfree = 0
+
+                for param_n in gal.model.param_names[cmp_n]:
+                    if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
+                        nfree += 1
+                        whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
+                        best = results.bestfit_parameters[whparam]
+
+                        # MCMC
+                        if self.fit_method.upper() == 'MCMC':
+                            l68 = results.bestfit_parameters_l68_err[whparam]
+                            u68 = results.bestfit_parameters_u68_err[whparam]
+                            datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+
+                        # MPFIT
+                        elif self.fit_method.upper() == 'MPFIT':
+                            if results.bestfit_parameters_err is not None:
+                                err = results.bestfit_parameters_err[whparam]
+                                datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
+                            else:
+                                datstr = '    {: <11}    FITTING ERROR'.format(param_n,)
+
+                        self.add_line( datstr )
+                    else:
+                        nfixedtied += 1
+                #
+                if (nfree > 0) & (nfixedtied > 0):
+                    self.add_line( '' )
+
+                for param_n in gal.model.param_names[cmp_n]:
+                    if '{}:{}'.format(cmp_n.lower(),param_n.lower()) not in results.chain_param_names:
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+
+                        if not getattr(gal.model.components[cmp_n], param_n).tied:
+                            if getattr(gal.model.components[cmp_n], param_n).fixed:
+                                fix_tie = '[FIXED]'
+                            else:
+                                fix_tie = '[UNKNOWN]'
+                        else:
+                            fix_tie = '[TIED]'
+
+                        datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
+
+                        self.add_line( datstr )
+
+                if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
+                    self.add_line( '' )
+                    datstr = '    {: <11}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
                     self.add_line( datstr )
+
+            ####
+            if blob_names is not None:
+                # MCMC
+                if self.fit_method.upper() == 'MCMC':
+                    self.add_line( '' )
+                    self.add_line( '-----------' )
+                    for blobn in blob_names:
+                        blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                        l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                        u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                        self.add_line( datstr )
 
 
         ####
@@ -591,53 +602,68 @@ class Report(object):
         namestr = '# component             param_name    fixed       best_value   l68_err     u68_err'
         self.add_line( namestr )
 
-        for cmp_n in gal.model.param_names.keys():
-            for param_n in gal.model.param_names[cmp_n]:
 
-                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
-                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
-                    best = results.bestfit_parameters[whparam]
-                    try:
-                        l68 = results.bestfit_parameters_l68_err[whparam]
-                        u68 = results.bestfit_parameters_u68_err[whparam]
-                    except:
-                        l68 = u68 = results.bestfit_parameters_err[whparam]
-                else:
-                    best = getattr(gal.model.components[cmp_n], param_n).value
-                    l68 = -99.
-                    u68 = -99.
+        if 'status' in results.__dict__.keys():
+            results_status = results.status
+        else:
+            results_status = -99
+        if (((self.fit_method.upper() == 'MPFIT') & results_status>=0) | (self.fit_method.upper() == 'MCMC')):
+            for cmp_n in gal.model.param_names.keys():
+                for param_n in gal.model.param_names[cmp_n]:
 
-                #######
-                if not getattr(gal.model.components[cmp_n], param_n).tied:
-                    if getattr(gal.model.components[cmp_n], param_n).fixed:
-                        fix_tie = 'True'
+                    if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
+                        whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                        best = results.bestfit_parameters[whparam]
+                        try:
+                            l68 = results.bestfit_parameters_l68_err[whparam]
+                            u68 = results.bestfit_parameters_u68_err[whparam]
+                        except:
+                            if results.bestfit_parameters_err is not None:
+                                l68 = u68 = results.bestfit_parameters_err[whparam]
+                            else:
+                                # Fitting failed
+                                best = l68 = u68 = np.NaN
                     else:
-                        fix_tie = 'False'
-                else:
-                    fix_tie = 'TIED'
+                        best = getattr(gal.model.components[cmp_n], param_n).value
+                        l68 = -99.
+                        u68 = -99.
+
+                    #######
+                    if not getattr(gal.model.components[cmp_n], param_n).tied:
+                        if getattr(gal.model.components[cmp_n], param_n).fixed:
+                            fix_tie = 'True'
+                        else:
+                            fix_tie = 'False'
+                    else:
+                        fix_tie = 'TIED'
 
 
-                datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
-                            fix_tie, best, l68, u68)
-                self.add_line( datstr )
+                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                                fix_tie, best, l68, u68)
+                    self.add_line( datstr )
+
+            ###
+
+            if blob_names is not None:
+                for blobn in blob_names:
+                    blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                    try:
+                        l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                        u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                    except:
+                        l68_blob = u68_blob = results.__dict__['bestfit_{}_err'.format(blobn)]
+
+                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                                '-----', blob_best, l68_blob, u68_blob)
+                    self.add_line( datstr )
+
 
         ###
+        if 'status' in results.__dict__.keys():
+            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('fit_status', '-----',
+                            '-----', str(results.status), -99, -99)
+            self.add_line( datstr )
 
-        if blob_names is not None:
-            for blobn in blob_names:
-                blob_best = results.__dict__['bestfit_{}'.format(blobn)]
-                try:
-                    l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                    u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                except:
-                    l68_blob = u68_blob = results.__dict__['bestfit_{}_err'.format(blobn)]
-
-                datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
-                            '-----', blob_best, l68_blob, u68_blob)
-                self.add_line( datstr )
-
-
-        ###
         datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
                     '-----', str(gal.model.kinematic_options.adiabatic_contract), -99, -99)
         self.add_line( datstr )

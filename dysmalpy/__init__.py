@@ -11,4 +11,4 @@ import dysmalpy.utils
 import dysmalpy.utils_io
 import dysmalpy.data_io
 
-__version__ = "1.8.0-alpha"
+__version__ = "1.8.1-alpha"

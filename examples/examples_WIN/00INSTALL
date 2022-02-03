@@ -1,0 +1,20 @@
+###### Steps for installation on Windows ######
+
+(1) Prepare release tar.gz, or an equivalent tarball
+
+(2) Download to local machine
+
+(3) Unpack folder, rename and move:
+
+
+(4) Install
+    Open conda terminal
+
+(5) Make sure BAT files are in correct location
+    Located on (Desktop ??)
+
+(5) Test
+    (Use conda terminal to run basic test model suite?)
+
+(6) Test example
+    
