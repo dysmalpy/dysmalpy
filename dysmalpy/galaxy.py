@@ -338,7 +338,7 @@ class Galaxy:
                           oversample=1, oversize=1,
                           aperture_radius=None, pix_perp=None, pix_parallel=None,
                           pix_length=None,
-                          skip_downsample=False, partial_aperture_weight=False,
+                          skip_downsample=False, partial_aperture_weight=True,
                           xcenter=None, ycenter=None,
                           transform_method='direct',
                           zcalc_truncate=None,
@@ -501,7 +501,7 @@ class Galaxy:
         n_wholepix_z_min: int
             Minimum number of whole pixels to include in the z direction when trunctating.
             Default: 3
-            
+
         """
         if line_center is None:
             line_center = self.model.line_center
