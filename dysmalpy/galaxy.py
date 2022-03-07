@@ -21,6 +21,10 @@ import astropy.units as u
 import scipy.interpolate as scp_interp
 import dill as _pickle
 
+# dill py<=3.7 -> py>=3.8 + higher hack:
+# See https://github.com/uqfoundation/dill/pull/406
+_pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
+
 # Local imports
 # Package imports
 from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv

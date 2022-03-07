@@ -22,7 +22,6 @@ import os
 import numpy as np
 from collections import OrderedDict
 import astropy.units as u
-import dill as _pickle
 import copy
 
 __all__ =  ['FitResults',

@@ -14,6 +14,11 @@ import os
 import dill as _pickle
 import copy
 
+# dill py<=3.7 -> py>=3.8 + higher hack:
+# See https://github.com/uqfoundation/dill/pull/406
+_pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
+
+
 __all__ = ['ensure_dir', 'load_pickle', 'dump_pickle']
 
 
