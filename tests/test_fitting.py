@@ -192,12 +192,6 @@ class TestFittingWrappers:
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
 
-        # dict_bf_values = {'disk+bulge': {'total_mass': 10.6976,
-        #                                  'r_eff_disk': 3.9150,
-        #                                  'bt': 0.7547},
-        #                   'halo': {'fdm': 0.3136},
-        #                   'dispprof': {'sigma0': 36.2057}}
-
         dict_bf_values = {'disk+bulge': {'total_mass': 10.7113,
                                          'r_eff_disk': 3.6320,
                                          'bt': 0.6922},
@@ -226,11 +220,11 @@ class TestFittingWrappers:
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
 
-        dict_bf_values = {'disk+bulge': {'total_mass': 10.7849,
-                                         'r_eff_disk': 2.8063,
-                                         'bt': 0.1197},
-                          'halo': {'fdm': 0.2296},
-                          'dispprof': {'sigma0': 67.7529}}
+        dict_bf_values = {'disk+bulge': {'total_mass': 10.7769,
+                                         'r_eff_disk': 2.7732,
+                                         'bt': 0.1194},
+                          'halo': {'fdm': 0.2340},
+                          'dispprof': {'sigma0': 67.7131}}
 
         # Check that best-fit values are the same
         check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3)

@@ -368,6 +368,7 @@ class ModelSet:
     is a dictionary that has keys equal to the names of each component. The primary method
     of `ModelSet` is :meth:`ModelSet.simulate_cube` which produces a model data cube of
     line emission that follows the full kinematics of given model.
+    
     """
     def __init__(self):
 

@@ -65,9 +65,9 @@ follow the instructions in :ref:`Python Environment Setup <install-conda>` .
 
 
 After this is completed, you can download the latest DysmalPy package `here`_
-(current version: 1.7.1).
+(current version: 1.8.2).
 
-.. _here: releases/dysmalpy-1.7.1.tar.gz
+.. _here: releases/dysmalpy-1.8.2.tar.gz
 
 
 Basic Installation

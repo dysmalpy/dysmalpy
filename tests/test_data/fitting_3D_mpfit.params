@@ -37,7 +37,7 @@ data_inst_corr,   False
 auto_gen_3D_mask,          		True
 auto_gen_mask_apply_skymask_first, 	True
 auto_gen_mask_snr_thresh_pixel, 	None
-auto_gen_mask_sig_segmap_thresh, 	3.
+auto_gen_mask_sig_segmap_thresh, 	3.25 # 3.
 auto_gen_mask_npix_segmap_min,    	5
 auto_gen_mask_sky_var_thresh,    	2.  # H/J BAND  # 3. # K/Y
 auto_gen_mask_snr_int_flux_thresh,  	3.

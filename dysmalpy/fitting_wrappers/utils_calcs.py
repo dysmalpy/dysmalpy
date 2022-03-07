@@ -125,8 +125,9 @@ def auto_gen_3D_mask(cube=None, err=None,
         if _loaded_photutils:
             bkg = None
             exclude_percentile=0.
+            ex_perctl_increment = 5.
             while ((bkg is None) & (exclude_percentile < 100.)):
-                exclude_percentile += 5.
+                exclude_percentile += ex_perctl_increment
                 try:
                     bkg = photutils.Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3),
                                     exclude_percentile=exclude_percentile)

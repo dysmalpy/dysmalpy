@@ -503,15 +503,15 @@ class Report(object):
                         if self.fit_method.upper() == 'MCMC':
                             l68 = results.bestfit_parameters_l68_err[whparam]
                             u68 = results.bestfit_parameters_u68_err[whparam]
-                            datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+                            datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
 
                         # MPFIT
                         elif self.fit_method.upper() == 'MPFIT':
                             if results.bestfit_parameters_err is not None:
                                 err = results.bestfit_parameters_err[whparam]
-                                datstr = '    {: <11}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
+                                datstr = '    {: <13}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
                             else:
-                                datstr = '    {: <11}    FITTING ERROR'.format(param_n,)
+                                datstr = '    {: <13}    FITTING ERROR'.format(param_n,)
 
                         self.add_line( datstr )
                     else:
@@ -532,13 +532,13 @@ class Report(object):
                         else:
                             fix_tie = '[TIED]'
 
-                        datstr = '    {: <11}    {:9.4f}  {}'.format(param_n, best, fix_tie)
+                        datstr = '    {: <13}    {:9.4f}  {}'.format(param_n, best, fix_tie)
 
                         self.add_line( datstr )
 
                 if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
                     self.add_line( '' )
-                    datstr = '    {: <11}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
+                    datstr = '    {: <13}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
                     self.add_line( datstr )
 
             ####
@@ -551,7 +551,7 @@ class Report(object):
                         blob_best = results.__dict__['bestfit_{}'.format(blobn)]
                         l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
                         u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                        datstr = '    {: <11}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                        datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
                         self.add_line( datstr )
 
 
@@ -599,7 +599,7 @@ class Report(object):
 
         # --------------------------------------------
 
-        namestr = '# component             param_name    fixed       best_value   l68_err     u68_err'
+        namestr = '# component             param_name      fixed       best_value   l68_err     u68_err'
         self.add_line( namestr )
 
 
@@ -638,7 +638,7 @@ class Report(object):
                         fix_tie = 'TIED'
 
 
-                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
                                 fix_tie, best, l68, u68)
                     self.add_line( datstr )
 
@@ -653,26 +653,26 @@ class Report(object):
                     except:
                         l68_blob = u68_blob = results.__dict__['bestfit_{}_err'.format(blobn)]
 
-                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
                                 '-----', blob_best, l68_blob, u68_blob)
                     self.add_line( datstr )
 
 
         ###
         if 'status' in results.__dict__.keys():
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('fit_status', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('fit_status', '-----',
                             '-----', str(results.status), -99, -99)
             self.add_line( datstr )
 
-        datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
+        datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('adiab_contr', '-----',
                     '-----', str(gal.model.kinematic_options.adiabatic_contract), -99, -99)
         self.add_line( datstr )
 
         if results.bestfit_redchisq is not None:
-            datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
                     '-----', results.bestfit_redchisq, -99, -99)
         else:
-            datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq', '-----',
                     '-----', results.bestfit_redchisq, -99, -99)
         self.add_line( datstr )
 
@@ -681,12 +681,12 @@ class Report(object):
         if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
             for k in ['flux', 'velocity', 'dispersion']:
                 if 'bestfit_redchisq_{}'.format(k) in results.__dict__.keys():
-                    datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq_{}'.format(k), '-----',
+                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq_{}'.format(k), '-----',
                             '-----', results.__dict__['bestfit_redchisq_{}'.format(k)], -99, -99)
                     self.add_line( datstr )
 
         if 'profile1d_type' in gal.data.__dict__.keys():
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
                         '-----', gal.data.profile1d_type, -99, -99)
             self.add_line( datstr )
 
@@ -719,25 +719,25 @@ class Report(object):
 
         # Write settings:
         if weighting_method is not None:
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
                         '-----', str(weighting_method), -99, -99)
             self.add_line( datstr )
         if moment_calc is not None:
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
                         '-----', str(moment_calc), -99, -99)
             self.add_line( datstr )
         if partial_weight is not None:
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
                         '-----', str(partial_weight), -99, -99)
             self.add_line( datstr )
 
 
         # INFO on pressure support type:
-        datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support', '-----',
+        datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support', '-----',
                     '-----', str(gal.model.kinematic_options.pressure_support), -99, -99)
         self.add_line( datstr )
         if gal.model.kinematic_options.pressure_support:
-            datstr = '{: <21}   {: <11}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support_type', '-----',
                         '-----', str(gal.model.kinematic_options.pressure_support_type), -99, -99)
             self.add_line( datstr )
 
@@ -745,7 +745,7 @@ class Report(object):
         # If 2D data: Rmaxout2D:
         if gal.data.ndim == 2:
             Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
-            datstr = '{: <21}   {: <11}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
+            datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
                         '-----', Routmax2D, -99, -99)
             self.add_line( datstr )
 

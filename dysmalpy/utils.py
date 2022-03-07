@@ -451,9 +451,8 @@ def symmetrize_velfield(xbin, ybin, velBin, errBin, sym=2, pa=90.):
     """
     This routine generates a bi-symmetric ('axisymmetric')
     version of a given set of kinematical measurements.
-    PA: is the angle in degrees, measured counter-clockwise,
-      from the vertical axis (Y axis) to the galaxy major axis.
-    SYM: by-simmetry: is 1 for (V,h3,h5) and 2 for (sigma,h4,h6)
+    PA: is the angle in degrees, measured counter-clockwise, from the vertical axis (Y axis) to the galaxy major axis.
+    SYM: bi-symmetry: is 1 for (V,h3,h5) and 2 for (sigma,h4,h6)
 
     """
     xbin, ybin, velBin = map(np.asarray, [xbin, ybin, velBin])
@@ -559,12 +558,14 @@ def fit_uncertainty_ellipse(chain_x, chain_y, bins=50):
 
     Returns
     -------
-    PA, stddev_x, stddev_y:
-        PA:         angle of ellipse, in degrees
-        stddev_x:   stddev of the "x" axis of the 2D gaussian;
-                            double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
-        stddev_y:   stddev of the "y" axis of the 2D gaussian
-        
+    PA: float
+        angle of ellipse, in degrees
+    stddev_x: float
+        stddev of the "x" axis of the 2D gaussian;
+        double to get the full "width" of a 1sig ellipse for matplotlib.Ellipse
+    stddev_y: float
+        stddev of the "y" axis of the 2D gaussian
+
     """
 
     nSamp = len(chain_x)

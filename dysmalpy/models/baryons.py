@@ -362,12 +362,12 @@ class NoordFlat(object):
         This function determines the circular velocity as a function of radius for
         a Sersic component with a total mass, `mass`, Sersic index, `n`, and
         an effective radius to scale height ratio, `invq`. This uses lookup tables
-        numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
+        numerically calculated from the derivations provided in Noordermeer 2008 [2]_ which
         properly accounted for the thickness of the mass component.
 
         References
         ----------
-        .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+        .. [2] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
         """
         vcirc = (self.vcirc_interp(r / r_eff * self.N2008_Re) * np.sqrt(
                  mass / self.N2008_mass) * np.sqrt(self.N2008_Re / r_eff))
@@ -1143,7 +1143,7 @@ class ExpDisk(MassModel, _LightMassModel):
         super(ExpDisk, self).__init__(**kwargs)
 
     @staticmethod
-    def evaluate(r, total_mass, r_eff):
+    def evaluate(r, total_mass, r_eff, mass_to_light):
         """
         Mass surface density of a thin exponential disk
         """
@@ -1373,7 +1373,7 @@ class Sersic(MassModel, _LightMassModel):
             self.noord_flattener.invq = self.invq
 
     @staticmethod
-    def evaluate(r, total_mass, r_eff, n):
+    def evaluate(r, total_mass, r_eff, n, mass_to_light):
         """
         Sersic mass surface density
         """
@@ -1639,7 +1639,7 @@ class DiskBulge(MassModel, _LightMassModel):
 
 
     @staticmethod
-    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
+    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt, mass_to_light):
         """Disk+Bulge mass surface density"""
 
         print("consider if Noord flat: this will be modified")
@@ -2256,7 +2256,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
             self.noord_flattener_bulge.invq = self.invq_bulge
 
     @staticmethod
-    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt):
+    def evaluate(r, total_mass, r_eff_disk, n_disk, r_eff_bulge, n_bulge, bt, mass_to_light):
         """Disk+Bulge mass surface density"""
         print("consider if Noord flat: this will be modified")
         mbulge_total = total_mass*bt
@@ -2620,7 +2620,6 @@ class GaussianRing(MassModel, _LightMassModel):
         M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
         sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
 
-
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -2665,7 +2664,7 @@ class GaussianRing(MassModel, _LightMassModel):
         return self.R_peak.value / self.FWHM.value
 
     @staticmethod
-    def evaluate(r, total_mass, R_peak, FWHM):
+    def evaluate(r, total_mass, R_peak, FWHM, mass_to_light):
         """ Gaussian ring mass surface density """
         sigma_R = FWHM/ (2.*np.sqrt(2.*np.log(2.)))
         I0 = _I0_gaussring(R_peak, sigma_R, 10**total_mass)
@@ -2673,7 +2672,8 @@ class GaussianRing(MassModel, _LightMassModel):
 
     def surface_density(self, r):
         """ Gaussian ring mass surface density """
-        return self.evaluate(r, self.total_mass.value, self.R_peak.value, self.FWHM.value)
+        return self.evaluate(r, self.total_mass.value,
+                             self.R_peak.value, self.FWHM.value, 1.)
 
     def enclosed_mass(self, r):
         """

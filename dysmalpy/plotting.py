@@ -2482,6 +2482,203 @@ def plot_channel_maps_3D_cube(gal,
 
 #############################################################
 
+def plot_spaxels_cube(cube=None, hdr=None, mask=None,
+                fname=None,
+                typ='all',
+                skip_masked=False,
+                fileout=None,
+                overwrite=False):
+
+    if typ.strip().lower() not in ['all', 'diag']:
+        raise ValueError("typ={} not recognized for `plot_spaxel_compare_3D_cubes`!".format(typ))
+    # Clean up:
+    typ = typ.strip().lower()
+
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    if ((cube is None) | (hdr is None)) and (fname is None):
+        raise ValueError("Either 'fname' must be specified,"
+                         "or both 'cube' and 'hdr' must be set!")
+
+
+    import astropy.units as u
+    from astropy.wcs import WCS
+    from spectral_cube import SpectralCube
+
+    if ((cube is None) | (hdr is None)):
+        datcube = SpectralCube.read(fname)
+    else:
+        if (hdr['SPEC_TYPE'] == 'VOPT'):
+            spec_unit = u.km/u.s
+        elif (hdr['SPEC_TYPE'] == 'WAVE'):
+            spec_unit = u.Angstrom
+        w = WCS(header=hdr)
+        datcube = SpectralCube(data=cube, wcs=w, mask=mask).with_spectral_unit(spec_unit)
+
+    #################################################
+
+    # Aper centers: pick roughly number fitting into size:
+    nx = datcube.shape[2]
+    ny = datcube.shape[1]
+    npix = np.max([nx,ny])
+
+    specarr = datcube.spectral_axis.to(u.km/u.s).value
+
+    ######################################
+    # Setup plot:
+
+    if typ == 'all':
+        if mask is not None:
+            rowinds = np.where(np.sum(np.sum(mask,axis=0),axis=1)>0)[0]
+            colinds = np.where(np.sum(np.sum(mask,axis=0),axis=0)>0)[0]
+        else:
+            rowinds = np.where(np.sum(np.sum(np.abs(datcube),axis=0),axis=1)>0)[0]
+            colinds = np.where(np.sum(np.sum(np.abs(datcube),axis=0),axis=0)>0)[0]
+
+        nrows = len(rowinds)
+        ncols = len(colinds)
+    elif typ == 'diag':
+        nrows = int(np.round(np.sqrt(npix)))
+        ncols = int(np.ceil(npix/(1.*nrows)))
+        rowinds = np.arange(nrows*ncols)
+        colinds = np.arange(nrows*ncols)
+
+
+
+    padx = 0.25
+    pady = 0.25
+
+    xextra = 0.15
+    yextra = 0.
+
+    scale = 2.5
+
+    f = plt.figure()
+    figsize = ((ncols+(ncols-1)*padx+xextra)*scale,
+               (nrows+(nrows-1)*pady+yextra)*scale)
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale,
+                      (nrows+(nrows-1)*pady+yextra)*scale)
+
+
+    suptitle = None
+
+    gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+
+    axes = []
+
+    for i in range(nrows):
+        for j in range(ncols):
+            if typ == 'all':
+                # invert rows:
+                ii = nrows - 1 - i
+            else:
+                ii = i
+            axes.append(plt.subplot(gs[ii,j]))
+
+
+    #############################################################
+
+    # for each spax:
+    k = -1
+    for i in rowinds:
+        for j in colinds:
+            skip = False
+            if typ == 'diag':
+                if (i == j):
+                    k += 1
+                else:
+                    skip = True
+            elif typ == 'all':
+                k += 1
+
+
+            if (k < len(axes)) & (not skip) & (i < npix):
+                ax = axes[k]
+
+                datarr = datcube[:,i,j].value
+                if mask is not None:
+                    maskarr = mask[:,i,j]
+                else:
+                    maskarr = specarr * 0. + 1.
+
+                do_plot = True
+                if skip_masked:
+                    if (maskarr.max() <= 0):
+                        do_plot = False
+
+                if ((typ == 'all') & (do_plot)) | (typ == 'diag'):
+                    ax.plot(specarr, datarr, color='black', ls='-', lw=1., alpha=0.5, zorder=1.)
+                    ax.plot(specarr, datarr*maskarr, color='black',lw=1.5, zorder=1.)
+
+                    ax.axhline(y=0., ls='--', color='grey', alpha=0.5, zorder=-20.)
+
+                    xlim = ax.get_xlim()
+                    xrange = xlim[1]-xlim[0]
+                    if xrange >= 1000.:
+                        xmajloc = 500.
+                        xminloc = 100.
+                    elif xrange >= 500.:
+                        xmajloc = 200.
+                        xminloc = 50.
+                    elif xrange >= 250.:
+                        xmajloc = 100.
+                        xminloc = 20.
+                    elif xrange >= 100.:
+                        xmajloc = 50.
+                        xminloc = 10.
+                    elif xrange >= 50.:
+                        xmajloc = 10.
+                        xminloc = 2.
+                    elif xrange >= 10.:
+                        xmajloc = 2.
+                        xminloc = 0.5
+                    else:
+                        xmajloc = None
+                        xminloc = None
+
+                    if xmajloc is not None:
+                        ax.xaxis.set_major_locator(MultipleLocator(xmajloc))
+                        ax.xaxis.set_minor_locator(MultipleLocator(xminloc))
+
+                    ax.annotate('Pix ({},{})'.format(j,i),
+                            (0.02,0.98), xycoords='axes fraction',
+                            ha='left', va='top', fontsize=8)
+
+                    if (maskarr.max() <= 0):
+                        ax.set_facecolor('#f0f0f0')
+                else:
+                    ax.set_axis_off()
+            elif (k < len(axes)) & (not skip) & (k >= npix):
+                ax = axes[k]
+                ax.set_axis_off()
+
+    #############################################################
+    # Save to file:
+    if suptitle is not None:
+        yoff = 0.105 - 0.01*(36.875-f.get_size_inches()[1])/18.75
+        ytitlepos = 1.-yoff
+        if f.get_size_inches()[1] < 20.:
+            ytitlefontsize = 20
+        else:
+            ytitlefontsize = 30
+        f.suptitle(suptitle, fontsize=ytitlefontsize, y=ytitlepos)
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+#############################################################
+
 def plot_spaxel_fit(specarr, data, mask, err=None,
         gdata_flux=None, gdata_vel=None, gdata_disp=None,
         gdata_flux2=None, gdata_vel2=None, gdata_disp2=None,
@@ -2612,7 +2809,7 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
             spec_unit = u.km/u.s
         elif (hdr['SPEC_TYPE'] == 'WAVE'):
             spec_unit = u.Angstrom
-        w = WCS(header.hdr)
+        w = WCS(header=hdr)
         datcube = SpectralCube(data=cube, wcs=w, mask=mask).with_spectral_unit(spec_unit)
 
     vbounds = np.array(vbounds)
@@ -2950,7 +3147,7 @@ def plot_model_2D(gal,
             apply_mask=True,
             ruler_loc='lowerleft',
             color_annotate='black',
-            color_bad='white', 
+            color_bad='white',
             **kwargs_galmodel):
 
     if show_contours:

@@ -1146,6 +1146,12 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         As the native geometry is cylindrical (ignoring z dir), and the velocity is multicoordinate,
         we need a more complex output than a single vector for a dotproduct.
 
+        vel = (R, phi, z).
+        Need matmul(vel_dir_matrix, vel) = vel in (x,y,z). So:
+        vel_dir_matrix = [[Rtox, phitox, ztox],
+                          [Rtoy, phitoy, ztoy],
+                          [Rtoz, phitoz, ztoz]]
+
         Parameters
         ----------
         x, y, z : float or array
@@ -1159,12 +1165,6 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         -------
         vel_dir_matrix : 3x3-element matrix
             Transform of the velocity from the native coordinates to the output cartesian frame.
-
-            vel = (R, phi, z).
-            Need matmul(vel_dir_matrix, vel) = vel in (x,y,z). So:
-            vel_dir_matrix = [[Rtox, phitox, ztox],
-                              [Rtoy, phitoy, ztoy],
-                              [Rtoz, phitoz, ztoz]]
 
         """
         R = np.sqrt(x ** 2 + y ** 2)

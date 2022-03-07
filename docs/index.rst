@@ -21,17 +21,13 @@ dysmalpy
    api.rst
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Tutorials:
 
-   dysmalpy_quickstart_example.ipynb
-   dysmalpy_example_model.ipynb
-   dysmalpy_example_model_wrapper.ipynb
-   dysmalpy_example_fit_1D.ipynb
-   dysmalpy_example_fit_2D.ipynb
-   dysmalpy_example_fitting_wrapper_1D.ipynb
-   dysmalpy_example_fitting_wrapper_2D.ipynb
-   dysmalpy_example_fitting_wrapper_3D.ipynb
+   tutorials/dysmalpy_quickstart_example.rst
+   tutorials/models/index.rst
+   tutorials/fitting/index.rst
+
 
 Indices and tables
 ==================

@@ -1207,7 +1207,7 @@ class Galaxy:
         Parameters
         ----------
         filename : str
-                   Name of the file with saved Galaxy
+            Name of the file with saved Galaxy
 
         Returns
         -------

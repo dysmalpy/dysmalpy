@@ -1419,8 +1419,12 @@ def _preprocess_halo_parameters(params=None):
                 params['mvirial_tied'] = True
             else:
                 # if (not params['mvirial_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
-                if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
-                    # Override setting and make tied, as it can't be truly fixed
+                if ('fdm_tied' in params.keys()):
+                    if (not params['mvirial_tied']) and (not params['fdm_tied']): #<DZLIU><TODO><FIXINGBUG><20210817>#
+                        # Override setting and make tied, as it can't be truly fixed
+                        params['mvirial_tied'] = True
+                else:
+                    # Neither are specified, so overried and make tied
                     params['mvirial_tied'] = True
         elif ((not params['mvirial_fixed']) & (params['fdm_fixed'])):
             if 'fdm_tied' not in params.keys():

@@ -62,6 +62,10 @@ def replace_values_by_refarr(arr, ref_arr, excise_val, subs_val):
 
 
 def insert_param_state(state, pn, value=None, fixed=True, tied=False, bounds=None, prior=None):
+    """
+    Function to insert a DysmalParameter into state for backwards compatibility
+    when loading pickles.
+    """
     state[pn] = DysmalParameter(default=value, fixed=fixed, tied=tied, bounds=bounds,prior=prior)
     if '_constraints' in state.keys():
         for cnst in ['fixed', 'tied', 'bounds', 'prior']:
@@ -73,5 +77,31 @@ def insert_param_state(state, pn, value=None, fixed=True, tied=False, bounds=Non
     state['_param_metrics'][pn] = pmdict
 
     state['_parameters'] = np.append(state['_parameters'], value)
+
+    return state
+
+
+def remove_param_state(state, pn):
+    """
+    Function to remove a DysmalParameter from state for backwards compatibility
+    when loading pickles (if, eg the parameter has been shifted to a plain attribute). 
+    """
+    del state[pn]
+    if '_constraints' in state.keys():
+        for cnst in ['fixed', 'tied', 'bounds', 'prior']:
+            del state['_constraints'][cnst][pn]
+
+    pmdict = {'shape': (), 'orig_unit': None, 'raw_unit': None, 'size': 1}
+    ind_pn = len(state['_parameters'])
+    pmdict['slice'] = slice(ind_pn, ind_pn+1, None)
+
+    ind_pn = state['_param_metrics'][pn].start
+    del state['_param_metrics'][pn]
+
+    orig_params = state['_parameters'][:]
+    state['_parameters'] = np.array([])
+    for ind, value in enumerate(orig_params):
+        if (ind != ind_pn):
+            np.append(state['_parameters'], value)
 
     return state

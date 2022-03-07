@@ -17,6 +17,8 @@
 import os
 import sys
 import warnings
+from datetime import date
+
 
 from os import path
 
@@ -27,15 +29,11 @@ from pkg_resources import DistributionNotFound, get_distribution
 
 import dysmalpy
 
-# try:
-#     __version__ = get_distribution("dysmalpy").version
-# except DistributionNotFound:
-#     __version__ = "unknown version"
 
 # -- Project information -----------------------------------------------------
 
 project = 'dysmalpy'
-copyright = '2021, MPE/IR Group'
+copyright = '2017-{}, MPE/IR Group'.format(date.today().year)
 author = 'Sedona Price and Taro Shimizu'
 
 # The full version, including alpha/beta/rc tags
@@ -143,8 +141,10 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
+    # 'nbsphinx',  # Original jupyter NB renderer
+    "myst_nb",  # Updated jupyter NB renderer, supports hiding/removing cell input.
+######
 #    'numpydoc',
-    'nbsphinx',
 #    'astropy_helpers.extern.numpydoc',
 #    'astropy_helpers.extern.automodapi.automodapi',
 #    'astropy_helpers.extern.automodapi.smart_resolver',
@@ -153,6 +153,15 @@ extensions = [
 #    'astropy_helpers.sphinx.ext.changelog_links'
 ]
 
+jupyter_execute_notebooks = "off"
+# See options: https://coderefinery.github.io/sphinx-lesson/branch/rkdarst--sample-episode-md/jupyter/
+# myst_number_code_blocks =
+myst_enable_extensions = [
+    "amsmath",
+    "dollarmath",
+    "colon_fence",
+    "deflist",
+]
 
 # if on_rtd:
 #     extensions.append('sphinx.ext.mathjax')
@@ -278,8 +287,8 @@ html_theme_options = {"logo_only": True}
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = None
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+# # The name of the Pygments (syntax highlighting) style to use.
+# pygments_style = 'sphinx'
 
 
 # -- Options for LaTeX output ------------------------------------------------
