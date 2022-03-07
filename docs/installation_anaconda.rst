@@ -244,8 +244,8 @@ will be installed using ``pip`` at the end.
 
     .. code-block:: console
 
-        $ conda install --no-deps gsl cfitsio
-        $ conda install -c conda-forge --no-deps libcblas
+        $ conda install gsl cfitsio
+        $ conda install -c conda-forge libcblas
 
 
     Note that the installation directory will be needed later when compiling the
