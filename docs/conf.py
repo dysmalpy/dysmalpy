@@ -141,6 +141,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
+    'sphinx_rtd_theme', 
     # 'nbsphinx',  # Original jupyter NB renderer
     "myst_nb",  # Updated jupyter NB renderer, supports hiding/removing cell input.
 ######
@@ -289,6 +290,7 @@ html_theme_options = {"logo_only": True}
 
 # # The name of the Pygments (syntax highlighting) style to use.
 # pygments_style = 'sphinx'
+pygments_style = 'default'
 
 
 # -- Options for LaTeX output ------------------------------------------------
