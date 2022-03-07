@@ -70,7 +70,7 @@ or, if you want to select a specific version of python, use for example:
 
 .. code-block:: console
 
-    $ conda create --name my-env python=3.6
+    $ conda create --name my-env python=3.9
 
 .. warning::
     We do not recommend using a version of python below ``3.6``, as we haven't checked
