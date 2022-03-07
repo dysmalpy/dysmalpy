@@ -61,7 +61,7 @@ components_list,         disk+bulge   const_disp_prof   geometry   zheight_gaus 
 # List of components that emit light. SEPARATE WITH SPACES
 ##   Current options: disk+bulge / bulge / disk [corresponding to the mass disk+bulge component],
 ##              also:    light_sersic, light_gaussian_ring
-light_components_list,   disk, spiral_flow
+light_components_list,   disk spiral_flow
 # NOTE: if a separate light profile (eg light_sersic) is used,
 #       this MUST be changed to  e.g., 'light_components_list,   light_sersic'
 
