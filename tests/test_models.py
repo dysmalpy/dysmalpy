@@ -548,6 +548,42 @@ class TestModels:
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
             assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
 
+    
+    def test_simulate_cube(self):
+        gal = self.helper.setup_fullmodel(instrument=True)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.025494307261611702],
+                            [0,0,0, 6.776263578034403e-22],
+                            [100,18,0, 2.188781420324916e-06],
+                            [50,18,18, 1.7084951645559194e-08],
+                            [95,10,10, 0.0017579017423842986],
+                            [100,5,5, 2.6361844098134272e-05],
+                            [150,18,18, 3.939701551269881e-07],
+                            [100,15,15, 0.04874255392712087],
+                            [100,15,21, 0.015755174103735517],
+                            [90,15,15, 0.07140853705302519],
+                            [90,15,21, 0.003903714258814497]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
+
 
     def test_biconical_outflow(self):
         gal_bicone = self.helper.setup_fullmodel(instrument=True)
@@ -732,41 +768,6 @@ class TestModels:
         for arr in arr_pix_values:
             # Assert pixel values are the same
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
-
-    def test_simulate_cube(self):
-        gal = self.helper.setup_fullmodel(instrument=True)
-
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
-        # Make model
-        gal.create_model_data(**kwargs_galmodel)
-
-        # Get cube:
-        cube = gal.model_cube.data.unmasked_data[:].value
-
-        ##################
-        # Check some pix points:
-        atol = 1.e-9
-        # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.025494307261611702],
-                            [0,0,0, 6.776263578034403e-22],
-                            [100,18,0, 2.188781420324916e-06],
-                            [50,18,18, 1.7084951645559194e-08],
-                            [95,10,10, 0.0017579017423842986],
-                            [100,5,5, 2.6361844098134272e-05],
-                            [150,18,18, 3.939701551269881e-07],
-                            [100,15,15, 0.04874255392712087],
-                            [100,15,21, 0.015755174103735517],
-                            [90,15,15, 0.07140853705302519],
-                            [90,15,21, 0.003903714258814497]]
-
-        for arr in arr_pix_values:
-            # Assert pixel values are the same
-            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
-
-
 
 
 class TestModelsFittingWrappers:
