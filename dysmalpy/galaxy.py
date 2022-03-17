@@ -347,6 +347,7 @@ class Galaxy:
                           transform_method='direct',
                           zcalc_truncate=None,
                           n_wholepix_z_min=3,
+                          #skip_convolve=False, 
                           **kwargs):
         r"""
         Function to simulate data for the galaxy
@@ -837,6 +838,26 @@ class Galaxy:
                                                     spec_center=line_center)
         else:
             sim_cube_obs = sim_cube_nooversamp
+        
+        #### DEBUG DISKY
+        #if not skip_convolve:
+        #    if self.instrument is not None:
+        #        sim_cube_obs = self.instrument.convolve(cube=sim_cube_nooversamp,
+        #                                                spec_center=line_center)
+        #        #sim_cube_obs = self.instrument.convolve_with_lsf(cube=sim_cube_nooversamp,
+        #        #                                        spec_center=line_center)
+        #        #print("only beam convolve")
+        #        #sim_cube_obs = self.instrument.convolve_with_beam(cube=sim_cube_nooversamp)
+        #    else:
+        #        sim_cube_obs = sim_cube_nooversamp
+        #else:
+        #    print("SKIPPING CONVOLUTION")
+        #    sim_cube_obs = sim_cube_nooversamp
+        #print('skip_downsample={}'.format(skip_downsample))
+        #print("nonnan sim_cube={}".format(np.sum(np.isfinite(sim_cube))))
+        #print("nonnan sim_cube_nooversamp={}".format(np.sum(np.isfinite(sim_cube_nooversamp))))
+        #print("nonnan sim_cube_obs={}".format(np.sum(np.isfinite(sim_cube_obs))))
+        #print("line_center={}".format(line_center))
 
 
         # Re-size the cube back down

@@ -118,17 +118,17 @@ class Instrument:
             return cube
 
         elif self.lsf is None:
-            cube = self.convolve_with_beam(cube)
+            cube_conv = self.convolve_with_beam(cube)
 
         elif self.beam is None:
-            cube = self.convolve_with_lsf(cube, spec_center=spec_center)
+            cube_conv = self.convolve_with_lsf(cube, spec_center=spec_center)
 
         else:
             # Separate convolution steps: note this is FASTER than doing a composite convolution
             cube_conv_beam = self.convolve_with_beam(cube)
-            cube = self.convolve_with_lsf(cube_conv_beam, spec_center=spec_center)
+            cube_conv = self.convolve_with_lsf(cube_conv_beam, spec_center=spec_center)
 
-        return cube
+        return cube_conv
 
     def convolve_with_lsf(self, cube, spec_center=None):
         """
@@ -152,9 +152,25 @@ class Instrument:
         if self._lsf_kernel is None:
             self.set_lsf_kernel(spec_center=spec_center)
 
-        cube = fftconvolve(cube, self._lsf_kernel, mode='same')
+        # cube_conv = fftconvolve(cube.copy(), self._lsf_kernel.copy(), mode='same')
+        
+        ################
+        # ##### TEMP HACK FOR DISKY TO WORK RIGHT
+        cnt_calcs = 0
+        max_calcs = 5
+        numnan = 99.
+        while numnan > 0:
+            cnt_calcs += 1
+            if cnt_calcs > max_calcs:
+                break
+            cube_conv = fftconvolve(cube.copy(), self._lsf_kernel.copy(), mode='same')
+            numnan = np.sum(~np.isfinite(cube_conv))
+    
+        if cnt_calcs > 1:
+            print("Had to do {} total fft calls".format(cnt_calcs))
+        ################
 
-        return cube
+        return cube_conv
 
     def convolve_with_beam(self, cube):
         """
@@ -179,9 +195,25 @@ class Instrument:
         if self._beam_kernel is None:
             self.set_beam_kernel()
 
-        cube = fftconvolve(cube, self._beam_kernel, mode='same')
+        # cube_conv = fftconvolve(cube.copy(), self._beam_kernel.copy(), mode='same')
+       
+        ################
+        # ##### TEMP HACK FOR DISKY TO WORK RIGHT
+        cnt_calcs = 0
+        max_calcs = 5
+        numnan = 99.
+        while numnan > 0:
+            cnt_calcs += 1
+            if cnt_calcs > max_calcs:
+                break
+            cube_conv = fftconvolve(cube.copy(), self._beam_kernel.copy(), mode='same')
+            numnan = np.sum(~np.isfinite(cube_conv))
+    
+        if cnt_calcs > 1:
+            print("Had to do {} total fft calls".format(cnt_calcs))
+        ################
 
-        return cube
+        return cube_conv
 
     def _clear_kernels(self):
         """

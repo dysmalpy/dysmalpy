@@ -16,7 +16,7 @@ import scipy.ndimage as scp_ndi
 try:
     from dysmalpy.utils import get_cin_cout
 except:
-    from .utils import get_cin_cout
+    from ..utils import get_cin_cout
 
 
 # Local imports

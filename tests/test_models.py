@@ -584,45 +584,6 @@ class TestModels:
 
 
 
-
-    def test_biconical_outflow(self):
-        gal_bicone = self.helper.setup_fullmodel(instrument=True)
-        bicone, bicone_geom, bicone_disp = self.helper.setup_biconical_outflow()
-        gal_bicone.model.add_component(bicone)
-        gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
-        gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
-
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
-        # Make model
-        gal_bicone.create_model_data(**kwargs_galmodel)
-
-        # Get cube:
-        cube = gal_bicone.model_cube.data.unmasked_data[:].value
-
-        ##################
-        # Check some pix points:
-        atol = 1.e-9
-        # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.027185579072496628],
-                            [0,0,0, 2.7105054312137612e-21],
-                            [100,18,0, 2.1887814203259354e-06],
-                            [50,18,18, 0.0005320325936246136],
-                            [95,10,10, 0.001758091539590106],
-                            [100,5,5, 2.6361844098141783e-05],
-                            [150,18,18, 0.0005310729496857921],
-                            [100,15,15, 0.052710956556674675],
-                            [100,15,21, 0.01588655546256837],
-                            [90,15,15, 0.07522552630778426],
-                            [90,15,21, 0.004030068174217149]]
-
-        for arr in arr_pix_values:
-            # Assert pixel values are the same
-            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
-
-
     def test_uniform_inflow(self):
         gal_inflow = self.helper.setup_fullmodel(instrument=True)
         inflow = self.helper.setup_uniform_inflow()
@@ -770,6 +731,45 @@ class TestModels:
             assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
 
 
+
+    def test_biconical_outflow(self):
+        gal_bicone = self.helper.setup_fullmodel(instrument=True)
+        bicone, bicone_geom, bicone_disp = self.helper.setup_biconical_outflow()
+        gal_bicone.model.add_component(bicone)
+        gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
+        gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
+
+        ##################
+        # Create cube:
+        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+
+        # Make model
+        gal_bicone.create_model_data(**kwargs_galmodel)
+
+        # Get cube:
+        cube = gal_bicone.model_cube.data.unmasked_data[:].value
+
+        ##################
+        # Check some pix points:
+        atol = 1.e-9
+        # array: ind0,ind1,ind2, value
+        arr_pix_values =   [[100,18,18, 0.027185579072496628],
+                            [0,0,0, 2.7105054312137612e-21],
+                            [100,18,0, 2.1887814203259354e-06],
+                            [50,18,18, 0.0005320325936246136],
+                            [95,10,10, 0.001758091539590106],
+                            [100,5,5, 2.6361844098141783e-05],
+                            [150,18,18, 0.0005310729496857921],
+                            [100,15,15, 0.052710956556674675],
+                            [100,15,21, 0.01588655546256837],
+                            [90,15,15, 0.07522552630778426],
+                            [90,15,21, 0.004030068174217149]]
+
+        for arr in arr_pix_values:
+            # Assert pixel values are the same
+            assert math.isclose(cube[arr[0],arr[1],arr[2]], arr[3], abs_tol=atol)
+
+
 class TestModelsFittingWrappers:
     def test_fitting_wrapper_model(self):
         param_filename = 'make_model_3Dcube.params'
@@ -816,7 +816,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -853,7 +853,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -890,7 +890,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -928,7 +928,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -966,7 +966,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -1003,7 +1003,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -1040,7 +1040,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -1077,7 +1077,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
@@ -1113,7 +1113,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
