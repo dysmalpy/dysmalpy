@@ -778,7 +778,7 @@ class TestModelsFittingWrappers:
         params = fw_utils_io.read_fitting_params(fname=param_filename_full)
         outdir = _dir_tests_data+params['outdir']
         if os.path.isdir(outdir):
-            shutil.rmtree(outdir)
+            shutil.rmtree(outdir, ignore_errors=True)
 
         # Make model
         dysmalpy_make_model.dysmalpy_make_model(param_filename=param_filename_full)
