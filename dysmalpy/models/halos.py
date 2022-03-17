@@ -385,7 +385,7 @@ class NFW(DarkMatterHalo):
         \rho = \frac{\rho_0}{(r/r_s)(1 + r/r_s)^2}
 
     :math:`r_s` is the scale radius defined as :math:`r_{\rm vir}/c`.
-    :math:`\rho_0` then is the mass density at :math:`r_s`.
+    :math:`\rho_0` is the normalization parameter.
 
     References
     ----------
@@ -493,7 +493,7 @@ class TwoPowerHalo(DarkMatterHalo):
 
     :math:`r_s` is the scale radius and defined as :math:`r_{vir}/c` where
     :math:`r_{vir}` is the virial radius and :math:`c` is the concentration
-    parameter. :math:`rho_0` then is the density at :math:`r_s`.
+    parameter. :math:`rho_0` is the normalization parameter.
 
     References
     ----------
@@ -1297,7 +1297,7 @@ class LinearNFW(DarkMatterHalo):
         \rho = \frac{\rho_0}{(r/r_s)(1 + r/r_s)^2}
 
     :math:`r_s` is the scale radius defined as :math:`r_{\rm vir}/c`.
-    :math:`\rho_0` then is the mass density at :math:`r_s`.
+    :math:`\rho_0` is the normalization parameter. 
 
     References
     ----------
