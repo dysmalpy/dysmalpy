@@ -257,7 +257,7 @@ sigma0,              39.0      # Constant intrinsic dispersion value
 # vbar,     -90.             # Bar flow [km/s]. Positive: Outflow. Negative: Inflow.
 # phi,       90.             # Azimuthal angle of bar [degrees], counter-clockwise from blue major axis.
 #                            # Default is 90 (eg, along galaxy minor axis)
-# bar_width,  2              # Width of the bar perpendicular to bar direction.
+# bar_width,  2              # Width of the bar perpendicular to bar direction, in kpc.
 #                            # Bar velocity only is nonzero between -bar_width/2 < ygal < bar_width/2.
 
 
