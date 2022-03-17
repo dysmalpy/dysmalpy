@@ -142,7 +142,7 @@ def auto_gen_3D_mask(cube=None, err=None,
             thresh = sig_segmap_thresh * bkg.background_rms
 
             kernel = Gaussian2DKernel(3. /(2. *np.sqrt(2.*np.log(2.))), x_size=5, y_size=5)   # Gaussian of FWHM 3 pix
-            segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_segmap_min, filter_kernel=kernel)
+            segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_segmap_min, kernel=kernel)
 
 
             mask_dict['exclude_percentile'] = exclude_percentile

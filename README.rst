@@ -16,6 +16,8 @@ Dependencies
 * acor
 * corner
 * dill
+* photutils (version >= 1.3.0)
+* shapely 
 
 License
 -------

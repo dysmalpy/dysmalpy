@@ -197,7 +197,8 @@ will be installed using ``pip`` at the end.
 
 #. Install dependencies with ``conda``:
 
-    We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
+    We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
+    and `photutils`_.
     We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
     and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
 
@@ -210,12 +211,13 @@ will be installed using ``pip`` at the end.
     .. _corner: https://corner.readthedocs.io
     .. _shapely: https://github.com/Toblerity/Shapely
     .. _cython: https://cython.org
+    .. _photutils: https://photutils.readthedocs.io
 
     From the terminal or an Anaconda prompt, run the following:
 
     .. code-block:: console
 
-        $ conda install astropy ipython numpy scipy matplotlib cython dill
+        $ conda install astropy ipython numpy scipy matplotlib cython dill photutils
         $ conda install -c astropy -c defaults h5py pandas
         $ conda install -c conda-forge -c astropy emcee shapely corner
 

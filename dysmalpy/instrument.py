@@ -152,23 +152,7 @@ class Instrument:
         if self._lsf_kernel is None:
             self.set_lsf_kernel(spec_center=spec_center)
 
-        # cube_conv = fftconvolve(cube.copy(), self._lsf_kernel.copy(), mode='same')
-        
-        ################
-        # ##### TEMP HACK FOR DISKY TO WORK RIGHT
-        cnt_calcs = 0
-        max_calcs = 5
-        numnan = 99.
-        while numnan > 0:
-            cnt_calcs += 1
-            if cnt_calcs > max_calcs:
-                break
-            cube_conv = fftconvolve(cube.copy(), self._lsf_kernel.copy(), mode='same')
-            numnan = np.sum(~np.isfinite(cube_conv))
-    
-        if cnt_calcs > 1:
-            print("Had to do {} total fft calls".format(cnt_calcs))
-        ################
+        cube_conv = fftconvolve(cube.copy(), self._lsf_kernel.copy(), mode='same')
 
         return cube_conv
 
@@ -195,23 +179,7 @@ class Instrument:
         if self._beam_kernel is None:
             self.set_beam_kernel()
 
-        # cube_conv = fftconvolve(cube.copy(), self._beam_kernel.copy(), mode='same')
-       
-        ################
-        # ##### TEMP HACK FOR DISKY TO WORK RIGHT
-        cnt_calcs = 0
-        max_calcs = 5
-        numnan = 99.
-        while numnan > 0:
-            cnt_calcs += 1
-            if cnt_calcs > max_calcs:
-                break
-            cube_conv = fftconvolve(cube.copy(), self._beam_kernel.copy(), mode='same')
-            numnan = np.sum(~np.isfinite(cube_conv))
-    
-        if cnt_calcs > 1:
-            print("Had to do {} total fft calls".format(cnt_calcs))
-        ################
+        cube_conv = fftconvolve(cube.copy(), self._beam_kernel.copy(), mode='same')
 
         return cube_conv
 
@@ -620,7 +588,7 @@ class LSF(u.Quantity):
 
         default_unit : :class:`~astropy.units.Unit`
             The unit to impose on dispersion if they are specified as floats
-            
+
         """
 
         # TODO: Allow for wavelength dispersion to be specified

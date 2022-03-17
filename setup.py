@@ -30,7 +30,7 @@ with open('README.rst') as readme_file:
 
 requirements = ['numpy', 'scipy', 'matplotlib', 'astropy',
                 'emcee', 'corner', 'cython', 'dill',
-                'shapely', 'spectral-cube', 'radio-beam',
+                'shapely', 'photutils', 'spectral-cube', 'radio-beam',
                 'h5py', 'pandas', 'six']
 
 setup_requirements = ['Cython', 'numpy']
@@ -39,16 +39,17 @@ setup_requirements = ['Cython', 'numpy']
 setup_args = {'name': 'dysmalpy',
         'author': "Taro Shimizu & Sedona Price",
         'author_email': 'shimizu@mpe.mpg.de',
-        'python_requires': '>=3.5',
+        'python_requires': '>=3.7',
         'classifiers': [
             'Development Status :: 5 - Production/Stable',
             'Intended Audience :: Science/Research',
             'License :: OSI Approved :: 3-clause BSD',
             'Natural Language :: English',
             "Topic :: Scientific/Engineering",
-            'Programming Language :: Python :: 3.5',
-            'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
         ],
         'description': "A modelling and fitting package for galaxy kinematics.",
         'install_requires': requirements,
