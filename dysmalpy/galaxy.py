@@ -914,9 +914,13 @@ class Galaxy:
                     else:
                         extrac_type = 'gauss'
                 else:
-                    extrac_type = 'moment'
+                    #extrac_type = 'moment'
+                    # Change default to 'gauss':
+                    extrac_type = 'gauss'
             else:
-                extrac_type = 'moment'
+                #extrac_type = 'moment'
+                # Change default to 'gauss':
+                extrac_type = 'gauss'
 
             if spec_type == "velocity":
                 if extrac_type == 'moment':
@@ -1095,14 +1099,11 @@ class Galaxy:
 
 
                 #----------------------------------------------------------
-                #try:
+                
                 if from_data:
                     aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr,
                             cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
                     aper_model = None
-
-                # except:
-                #     raise TypeError('Unknown method for measuring the 1D profiles.')
 
                 #----------------------------------------------------------
                 else:
@@ -1117,6 +1118,7 @@ class Galaxy:
                                 pix_parallel=pix_parallel,
                                 pix_length=pix_length,
                                 partial_weight=partial_aperture_weight,
+                                moment=False, # use Gaussian extraction
                                 from_data=False)
 
 
