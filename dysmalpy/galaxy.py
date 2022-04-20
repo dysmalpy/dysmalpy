@@ -13,6 +13,7 @@ import logging
 import copy
 
 import os
+import datetime
 
 # Third party imports
 import numpy as np
@@ -34,7 +35,6 @@ from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
-import datetime
 
 try:
     from dysmalpy.lensing import setup_lensing_transformer_from_params
@@ -1099,7 +1099,7 @@ class Galaxy:
 
 
                 #----------------------------------------------------------
-                
+
                 if from_data:
                     aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr,
                             cube=cube_data, center_pixel = center_pixel, pixscale=rstep)

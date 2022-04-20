@@ -12,6 +12,7 @@ import logging
 import copy
 
 import os
+import datetime
 
 # Third party imports
 import numpy as np
@@ -31,6 +32,8 @@ if not havedisplay:
 
 
 import astropy.modeling as apy_mod
+import astropy.io.fits as fits
+from astropy.wcs import WCS
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -54,6 +57,13 @@ from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
 from .config import Config_create_model_data, Config_simulate_cube
+
+try:
+    from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
+    _loaded_LeastChiSquares1D = True
+except:
+    _loaded_LeastChiSquares1D = False
+
 
 # New colormap:
 new_diverging_cmap('RdBu_r', diverge = 0.5,
@@ -1148,10 +1158,8 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
 
     elif gal.data.ndim == 3:
         print("plot_model_multid: ndim=3: moment={}".format(moment))
-        if moment:
-            gal = extract_1D_2D_data_moments_from_cube(gal, inst_corr=True, fill_mask=fill_mask)
-        else:
-            gal = extract_1D_2D_data_gausfit_from_cube(gal, inst_corr=True, fill_mask=fill_mask)
+        gal = extract_1D_2D_data_from_cube(gal, inst_corr=True,
+                                           fill_mask=fill_mask, moment=moment)
         # saves in gal.data1d, gal.data2d
 
         # Data haven't actually been corrected for instrument LSF yet
@@ -1352,11 +1360,8 @@ def plot_model_multid_base(gal, data1d=None, data2d=None, theta=None,
             #EXTRACT 2D MAPS HERE! (don't pre-do the dispersion correction)
             #SET EQUAL TO MODEL_DATA!
             gal.model_data_3D = copy.deepcopy(gal.model_data)
-            if moment:
-                gal.model_data = extract_2D_moments_from_cube(gal.model_data_3D.data, gal, inst_corr=inst_corr_2d)
-            else:
-                gal.model_data = extract_2D_gausfit_from_cube(gal.model_data_3D.data, gal, inst_corr=inst_corr_2d)
-
+            gal.model_data = extract_2D_from_cube(gal.model_data_3D.data, gal,
+                        inst_corr=inst_corr_2d, moment=moment)
             gal.data = copy.deepcopy(data2d)
 
         keyxarr = ['data', 'model', 'residual']
@@ -3901,25 +3906,6 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                 ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
                             vmin=vmin, vmax=vmax, kwargs=kwargs)
 
-            # # ++++++++++++++++++++++++++
-            # imtmp = im.copy()
-            # imtmp[gal1.model_data.mask] = vmax #vel_vmax
-            # imtmp[~gal1.model_data.mask] = np.nan
-            #
-            # # Create an alpha channel of linearly increasing values moving to the right.
-            # alphas = np.ones(im.shape)
-            # alphas[~gal1.model_data.mask] = alpha_masked
-            # alphas[gal1.model_data.mask] = 1.-alpha_unmasked
-            # # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-            # imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
-            # imtmpalph = cm.Greys_r(imtmpalph)
-            # # Now set the alpha channel to the one we created above
-            # imtmpalph[..., -1] = alphas
-            #
-            # immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-            # # ++++++++++++++++++++++++++
-
-
             ####################################
             # Show a 1arcsec line:
             ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
@@ -4305,10 +4291,21 @@ def make_clean_mcmc_plot_names(mcmcResults):
 
 #############################################################
 
-def extract_1D_2D_data_gausfit_from_cube(gal,
+def extract_1D_2D_data_from_cube(gal,
+            moment=False,
+            # method='gauss',
             slit_width=None, slit_pa=None,
             aper_dist=None, inst_corr=True,
             fill_mask=False):
+
+
+    # if method.lower().strip() == 'gauss':
+    #     moment = False
+    # elif method.lower().strip() == 'moment':
+    #     moment=True
+    # else:
+    #     raise ValueError("Method {} not defined!".format(method))
+
     try:
         if gal.data2d is not None:
             extract = False
@@ -4319,8 +4316,9 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
 
 
     if extract:
-        gal.data2d = extract_2D_gausfit_from_cube(gal.data.data, gal,
-                        errcube=gal.data.error, inst_corr=inst_corr)
+        gal.data2d = extract_2D_from_cube(gal.data.data, gal,
+                        errcube=gal.data.error,
+                        moment=moment, inst_corr=inst_corr)
 
 
     #
@@ -4336,45 +4334,11 @@ def extract_1D_2D_data_gausfit_from_cube(gal,
         gal.data1d = extract_1D_from_cube(gal.data.data, gal,
                 errcube=gal.data.error,
                 slit_width=slit_width, slit_pa=slit_pa, aper_dist=aper_dist,
-                moment=False, inst_corr=inst_corr, fill_mask=fill_mask)
+                moment=moment, inst_corr=inst_corr, fill_mask=fill_mask)
 
 
     return gal
 
-#
-##################################################
-
-def extract_1D_2D_data_moments_from_cube(gal,
-            slit_width=None, slit_pa=None,
-            aper_dist=None, inst_corr=True,
-            fill_mask=False):
-    try:
-        if gal.data2d is not None:
-            extract = False
-        else:
-            extract = True
-    except:
-        extract = True
-
-
-    if extract:
-        gal.data2d = extract_2D_moments_from_cube(gal.data.data, gal, inst_corr=inst_corr)
-
-
-    try:
-        if gal.data1d is not None:
-            extract = False
-        else:
-            extract = True
-    except:
-        extract = True
-
-    if extract:
-        gal.data1d = extract_1D_from_cube(gal.data.data, gal, slit_width=slit_width,
-                slit_pa=slit_pa, aper_dist=aper_dist, moment=True, inst_corr=inst_corr, fill_mask=fill_mask)
-
-
-    return gal
 
 def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
             slit_width=None, slit_pa=None,
@@ -4478,6 +4442,11 @@ def aper_centers_arcsec_from_cube(data_cube, gal, mask=None,
     return aper_centers_arcsec
 
 
+
+###################################################################
+###################################################################
+###################################################################
+
 def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
             slit_width=None, slit_pa=None,
             aper_dist=None,
@@ -4577,156 +4546,772 @@ def extract_1D_from_cube(data_cube, gal, errcube=None, mask=None,
 
     return data1d
 
+# def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
+#     # cubein must be SpectralCube instance!
+#
+#     mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=bool), wcs=gal.data.data.wcs)
+#
+#     data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
+#
+#     #
+#     if gal.data.smoothing_type is not None:
+#         data_cube = apply_smoothing_3D(data_cube,
+#                     smoothing_type=gal.data.smoothing_type,
+#                     smoothing_npix=gal.data.smoothing_npix)
+#         smoothing_type=gal.data.smoothing_type
+#         smoothing_npix=gal.data.smoothing_npix
+#     else:
+#         smoothing_type = None
+#         smoothing_npix = None
+#
+#
+#     ## GAUSFIT:
+#     mom0 = data_cube.moment0().to(u.km/u.s).value
+#     mom1 = data_cube.moment1().to(u.km/u.s).value
+#     mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
+#
+#     flux = np.zeros(mom0.shape)
+#     vel = np.zeros(mom0.shape)
+#     disp = np.zeros(mom0.shape)
+#
+#
+#     wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
+#     try:
+#         err_cube = gal.data.error.unmasked_data[:].value
+#         err_cube[err_cube==99.] = err_cube.min()
+#         err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#
+#         wgt_cube = 1./(err_cube)
+#
+#
+#     except:
+#        pass
+#
+#     for i in range(mom0.shape[0]):
+#         for j in range(mom0.shape[1]):
+#             mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
+#                                     mean=mom1[i,j],
+#                                     stddev=np.abs(mom2[i,j]))
+#             mod.amplitude.bounds = (0, None)
+#             mod.stddev.bounds = (0, None)
+#             mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+#
+#
+#             fitter = apy_mod.fitting.LevMarLSQFitter()
+#
+#             # wgts = None
+#             wgts = wgt_cube[:,i,j]
+#             if (np.max(np.abs(wgts)) == 0):
+#                 wgts = None
+#
+#             ########################
+#             # Masked fit:
+#             spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
+#             flux_arr = data_cube.filled_data[:,i,j].value
+#
+#             if np.isfinite(flux_arr).sum() >= len(mod._parameters):
+#                 spec_arr = spec_arr[np.isfinite(flux_arr)]
+#                 if wgts is not None:
+#                     wgts = wgts[np.isfinite(flux_arr)]
+#                 flux_arr = flux_arr[np.isfinite(flux_arr)]
+#
+#
+#             best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+#             ########################
+#
+#             flux[i,j] = np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
+#             vel[i,j] = best_fit.mean.value
+#             disp[i,j] = best_fit.stddev.value
+#
+#
+#     ###########################
+#     # Flatten mask: only mask fully masked spaxels:
+#     msk3d_coll = np.sum(gal.data.mask, axis=0)
+#     whmsk = np.where(msk3d_coll == 0)
+#     mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+#     mask[whmsk] = 0
+#
+#
+#     # Artificially mask the bad stuff:
+#     flux[~np.isfinite(flux)] = 0
+#     vel[~np.isfinite(vel)] = 0
+#     disp[~np.isfinite(disp)] = 0
+#     mask[~np.isfinite(vel)] = 0
+#     mask[~np.isfinite(disp)] = 0
+#
+#
+#     data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
+#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+#                         inst_corr = inst_corr, moment=False,
+#                         xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
+#
+#     return data2d
+#
+#
+# def extract_2D_gausfit_from_cube_general(cubein, err=None, mask=None, inst_corr=True):
+#     # cubein must be SpectralCube instance!
+#
+#     # cube must be SpectralCube instance!
+#     orig_mask = copy.deepcopy(mask)
+#     # mask = BooleanArrayMask(mask= np.array(mask, dtype=bool),
+#     #                         wcs=cube.wcs)
+#     if orig_mask is None:
+#         mask_start = np.ones(cube.shape)
+#     else:
+#         mask_start = copy.deepcopy(mask)
+#
+#     mask = BooleanArrayMask(mask= np.array(mask_start, dtype=bool),
+#                             wcs=cube.wcs)
+#
+#     data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
+#
+#     if err is not None:
+#         err_cube =  SpectralCube(data=err.unmasked_data[:].value, mask=mask, wcs=err.wcs)
+#
+#
+#
+#     ## GAUSFIT:
+#     mom0 = data_cube.moment0().to(u.km/u.s).value
+#     mom1 = data_cube.moment1().to(u.km/u.s).value
+#     mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
+#
+#     flux = np.zeros(mom0.shape)
+#     vel = np.zeros(mom0.shape)
+#     disp = np.zeros(mom0.shape)
+#
+#
+#     wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
+#     try:
+#         ecube = err_cube.unmasked_data[:].value
+#         ecube[ecube==99.] = ecube.min()
+#         # err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
+#
+#         wgt_cube = 1./(ecube)
+#
+#     except:
+#        pass
+#
+#     for i in range(mom0.shape[0]):
+#         for j in range(mom0.shape[1]):
+#             mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
+#                                     mean=mom1[i,j],
+#                                     stddev=np.abs(mom2[i,j]))
+#             mod.amplitude.bounds = (0, None)
+#             mod.stddev.bounds = (0, None)
+#             mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+#
+#
+#             fitter = apy_mod.fitting.LevMarLSQFitter()
+#
+#             # wgts = None
+#             wgts = wgt_cube[:,i,j]
+#             if (np.max(np.abs(wgts)) == 0):
+#                 wgts = None
+#
+#             ########################
+#             # Masked fit:
+#             spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
+#             flux_arr = data_cube.filled_data[:,i,j].value
+#
+#             if np.isfinite(flux_arr).sum() >= len(mod._parameters):
+#                 spec_arr = spec_arr[np.isfinite(flux_arr)]
+#                 if wgts is not None:
+#                     wgts = wgts[np.isfinite(flux_arr)]
+#                 flux_arr = flux_arr[np.isfinite(flux_arr)]
+#
+#
+#             best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+#             ########################
+#
+#             flux[i,j] = np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
+#             vel[i,j] = best_fit.mean.value
+#             disp[i,j] = best_fit.stddev.value
+#
+#
+#     ###########################
+#     # Flatten mask: only mask fully masked spaxels:
+#     msk3d_coll = np.sum(mask_start, axis=0)
+#     whmsk = np.where(msk3d_coll == 0)
+#     mask = np.ones((mask_start.shape[1], mask_start.shape[2]))
+#     mask[whmsk] = 0
+#
+#
+#     # Artificially mask the bad stuff:
+#     mask[~np.isfinite(vel)] = 0
+#     mask[~np.isfinite(disp)] = 0
+#     flux[~np.isfinite(flux)] = 0
+#     vel[~np.isfinite(vel)] = 0
+#     disp[~np.isfinite(disp)] = 0
+#
+#
+#     data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+#                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
+#                         smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
+#                         inst_corr = inst_corr, moment=False,
+#                         xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
+#
+#     return data2d
+#
 
-def extract_2D_gausfit_from_cube(cubein, gal, errcube=None, inst_corr=True):
-    # cubein must be SpectralCube instance!
+# def extract_2D_from_cube_general_REROUTE(cube, err=None, mask=None,
+#                                  inst_corr=True,
+#                                  directly_correct_LSF=False, LSF_disp_kms=0,
+#                                  moment=False,
+#                                  pixscale=None, xcenter=None, ycenter=None,
+#                                  gauss_extract_with_c=True):
+#
+#     data2d = extract_2D_gausfit_from_cube_general(cube, err=err,
+#                 mask=mask, inst_corr=inst_corr)
+#     return data2d
 
-    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=bool), wcs=gal.data.data.wcs)
+def extract_2D_from_cube(cube, gal, errcube=None,
+                         inst_corr=True, moment=False,
+                         gauss_extract_with_c=True):
+    # cube must be SpectralCube instance!
+    data2d = extract_2D_from_cube_general(cube, err=errcube, mask=gal.data.mask,
+                                          inst_corr=inst_corr,
+                                          directly_correct_LSF=False,
+                                          LSF_disp_kms=0,
+                                          moment=moment,
+                                          pixscale=gal.instrument.pixscale.value,
+                                          xcenter=gal.data.xcenter,
+                                          ycenter=gal.data.ycenter,
+                                          gauss_extract_with_c=gauss_extract_with_c)
 
-    data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
+    return data2d
 
-    #
-    if gal.data.smoothing_type is not None:
-        data_cube = apply_smoothing_3D(data_cube,
-                    smoothing_type=gal.data.smoothing_type,
-                    smoothing_npix=gal.data.smoothing_npix)
-        smoothing_type=gal.data.smoothing_type
-        smoothing_npix=gal.data.smoothing_npix
+def extract_2D_from_cube_general(cube, err=None, mask=None,
+                                 inst_corr=True,
+                                 directly_correct_LSF=False, LSF_disp_kms=0,
+                                 moment=False,
+                                 pixscale=None, xcenter=None, ycenter=None,
+                                 gauss_extract_with_c=True):
+    # cube must be SpectralCube instance!
+    orig_mask = copy.deepcopy(mask)
+    # mask = BooleanArrayMask(mask= np.array(mask, dtype=bool),
+    #                         wcs=cube.wcs)
+    if orig_mask is None:
+        mask_start = np.ones(cube.shape)
     else:
-        smoothing_type = None
-        smoothing_npix = None
+        mask_start = copy.deepcopy(mask)
+
+    mask = BooleanArrayMask(mask= np.array(mask_start, dtype=bool),
+                            wcs=cube.wcs)
 
 
-    ## GAUSFIT:
-    mom0 = data_cube.moment0().to(u.km/u.s).value
-    mom1 = data_cube.moment1().to(u.km/u.s).value
-    mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
-
-    flux = np.zeros(mom0.shape)
-    vel = np.zeros(mom0.shape)
-    disp = np.zeros(mom0.shape)
+    data_cube = SpectralCube(data=cube.unmasked_data[:].value, mask=mask, wcs=cube.wcs)
+    if err is not None:
+        err_cube =  SpectralCube(data=err.unmasked_data[:].value, mask=mask, wcs=err.wcs)
 
 
-    wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
-    try:
-        err_cube = gal.data.error.unmasked_data[:].value
-        err_cube[err_cube==99.] = err_cube.min()
-        err_cube = err_cube / np.abs(data_unscaled[np.isfinite(data_unscaled)]).max()
 
-        wgt_cube = 1./(err_cube)
+    if moment:
+        extrac_type = 'moment'
+    else:
+        extrac_type = 'gauss'
+
+    if extrac_type == 'moment':
+        flux = data_cube.moment0().to(u.km/u.s).value
+        vel = data_cube.moment1().to(u.km/u.s).value
+        disp = data_cube.linewidth_sigma().to(u.km/u.s).value
+    elif extrac_type == 'gauss':
+        mom0 = data_cube.moment0().to(u.km/u.s).value
+        mom1 = data_cube.moment1().to(u.km/u.s).value
+        mom2 = data_cube.linewidth_sigma().to(u.km/u.s).value
+
+        # Clean up NaNs in moms for initial guesses:
+        mom0[~np.isfinite(mom0)] = 0.0
+        mom1[~np.isfinite(mom1)] = 0.0
+        mom2[~np.isfinite(mom2)] = 20.0
+
+        flux = np.zeros(mom0.shape)
+        vel = np.zeros(mom0.shape)
+        disp = np.zeros(mom0.shape)
+        # ++++++++++
+        my_least_chi_squares_1d_fitter = None
+        if (gauss_extract_with_c) & (_loaded_LeastChiSquares1D):
+            if gauss_extract_with_c is not None and \
+               gauss_extract_with_c is not False:
+                # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
+                # but note that if a spectrum has data all too close to zero, it will fail.
+                # try to prevent this by excluding too low data
+
+                # CLEAN DATA
+                data_cleaned = data_cube.filled_data[:,:,:].value
+
+                if err is not None:
+                    dataerr = err_cube.filled_data[:,:,:].value
+                    dataerr[dataerr==0.] = 99.
+                    dataerr[dataerr==99.] = dataerr.min()
+                else:
+                    dataerr = None
+
+                # data_cleaned = copy.deepcopy(data_cube.unmasked_data[:,:,:].value)
+                if mask_start is not None:
+                    this_fitting_mask = copy.copy(mask_start)
+                else:
+                    this_fitting_mask = 'auto'
+
+                if logger.level > logging.DEBUG:
+                    this_fitting_verbose = True
+                else:
+                    this_fitting_verbose = False
 
 
-    except:
-       pass
+                # do the least chisquares fitting
+                my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
+                        x = data_cube.spectral_axis.to(u.km/u.s).value,
+                        data = data_cleaned, #data_cube.unmasked_data[:,:,:].value, #
+                        dataerr = dataerr,
+                        datamask = this_fitting_mask,
+                        initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
+                        nthread = 4,
+                        verbose = this_fitting_verbose)
+        if my_least_chi_squares_1d_fitter is not None:
+            logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+            my_least_chi_squares_1d_fitter.runFitting()
+            flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
+            vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
+            disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
+            flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
+            logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
 
-    for i in range(mom0.shape[0]):
-        for j in range(mom0.shape[1]):
-            mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
-                                    mean=mom1[i,j],
-                                    stddev=np.abs(mom2[i,j]))
-            mod.amplitude.bounds = (0, None)
-            mod.stddev.bounds = (0, None)
-            mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+            if np.sum(np.isfinite(vel)) == 0:
+                alt_fit = True
+            else:
+                alt_fit = False
+        else:
+            alt_fit = True
+
+        if alt_fit:
+            # HAS ERROR:
+            if err is not None:
+                # print("Doing alt fit: astropy model!")
+                wgt_cube = np.array(data_cube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
+                try:
+                    ecube = err_cube.unmasked_data[:].value
+                    ecube[ecube==99.] = ecube.min()
+                    wgt_cube = 1./(ecube)
+                except:
+                   pass
+
+                for i in range(mom0.shape[0]):
+                    for j in range(mom0.shape[1]):
+                        mod = apy_mod.models.Gaussian1D(amplitude=mom0[i,j] / np.sqrt(2 * np.pi * mom2[i,j]**2),
+                                                mean=mom1[i,j],
+                                                stddev=np.abs(mom2[i,j]))
+                        mod.amplitude.bounds = (0, None)
+                        mod.stddev.bounds = (0, None)
+                        mod.mean.bounds = (data_cube.spectral_axis.to(u.km/u.s).value.min(), data_cube.spectral_axis.to(u.km/u.s).value.max())
+
+                        fitter = apy_mod.fitting.LevMarLSQFitter()
+
+                        wgts = wgt_cube[:,i,j]
+                        if (np.max(np.abs(wgts)) == 0):
+                            wgts = None
+
+                        ########################
+                        # Masked fit:
+                        spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
+                        flux_arr = data_cube.filled_data[:,i,j].value
+
+                        if np.isfinite(flux_arr).sum() >= len(mod._parameters):
+                            spec_arr = spec_arr[np.isfinite(flux_arr)]
+                            if wgts is not None:
+                                wgts = wgts[np.isfinite(flux_arr)]
+                            flux_arr = flux_arr[np.isfinite(flux_arr)]
 
 
-            fitter = apy_mod.fitting.LevMarLSQFitter()
+                        best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+                        ########################
 
-            # wgts = None
-            wgts = wgt_cube[:,i,j]
-            if (np.max(np.abs(wgts)) == 0):
-                wgts = None
+                        flux[i,j] = np.sqrt( 2. * np.pi) * best_fit.stddev.value * best_fit.amplitude
+                        vel[i,j] = best_fit.mean.value
+                        disp[i,j] = best_fit.stddev.value
 
-            ########################
-            # Masked fit:
-            spec_arr = data_cube.spectral_axis.to(u.km/u.s).value
-            flux_arr = data_cube.filled_data[:,i,j].value
+            # NO ERROR:
+            else:
+                for i in range(mom0.shape[0]):
+                    for j in range(mom0.shape[1]):
+                        if i==0 and j==0:
+                            logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        best_fit = gaus_fit_sp_opt_leastsq(data_cube.spectral_axis.to(u.km/u.s).value,
+                                            data_cube.unmasked_data[:,i,j].value,
+                                            mom0[i,j], mom1[i,j], mom2[i,j])
+                        flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                        vel[i,j] = best_fit[1]
+                        disp[i,j] = best_fit[2]
+                        if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
+                            logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
 
-            if np.isfinite(flux_arr).sum() >= len(mod._parameters):
-                spec_arr = spec_arr[np.isfinite(flux_arr)]
-                if wgts is not None:
-                    wgts = wgts[np.isfinite(flux_arr)]
-                flux_arr = flux_arr[np.isfinite(flux_arr)]
-
-
-            best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
-            ########################
-
-            flux[i,j] = np.sqrt( 2. * np.pi)  * best_fit.stddev.value * best_fit.amplitude
-            vel[i,j] = best_fit.mean.value
-            disp[i,j] = best_fit.stddev.value
+        # ----------
 
 
     ###########################
     # Flatten mask: only mask fully masked spaxels:
-    msk3d_coll = np.sum(gal.data.mask, axis=0)
+    msk3d_coll = np.sum(mask_start, axis=0)
     whmsk = np.where(msk3d_coll == 0)
-    mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
+    mask = np.ones((mask.shape[1], mask.shape[2]))
     mask[whmsk] = 0
 
 
+    ## Check about instrument correction:
+    if inst_corr & directly_correct_LSF:
+        raise ValueError("Should not pre-correct for LSF (`directly_correct_LSF=True`) if setting `inst_corr=True` !!")
+
+    if directly_correct_LSF & (LSF_disp_kms > 0.):
+        disp = np.sqrt(disp**2 - LSF_disp_kms**2)
+        disp[~np.isfinite(disp)] = 0   # Set the dispersion to zero when its below
+                                       # below the instrumental dispersion
+
+
     # Artificially mask the bad stuff:
+    mask[~np.isfinite(flux)] = 0
+    mask[~np.isfinite(vel)] = 0
+    mask[~np.isfinite(disp)] = 0
     flux[~np.isfinite(flux)] = 0
     vel[~np.isfinite(vel)] = 0
     disp[~np.isfinite(disp)] = 0
-    mask[~np.isfinite(vel)] = 0
-    mask[~np.isfinite(disp)] = 0
 
+    if np.sum(mask) == 0:
+        raise ValueError
 
-    data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
+    data2d = Data2D(pixscale=pixscale, velocity=vel, vel_disp=disp, mask=mask,
                         flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
-                        smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = inst_corr, moment=False,
-                        xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
+                        inst_corr=inst_corr, moment=moment,
+                        xcenter=xcenter, ycenter=ycenter)
 
     return data2d
 
 
 
+def extract_2D_from_cube_file(fname=None, fname_err=None, fname_mask=None,
+                              moment=False, inst_corr=False,
+                              directly_correct_LSF=False, LSF_disp_kms=0,
+                              xcenter=None, ycenter=None,
+                              gauss_extract_with_c=True):
 
-def extract_2D_moments_from_cube(cubein, gal, inst_corr=True):
-    # cubein must be SpectralCube instance!
+    # LOAD STUFF: load cube into SpectralCube instance!
 
-    mask = BooleanArrayMask(mask= np.array(gal.data.mask, dtype=bool), wcs=cubein.wcs)
+    cube_raw = fits.getdata(fname)
+    hdr = fits.getheader(fname)
 
-    data_cube = SpectralCube(data=cubein.unmasked_data[:].value, mask=mask, wcs=cubein.wcs)
+    # Should be square:
+    if np.abs(hdr['CDELT1']) != np.abs(hdr['CDELT2']):
+        raise ValueError
 
-    if gal.data.smoothing_type is not None:
-        data_cube = apply_smoothing_3D(data_cube,
-                    smoothing_type=gal.data.smoothing_type,
-                    smoothing_npix=gal.data.smoothing_npix)
-        smoothing_type=gal.data.smoothing_type
-        smoothing_npix=gal.data.smoothing_npix
+    if hdr['CUNIT1'].strip().upper() in ['DEGREE', 'DEG']:
+        pixscale = np.abs(hdr['CDELT1']) * 3600.    # convert from deg CDELT1 to arcsec
+    elif hdr['CUNIT1'].strip().upper() in ['ARCSEC']:
+        pixscale = np.abs(hdr['CDELT1'])
+
+    # Define WCS:
+    w = WCS(hdr)
+    spec_unit = u.km/u.s
+
+    cube = SpectralCube(data=cube_raw, wcs=w).with_spectral_unit(spec_unit)
+
+    if fname_err is not None:
+        err_raw = fits.getdata(fname_err)
+        err = SpectralCube(data=err_raw, wcs=w).with_spectral_unit(spec_unit)
     else:
-        smoothing_type = None
-        smoothing_npix = None
-
-    vel = data_cube.moment1().to(u.km/u.s).value
-    disp = data_cube.linewidth_sigma().to(u.km/u.s).value
-    flux = data_cube.moment0().to(u.km/u.s).value
-
-    msk3d_coll = np.sum(gal.data.mask, axis=0)
-    whmsk = np.where(msk3d_coll == 0)
-    mask = np.ones((gal.data.mask.shape[1], gal.data.mask.shape[2]))
-    mask[whmsk] = 0
+        err = None
+    if fname_mask is not None:
+        mask = fits.getdata(fname_mask)
+    else:
+        mask = None
 
 
-    # Artificially mask the bad stuff:
-    flux[~np.isfinite(flux)] = 0
-    vel[~np.isfinite(vel)] = 0
-    disp[~np.isfinite(disp)] = 0
-    mask[~np.isfinite(vel)] = 0
-    mask[~np.isfinite(disp)] = 0
-
-
-    # setup data2d:
-    data2d = Data2D(pixscale=gal.instrument.pixscale.value, velocity=vel, vel_disp=disp, mask=mask,
-                        flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
-                        smoothing_type=smoothing_type, smoothing_npix=smoothing_npix,
-                        inst_corr = inst_corr, moment=True,
-                        xcenter=gal.data.xcenter, ycenter=gal.data.ycenter)
+    data2d = extract_2D_from_cube_general(cube, err=err, mask=mask,
+                                     moment=moment, inst_corr=inst_corr,
+                                     directly_correct_LSF=directly_correct_LSF,
+                                     LSF_disp_kms=LSF_disp_kms, pixscale=pixscale,
+                                     xcenter=xcenter, ycenter=ycenter,
+                                     gauss_extract_with_c=gauss_extract_with_c)
 
     return data2d
 
+def plot_axes_flux_vel_disp(flux, vel, disp, axes=None,
+                            mask=None, pixscale=None,
+                            center_pixel_kin=None, PA_deg=None,
+                            plottype='data',
+                            label='',
+                            show_contours=True,
+                            apply_mask=True,
+                            vrange_dict=None,
+                            show_xlabels=True,
+                            cmap=None,
+                            **kwargs):
+
+
+    ims = [flux, vel, disp]
+    keyxarr = ['flux', 'velocity', 'dispersion']
+    keyxtitlearr = ['Flux', r'$V$', r'$\sigma$']
+
+    int_mode = "nearest"
+    origin = 'lower'
+    bad_color = 'white'
+    color_annotate = 'black'
+    if cmap is None:
+        cmap = copy.copy(cm.get_cmap("Spectral_r"))
+        cmap.set_bad(color=bad_color)
+
+
+    for i, im in enumerate(ims):
+        ax = axes[i]
+
+        xt = keyxtitlearr[i]
+        yt = label
+
+        if apply_mask:
+            im[~mask] = np.NaN
+
+        if vrange_dict is not None:
+            vmin = vrange_dict[keyxarr[i]][0]
+            vmax = vrange_dict[keyxarr[i]][1]
+        else:
+            vmin = None
+            vmax = None
+        imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                         vmin=vmin, vmax=vmax, origin=origin)
+
+        ####################################
+        if show_contours:
+            ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[i],
+                                            plottype=plottype,
+                                            vmin=vmin, vmax=vmax,
+                                            kwargs=kwargs)
+
+        # Show a 1arcsec line:
+        if pixscale is not None:
+            ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+                                      ruler_loc='lowerright',
+                                      color=color_annotate)
+
+        if PA_deg is not None:
+            ax = plot_major_minor_axes_2D_general(ax, im, mask,
+                        center_pixel_kin=center_pixel_kin, PA_deg=PA_deg)
+
+        ####################################
+
+        if i == 0:
+            ax.set_ylabel(yt)
+
+        for pos in ['top', 'bottom', 'left', 'right']:
+            ax.spines[pos].set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        #print("ytitle={}".format(yt))
+
+        if show_xlabels:
+            ax.set_title(xt)
+
+        #########
+        cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+                #fraction=5./101.,
+                fraction=4.75/101.,
+                aspect=20.)
+        cbar = plt.colorbar(imax, cax=cax, **kw)
+        cbar.ax.tick_params(labelsize=8)
+
+        axes[i] = ax
+
+    return axes
+
+
+def plot_2D_from_cube_files(fileout=None,
+                            fname_cube=None, fname_cube2=None,
+                            fname_err=None, fname_err2=None,
+                            fname_mask=None, fname_mask2=None,
+                            show_residual=True,
+                            directly_correct_LSF=False, LSF_disp_kms=0,
+                            directly_correct_LSF2=False, LSF_disp_kms2=0,
+                            label='Gal', label2='Gal2',
+                            moment=False, xcenter=None, ycenter=None,
+                            PA_deg=None,
+                            show_contours=True,
+                            symmetric_residuals=True,
+                            max_residual=100.,
+                            match_ranges=True,
+                            **kwargs):
+
+    # Load data
+    data1 = extract_2D_from_cube_file(fname=fname_cube, fname_err=fname_err,
+                                      fname_mask=fname_mask,
+                                      inst_corr=False,
+                                      directly_correct_LSF=directly_correct_LSF,
+                                      LSF_disp_kms=LSF_disp_kms, moment=moment,
+                                      xcenter=xcenter, ycenter=ycenter)
+    if fname_cube2 is not None:
+        data2 = extract_2D_from_cube_file(fname=fname_cube2, fname_err=fname_err2,
+                                          fname_mask=fname_mask2,
+                                          inst_corr=False,
+                                          directly_correct_LSF=directly_correct_LSF2,
+                                          LSF_disp_kms=LSF_disp_kms2, moment=moment,
+                                          xcenter=xcenter, ycenter=ycenter)
+
+
+    # Setup plotting
+    # Set contour defaults, if not specifed:
+    for key in _kwargs_contour_defaults.keys():
+        if key not in kwargs.keys():
+            kwargs[key] = _kwargs_contour_defaults[key]
+
+    cmap = copy.copy(cm.get_cmap("Spectral_r"))
+    bad_color = 'white'
+    cmap.set_bad(color=bad_color)
+
+    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
+    cmap_resid.set_bad(color=bad_color)
+    cmap_resid.set_over(color='magenta')
+    cmap_resid.set_under(color='blueviolet')
+
+
+
+    # Setup plot structures:
+    if xcenter is None:
+        xcenter = (data1.data['flux'].shape[1]-1.)/ 2.
+    if ycenter is None:
+        ycenter = (data1.data['flux'].shape[0]-1.)/ 2.
+    vrange_dict = {'flux': (None,None),
+                   'velocity': (None,None),
+                   'dispersion': (None,None)}
+    cube1_dict = {'plottype': 'data',
+                  'cmap': cmap,
+                  'flux': data1.data['flux'],
+                  'vel': data1.data['velocity'],
+                  'disp': data1.data['dispersion'],
+                  'mask': data1.mask,
+                  'center_pixel_kin': (xcenter, ycenter),
+                  'PA_deg': PA_deg,
+                  'pixscale': data1.pixscale,
+                  'label': label,
+                  'vrange_dict': vrange_dict}
+
+    cubes_list = [cube1_dict]
+    if fname_cube2 is not None:
+        if match_ranges:
+            mins = []
+            maxs = []
+            keys = ['flux', 'velocity', 'dispersion']
+            for key in keys:
+                min = np.min([data1.data[key][np.isfinite(data1.data[key])].min(),
+                              data2.data[key][np.isfinite(data2.data[key])].min()])
+                max = np.max([data1.data[key][np.isfinite(data1.data[key])].max(),
+                              data2.data[key][np.isfinite(data2.data[key])].max()])
+                mins.append(min)
+                maxs.append(max)
+            vrange_dict = {'flux': (mins[0],maxs[0]),
+                           'velocity': (mins[1],maxs[1]),
+                           'dispersion': (mins[2],maxs[2])}
+            cube1_dict['vrange_dict'] = vrange_dict
+            cubes_list = [cube1_dict]
+        cube2_dict = {'plottype': 'data',
+                      'cmap': cmap,
+                      'flux': data2.data['flux'],
+                      'vel': data2.data['velocity'],
+                      'disp': data2.data['dispersion'],
+                      'mask': data2.mask,
+                      'center_pixel_kin': (xcenter, ycenter),
+                      'PA_deg': PA_deg,
+                      'pixscale': data2.pixscale,
+                      'label': label,
+                      'vrange_dict': vrange_dict}
+
+        cubes_list.append(cube2_dict)
+        if show_residual:
+            if symmetric_residuals:
+                vmin = -max_residual
+                vmax = max_residual
+                im = cube2_dict['flux']-cube1_dict['flux']
+                fabsmax = np.max(np.abs(im[np.isfinite(im)]))
+                fmin = -fabsmax
+                fmax = fabsmax
+            else:
+                vmin = None
+                vmax = None
+                fmin = None
+                fmax = None
+            vrange_dict_resid = {'flux': (fmin,fmax),
+                           'velocity': (vmin,vmax),
+                           'dispersion': (vmin,vmax)}
+            resid_dict = {'plottype': 'residual',
+                          'cmap': cmap_resid,
+                          'flux': cube2_dict['flux']-cube1_dict['flux'],
+                          'vel': cube2_dict['vel']-cube1_dict['vel'],
+                          'disp': cube2_dict['disp']-cube1_dict['disp'],
+                          'mask': cube1_dict['mask'],
+                          'center_pixel_kin': (xcenter, ycenter),
+                          'PA_deg': PA_deg,
+                          'pixscale': cube1_dict['pixscale'],
+                          'label': 'Residuals: {}-{}'.format(label2,label),
+                          'vrange_dict': vrange_dict_resid}
+            cubes_list.append(resid_dict)
+
+
+
+    ######################################
+    # Setup axes:
+
+    ncols = 3
+    nrows = len(cubes_list)
+
+    padx = pady = 0.25
+    xextra = 0.25 #0.15
+    yextra = 0.25
+    scale = 2.5
+
+    f = plt.figure()
+    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale,
+                      (nrows+(nrows-1)*pady+yextra)*scale)
+
+    padx = 0.2
+    pady = 0.1
+    gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+    axes = []
+    for jj in range(nrows):
+        for mm in range(ncols):
+            axes.append(plt.subplot(gs02[jj,mm]))
+
+
+    for i, cdict in enumerate(cubes_list):
+        if i == 0:
+            show_xlabels = True
+        else:
+            show_xlabels = False
+
+        axes[ncols*i:(ncols)*(i+1)] = plot_axes_flux_vel_disp(cdict['flux'], cdict['vel'], cdict['disp'],
+                                            axes=axes[ncols*i:(ncols)*(i+1)],
+                                            mask=cdict['mask'],
+                                            pixscale=cdict['pixscale'],
+                                            center_pixel_kin=cdict['center_pixel_kin'],
+                                            PA_deg=cdict['PA_deg'],
+                                            plottype=cdict['plottype'],
+                                            label=cdict['label'],
+                                            vrange_dict=cdict['vrange_dict'],
+                                            cmap=cdict['cmap'],
+                                            show_xlabels=show_xlabels,
+                                            show_contours=show_contours, **kwargs)
+
+
+
+    #############################################################
+    # Save plot to file or display directly:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+
+
+###################################################################
+###################################################################
+###################################################################
 
 
 #############################################################
@@ -4834,11 +5419,32 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
         center_pixel_kin = ((im.shape[1]-1.)/ 2. + gal.model.geometry.xshift.value,
                             (im.shape[0]-1.)/ 2. + gal.model.geometry.yshift.value)
 
+    return plot_major_minor_axes_2D_general(ax, im, mask,
+                        center_pixel_kin=center_pixel_kin,
+                        PA_deg=gal.model.components['geom'].pa.value,
+                        finer_step=finer_step,
+                        lw_major=lw_major, lw_minor=lw_minor,
+                        fac2=fac2, fac_len_minor_marker=fac_len_minor_marker,
+                        color_kin_axes=color_kin_axes,
+                        color_kin_axes2=color_kin_axes2)
+
+
+
+def plot_major_minor_axes_2D_general(ax, im, mask,
+    center_pixel_kin=None, PA_deg=None,
+    finer_step=True,
+    lw_major = 3., lw_minor = 2.25, fac2 = 0.66, fac_len_minor_marker = 1./20.,
+    color_kin_axes = 'black', color_kin_axes2 = 'white'):
+    ####################################
+    # Show MAJOR AXIS line, center:
+    if center_pixel_kin is None:
+        center_pixel_kin = ((im.shape[1]-1.)/ 2., (im.shape[0]-1.)/ 2.)
+
     # Start going to neg, pos of center, at PA, and check if mask True/not
     #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
 
-    cPA = np.cos(gal.model.components['geom'].pa.value * np.pi/180.)
-    sPA = np.sin(gal.model.components['geom'].pa.value * np.pi/180.)
+    cPA = np.cos(PA_deg * np.pi/180.)
+    sPA = np.sin(PA_deg * np.pi/180.)
 
     A_xs = []
     A_ys = []
@@ -4885,7 +5491,6 @@ def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
     ax.plot(B_xs, B_ys,color=color_kin_axes2, lw=lw_minor*fac2, ls='-')
 
     return ax
-
 
 
 def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
@@ -4958,6 +5563,11 @@ def plot_contours_2D_multitype(im, ax=None, mapname='velocity', plottype='data',
         delta_cont_minor_resid = kwargs['delta_cont_flux_minor_resid']
     else:
         raise ValueError
+
+    if vmin is None:
+        vmin = im[np.isfinite(im)].min()
+    if vmax is None:
+        vmax = im[np.isfinite(im)].max()
 
     if (plottype != 'residual'):
         #####
