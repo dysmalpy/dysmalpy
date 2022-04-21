@@ -5216,7 +5216,7 @@ def plot_2D_from_cube_files(fileout=None,
                       'center_pixel_kin': (xcenter, ycenter),
                       'PA_deg': PA_deg,
                       'pixscale': data2.pixscale,
-                      'label': label,
+                      'label': label2,
                       'vrange_dict': vrange_dict}
 
         cubes_list.append(cube2_dict)
