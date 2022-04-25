@@ -1,0 +1,9 @@
+# How the code structure SVG was made:
+
+(1) Edited keynote
+
+(2) Exported keynote to PDF
+
+(3) Import PDF to Inkscape
+
+(4) Save as SVG in Inkscape
