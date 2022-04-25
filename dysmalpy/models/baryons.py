@@ -43,9 +43,12 @@ _dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
 
 
 # ALT NOORDERMEER DIRECTORY:
-# _dir_sersic_profile_mass_VC_TMP = os.sep.join(["", "Users", "sedona", "data", "sersic_profile_mass_VC", ""])
-#_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', _dir_sersic_profile_mass_VC_TMP)
-_dir_sersic_profile_mass_VC = os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None)
+# _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR', None)
+# BACKWARDS COMPATIBILITY
+_dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
+                                 os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
+
+
 
 # try:
 #     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
@@ -299,6 +302,7 @@ class NoordFlat(object):
             self._set_dlnrhodlnr_interp(interp_type=self._dlnrhodlnr_interp_type)
 
 
+    ##### NOTE: CONSIDER CHANGING FROM USING .SAV FILES TO NEW FITS TABLES?
     def read_noord_flat_SAV(self):
         """
         Load table with circular velocity for a thick Sersic component
@@ -375,7 +379,7 @@ class NoordFlat(object):
         return vcirc
 
 
-    def read_sersic_VC_table(self):
+    def read_deprojected_sersic_table(self):
         # Use the "typical" collection of table values:
         table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
         table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
@@ -384,20 +388,25 @@ class NoordFlat(object):
         nearest_n = table_n[ np.argmin( np.abs(table_n - self.n) ) ]
         nearest_invq = table_invq[ np.argmin( np.abs( table_invq - self.invq) ) ]
 
-        file_sersic = _dir_sersic_profile_mass_VC + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
+        file_sersic = _dir_deprojected_sersic_models + 'deproj_sersic_model_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
 
         try:
             t = Table.read(file_sersic)
         except:
-            raise ValueError("File {} not found. _dir_sersic_profile_mass_VC={}. Check that system var ${} is set correctly.".format(file_sersic,
-                        _dir_sersic_profile_mass_VC, 'SERSIC_PROFILE_MASS_VC_DATADIR'))
+            # Backwards compatibility:
+            try:
+                file_sersic = _dir_deprojected_sersic_models + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
+                t = Table.read(file_sersic)
+            except:
+                raise ValueError("File {} not found. _dir_deprojected_sersic_models={}. Check that system var ${} is set correctly.".format(file_sersic,
+                        _dir_deprojected_sersic_models, 'DEPROJECTED_SERSIC_MODELS_DATADIR'))
 
         return t[0]
 
 
     def _set_vcirc_interp_new(self):
         # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
-        table = self.read_sersic_VC_table()
+        table = self.read_deprojected_sersic_table()
 
         N2008_vcirc =   table['vcirc']
         N2008_rad =     table['R']
@@ -494,7 +503,7 @@ class NoordFlat(object):
     def _set_rho_interp(self, interp_type='linear'):
         self._rho_interp_type = interp_type
 
-        table = self.read_sersic_VC_table()
+        table = self.read_deprojected_sersic_table()
 
         table_rho =     table['rho']
         table_rad =     table['R']
@@ -525,7 +534,7 @@ class NoordFlat(object):
     def _set_dlnrhodlnr_interp(self, interp_type='linear'):
         self._dlnrhodlnr_interp_type = interp_type
 
-        table = self.read_sersic_VC_table()
+        table = self.read_deprojected_sersic_table()
 
         table_dlnrho_dlnr =     table['dlnrho_dlnR']
         table_rad =             table['R']
