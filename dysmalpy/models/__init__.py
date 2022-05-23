@@ -29,7 +29,7 @@ from dysmalpy.models.extinction import ThinCentralPlaneDustExtinction, \
 from dysmalpy.models.dimming import ConstantDimming, CosmologicalDimming
 from dysmalpy.models.kinematic_options import KinematicOptions
 from dysmalpy.models.geometry import Geometry
-from dysmalpy.models.model_set import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
+from dysmalpy.models.model_set import ModelSet
 
 
 __all__ = ['ModelSet',
@@ -43,7 +43,7 @@ __all__ = ['ModelSet',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',
            'AzimuthalPlanarRadialFlow',
            'UniformBarFlow', 'VariableXBarFlow',
-           'UniformWedgeFlow', 
+           'UniformWedgeFlow',
            'SpiralDensityWave',
            # Light profiles
            'LightTruncateSersic', 'LightGaussianRing',
@@ -62,5 +62,4 @@ __all__ = ['ModelSet',
            # Functions
            'surf_dens_exp_disk', 'menc_exp_disk', 'vcirc_exp_disk',
            'sersic_mr', 'sersic_menc_2D_proj', 'v_circular', 'menc_from_vcirc',
-           'NoordFlat', 'InfThinMassiveGaussianRing',
-           'calc_1dprofile', 'calc_1dprofile_circap_pv']
+           'NoordFlat', 'InfThinMassiveGaussianRing']
