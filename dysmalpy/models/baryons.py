@@ -43,18 +43,12 @@ _dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
 
 
 # ALT NOORDERMEER DIRECTORY:
-# _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR', None)
 # BACKWARDS COMPATIBILITY
 _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
                                  os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
 
 
 
-# try:
-#     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
-#     _sersic_profile_mass_VC_loaded = True
-# except:
-#     _sersic_profile_mass_VC_loaded = False
 
 # MASSIVE RING DIRECTORIES:
 # _dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",

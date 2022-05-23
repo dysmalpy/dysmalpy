@@ -55,6 +55,9 @@ class Geometry(_DysmalFittable3DModel):
     vel_shift : float
         Systemic velocity shift that will be applied to the whole cube in km/s
 
+    obs_name : string
+        (Attribute): Name of the observation to which this geometry belongs.
+
     Methods
     -------
     coord_transform:
@@ -77,8 +80,19 @@ class Geometry(_DysmalFittable3DModel):
 
     vel_shift = DysmalParameter(default=0.0, fixed=True)  # default: none
 
+    obs_name = 'galaxy'
+
     _type = 'geometry'
     outputs = ('xp', 'yp', 'zp')
+
+    def __init__(self, obs_name=None, **kwargs):
+        if obs_name is None:
+            raise ValueError("Geometries must have an 'obs_name' specified!")
+
+        self.obs_name = obs_name
+
+        super(Geometry, self).__init__(**kwargs)
+
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift, vel_shift):

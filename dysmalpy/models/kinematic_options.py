@@ -245,16 +245,9 @@ class KinematicOptions:
 
             vhalo_adi = vhalo_adi_interp_map_3d(r)
 
-            # #vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
-            # vel = np.sqrt(vhalo_adi ** 2 + vbaryon_sq)
-
             vel_sq = vhalo_adi ** 2 + vbaryon_sq
         else:
-            #vel = np.sqrt(vhalo_sq + vbaryon_sq)
-
             vel_sq = vhalo_sq + vbaryon_sq
-            # if compute_dm:
-            #     vhalo = np.sqrt(vhalo_sq)
 
         if return_vsq:
             if compute_dm:
@@ -276,7 +269,7 @@ class KinematicOptions:
                 return vel
 
 
-    def apply_pressure_support(self, r, model, vel_sq):
+    def apply_pressure_support(self, r, model, vel_sq, tracer=None):
         """
         Function to apply asymmetric drift correction
 
@@ -291,6 +284,9 @@ class KinematicOptions:
         vel_sq : float or array
             Square of circular velocity in km^2/s^2
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_sq : float or array
@@ -298,7 +294,10 @@ class KinematicOptions:
 
         """
         if self.pressure_support:
-            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            if tracer is None:
+                raise ValueError("Must specify 'tracer' to determine pressure support!")
+
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model, tracer=tracer)
             vel_squared = vel_sq - vel_asymm_drift_sq
 
             # if array:
@@ -312,7 +311,7 @@ class KinematicOptions:
 
         return vel_squared
 
-    def correct_for_pressure_support(self, r, model, vel_sq):
+    def correct_for_pressure_support(self, r, model, vel_sq, tracer=None):
         """
         Remove asymmetric drift effect from input velocities
 
@@ -327,14 +326,19 @@ class KinematicOptions:
         vel_sq : float or array
             Square of rotational velocities in km^2/s^2 from which to remove asymmetric drift
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_sq : float or array
             Square of circular velocity after asymmetric drift is removed, in km^2/s^2
         """
         if self.pressure_support:
-            #
-            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            if tracer is None:
+                raise ValueError("Must specify 'tracer' to determine pressure support!")
+
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model, tracer=tracer)
             vel_squared = vel_sq + vel_asymm_drift_sq
 
             # if array:
@@ -348,7 +352,7 @@ class KinematicOptions:
 
         return vel_squared
 
-    def get_asymm_drift_profile(self, r, model):
+    def get_asymm_drift_profile(self, r, model, tracer=None):
         """
         Calculate the asymmetric drift correction
 
@@ -360,11 +364,17 @@ class KinematicOptions:
         model : `ModelSet`
             ModelSet the correction is applied to
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_asymm_drift_sq : float or array
             Square velocity correction in km^2/s^2 associated with asymmetric drift
         """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to determine pressure support!")
+
         # Compatibility hack, to handle the changed galaxy structure
         #    (properties, not attributes for data[*], instrument
         if 'pressure_support_type' not in self.__dict__.keys():
@@ -380,7 +390,8 @@ class KinematicOptions:
             raise AttributeError("Can't apply pressure support without "
                                  "a dispersion profile!")
 
-        sigma = model.dispersion_profile(r)
+        sigma = model.dispersions[tracer](r)
+        
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
             vel_asymm_drift_sq = 3.36 * (r / pre) * sigma ** 2
