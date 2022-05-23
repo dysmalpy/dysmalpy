@@ -19,7 +19,7 @@ import datetime
 import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
-import scipy.interpolate as scp_interp
+# import scipy.interpolate as scp_interp
 import dill as _pickle
 
 # dill py<=3.7 -> py>=3.8 + higher hack:

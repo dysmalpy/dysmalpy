@@ -32,6 +32,16 @@ class DispersionProfile(_DysmalFittable1DModel):
     """Base object for dispersion profile models"""
     _type = 'dispersion'
 
+    tracer = 'LINE'
+
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("Dispersion profiles must have a 'tracer' specified!")
+
+        self.tracer = tracer
+
+        super(DispersionProfile, self).__init__(**kwargs)
+
 
 class DispersionConst(DispersionProfile):
     """
@@ -41,6 +51,9 @@ class DispersionConst(DispersionProfile):
     ----------
     sigma0 : float
         Value of the dispersion at all radii
+
+    tracer : string
+        (Attribute): Name of the dynamical tracer
     """
     sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
 
