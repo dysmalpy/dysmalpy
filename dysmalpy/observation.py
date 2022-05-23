@@ -45,6 +45,10 @@ class ObservationSet:
         """
 
         obs_name = obs.name
+
+        if obs_name in self.observations:
+            logger.warning('Overwriting observation {}!'.format(obs_name))
+        
         self.observations[obs_name] = obs
 
     def get_observation(self, obs_name):

@@ -28,7 +28,7 @@ _pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
 
 # Local imports
 # Package imports
-from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
+from dysmalpy.models import ModelSet
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.instrument import Instrument
 from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
@@ -97,7 +97,7 @@ class Galaxy:
 
     """
 
-    def __init__(self, z=0, cosmo=_default_cosmo, obs_set=None, name='galaxy'):
+    def __init__(self, z=0, cosmo=_default_cosmo, obs_list=None, model=None, name='galaxy'):
 
         self._z = z
         self.name = name
@@ -121,10 +121,7 @@ class Galaxy:
         #self.model_cube = None
 
         # v2.0: everything lives inside self.observations which is an ObservationSet
-        if obs_set is None:
-            self.observations = obs_set
-        else:
-            self.observations = ObservationSet()
+        self.observations = ObservationSet(obs_list=obs_list)
 
 
     def __setstate__(self, state):
@@ -181,164 +178,13 @@ class Galaxy:
     def _set_dscale(self):
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
 
-    # @property
-    # def data(self):
-    #     return self._data
-    #
-    # @data.setter
-    # def data(self, new_data):
-    #     if not np.any(isinstance(new_data, Data1D) | isinstance(new_data, Data2D) | \
-    #         isinstance(new_data, Data3D) | isinstance(new_data, Data0D)):
-    #         raise TypeError("Data must be one of the following instances: "
-    #                         "   dysmalpy.Data0D, dysmalpy.Data1D, "
-    #                         "   dysmalpy.Data2D, dysmalpy.Data3D")
-    #     self._data = new_data
-    #     self._setup_checks()
-    #
-    # @property
-    # def data1d(self):
-    #     return self._data1d
-    #
-    # @data1d.setter
-    # def data1d(self, new_data1d):
-    #     if not (isinstance(new_data1d, Data1D)):
-    #         raise TypeError("Data1D must be an instance of dysmalpy.Data1D")
-    #     self._data1d = new_data1d
-    #
-    # @property
-    # def data2d(self):
-    #     return self._data2d
-    #
-    # @data2d.setter
-    # def data2d(self, new_data2d):
-    #     if not (isinstance(new_data2d, Data2D)):
-    #         raise TypeError("Data2D must be an instance of dysmalpy.Data2D")
-    #     self._data2d = new_data2d
-    #
-    # @property
-    # def data3d(self):
-    #     return self._data3d
-    #
-    # @data3d.setter
-    # def data3d(self, new_data3d):
-    #     if not (isinstance(new_data3d, Data3D)):
-    #         raise TypeError("Data3D must be an instance of dysmalpy.Data3D")
-    #     self._data3d = new_data3d
-    #
-    #
-    # @property
-    # def instrument(self):
-    #     return self._instrument
-    #
-    # @instrument.setter
-    # def instrument(self, new_instrument):
-    #     if not (isinstance(new_instrument, Instrument)) | (new_instrument is None):
-    #         raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
-    #     self._instrument = new_instrument
-    #     self._setup_checks()
-    #
-    # def _setup_checks(self):
-    #     self._check_1d_datasize()
-    #     self._check_3d_instrument()
-    #
-    # def _check_1d_datasize(self):
-    #     if (self.data is not None) & (self.instrument is not None):
-    #         if (isinstance(self.data, Data1D)):
-    #             # --------------------------------------------------
-    #             # Check FOV and issue warning if too small:
-    #             maxr = np.max(np.abs(self.data.rarr))
-    #             rstep = self.instrument.pixscale.value
-    #             if ((self.instrument.fov[0] < maxr/rstep) | (self.instrument.fov[1] < maxr/rstep)):
-    #                 wmsg =  "dysmalpy.Galaxy:\n"
-    #                 wmsg += "********************************************************************\n"
-    #                 wmsg += "*** WARNING ***\n"
-    #                 wmsg += "instrument.fov[0,1]="
-    #                 wmsg += "({},{}) is too small".format(self.instrument.fov[0], self.instrument.fov[1])
-    #                 wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
-    #                 wmsg += "********************************************************************\n"
-    #                 logger.warning(wmsg)
-    #                 raise ValueError(wmsg)
-    #             # --------------------------------------------------
-    #
-    # def _check_3d_instrument(self):
-    #     if (self.data is not None) & (self.instrument is not None):
-    #         if (isinstance(self.data, Data3D)):
-    #             # --------------------------------------------------
-    #             # Check FOV on instrument and reset if not matching:
-    #             if ((self.instrument.fov[0] != self.data.shape[2]) | \
-    #                (self.instrument.fov[1] != self.data.shape[1])):
-    #                 wmsg =  "dysmalpy.Galaxy:\n"
-    #                 wmsg += "********************************************************************\n"
-    #                 wmsg += "*** INFO ***\n"
-    #                 wmsg += "instrument.fov[0,1]="
-    #                 wmsg += "({},{}) is being reset".format(self.instrument.fov[0], self.instrument.fov[1])
-    #                 wmsg += " to match 3D cube ({}, {})\n".format(self.data.shape[2], self.data.shape[1])
-    #                 wmsg += "********************************************************************\n"
-    #                 logger.info(wmsg)
-    #                 self.instrument.fov = [self.data.shape[2], self.data.shape[1]]
-    #                 # Reset kernel
-    #                 self.instrument._beam_kernel = None
-    #
-    #
-    #             # --------------------------------------------------
-    #             # Check instrument pixel scale and reset if not matching:
-    #             pixdifftol = 1.e-10 * self.instrument.pixscale.unit
-    #             convunit = self.data.data.wcs.wcs.cunit[0].to(self.instrument.pixscale.unit) * \
-    #                         self.instrument.pixscale.unit
-    #             if np.abs(self.instrument.pixscale -  self.data.data.wcs.wcs.cdelt[0]*convunit) > pixdifftol:
-    #                 wmsg =  "dysmalpy.Galaxy:\n"
-    #                 wmsg += "********************************************************************\n"
-    #                 wmsg += "*** INFO ***\n"
-    #                 wmsg += "instrument.pixscale="
-    #                 wmsg += "{} is being reset".format(self.instrument.pixscale)
-    #                 wmsg += "   to match 3D cube ({})\n".format(self.data.data.wcs.wcs.cdelt[0]*convunit)
-    #                 wmsg += "********************************************************************\n"
-    #                 logger.info(wmsg)
-    #                 self.instrument.pixscale = self.data.data.wcs.wcs.cdelt[0]*convunit
-    #                 # Reset kernel
-    #                 self.instrument._beam_kernel = None
-    #             # --------------------------------------------------
-    #
-    #
-    #
-    #             # --------------------------------------------------
-    #             # Check instrument spectral array and reset if not matching:
-    #             spec_ctype = self.data.data.wcs.wcs.ctype[-1]
-    #             nspec = self.data.shape[0]
-    #             if spec_ctype == 'WAVE':
-    #                 spec_type = 'wavelength'
-    #             elif spec_ctype == 'VOPT':
-    #                 spec_type = 'velocity'
-    #             spec_start = self.data.data.spectral_axis[0]
-    #             spec_step = (self.data.data.spectral_axis[1]-
-    #                          self.data.data.spectral_axis[0])
-    #             specdifftol = 1.e-10 * spec_step.unit
-    #             if ((self.instrument.spec_type != spec_type) | \
-    #                (self.instrument.nspec != nspec) | \
-    #                (np.abs(self.instrument.spec_start.to(spec_start.unit) - spec_start)>specdifftol) | \
-    #                (np.abs(self.instrument.spec_step.to(spec_step.unit) - spec_step)>specdifftol) ):
-    #                 wmsg =  "dysmalpy.Galaxy:\n"
-    #                 wmsg += "********************************************************************\n"
-    #                 wmsg += "*** INFO ***\n"
-    #                 wmsg += "instrument spectral settings are being reset\n"
-    #                 wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(self.instrument.spec_type,
-    #                                 self.instrument.spec_start, self.instrument.spec_step, self.instrument.nspec)
-    #                 wmsg += "   to match 3D cube\n"
-    #                 wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(spec_type,
-    #                              spec_start, spec_step, nspec)
-    #                 wmsg += "********************************************************************\n"
-    #                 logger.info(wmsg)
-    #                 self.instrument.spec_type = spec_type
-    #                 self.instrument.spec_step = spec_step
-    #                 self.instrument.spec_start = spec_start
-    #                 self.instrument.nspec = nspec
-    #                 # Reset kernel
-    #                 self.instrument._lsf_kernel = None
-    #             # --------------------------------------------------
+    def add_observation(self, obs):
+
+        self.observations.add_observation(obs)
 
 
     # def create_model_data(self, **kwargs):
-    def create_model_data(self, obs_name=None, skip_downsample=False, **kwargs):
+    def create_model_data(self, obs_list=None, skip_downsample=False, **kwargs):
 
         r"""
         Function to simulate data for the galaxy
@@ -499,8 +345,10 @@ class Galaxy:
             Default: 3
 
         """
+        if obs_list is None:
+            obs_list = self.observations.observations.keys()
 
-        for obs_name in self.observations:
+        for obs_name in obs_list:
 
             # Get the individual observation
             obs = self.observations[obs_name]

@@ -289,10 +289,11 @@ class ModelSet:
             elif model._type == 'geometry':
 
                 if geom_type == 'galaxy':
-                    if (self.geometries[model.obs_name] is not None):
-                        wrn = "Current Geometry model '{}' is being ".format(model.obs_name)
-                        wrn += "overwritten!"
-                        logger.warning(wrn)
+                    if model.obs_name in self.geometries.keys():
+                        if (self.geometries[model.obs_name] is not None):
+                            wrn = "Current Geometry model '{}' is being ".format(model.obs_name)
+                            wrn += "overwritten!"
+                            logger.warning(wrn)
                     self.geometries[model.obs_name] = model
                 else:
                     self.higher_order_geometries[geom_type] = model
@@ -301,10 +302,11 @@ class ModelSet:
 
             elif model._type == 'dispersion':
                 if disp_type == 'galaxy':
-                    if (self.dispersions[model.tracer] is not None):
-                        wrn = "Current Dispersion model '{}' is being ".format(model.tracer)
-                        wrn += "overwritten!"
-                        logger.warning(wrn)
+                    if model.tracer in self.dispersions.keys():
+                        if (self.dispersions[model.tracer] is not None):
+                            wrn = "Current Dispersion model '{}' is being ".format(model.tracer)
+                            wrn += "overwritten!"
+                            logger.warning(wrn)
                     self.dispersions[model.tracer] = model
                 else:
                     self.higher_order_dispersions[disp_type] = model
