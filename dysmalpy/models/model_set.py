@@ -1528,7 +1528,7 @@ class ModelSet:
                 flux_mass *= self.dimming(xsky, ysky, zsky)
 
             if transform_method.lower().strip() == 'direct':
-                sigmar = self.dispersion_profile(rgal*to_kpc)
+                sigmar = self.dispersions[obs.tracer](rgal*to_kpc)
 
                 # The final spectrum will be a flux weighted sum of Gaussians at each
                 # velocity along the line of sight.

@@ -849,13 +849,11 @@ def setup_aperture_types(obs=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, partial_weight=True,
-            moment=False, oversample=1,
+            oversample=1,
             rotate_cube=False):
 
     # partial_weight:
     #           are partial pixels weighted in apertures?
-
-    raise ValueError("FIX MEEEE FROM INSTRUMENT")
 
     if aper_centers is None:
         raise ValueError("Must set 'aper_centers'!")
@@ -899,7 +897,7 @@ def setup_aperture_types(obs=None, profile1d_type=None,
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
                  nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
                  partial_weight=partial_weight, rotate_cube=rotate_cube,
-                 moment=moment)
+                 moment=obs.instrument.moment)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
         if (pix_perp is None):

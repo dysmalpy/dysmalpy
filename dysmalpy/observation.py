@@ -10,9 +10,6 @@ from __future__ import (absolute_import, division, print_function,
 # Standard imports
 import logging
 import copy
-from collections import OrderedDict
-
-# Third party imports
 
 # Package imports
 from dysmalpy.instrument import Instrument
@@ -23,46 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-__all__ = ["ObservationSet", "Observation"]
-
-
-class ObservationSet:
-    "Class holding all of the individual observations of a galaxy"
-
-    def __init__(self, obs_list=None):
-
-        self.observations = OrderedDict()
-
-        if obs_list is not None:
-
-            for obs in obs_list:
-
-                self.add_observation(obs)
-
-    def add_observation(self, obs):
-        """
-        Add an observation to the ObservationSet.
-        """
-
-        obs_name = obs.name
-
-        if obs_name in self.observations:
-            logger.warning('Overwriting observation {}!'.format(obs_name))
-        
-        self.observations[obs_name] = obs
-
-    def get_observation(self, obs_name):
-        """
-        Retrieve an observation from the set
-        """
-
-        try:
-
-            return self.observations[obs_name]
-
-        except KeyError:
-
-            raise KeyError('{} not in ObservationSet'.format(obs_name))
+__all__ = ["Observation", "ObsOptions"]
 
 
 class Observation:
@@ -222,10 +180,11 @@ class Observation:
 
 
 class ObsOptions:
-
-    def __init__(self, xcenter=None, ycenter=None, oversample=None, oversize=None,
-                 transform_method=None, zcalc_truncate=None, n_wholepix_z_min=None
-                 ):
+    """
+    Class to hold options for creating the observed model
+    """
+    def __init__(self, xcenter=None, ycenter=None, oversample=1, oversize=1,
+                 transform_method='direct', zcalc_truncate=None, n_wholepix_z_min=3):
 
         self.xcenter = xcenter
         self.ycenter = ycenter

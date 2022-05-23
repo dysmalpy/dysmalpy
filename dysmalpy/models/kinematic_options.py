@@ -386,12 +386,11 @@ class KinematicOptions:
 
         pre = self.get_pressure_support_param(model, param='re')
 
-        if model.dispersion_profile is None:
-            raise AttributeError("Can't apply pressure support without "
-                                 "a dispersion profile!")
+        if tracer not in model.dispersions.keys():
+            raise AttributeError("The dispersion profile for tracer={} not found!".format(tracer))
 
         sigma = model.dispersions[tracer](r)
-        
+
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
             vel_asymm_drift_sq = 3.36 * (r / pre) * sigma ** 2

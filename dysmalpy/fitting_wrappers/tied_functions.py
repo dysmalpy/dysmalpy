@@ -14,6 +14,8 @@ from dysmalpy import parameters
 import scipy.optimize as scp_opt
 
 
+def tied_geom_lambda(main_geom_name, param_name):
+    return lambda mod_set: mod_set.components[main_geom_name].__dict__[param_name].value
 
 def tie_sigz_reff(model_set):
     #'sersic', 'disk+bulge', 'lsersic'
@@ -234,7 +236,7 @@ def tied_mhalo_mstar_fixed_lmstar(model_set):
 
 def tie_lmvirial_NFW(model_set):
     return tie_lmvirial_to_fdm(model_set)
-    
+
 def tie_lmvirial_to_fdm(model_set):
     comp_halo = None
     comps_bar = []

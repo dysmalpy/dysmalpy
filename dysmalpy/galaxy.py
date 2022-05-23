@@ -15,11 +15,12 @@ import copy
 import os
 import datetime
 
+from collections import OrderedDict
+
 # Third party imports
 import numpy as np
 import astropy.cosmology as apy_cosmo
 import astropy.units as u
-# import scipy.interpolate as scp_interp
 import dill as _pickle
 
 # dill py<=3.7 -> py>=3.8 + higher hack:
@@ -35,7 +36,7 @@ from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
-from dysmalpy.observation import ObservationSet, Observation
+from dysmalpy.observation import Observation
 
 try:
     from dysmalpy.lensing import setup_lensing_transformer_from_params
@@ -80,24 +81,19 @@ class Galaxy:
             A dysmalpy model to use for simulating and/or fitting data.
             This generates the intrinsic observables of the galaxy based
             on the components included in the ModelSet.
-    instrument : `~dysmalpy.instrument.Instrument` object
-                 A dysmalpy instrument to use for simulating and/or fitting
-                 data. This describes how the observables produced by
-                 `model` are converted to observed space data.
-    data : `~dysmalpy.data_classes.Data` object
-           The observed data for the galaxy that model data can be fit to
+    obs_list : list
+            List of `~dysmalpy.observation.Observation` objects,
+            which hold `~dysmalpy.instrument.Instrument`, `~dysmalpy.observation.ObsOptions`,
+            and  `~dysmalpy.data_classes.Data` instances.
+            For each `obs`, `obs.instrument` and `obs.obs_options`
+            describes how `model` is converted to observed space data.
     name : str, optional
            Name of the galaxy. Default is "galaxy."
-    data1d : `~dysmalpy.data_classes.Data1D` object, optional
-             Observed 1D data (i.e rotation curve) for the galaxy
-    data2d : `~dysmalpy.data_classes.Data2D` object, optional
-             Observed 2D data (i.e. velocity and dispersion maps) for the galaxy
-    data3d : `~dysmalpy.data_classes.Data3D` object, optional
-             Observed 3D data (i.e. cube) for the galaxy
 
     """
 
-    def __init__(self, z=0, cosmo=_default_cosmo, obs_list=None, model=None, name='galaxy'):
+    def __init__(self, z=0, cosmo=_default_cosmo, obs_list=None,
+                 model=None, name='galaxy'):
 
         self._z = z
         self.name = name
@@ -106,22 +102,15 @@ class Galaxy:
         else:
             self.model = model
 
-        #self._data = data
-
-        #self._data1d = data1d
-        #self._data2d = data2d
-        #self._data3d = data3d
-        #self._instrument = instrument
-
         self._cosmo = cosmo
-
-        #self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
-        #self.model_data = None
-        #self.model_cube = None
 
-        # v2.0: everything lives inside self.observations which is an ObservationSet
-        self.observations = ObservationSet(obs_list=obs_list)
+        # v2.0: everything lives inside Observation instances, inside
+        #       OrderedDict self.observations
+        self.observations = OrderedDict()
+        if obs_list is not None:
+            for obs in obs_list:
+                self.add_observation(obs)
 
 
     def __setstate__(self, state):
@@ -179,13 +168,26 @@ class Galaxy:
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
 
     def add_observation(self, obs):
+        """
+        Add an observation to the galaxy.observations ordered dict.
+        """
+        obs_name = obs.name
+        if obs_name in self.observations:
+            logger.warning('Overwriting observation {}!'.format(obs_name))
+        self.observations[obs_name] = obs
 
-        self.observations.add_observation(obs)
+
+    def get_observation(self, obs_name):
+        """
+        Retrieve an observation from the galaxy.observations ordered dict.
+        """
+        try:
+            return self.observations[obs_name]
+        except KeyError:
+            raise KeyError('{} not in self.observations !'.format(obs_name))
 
 
-    # def create_model_data(self, **kwargs):
     def create_model_data(self, obs_list=None, skip_downsample=False, **kwargs):
-
         r"""
         Function to simulate data for the galaxy
 
@@ -196,157 +198,18 @@ class Galaxy:
 
         Parameters
         ----------
-        ndim_final : {3, 2, 1, 0}
-            The dimensionality of the final data products.
-
-            3 = data cube
-
-            2 = velocity and dispersion maps
-
-            1 = velocity and dispersion radial curves
-
-            0 = single spectrum from integrating over the whole model cube
-
-        nx_sky : int
-            The number of pixels in the modelled data cube in the x direction
-
-        ny_sky : int
-            The number of pixels in the modelled data cube in the y direction
-
-        rstep : float
-                Pixel scale of the final model data cube in arcseconds/pixel
-
-        spec_type : {`'velocity'`, `'wavelength'`}
-                    Whether the spectral axis of the model data cube should be in
-                    velocity units or wavelength units
-
-        spec_step : float
-                    The difference between neighboring spectral channels for the model
-                    cube
-
-        spec_start : float
-                     The value of the first spectral channel for the model cube
-
-        nspec : int
-                The number of spectral channels for the model cube
-
-        line_center : float
-                      The observed frame wavelength that corresponds to zero velocity.
-                      Only necessary if `spec_type` = 'wavelength'
-
-        spec_unit : astropy.units.Unit
-                    The units for the spectral axis of the model data cube
-
-        aper_centers : array_like
-                       Array of radii in arcseconds for where apertures are
-                       centered to create 1D rotation curve.
-                       Only necessary if `ndim_final` = 1.
-
-        slit_width : float
-                     The width in arcseconds of the pseudoslit used to measure
-                     the 1D rotation curve. In practice, circular apertures
-                     with radius = `slit_width`/2 are used to create the 1D rotation curve.
-
-        slit_pa : float
-                  The position angle of the pseudoslit in degrees. Convention is that negative
-                  values of `aper_centers` correspond to East of the center of the cube
-
-        profile1d_type : {`'circ_ap_cube'`, `'rect_ap_cube'`, `'square_ap_cube'`, `'circ_ap_pv'`, `'single_pix_pv'`}
-            The extraction method to create the 1D rotation curve.
-
-            "circ_ap_cube" = Extracts the 1D rotation curve through circular
-                apertures placed directly on the model cube
-            "rect_ap_cube" = Extracts the 1D rotation curve through rectangular
-                apertures placed directly on the model cube
-            "square_ap_cube" = Extracts the 1D rotation curve through square
-                apertures placed directly on the model cube
-            "circ_ap_pv" = The model cube is first collapsed to a PV diagram.
-                Circular apertures are then placed on the PV diagram
-                to construct the 1D rotation curve
-            "single_pix_pv" = The model cube is first collapsed to a PV diagram.
-                A 1D rotation curve is then extracted for each single
-                pixel.
-
-        from_instrument : bool
-                          If True, use the settings of the attached Instrument to populate
-                          the following parameters: `spec_type`, `spec_start`, `spec_step`,
-                          `spec_unit`, `nspec`, `nx_sky`, `ny_sky`, and `rstep`.
-
-        from_data : bool
-                    If True, use the observed data to populate the following parameters:
-                    `nx_sky` and `ny_sky` if data is 3D or 2D
-                    `spec_type`, `spec_start`, `spec_step`, `spec_unit`, `nspec` if data is 3D
-                    `slit_width`, `slit_pa`, `profile1D_type`, and `aper_centers` if data is 1D
-
-        oversample : int
-                     Oversampling factor for creating the model cube. If `oversample` > 1, then
-                     the model cube will first be generated at `rstep`/`oversample` pixel scale.
-                     It will then be downsampled to `rstep` pixel scale.
-
-        oversize : int
-                   Oversize factor for creating the model cube. If `oversize` > 1, then the model
-                   cube will first be generated with `oversize`*`nx_sky` and `oversize`*`ny_sky`
-                   number of pixels in the x and y direction respectively before any convolution
-                   is performed. After any convolution with the Instrument, the model cube is then
-                   cropped to match `nx_sky` and `ny_sky`.
-
-        aperture_radius : float
-                          Radius of circular apertures for `ndim_final` = 1 and
-                          `profile1d_type` = 'circ_ap_cube' Only used if
-                          `from_data` = False, otherwise the apertures attached to the data are
-                          used to construct the 1D rotation curve.
-
-        pix_perp : int or array
-                   Number of pixels wide each rectangular aperture is for `ndim_final` = 1 and
-                   `profile1d_type` = 'rect_ap_cube' in the direction perpendicular to the
-                   pseudoslit
-
-        pix_parallel : int or array
-                       Number of pixels wide each rectangular aperture is for `ndim_final` = 1 and
-                       `profile1d_type` = 'rect_ap_cube' in the direction parallel to the
-                       pseudoslit
-
-        pix_length : int or array
-                     Number of pixels on each side of a square aperture for `ndim_final` = 1 and
-                     `profile1d_type` = 'square_ap_cube'
+        obs_list : list, optional
+            List of observations to make models for.
+            If omitted, will default to making models for all observations in the galaxy.
 
         skip_downsample : bool
                           If True and `oversample` > 1 then do not downsample back to initial
                           `rstep`. Note the settings of the Instrument will then be changed to
                           match the new pixelscale and FOV size.
 
-        partial_aperture_weight : bool
-                                  If True, then use partial pixel weighting when integrating
-                                  over an aperture. Only used when `ndim_final` = 1.
-
-        xcenter : float
-                  x pixel coordinate of the center of the cube if it should be different than
-                  nx_sky/2
-
-        ycenter : float
-                  y pixel coordinate of the center of the cube if it should be different than
-                  ny_sky/2
-
-        transform_method: str
-            Method for transforming from galaxy to sky coordinates.
-            Options are:
-                'direct' (calculate (xyz)sky before evaluating) or
-                'rotate' (calculate in (xyz)gal, then rotate when creating the final cube).
-            Default: 'direct'.
-
-        zcalc_truncate: bool
-                If True, the cube is only filled with flux to within
-                +- 2 * scale length thickness above and below the galaxy midplane
-                (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
-                Default: None (will be parsed to 0D/1D/2D/3D: True/True/False/False)
-
-        n_wholepix_z_min: int
-            Minimum number of whole pixels to include in the z direction when trunctating.
-            Default: 3
-
         """
         if obs_list is None:
-            obs_list = self.observations.observations.keys()
+            obs_list = self.observations.keys()
 
         for obs_name in obs_list:
 
@@ -360,7 +223,7 @@ class Galaxy:
             spec_type = obs.instrument.spec_type
             spec_start = obs.instrument.spec_start.value
             spec_step = obs.instrument.spec_step.value
-            spec_unit = obs.instrument.spec_start.unit
+            spec_unit = obs.instrument.spec_step.unit
             nspec = obs.instrument.nspec
             pixscale = obs.instrument.pixscale.value
             oversample = obs.obs_options.oversample
@@ -370,9 +233,6 @@ class Galaxy:
             this_lensing_transformer = None
 
             if _loaded_lensing:
-                orig_inst = copy.deepcopy(obs.instrument)
-                lens_inst = copy.deepcopy(obs.instrument)
-
                 # Only check to get lensing transformer if the lensing modules were successfully loaded.
                 if 'lensing_transformer' in kwargs:
                     if kwargs['lensing_transformer'] is not None:
@@ -380,7 +240,7 @@ class Galaxy:
 
                 this_lensing_transformer = setup_lensing_transformer_from_params(\
                         params = kwargs,
-                        source_plane_nchan = orig_inst.nspec,
+                        source_plane_nchan = obs.instrument.nspec,
                         image_plane_sizex = nx_sky * oversample * oversize,
                         image_plane_sizey = ny_sky * oversample * oversize,
                         image_plane_pixsc = pixscale / oversample,
@@ -390,10 +250,14 @@ class Galaxy:
                         verbose = (logger.level >= logging.DEBUG),
                     )
 
-                lens_inst.fov = (this_lensing_transformer.source_plane_nx, this_lensing_transformer.source_plane_ny)
-                lens_inst.pixscale.value = this_lensing_transformer.source_plane_pixsc
+                if this_lensing_transformer is not None:
+                    orig_inst = copy.deepcopy(obs.instrument)
+                    lens_inst = copy.deepcopy(obs.instrument)
 
-                obs.instrument = lens_inst
+                    lens_inst.fov = (this_lensing_transformer.source_plane_nx, this_lensing_transformer.source_plane_ny)
+                    lens_inst.pixscale.value = this_lensing_transformer.source_plane_pixsc
+
+                    obs.instrument = lens_inst
 
             else:
                 # Check if the key lensing params ARE set -- passed in kwargs here to the call to
@@ -495,7 +359,7 @@ class Galaxy:
             obs.model_cube = Data3D(cube=sim_cube_final, pixscale=pixscale,
                                     spec_type=obs.instrument.spec_type,
                                     spec_arr=spec,
-                                    spec_unit=obs.instrument.spec_unit)
+                                    spec_unit=obs.instrument.spec_step.unit)
 
             if ndim_final == 3:
 
@@ -537,7 +401,7 @@ class Galaxy:
                                          mask_cube=mask_cube,
                                          spec_type=obs.instrument.spec_type,
                                          spec_arr=spec,
-                                         spec_unit=obs.instrument.spec_unit)
+                                         spec_unit=obs.instrument.spec_step.spec_unit)
 
             elif ndim_final == 2:
 
@@ -656,8 +520,8 @@ class Galaxy:
                 else:
                     mask = None
 
-                self.model_data = Data2D(pixscale=pixscale, velocity=vel,
-                                         vel_disp=disp, flux=flux, mask=mask)
+                obs.model_data = Data2D(pixscale=pixscale, velocity=vel,
+                                        vel_disp=disp, flux=flux, mask=mask)
 
             elif ndim_final == 1:
 
@@ -713,8 +577,8 @@ class Galaxy:
                     mask1d = None
 
                 # Gather results:
-                self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                         vel_disp=disp1d, flux=flux1d, mask=mask1d)
+                obs.model_data = Data1D(r=aper_centers, velocity=vel1d,
+                                        vel_disp=disp1d, flux=flux1d, mask=mask1d)
 
             elif ndim_final == 0:
 
@@ -744,6 +608,10 @@ class Galaxy:
                 obs.instrument.pixscale = pixscale * u.arcsec
                 obs.instrument.fov = [nx_sky, ny_sky]
                 obs.instrument.set_beam_kernel()
+
+            # Reset observation within the observations ordered dict:
+            self.observations[obs.name] = obs
+
 
     def preserve_self(self, filename=None, save_data=True, overwrite=False):
         # Check for existing file:

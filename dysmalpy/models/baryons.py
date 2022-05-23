@@ -1028,7 +1028,6 @@ class BlackHole(MassModel):
     BH_mass = DysmalParameter(default=1, bounds=(0., 12.))
     _subtype = 'baryonic'
     baryon_type = 'blackhole'
-    tracer = 'none'
 
     def __init__(self, **kwargs):
         super(BlackHole, self).__init__(**kwargs)
