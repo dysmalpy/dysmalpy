@@ -368,7 +368,7 @@ class ModelSet:
     is a dictionary that has keys equal to the names of each component. The primary method
     of `ModelSet` is :meth:`ModelSet.simulate_cube` which produces a model data cube of
     line emission that follows the full kinematics of given model.
-    
+
     """
     def __init__(self):
 
@@ -1246,8 +1246,6 @@ class ModelSet:
             raise AttributeError("There are no mass components so a velocity "
                                  "can't be calculated.")
         else:
-            # vdm = r*0.
-            # vbaryon = r*0.
             vdm_sq = r*0.
             vbaryon_sq = r*0.
 
@@ -1259,11 +1257,9 @@ class ModelSet:
                     cmpnt_v_sq = mcomp.vcirc_sq(r)
 
                     if (mcomp._subtype == 'dark_matter') | (mcomp._subtype == 'combined'):
-                        #vdm = np.sqrt(vdm ** 2 + cmpnt_v ** 2)
                         vdm_sq = vdm_sq + cmpnt_v_sq
 
                     elif mcomp._subtype == 'baryonic':
-                        #vbaryon = np.sqrt(vbaryon ** 2 + cmpnt_v ** 2)
                         vbaryon_sq = vbaryon_sq + cmpnt_v_sq
 
                     else:
