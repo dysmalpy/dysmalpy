@@ -28,13 +28,14 @@ _pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
 
 # Local imports
 # Package imports
-from dysmalpy.models import ModelSet, calc_1dprofile, calc_1dprofile_circap_pv
+from dysmalpy.models import ModelSet
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.instrument import Instrument
 from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 from dysmalpy import aperture_classes
 from dysmalpy.utils_io import write_model_obs_file
 from dysmalpy import config
+from dysmalpy.observation import ObservationSet, Observation
 
 try:
     from dysmalpy.lensing import setup_lensing_transformer_from_params
@@ -96,9 +97,7 @@ class Galaxy:
 
     """
 
-    def __init__(self, z=0, cosmo=_default_cosmo, model=None, instrument=None,
-                 data=None, name='galaxy',
-                 data1d=None, data2d=None, data3d=None):
+    def __init__(self, z=0, cosmo=_default_cosmo, obs_list=None, model=None, name='galaxy'):
 
         self._z = z
         self.name = name
@@ -107,19 +106,22 @@ class Galaxy:
         else:
             self.model = model
 
-        self._data = data
+        #self._data = data
 
-        self._data1d = data1d
-        self._data2d = data2d
-        self._data3d = data3d
-        self._instrument = instrument
+        #self._data1d = data1d
+        #self._data2d = data2d
+        #self._data3d = data3d
+        #self._instrument = instrument
 
         self._cosmo = cosmo
 
         #self.dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
-        self.model_data = None
-        self.model_cube = None
+        #self.model_data = None
+        #self.model_cube = None
+
+        # v2.0: everything lives inside self.observations which is an ObservationSet
+        self.observations = ObservationSet(obs_list=obs_list)
 
 
     def __setstate__(self, state):
@@ -176,178 +178,14 @@ class Galaxy:
     def _set_dscale(self):
         self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
 
-    @property
-    def data(self):
-        return self._data
+    def add_observation(self, obs):
 
-    @data.setter
-    def data(self, new_data):
-        if not np.any(isinstance(new_data, Data1D) | isinstance(new_data, Data2D) | \
-            isinstance(new_data, Data3D) | isinstance(new_data, Data0D)):
-            raise TypeError("Data must be one of the following instances: "
-                            "   dysmalpy.Data0D, dysmalpy.Data1D, "
-                            "   dysmalpy.Data2D, dysmalpy.Data3D")
-        self._data = new_data
-        self._setup_checks()
-
-    @property
-    def data1d(self):
-        return self._data1d
-
-    @data1d.setter
-    def data1d(self, new_data1d):
-        if not (isinstance(new_data1d, Data1D)):
-            raise TypeError("Data1D must be an instance of dysmalpy.Data1D")
-        self._data1d = new_data1d
-
-    @property
-    def data2d(self):
-        return self._data2d
-
-    @data2d.setter
-    def data2d(self, new_data2d):
-        if not (isinstance(new_data2d, Data2D)):
-            raise TypeError("Data2D must be an instance of dysmalpy.Data2D")
-        self._data2d = new_data2d
-
-    @property
-    def data3d(self):
-        return self._data3d
-
-    @data3d.setter
-    def data3d(self, new_data3d):
-        if not (isinstance(new_data3d, Data3D)):
-            raise TypeError("Data3D must be an instance of dysmalpy.Data3D")
-        self._data3d = new_data3d
-
-
-    @property
-    def instrument(self):
-        return self._instrument
-
-    @instrument.setter
-    def instrument(self, new_instrument):
-        if not (isinstance(new_instrument, Instrument)) | (new_instrument is None):
-            raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
-        self._instrument = new_instrument
-        self._setup_checks()
-
-    def _setup_checks(self):
-        self._check_1d_datasize()
-        self._check_3d_instrument()
-
-    def _check_1d_datasize(self):
-        if (self.data is not None) & (self.instrument is not None):
-            if (isinstance(self.data, Data1D)):
-                # --------------------------------------------------
-                # Check FOV and issue warning if too small:
-                maxr = np.max(np.abs(self.data.rarr))
-                rstep = self.instrument.pixscale.value
-                if ((self.instrument.fov[0] < maxr/rstep) | (self.instrument.fov[1] < maxr/rstep)):
-                    wmsg =  "dysmalpy.Galaxy:\n"
-                    wmsg += "********************************************************************\n"
-                    wmsg += "*** WARNING ***\n"
-                    wmsg += "instrument.fov[0,1]="
-                    wmsg += "({},{}) is too small".format(self.instrument.fov[0], self.instrument.fov[1])
-                    wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
-                    wmsg += "********************************************************************\n"
-                    logger.warning(wmsg)
-                    raise ValueError(wmsg)
-                # --------------------------------------------------
-
-    def _check_3d_instrument(self):
-        if (self.data is not None) & (self.instrument is not None):
-            if (isinstance(self.data, Data3D)):
-                # --------------------------------------------------
-                # Check FOV on instrument and reset if not matching:
-                if ((self.instrument.fov[0] != self.data.shape[2]) | \
-                   (self.instrument.fov[1] != self.data.shape[1])):
-                    wmsg =  "dysmalpy.Galaxy:\n"
-                    wmsg += "********************************************************************\n"
-                    wmsg += "*** INFO ***\n"
-                    wmsg += "instrument.fov[0,1]="
-                    wmsg += "({},{}) is being reset".format(self.instrument.fov[0], self.instrument.fov[1])
-                    wmsg += " to match 3D cube ({}, {})\n".format(self.data.shape[2], self.data.shape[1])
-                    wmsg += "********************************************************************\n"
-                    logger.info(wmsg)
-                    self.instrument.fov = [self.data.shape[2], self.data.shape[1]]
-                    # Reset kernel
-                    self.instrument._beam_kernel = None
-
-
-                # --------------------------------------------------
-                # Check instrument pixel scale and reset if not matching:
-                pixdifftol = 1.e-10 * self.instrument.pixscale.unit
-                convunit = self.data.data.wcs.wcs.cunit[0].to(self.instrument.pixscale.unit) * \
-                            self.instrument.pixscale.unit
-                if np.abs(self.instrument.pixscale -  self.data.data.wcs.wcs.cdelt[0]*convunit) > pixdifftol:
-                    wmsg =  "dysmalpy.Galaxy:\n"
-                    wmsg += "********************************************************************\n"
-                    wmsg += "*** INFO ***\n"
-                    wmsg += "instrument.pixscale="
-                    wmsg += "{} is being reset".format(self.instrument.pixscale)
-                    wmsg += "   to match 3D cube ({})\n".format(self.data.data.wcs.wcs.cdelt[0]*convunit)
-                    wmsg += "********************************************************************\n"
-                    logger.info(wmsg)
-                    self.instrument.pixscale = self.data.data.wcs.wcs.cdelt[0]*convunit
-                    # Reset kernel
-                    self.instrument._beam_kernel = None
-                # --------------------------------------------------
-
-
-
-                # --------------------------------------------------
-                # Check instrument spectral array and reset if not matching:
-                spec_ctype = self.data.data.wcs.wcs.ctype[-1]
-                nspec = self.data.shape[0]
-                if spec_ctype == 'WAVE':
-                    spec_type = 'wavelength'
-                elif spec_ctype == 'VOPT':
-                    spec_type = 'velocity'
-                spec_start = self.data.data.spectral_axis[0]
-                spec_step = (self.data.data.spectral_axis[1]-
-                             self.data.data.spectral_axis[0])
-                specdifftol = 1.e-10 * spec_step.unit
-                if ((self.instrument.spec_type != spec_type) | \
-                   (self.instrument.nspec != nspec) | \
-                   (np.abs(self.instrument.spec_start.to(spec_start.unit) - spec_start)>specdifftol) | \
-                   (np.abs(self.instrument.spec_step.to(spec_step.unit) - spec_step)>specdifftol) ):
-                    wmsg =  "dysmalpy.Galaxy:\n"
-                    wmsg += "********************************************************************\n"
-                    wmsg += "*** INFO ***\n"
-                    wmsg += "instrument spectral settings are being reset\n"
-                    wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(self.instrument.spec_type,
-                                    self.instrument.spec_start, self.instrument.spec_step, self.instrument.nspec)
-                    wmsg += "   to match 3D cube\n"
-                    wmsg += "   (spec_type={}, spec_start={:0.2f}, spec_step={:0.2f}, nspec={})\n".format(spec_type,
-                                 spec_start, spec_step, nspec)
-                    wmsg += "********************************************************************\n"
-                    logger.info(wmsg)
-                    self.instrument.spec_type = spec_type
-                    self.instrument.spec_step = spec_step
-                    self.instrument.spec_start = spec_start
-                    self.instrument.nspec = nspec
-                    # Reset kernel
-                    self.instrument._lsf_kernel = None
-                # --------------------------------------------------
+        self.observations.add_observation(obs)
 
 
     # def create_model_data(self, **kwargs):
-    def create_model_data(self, ndim_final=3, nx_sky=None, ny_sky=None,
-                          rstep=None, spec_type='velocity', spec_step=10.,
-                          spec_start=-1000., nspec=201, line_center=None,
-                          spec_unit=(u.km/u.s), aper_centers=None,
-                          slit_width=None, slit_pa=None, profile1d_type=None,
-                          from_instrument=True, from_data=True,
-                          oversample=1, oversize=1,
-                          aperture_radius=None, pix_perp=None, pix_parallel=None,
-                          pix_length=None,
-                          skip_downsample=False, partial_aperture_weight=True,
-                          xcenter=None, ycenter=None,
-                          transform_method='direct',
-                          zcalc_truncate=None,
-                          n_wholepix_z_min=3,
-                          **kwargs):
+    def create_model_data(self, obs_list=None, skip_downsample=False, **kwargs):
+
         r"""
         Function to simulate data for the galaxy
 
@@ -507,684 +345,405 @@ class Galaxy:
             Default: 3
 
         """
-        if line_center is None:
-            line_center = self.model.line_center
+        if obs_list is None:
+            obs_list = self.observations.observations.keys()
+
+        for obs_name in obs_list:
+
+            # Get the individual observation
+            obs = self.observations[obs_name]
+
+            ndim_final = obs.instrument.ndim
+            line_center = obs.instrument.line_center
+            nx_sky = obs.instrument.fov[0]
+            ny_sky = obs.instrument.fov[1]
+            spec_type = obs.instrument.spec_type
+            spec_start = obs.instrument.spec_start.value
+            spec_step = obs.instrument.spec_step.value
+            spec_unit = obs.instrument.spec_start.unit
+            nspec = obs.instrument.nspec
+            pixscale = obs.instrument.pixscale.value
+            oversample = obs.obs_options.oversample
+            oversize = obs.obs_options.oversize
+
+            # Apply lensing transformation if necessary
+            this_lensing_transformer = None
+
+            if _loaded_lensing:
+                orig_inst = copy.deepcopy(obs.instrument)
+                lens_inst = copy.deepcopy(obs.instrument)
+
+                # Only check to get lensing transformer if the lensing modules were successfully loaded.
+                if 'lensing_transformer' in kwargs:
+                    if kwargs['lensing_transformer'] is not None:
+                        this_lensing_transformer = kwargs['lensing_transformer']['0']
+
+                this_lensing_transformer = setup_lensing_transformer_from_params(\
+                        params = kwargs,
+                        source_plane_nchan = orig_inst.nspec,
+                        image_plane_sizex = nx_sky * oversample * oversize,
+                        image_plane_sizey = ny_sky * oversample * oversize,
+                        image_plane_pixsc = pixscale / oversample,
+                        reuse_lensing_transformer = this_lensing_transformer,
+                        cache_lensing_transformer = True,
+                        reuse_cached_lensing_transformer = True,
+                        verbose = (logger.level >= logging.DEBUG),
+                    )
+
+                lens_inst.fov = (this_lensing_transformer.source_plane_nx, this_lensing_transformer.source_plane_ny)
+                lens_inst.pixscale.value = this_lensing_transformer.source_plane_pixsc
+
+                obs.instrument = lens_inst
+
+            else:
+                # Check if the key lensing params ARE set -- passed in kwargs here to the call to
+                #   `setup_lensing_transformer_from_params`.
+                #   In this case, if the lensing loading failed, issue & raise an error.
+                mesh_file = mesh_ra = mesh_dec = None
+                if 'lensing_mesh' in kwargs:
+                    mesh_file = kwargs['lensing_mesh']
+                if 'lensing_ra' in kwargs:
+                    mesh_ra = kwargs['lensing_ra']
+                if 'lensing_dec' in kwargs:
+                    mesh_dec = kwargs['lensing_dec']
+
+                if ((mesh_file is not None) & (mesh_ra is not None) & (mesh_dec is not None)):
+                    wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
+                    wmsg += "*******************************************\n"
+                    wmsg += "*** ERROR ***\n"
+                    wmsg += " dysmalpy.lensing could not be loaded.\n"
+                    wmsg += " Unable to perform lensing transformation.\n"
+                    wmsg += "*******************************************\n"
+                    logger.error(wmsg)
+                    raise ValueError(wmsg)
 
 
+            # Run simulation for the specific observatoin
+            sim_cube, spec = self.model.simulate_cube(obs, dscale=self.dscale)
 
-        # Parse default zcalc_truncate, if not already specified:
-        if zcalc_truncate is None:
-            if (ndim_final == 3) | (ndim_final == 2):
-                # Default: no truncation for 2D/3D, because for the smaller spatial extent
-                #          of a single spaxel (vs the aggregate in apertures for 1D/0D)
-                #          leads to asymmetries when using truncation
-                #          -- e.g., dispersion peak not coincident with xycenter
-                zcalc_truncate = False
-            elif (ndim_final == 1) | (ndim_final == 0):
-                # Default: Truncate for 1D/0D, because combining multiple spaxels in apertures
-                #          generally avoids the above effects (and gives faster computation times).
-                zcalc_truncate = True
+            if this_lensing_transformer is not None:
 
-        # Pull parameters from the observed data if specified
-        if from_data:
-            ndim_final = self.data.ndim
+                logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
+                if this_lensing_transformer.source_plane_data_cube is None:
+                    this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
+                else:
+                    this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
+                sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
+                sim_cube[np.isnan(sim_cube)] = 0.0
+
+                # store back
+                if 'lensing_transformer' in kwargs:
+                    if kwargs['lensing_transformer'] is None:
+                        kwargs['lensing_transformer'] = {'0': None}
+                    kwargs['lensing_transformer']['0'] = this_lensing_transformer
+
+                # mask by data mask if available
+                if obs.data is not None:
+                    if hasattr(obs.data, 'mask'):
+                        if hasattr(obs.data.mask, 'shape'):
+                            this_lensing_mask = None
+                            if len(obs.data.mask.shape) == 2:
+                                this_lensing_mask = obs.data.mask.astype(bool)
+                                this_lensing_mask = np.repeat(this_lensing_mask[np.newaxis, :, :], nspec, axis=0)
+                            elif len(obs.data.mask.shape) == 3:
+                                this_lensing_mask = obs.data.mask.astype(bool)
+                            if this_lensing_mask is not None:
+                                if this_lensing_mask.shape == sim_cube.shape:
+                                    sim_cube[~this_lensing_mask] = 0.0
+                # oversample oversize
+                logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
+
+                # Reset the observation instrument back to the original one
+                obs.instrument = orig_inst
+
+            # Correct for any oversampling
+            if (oversample > 1) & (not skip_downsample):
+                sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
+                                    nx_sky*oversize))
+            else:
+                sim_cube_nooversamp = sim_cube
+
+            if skip_downsample:
+                pixscale /= (1.*oversample)
+                nx_sky *= oversample
+                ny_sky *= oversample
+                # Fix instrument:
+                obs.instrument.pixscale = pixscale * u.arcsec
+                obs.instrument.fov = [nx_sky, ny_sky]
+                obs.instrument.set_beam_kernel()
+
+
+            # Apply beam smearing and/or instrumental spreading
+            if obs.instrument is not None:
+                sim_cube_obs = obs.instrument.convolve(cube=sim_cube_nooversamp,
+                                                        spec_center=obs.instrument.line_center)
+            else:
+                sim_cube_obs = sim_cube_nooversamp
+
+
+            # Re-size the cube back down
+            if oversize > 1:
+                nx_oversize = sim_cube_obs.shape[2]
+                ny_oversize = sim_cube_obs.shape[1]
+                sim_cube_final = sim_cube_obs[:,
+                    np.int(ny_oversize/2 - ny_sky/2):np.int(ny_oversize/2+ny_sky/2),
+                    np.int(nx_oversize/2 - nx_sky/2):np.int(nx_oversize/2+nx_sky/2)]
+
+            else:
+                sim_cube_final = sim_cube_obs
+
+            obs.model_cube = Data3D(cube=sim_cube_final, pixscale=pixscale,
+                                    spec_type=obs.instrument.spec_type,
+                                    spec_arr=spec,
+                                    spec_unit=obs.instrument.spec_unit)
 
             if ndim_final == 3:
-                nx_sky = self.data.shape[2]
-                ny_sky = self.data.shape[1]
-                nspec = self.data.shape[0]
-                spec_ctype = self.data.data.wcs.wcs.ctype[-1]
-                if spec_ctype == 'WAVE':
-                    spec_type = 'wavelength'
-                elif spec_ctype == 'VOPT':
-                    spec_type = 'velocity'
-                spec_start = self.data.data.spectral_axis[0].value
-                spec_unit = self.data.data.spectral_axis.unit
-                spec_step = (self.data.data.spectral_axis[1].value -
-                             self.data.data.spectral_axis[0].value)
-                rstep = self.data.data.wcs.wcs.cdelt[0]*3600.
 
-                try:
-                    xcenter = self.data.xcenter
-                except:
-                    pass
-                try:
-                    ycenter = self.data.ycenter
-                except:
-                    pass
+                if obs.instrument.smoothing_type is not None:
+                    obs.model_cube.data = apply_smoothing_3D(obs.model_cube.data,
+                            smoothing_type=obs.instrument.smoothing_type,
+                            smoothing_npix=obs.instrument.smoothing_npix)
+
+                sim_cube_final_scale = obs.model_cube.data._data.copy()
+                if obs.data is not None:
+                    if obs.data.flux_map is None:
+                        #mask_flat = np.sum(self.data.mask, axis=0)
+                        num = np.sum(obs.data.mask * (obs.data.data.unmasked_data[:].value *
+                                     obs.model_cube.data / (obs.data.error.unmasked_data[:].value**2)), axis=0)
+                        den = np.sum(obs.data.mask*
+                                        (obs.model_cube.data**2/(obs.data.error.unmasked_data[:].value**2)), axis=0)
+
+                        scale = num / den
+                        ## Handle zeros:
+                        scale[den == 0.] = 0.
+                        scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
+                        scale3D[0, :, :] = scale
+                        sim_cube_final_scale *= scale3D
+
+                    else:
+                        model_peak = np.nanmax(obs.model_cube.data, axis=0)
+                        scale = obs.data.flux_map/model_peak
+                        scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
+                        scale3D[0, :, :] = scale
+                        sim_cube_final_scale *= scale3D
+
+                    mask_cube = obs.data.mask.copy()
+
+                else:
+
+                    mask_cube = None
+
+                obs.model_data = Data3D(cube=sim_cube_final_scale, pixscale=pixscale,
+                                         mask_cube=mask_cube,
+                                         spec_type=obs.instrument.spec_type,
+                                         spec_arr=spec,
+                                         spec_unit=obs.instrument.spec_unit)
 
             elif ndim_final == 2:
-                nx_sky = self.data.data['velocity'].shape[1]
-                ny_sky = self.data.data['velocity'].shape[0]
-                rstep = self.data.pixscale
-                try:
-                    xcenter = self.data.xcenter
-                except:
-                    pass
-                try:
-                    ycenter = self.data.ycenter
-                except:
-                    pass
-                if from_instrument:
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
 
-            elif ndim_final == 1:
+                if obs.instrument.smoothing_type is not None:
+                    obs.model_cube.data = apply_smoothing_3D(obs.model_cube.data,
+                                smoothing_type=obs.instrument.smoothing_type,
+                                smoothing_npix=obs.instrument.smoothing_npix)
 
-                if from_instrument:
-                    nx_sky = self.instrument.fov[0]
-                    ny_sky = self.instrument.fov[1]
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
-                    rstep = self.instrument.pixscale.value
-                else:
-
-                    maxr = 1.5*np.max(np.abs(self.data.rarr))
-                    if rstep is None:
-                        # Rough subsampling of ~3 as a "pixel size" = rstep
-                        rstep = np.mean(self.data.rarr[1:] - self.data.rarr[0:-1])/3.
-                    if nx_sky is None:
-                        nx_sky = int(np.ceil(maxr/rstep))
-                    if ny_sky is None:
-                        ny_sky = int(np.ceil(maxr/rstep))
-
-                    # --------------------------------------------------
-                    # Check FOV and issue warning if too small:
-                    maxr = np.max(np.abs(self.data.rarr))
-                    if ((nx_sky < maxr/rstep) | (ny_sky < maxr/rstep)):
-                        wmsg =  "dysmalpy.Galaxy:\n"
-                        wmsg += "****************************************************************\n"
-                        wmsg += "*** WARNING ***\n"
-                        wmsg += "FOV (nx_sky,ny_sky)="
-                        wmsg += "({},{}) is too small".format(nx_sky, ny_sky)
-                        wmsg += " for max data extent ({} pix)\n".format(maxr/rstep)
-                        wmsg += "****************************************************************\n"
-                        logger.warning(wmsg)
-                        raise ValueError(wmsg)
-                    # --------------------------------------------------
-
-                slit_width = self.data.slit_width
-                slit_pa = self.data.slit_pa
-                aper_centers = self.data.rarr
-
-                try:
-                    xcenter = self.data.xcenter
-                except:
-                    pass
-                try:
-                    ycenter = self.data.ycenter
-                except:
-                    pass
-
-
-                if 'profile1d_type' in self.data.__dict__.keys():
-                    if self.data.profile1d_type is not None:
-                        profile1d_type = self.data.profile1d_type
-
-
-            elif ndim_final == 0:
-
-                if from_instrument:
-                    nx_sky = self.instrument.fov[0]
-                    ny_sky = self.instrument.fov[1]
-                    spec_type = self.instrument.spec_type
-                    spec_start = self.instrument.spec_start.value
-                    spec_step = self.instrument.spec_step.value
-                    spec_unit = self.instrument.spec_start.unit
-                    nspec = self.instrument.nspec
-                    rstep = self.instrument.pixscale.value
-
-                else:
-
-                    if (nx_sky is None) | (ny_sky is None) | \
-                                (rstep is None):
-
-                        raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
-                                         "be set if from_instrument and/or from_data"
-                                         " is False.")
-
-                slit_width = self.data.slit_width
-                slit_pa = self.data.slit_pa
-                xarr = self.data.x
-
-
-            if (ndim_final == 2) | (ndim_final==3):
-                # Apply an artificial xycenter / xyshift of -0.5 if ndim = 2,3,
-                #   and median smoothing with an EVEN npix is applied
-                if self.data.smoothing_type is not None:
-                    if self.data.smoothing_type.lower().strip() == 'median':
-                        if (self.data.smoothing_npix % 2) == 0:
-                            if xcenter is None:
-                                xcenter = (nx_sky-1)/2.
-                            if ycenter is None:
-                                ycenter = (ny_sky-1)/2.
-                            xcenter -= 0.5
-                            ycenter -= 0.5
-
-
-        # Pull parameters from the instrument
-        elif from_instrument:
-
-            nx_sky = self.instrument.fov[0]
-            ny_sky = self.instrument.fov[1]
-            spec_type = self.instrument.spec_type
-            spec_start = self.instrument.spec_start.value
-            spec_step = self.instrument.spec_step.value
-            spec_unit = self.instrument.spec_start.unit
-            nspec = self.instrument.nspec
-            rstep = self.instrument.pixscale.value
-
-            try:
-                slit_width = self.instrument.slit_width
-            except:
-                pass
-
-            if (ndim_final == 1) & (profile1d_type is None):
-                raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
-
-        else:
-
-            if (nx_sky is None) | (ny_sky is None) | \
-                        (rstep is None):
-
-                raise ValueError("At minimum, nx_sky, ny_sky, and rstep must "
-                                 "be set if from_instrument and/or from_data"
-                                 " is False.")
-            #
-            if (ndim_final == 1) & (profile1d_type is None):
-                raise ValueError("Must set profile1d_type if ndim_final=1, from_data=False!")
-
-        # sim_cube, spec = self.model.simulate_cube(dscale=self.dscale,
-        #                                          **sim_cube_kwargs.dict)
-
-
-        # Apply lensing transformation if necessary
-        this_lensing_transformer = None
-        if _loaded_lensing:
-            # Only check to get lensing transformer if the lensing modules were successfully loaded.
-            if 'lensing_transformer' in kwargs:
-                if kwargs['lensing_transformer'] is not None:
-                    this_lensing_transformer = kwargs['lensing_transformer']['0']
-
-            this_lensing_transformer = setup_lensing_transformer_from_params(\
-                    params = kwargs,
-                    source_plane_nchan = nspec,
-                    image_plane_sizex = nx_sky * oversample * oversize,
-                    image_plane_sizey = ny_sky * oversample * oversize,
-                    image_plane_pixsc = rstep / oversample,
-                    reuse_lensing_transformer = this_lensing_transformer,
-                    cache_lensing_transformer = True,
-                    reuse_cached_lensing_transformer = True,
-                    verbose = (logger.level >= logging.DEBUG),
-                )
-        else:
-            # Check if the key lensing params ARE set -- passed in kwargs here to the call to
-            #   `setup_lensing_transformer_from_params`.
-            #   In this case, if the lensing loading failed, issue & raise an error.
-            mesh_file = mesh_ra = mesh_dec = None
-            if 'lensing_mesh' in kwargs:
-                mesh_file = kwargs['lensing_mesh']
-            if 'lensing_ra' in kwargs:
-                mesh_ra = kwargs['lensing_ra']
-            if 'lensing_dec' in kwargs:
-                mesh_dec = kwargs['lensing_dec']
-
-            if ((mesh_file is not None) & (mesh_ra is not None) & (mesh_dec is not None)):
-                wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
-                wmsg += "*******************************************\n"
-                wmsg += "*** ERROR ***\n"
-                wmsg += " dysmalpy.lensing could not be loaded.\n"
-                wmsg += " Unable to perform lensing transformation.\n"
-                wmsg += "*******************************************\n"
-                logger.error(wmsg)
-                raise ValueError(wmsg)
-
-
-        if this_lensing_transformer is not None:
-            sim_cube, spec = self.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,
-                                                      ny_sky=this_lensing_transformer.source_plane_ny,
-                                                      dscale=self.dscale,
-                                                      rstep=this_lensing_transformer.source_plane_pixsc,
-                                                      spec_type=spec_type,
-                                                      spec_step=spec_step,
-                                                      nspec=nspec,
-                                                      spec_start=spec_start,
-                                                      spec_unit=spec_unit,
-                                                      oversample=1,
-                                                      oversize=1,
-                                                      xcenter=None,
-                                                      ycenter=None,
-                                                      transform_method=transform_method,
-                                                      zcalc_truncate=zcalc_truncate,
-                                                      n_wholepix_z_min=n_wholepix_z_min)
-
-            logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
-            if this_lensing_transformer.source_plane_data_cube is None:
-                this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
-            else:
-                this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
-            sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
-            sim_cube[np.isnan(sim_cube)] = 0.0
-
-            # store back
-            if 'lensing_transformer' in kwargs:
-                if kwargs['lensing_transformer'] is None:
-                    kwargs['lensing_transformer'] = {'0': None}
-                kwargs['lensing_transformer']['0'] = this_lensing_transformer
-
-            # mask by data mask if available
-            if self.data is not None:
-                if hasattr(self.data, 'mask'):
-                    if hasattr(self.data.mask, 'shape'):
-                        this_lensing_mask = None
-                        if len(self.data.mask.shape) == 2:
-                            this_lensing_mask = self.data.mask.astype(bool)
-                            this_lensing_mask = np.repeat(this_lensing_mask[np.newaxis, :, :], nspec, axis=0)
-                        elif len(self.data.mask.shape) == 3:
-                            this_lensing_mask = self.data.mask.astype(bool)
-                        if this_lensing_mask is not None:
-                            if this_lensing_mask.shape == sim_cube.shape:
-                                sim_cube[~this_lensing_mask] = 0.0
-            # oversample oversize
-            logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
-
-        else:
-
-            sim_cube, spec = self.model.simulate_cube(nx_sky=nx_sky,
-                                                      ny_sky=ny_sky,
-                                                      dscale=self.dscale,
-                                                      rstep=rstep,
-                                                      spec_type=spec_type,
-                                                      spec_step=spec_step,
-                                                      nspec=nspec,
-                                                      spec_start=spec_start,
-                                                      spec_unit=spec_unit,
-                                                      oversample=oversample,
-                                                      oversize=oversize,
-                                                      xcenter=xcenter,
-                                                      ycenter=ycenter,
-                                                      transform_method=transform_method,
-                                                      zcalc_truncate=zcalc_truncate,
-                                                      n_wholepix_z_min=n_wholepix_z_min)
-
-
-        # Correct for any oversampling
-        if (oversample > 1) & (not skip_downsample):
-            sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
-                                nx_sky*oversize))
-        else:
-            sim_cube_nooversamp = sim_cube
-
-        if skip_downsample:
-            rstep /= (1.*oversample)
-            nx_sky *= oversample
-            ny_sky *= oversample
-            # Fix instrument:
-            self.instrument.pixscale = rstep * u.arcsec
-            self.instrument.fov = [nx_sky, ny_sky]
-            self.instrument.set_beam_kernel()
-
-
-        # Apply beam smearing and/or instrumental spreading
-        if self.instrument is not None:
-            sim_cube_obs = self.instrument.convolve(cube=sim_cube_nooversamp,
-                                                    spec_center=line_center)
-        else:
-            sim_cube_obs = sim_cube_nooversamp
-
-
-        # Re-size the cube back down
-        if oversize > 1:
-            nx_oversize = sim_cube_obs.shape[2]
-            ny_oversize = sim_cube_obs.shape[1]
-            sim_cube_final = sim_cube_obs[:,
-                np.int(ny_oversize/2 - ny_sky/2):np.int(ny_oversize/2+ny_sky/2),
-                np.int(nx_oversize/2 - nx_sky/2):np.int(nx_oversize/2+nx_sky/2)]
-
-        else:
-            sim_cube_final = sim_cube_obs
-
-        self.model_cube = Data3D(cube=sim_cube_final, pixscale=rstep,
-                                 spec_type=spec_type,
-                                 spec_arr=spec,
-                                 spec_unit=spec_unit)
-
-        if ndim_final == 3:
-            if from_data:
-                if self.data.smoothing_type is not None:
-                    self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
-                            smoothing_type=self.data.smoothing_type,
-                            smoothing_npix=self.data.smoothing_npix)
-
-                sim_cube_final_scale = self.model_cube.data._data.copy()
-                if self.data.flux_map is None:
-                    #mask_flat = np.sum(self.data.mask, axis=0)
-                    num = np.sum(self.data.mask*(self.data.data.unmasked_data[:].value*
-                                     self.model_cube.data/(self.data.error.unmasked_data[:].value**2)), axis=0)
-                    den = np.sum(self.data.mask*
-                                    (self.model_cube.data**2/(self.data.error.unmasked_data[:].value**2)), axis=0)
-
-                    scale = num / den
-                    ## Handle zeros:
-                    scale[den == 0.] = 0.
-                    scale3D = np.zeros(shape=(1, scale.shape[0], scale.shape[1],))
-                    scale3D[0, :, :] = scale
-                    sim_cube_final_scale *= scale3D
-
-                else:
-                    model_peak = np.nanmax(self.model_cube.data, axis=0)
-                    scale = self.data.flux_map/model_peak
-                    scale3D = np.zeros((1, scale.shape[0], scale.shape[1]))
-                    scale3D[0, :, :] = scale
-                    sim_cube_final_scale *= scale3D
-                mask_cube = self.data.mask.copy()
-            else:
-                sim_cube_final_scale = self.model_cube.data._data.copy()
-                mask_cube = None
-
-            self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=rstep,
-                                     mask_cube=mask_cube,
-                                     spec_type=spec_type,
-                                     spec_arr=spec,
-                                     spec_unit=spec_unit)
-
-        elif ndim_final == 2:
-
-            if from_data:
-                if self.data.smoothing_type is not None:
-                    self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
-                                smoothing_type=self.data.smoothing_type,
-                                smoothing_npix=self.data.smoothing_npix)
-
-                # How data was extracted:
-                if self.data.moment:
-                    extrac_type = 'moment'
-                else:
-                    extrac_type = 'gauss'
-            elif from_instrument:
-                if 'moment' in self.instrument.__dict__.keys():
-                    if self.instrument.moment:
+                if 'moment' in obs.instrument.__dict__.keys():
+                    if obs.instrument.moment:
                         extrac_type = 'moment'
                     else:
                         extrac_type = 'gauss'
                 else:
-                    #extrac_type = 'moment'
-                    # Change default to 'gauss':
                     extrac_type = 'gauss'
-            else:
-                #extrac_type = 'moment'
-                # Change default to 'gauss':
-                extrac_type = 'gauss'
 
-            if spec_type == "velocity":
-                if extrac_type == 'moment':
-                    flux = self.model_cube.data.moment0().to(u.km/u.s).value
-                    vel = self.model_cube.data.moment1().to(u.km/u.s).value
-                    disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
-                elif extrac_type == 'gauss':
-                    mom0 = self.model_cube.data.moment0().to(u.km/u.s).value
-                    mom1 = self.model_cube.data.moment1().to(u.km/u.s).value
-                    mom2 = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
-                    flux = np.zeros(mom0.shape)
-                    vel = np.zeros(mom0.shape)
-                    disp = np.zeros(mom0.shape)
-                    # <DZLIU><20210805> ++++++++++
-                    my_least_chi_squares_1d_fitter = None
-                    if ('gauss_extract_with_c' in kwargs) & (_loaded_LeastChiSquares1D):
-                        if kwargs['gauss_extract_with_c'] is not None and \
-                           kwargs['gauss_extract_with_c'] is not False:
-                            # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
-                            # but note that if a spectrum has data all too close to zero, it will fail.
-                            # try to prevent this by excluding too low data
-                            if from_data:
-                                this_fitting_mask = copy.copy(self.data.mask)
-                            else:
-                                this_fitting_mask = 'auto'
-                            if logger.level > logging.DEBUG:
-                                this_fitting_verbose = True
-                            else:
-                                this_fitting_verbose = False
-                            # do the least chisquares fitting
-                            my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
-                                    x = self.model_cube.data.spectral_axis.to(u.km/u.s).value,
-                                    data = self.model_cube.data.unmasked_data[:,:,:].value,
-                                    dataerr = None,
-                                    datamask = this_fitting_mask,
-                                    initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
-                                    nthread = 4,
-                                    verbose = this_fitting_verbose)
-                    if my_least_chi_squares_1d_fitter is not None:
-                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-                        my_least_chi_squares_1d_fitter.runFitting()
-                        flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
-                        vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
-                        disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
-                        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
-                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-                    else:
-                        for i in range(mom0.shape[0]):
-                            for j in range(mom0.shape[1]):
-                                if i==0 and j==0:
-                                    logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-                                best_fit = gaus_fit_sp_opt_leastsq(self.model_cube.data.spectral_axis.to(u.km/u.s).value,
-                                                    self.model_cube.data.unmasked_data[:,i,j].value,
-                                                    mom0[i,j], mom1[i,j], mom2[i,j])
-                                flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
-                                vel[i,j] = best_fit[1]
-                                disp[i,j] = best_fit[2]
-                                if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
-                                    logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-                    # <DZLIU><20210805> ----------
+                if spec_type == "velocity":
+                    if extrac_type == 'moment':
+                        flux = obs.model_cube.data.moment0().to(u.km/u.s).value
+                        vel = obs.model_cube.data.moment1().to(u.km/u.s).value
+                        disp = obs.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                    elif extrac_type == 'gauss':
+                        mom0 = obs.model_cube.data.moment0().to(u.km/u.s).value
+                        mom1 = obs.model_cube.data.moment1().to(u.km/u.s).value
+                        mom2 = obs.model_cube.data.linewidth_sigma().to(u.km/u.s).value
+                        flux = np.zeros(mom0.shape)
+                        vel = np.zeros(mom0.shape)
+                        disp = np.zeros(mom0.shape)
+                        # <DZLIU><20210805> ++++++++++
+                        my_least_chi_squares_1d_fitter = None
+                        if ('gauss_extract_with_c' in kwargs) & (_loaded_LeastChiSquares1D):
+                            if kwargs['gauss_extract_with_c'] is not None and \
+                               kwargs['gauss_extract_with_c'] is not False:
+                                # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
+                                # but note that if a spectrum has data all too close to zero, it will fail.
+                                # try to prevent this by excluding too low data
+                                if obs.data.mask is not None:
+                                    this_fitting_mask = copy.copy(obs.data.mask)
+                                else:
+                                    this_fitting_mask = 'auto'
+                                if logger.level > logging.DEBUG:
+                                    this_fitting_verbose = True
+                                else:
+                                    this_fitting_verbose = False
+                                # do the least chisquares fitting
+                                my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
+                                        x = obs.model_cube.data.spectral_axis.to(u.km/u.s).value,
+                                        data = obs.model_cube.data.unmasked_data[:,:,:].value,
+                                        dataerr = None,
+                                        datamask = this_fitting_mask,
+                                        initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
+                                        nthread = 4,
+                                        verbose = this_fitting_verbose)
+                        if my_least_chi_squares_1d_fitter is not None:
+                            logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                            my_least_chi_squares_1d_fitter.runFitting()
+                            flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
+                            vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
+                            disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
+                            flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
+                            logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        else:
+                            for i in range(mom0.shape[0]):
+                                for j in range(mom0.shape[1]):
+                                    if i==0 and j==0:
+                                        logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                                    best_fit = gaus_fit_sp_opt_leastsq(obs.model_cube.data.spectral_axis.to(u.km/u.s).value,
+                                                        obs.model_cube.data.unmasked_data[:,i,j].value,
+                                                        mom0[i,j], mom1[i,j], mom2[i,j])
+                                    flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
+                                    vel[i,j] = best_fit[1]
+                                    disp[i,j] = best_fit[2]
+                                    if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
+                                        logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        # <DZLIU><20210805> ----------
 
-            elif spec_type == "wavelength":
+                elif spec_type == "wavelength":
 
-                cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s,
-                    velocity_convention='optical',
-                    rest_value=line_center)
+                    cube_with_vel = obs.model_cube.data.with_spectral_unit(u.km/u.s,
+                        velocity_convention='optical',
+                        rest_value=obs.instrument.line_center)
 
-                if extrac_type == 'moment':
-                    flux = cube_with_vel.moment0().value
-                    vel = cube_with_vel.moment1().value
-                    disp = cube_with_vel.linewidth_sigma().value
-                elif extrac_type == 'gauss':
-                    raise ValueError("Not yet supported!")
+                    if extrac_type == 'moment':
+                        flux = cube_with_vel.moment0().value
+                        vel = cube_with_vel.moment1().value
+                        disp = cube_with_vel.linewidth_sigma().value
+                    elif extrac_type == 'gauss':
+                        raise ValueError("Not yet supported!")
 
-                disp[np.isnan(disp)] = 0.
+                    disp[np.isnan(disp)] = 0.
 
-            else:
-                raise ValueError("spec_type can only be 'velocity' or "
-                                 "'wavelength.'")
-
-
-            if from_data:
-                # Copy data mask:
-                mask = copy.deepcopy(self.data.mask)
-
-                # Normalize flux:
-                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
-                    num = np.nansum(self.data.mask*(self.data.data['flux']*flux)/(self.data.error['flux']**2))
-                    den = np.nansum(self.data.mask*(flux**2)/(self.data.error['flux']**2))
-
-                    scale = num / den
-                    flux *= scale
-                elif (self.data.data['flux'] is not None):
-                    num = np.nansum(self.data.mask*(self.data.data['flux']*flux))
-                    den = np.nansum(self.data.mask*(flux**2))
-                    scale = num / den
-                    flux *= scale
-            else:
-                mask = None
-
-            self.model_data = Data2D(pixscale=rstep, velocity=vel,
-                                     vel_disp=disp, flux=flux, mask=mask)
-
-        elif ndim_final == 1:
-
-            if spec_type == 'wavelength':
-
-                cube_with_vel = self.model_cube.data.with_spectral_unit(
-                    u.km / u.s, velocity_convention='optical',
-                    rest_value=line_center)
-
-                cube_data = cube_with_vel.unmasked_data[:]
-                vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
-
-            elif spec_type == 'velocity':
-
-                cube_data = sim_cube_obs
-                vel_arr = spec
-
-            else:
-                raise ValueError("spec_type can only be 'velocity' or "
-                                 "'wavelength.'")
-
-            if profile1d_type == 'circ_ap_pv':
-                r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube_data,
-                                slit_width,slit_pa-180.,
-                                rstep, vel_arr)
-                vinterp = scp_interp.interp1d(r1d, vel1d,
-                                              fill_value='extrapolate')
-                disp_interp = scp_interp.interp1d(r1d, disp1d,
-                                                  fill_value='extrapolate')
-                vel1d = vinterp(aper_centers)
-                disp1d = disp_interp(aper_centers)
-                flux_interp = scp_interp.interp1d(r1d, flux1d,
-                                                  fill_value='extrapolate')
-                flux1d = flux_interp(aper_centers)
-                aper_model = None
-
-            elif profile1d_type == 'single_pix_pv':
-                r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube_data, slit_width,
-                            slit_pa-180., rstep, vel_arr)
-                vinterp = scp_interp.interp1d(r1d, vel1d,
-                                              fill_value='extrapolate')
-                disp_interp = scp_interp.interp1d(r1d, disp1d,
-                                                  fill_value='extrapolate')
-                vel1d = vinterp(aper_centers)
-                disp1d = disp_interp(aper_centers)
-
-                flux_interp = scp_interp.interp1d(r1d, flux1d,
-                                                  fill_value='extrapolate')
-                flux1d = flux_interp(aper_centers)
-
-                aper_model = None
-            else:
-
-                if from_data:
-                    if (self.data.aper_center_pix_shift is not None):
-                        try:
-                            center_pixel = (self.data.xcenter + self.data.aper_center_pix_shift[0],
-                                            self.data.ycenter + self.data.aper_center_pix_shift[1])
-                        except:
-                            center_pixel = (np.int(nx_sky / 2) + self.data.aper_center_pix_shift[0],
-                                            np.int(ny_sky / 2) + self.data.aper_center_pix_shift[1])
-                    else:
-                        try:
-                            # Catch case where center_pixel is (None, None)
-                            if (self.data.xcenter is not None) & (self.data.ycenter is not None):
-                                center_pixel = (self.data.xcenter, self.data.ycenter)
-                            else:
-                                center_pixel = None
-                        except:
-                            center_pixel = None
                 else:
+                    raise ValueError("spec_type can only be 'velocity' or "
+                                     "'wavelength.'")
+
+
+                if obs.data is not None:
+                    if obs.data.mask is not None:
+                        # Copy data mask:
+                        mask = copy.deepcopy(self.data.mask)
+
+                        # Normalize flux:
+                        if (obs.data.data['flux'] is not None) & (obs.data.error['flux'] is not None):
+                            num = np.nansum(obs.data.mask*(obs.data.data['flux']*flux)/(obs.data.error['flux']**2))
+                            den = np.nansum(obs.data.mask*(flux**2)/(obs.data.error['flux']**2))
+
+                            scale = num / den
+                            flux *= scale
+                        elif (obs.data.data['flux'] is not None):
+                            num = np.nansum(obs.data.mask*(obs.data.data['flux']*flux))
+                            den = np.nansum(obs.data.mask*(flux**2))
+                            scale = num / den
+                            flux *= scale
+                    else:
+                        mask = None
+                else:
+                    mask = None
+
+                self.model_data = Data2D(pixscale=pixscale, velocity=vel,
+                                         vel_disp=disp, flux=flux, mask=mask)
+
+            elif ndim_final == 1:
+
+                if spec_type == 'wavelength':
+
+                    cube_with_vel = obs.model_cube.data.with_spectral_unit(
+                        u.km / u.s, velocity_convention='optical',
+                        rest_value=obs.instrument.line_center)
+
+                    cube_data = cube_with_vel.unmasked_data[:]
+                    vel_arr = cube_with_vel.spectral_axis.to(u.km/u.s).value
+
+                elif spec_type == 'velocity':
+
+                    cube_data = sim_cube_obs
+                    vel_arr = spec
+
+                else:
+                    raise ValueError("spec_type can only be 'velocity' or "
+                                     "'wavelength.'")
+
+                try:
+                    # Catch case where center_pixel is (None, None)
+                    if (obs.obs_options.xcenter is not None) & (obs.obs_options.ycenter is not None):
+                        center_pixel = (obs.obs_options.xcenter, obs.obs_options.ycenter)
+                    else:
+                        center_pixel = None
+                except:
                     center_pixel = None
 
+                aper_centers, flux1d, vel1d, disp1d = obs.instrument.apertures.extract_1d_kinematics(spec_arr=vel_arr,
+                        cube=cube_data, center_pixel = center_pixel, pixscale=pixscale)
 
+                if obs.data is not None:
+                    # Get mask:
+                    mask1d = copy.deepcopy(obs.data.mask)
 
-                #----------------------------------------------------------
+                    # Normalize flux:
+                    if (obs.data.data['flux'] is not None) & (obs.data.error['flux'] is not None):
+                        if (flux1d.shape[0] == obs.data.data['flux'].shape[0]):
+                            num = np.sum(obs.data.mask*(obs.data.data['flux']*flux1d)/(obs.data.error['flux']**2))
+                            den = np.sum(obs.data.mask*(flux1d**2)/(obs.data.error['flux']**2))
 
-                if from_data:
-                    aper_centers, flux1d, vel1d, disp1d = self.data.apertures.extract_1d_kinematics(spec_arr=vel_arr,
-                            cube=cube_data, center_pixel = center_pixel, pixscale=rstep)
-                    aper_model = None
+                            scale = num / den
+                            flux1d *= scale
+                    elif (obs.data.data['flux'] is not None):
+                        if (flux1d.shape[0] == obs.data.data['flux'].shape[0]):
+                            num = np.sum(obs.data.mask*(obs.data.data['flux']*flux1d))
+                            den = np.sum(obs.data.mask*(flux1d**2))
+                            scale = num / den
+                            flux1d *= scale
+                else:
+                    mask1d = None
 
-                #----------------------------------------------------------
+                # Gather results:
+                self.model_data = Data1D(r=aper_centers, velocity=vel1d,
+                                         vel_disp=disp1d, flux=flux1d, mask=mask1d)
+
+            elif ndim_final == 0:
+
+                if obs.instrument.integrate_cube:
+
+                    # Integrate over the spatial dimensions of the cube
+                    flux = np.nansum(np.nansum(obs.model_cube.data.unmasked_data[:], axis=2), axis=1)
+
+                    # Normalize to the maximum of the spectrum
+                    flux /= np.nanmax(flux)
+                    flux = flux.value
+
                 else:
 
-                    aper_model = aperture_classes.setup_aperture_types(gal=self,
-                                profile1d_type=profile1d_type,
-                                slit_width = slit_width,
-                                aper_centers=aper_centers,
-                                slit_pa=slit_pa,
-                                aperture_radius=aperture_radius,
-                                pix_perp=pix_perp,
-                                pix_parallel=pix_parallel,
-                                pix_length=pix_length,
-                                partial_weight=partial_aperture_weight,
-                                moment=False, # use Gaussian extraction
-                                from_data=False)
+                    # Place slit down on cube
+                    raise NotImplementedError('Using slits to create spectrum not implemented yet!')
 
+                obs.model_data = Data0D(x=spec, flux=flux)
 
-                    aper_centers, flux1d, vel1d, disp1d = aper_model.extract_1d_kinematics(spec_arr=vel_arr,
-                            cube=cube_data, center_pixel = center_pixel,
-                            pixscale=rstep)
-
-
-            if from_data:
-                # Get mask:
-                mask1d = copy.deepcopy(self.data.mask)
-
-                # Normalize flux:
-                if (self.data.data['flux'] is not None) & (self.data.error['flux'] is not None):
-                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
-                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d)/(self.data.error['flux']**2))
-                        den = np.sum(self.data.mask*(flux1d**2)/(self.data.error['flux']**2))
-
-                        scale = num / den
-                        flux1d *= scale
-                elif (self.data.data['flux'] is not None):
-                    if (flux1d.shape[0] == self.data.data['flux'].shape[0]):
-                        num = np.sum(self.data.mask*(self.data.data['flux']*flux1d))
-                        den = np.sum(self.data.mask*(flux1d**2))
-                        scale = num / den
-                        flux1d *= scale
-            else:
-                mask1d = None
-
-            # Gather results:
-            self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                     vel_disp=disp1d, flux=flux1d, mask=mask1d,
-                                     slit_width=slit_width, slit_pa=slit_pa)
-            self.model_data.apertures = aper_model
-            self.model_data.profile1d_type = profile1d_type
-
-        elif ndim_final == 0:
-
-            if self.data.integrate_cube:
-
-                # Integrate over the spatial dimensions of the cube
-                flux = np.nansum(np.nansum(self.model_cube.data.unmasked_data[:], axis=2), axis=1)
-
-                # Normalize to the maximum of the spectrum
-                flux /= np.nanmax(flux)
-                flux = flux.value
-
-            else:
-
-                # Place slit down on cube
-                raise NotImplementedError('Using slits to create spectrum not implemented yet!')
-
-            self.model_data = Data0D(x=spec, flux=flux, slit_pa=self.data.slit_pa,
-                                     slit_width=self.data.slit_width,
-                                     integrate_cube=self.data.integrate_cube)
-
-        ####
-        # Reset instrument to orig value
-        if skip_downsample:
-            rstep *= oversample
-            nx_sky /= (1.*oversample)
-            ny_sky /= (1.*oversample)
-            # Fix instrument:
-            self.instrument.pixscale = rstep * u.arcsec
-            self.instrument.fov = [nx_sky, ny_sky]
-            self.instrument.set_beam_kernel()
+            ####
+            # Reset instrument to orig value
+            if skip_downsample:
+                pixscale *= oversample
+                nx_sky /= (1.*oversample)
+                ny_sky /= (1.*oversample)
+                # Fix instrument:
+                obs.instrument.pixscale = pixscale * u.arcsec
+                obs.instrument.fov = [nx_sky, ny_sky]
+                obs.instrument.set_beam_kernel()
 
     def preserve_self(self, filename=None, save_data=True, overwrite=False):
         # Check for existing file:

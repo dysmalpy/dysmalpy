@@ -10,5 +10,6 @@ import dysmalpy.parameters
 import dysmalpy.utils
 import dysmalpy.utils_io
 import dysmalpy.data_io
+import dysmalpy.observation
 
 __version__ = "2.0.0"
