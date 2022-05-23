@@ -70,7 +70,13 @@ class Instrument:
     def __init__(self, beam=None, beam_type=None, lsf=None, pixscale=None,
                  spec_type='velocity', spec_start=-1000*u.km/u.s,
                  spec_step=10*u.km/u.s, nspec=201,
-                 fov=None, name='Instrument'):
+                 line_center=None,
+                 smoothing_type=None, smoothing_npix=None,
+                 moment=False,
+                 apertures=None,
+                 integrate_cube=True, slit_width=None, slit_pa=None,
+                 fov=None,
+                 name='Instrument'):
 
         self.name = name
         self.pixscale = pixscale
@@ -87,6 +93,27 @@ class Instrument:
         self.spec_start = spec_start
         self.spec_step = spec_step
         self.nspec = nspec
+
+
+        # Wave spec options:
+        self.line_center = line_center
+
+        # 3D / 2D options:
+        self.smoothing_type = smoothing_type
+        self.smoothing_npix = smoothing_npix
+
+        # 2D / 1D options:
+        self.moment = moment
+
+        # 1D options:
+        self.apertures = apertures
+
+        # 0D options
+        self.integrate_cube = integrate_cube
+        self.slit_width = slit_width
+        self.slit_pa = slit_pa
+
+
 
     def convolve(self, cube, spec_center=None):
         """

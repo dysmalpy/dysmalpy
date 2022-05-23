@@ -23,7 +23,7 @@ logger = logging.getLogger('DysmalPy')
 
 __all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures",
             "EllipApertures", "CircApertures", "RectApertures", "SquareApertures",
-            "SinglePixelPVApertures", "CircularPVApertures", 
+            "SinglePixelPVApertures", "CircularPVApertures",
             "setup_aperture_types",
             "calc_1dprofile", "calc_1dprofile_circap_pv"]
 
@@ -336,7 +336,7 @@ class Apertures(object):
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
-                center_pixel = None, pixscale=None):
+                center_pixel=None, pixscale=None):
         """
         aper_centers_pixout: the radial direction positions, relative to kin center, in pixels
         """

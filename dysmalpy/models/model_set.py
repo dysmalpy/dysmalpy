@@ -1296,7 +1296,6 @@ class ModelSet:
         dscale : float
             Conversion from sky to physical coordinates in arcsec/kpc
 
-
         Returns
         -------
         cube_final : 3D array
