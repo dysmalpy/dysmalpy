@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import logging
 import warnings
-import six
 from collections import OrderedDict
 
 # Local imports
@@ -46,7 +45,7 @@ np.warnings.filterwarnings('ignore')
 
 
 def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
-            rstep=None, oversample=None, dscale=None,
+            pixscale=None, oversample=None, dscale=None,
             maxr=None, maxr_y=None):
 
     oversize = 1.5  # Padding factor for x trimming
@@ -61,7 +60,7 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
 
     # Sample += 2 * scale length thickness
     # Modify: make sure there are at least 3 *whole* pixels sampled:
-    zsize = np.max([ n_wholepix_z_min*oversample, int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+    zsize = np.max([ n_wholepix_z_min*oversample, int(np.floor(4.*thick/pixscale*dscale + 0.5 )) ])
 
     if ( (xsize%2) < 0.5 ): xsize += 1
     if ( (ysize%2) < 0.5 ): ysize += 1
@@ -1251,7 +1250,7 @@ class ModelSet:
 
         profiles = np.zeros((len(r), len(cols)+1))
         profiles[:,0] = r
-        for j in six.moves.xrange(len(cols)):
+        for j in range(len(cols)):
             if cols[j] != 'velocity_profile':
                 try:
                     fnc = getattr(self, cols[j])
@@ -1280,93 +1279,23 @@ class ModelSet:
             if colunits is not None:
                 unitstr = '#   ' + '   '.join(unitsout)
                 f.write(unitstr+'\n')
-            for i in six.moves.xrange(len(r)):
+            for i in range(len(r)):
                 datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
                 f.write(datstr+'\n')
 
 
-    def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
-                      spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s,
-                      obs_name=None, tracer=None,
-                      oversample=1, oversize=1,
-                      xcenter=None, ycenter=None,
-                      transform_method='direct',
-                      zcalc_truncate=True,
-                      n_wholepix_z_min=3):
+    def simulate_cube(self, obs=None, dscale=None):
         r"""
         Simulate a line emission cube of this model set
 
         Parameters
         ----------
-        nx_sky : int
-            Number of pixels in the output cube in the x-direction
-
-        ny_sky : int
-            Number of pixels in the output cube in the y-direction
+        obs : Observation class
+            Instance holding the observation information
 
         dscale : float
             Conversion from sky to physical coordinates in arcsec/kpc
 
-        rstep : float
-            Pixel scale in arsec/pixel
-
-        spec_type : {'velocity', 'wavelength'}
-            Spectral axis type.
-
-        spec_step : float
-            Step size of the spectral axis
-
-        spec_start : float
-            Value of the first element of the spectral axis
-
-        nspec : int
-            Number of spectral channels
-
-        spec_unit : `~astropy.units.Unit`
-            Unit of the spectral axis
-
-        obs_name : string
-            Name of the observation (used to determine which is the appropriate geometry).
-
-        tracer : string
-            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
-
-        oversample : int, optional
-            Oversampling factor for creating the model cube. If `oversample` > 1, then
-            the model cube will be generated at `rstep`/`oversample` pixel scale.
-
-        oversize : int, optional
-            Oversize factor for creating the model cube. If `oversize` > 1, then the model
-            cube will be generated with `oversize`*`nx_sky` and `oversize`*`ny_sky`
-            number of pixels in the x and y direction respectively.
-
-        xcenter : float, optional
-            The x-coordinate of the center of the galaxy. If None then the x-coordinate of the
-            center of the cube will be used.
-
-        ycenter : float, optional
-            The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
-            center of the cube will be used.
-
-        transform_method: str
-            Method for transforming from galaxy to sky coordinates.
-            Options are:
-                'direct' (calculate (xyz)sky before evaluating) or
-                'rotate' (calculate in (xyz)gal, then rotate when creating final cube).
-            Default: 'direct'.
-
-        zcalc_truncate: bool
-            Setting the default behavior of filling the model cube. If True,
-            then the cube is only filled with flux
-            to within +- 2 * scale length thickness above and below
-            the galaxy midplane (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
-            If False, then no truncation is applied and the cube is filled over the full range of zgal.
-            Default: True
-
-        n_wholepix_z_min: int
-            Minimum number of whole pixels to include in the z direction when trunctating.
-            Default: 3
 
         Returns
         -------
@@ -1379,18 +1308,36 @@ class ModelSet:
             `spec_step`, `nspec`, and `spec_unit`
 
         """
-        if obs_name is None:
-            raise ValueError("Must specify 'obs_name' to determine geometry!")
-        if tracer is None:
-            raise ValueError("Must specify 'tracer' to calculate velocity profile!")
+        if obs is None:
+            raise ValueError("Must pass 'obs' instance!")
 
-        if transform_method.lower().strip() not in ['direct', 'rotate']:
+        if obs.obs_options.transform_method.lower().strip() not in ['direct', 'rotate']:
             raise ValueError("Transform method {} unknown! "
                     "Must be 'direct' or 'rotate'!".format(transform_method))
 
-        # Get the galaxy geometry:
-        geom = self.geometries[obs_name]
+        # ----------------------------------------------
+        # Get key settings / variables out of obs:
+        nx_sky = obs.instrument.fov[0]
+        ny_sky = obs.instrument.fov[1]
+        pixscale = obs.instrument.pixscale.to(u.arcsec).value
+        spec_type = obs.instrument.spec_type
+        nspec = obs.instrument.nspec
+        spec_step = obs.instrument.spec_step.value
+        spec_start = obs.instrument.spec_start.to(obs.instrument.spec_step.unit).value
+        spec_unit = obs.instrument.spec_step.unit
 
+        oversample = obs.obs_options.oversample
+        oversize = obs.obs_options.oversize
+        xcenter = obs.obs_options.xcenter
+        ycenter = obs.obs_options.ycenter
+        transform_method = obs.obs_options.transform_method
+        zcalc_truncate = obs.obs_options.zcalc_truncate
+        n_wholepix_z_min = obs.obs_options.n_wholepix_z_min
+        # ----------------------------------------------
+
+
+        # Get the galaxy geometry corresponding to the observation:
+        geom = self.geometries[obs.name]
 
 
         # Start with a 3D array in the sky coordinate system
@@ -1400,8 +1347,8 @@ class ModelSet:
 
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
-        rstep_samp = rstep/oversample
-        to_kpc = rstep_samp / dscale
+        pixscale_samp = pixscale/oversample
+        to_kpc = pixscale_samp / dscale
 
         if (np.mod(nx_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             nx_sky_samp = nx_sky_samp + 1
@@ -1462,7 +1409,7 @@ class ModelSet:
             # The circular velocity at each position only depends on the radius
             rgal = np.sqrt(xgal ** 2 + ygal ** 2)
 
-            vrot = self.velocity_profile(rgal*to_kpc, tracer=tracer)
+            vrot = self.velocity_profile(rgal*to_kpc, tracer=obs.tracer)
             # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
@@ -1555,8 +1502,10 @@ class ModelSet:
 
             # self.light_components SHOULD NOT include
             #    higher-order kin comps with own light profiles.
-            for cmp in self.light_components:
-                if self.light_components[cmp]:
+
+            tracer_lcomps = model_utils.get_light_components_by_tracer(self, obs.tracer)
+            for cmp in tracer_lcomps:
+                if (self.light_components[cmp]):
                     lcomp = self.components[cmp]
                     zscale = self.zprofile(zgal*to_kpc)
                     # Differentiate between axisymmetric and non-axisymmetric light components:
@@ -1567,9 +1516,6 @@ class ModelSet:
                         # Non-axisymmetric cases:
                         ## ASSUME IT'S ALL IN THE MIDPLANE, so also apply zscale
                         flux_mass +=  lcomp.light_profile(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc) * zscale
-
-                        ## Later option: directly 3D calculate ????
-                        #flux_mass +=  flux_3D
 
 
             # Apply extinction if a component exists
@@ -1589,7 +1535,7 @@ class ModelSet:
                 if zcalc_truncate:
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai = _make_cube_ai(self, xgal, ygal, zgal, n_wholepix_z_min=n_wholepix_z_min,
-                        rstep=rstep_samp, oversample=oversample,
+                        pixscale=pixscale_samp, oversample=oversample,
                         dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
                 else:
@@ -1603,9 +1549,9 @@ class ModelSet:
                     _get_xyz_sky_gal_inverse(geom, sh, xcenter_samp, ycenter_samp,
                                              (nz_sky_samp - 1) / 2.)
 
-                #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+                #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * pixscale_samp / dscale
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
-                #rgal_final_kpc = rgal_final * rstep_samp / dscale
+                #rgal_final_kpc = rgal_final * pixscale_samp / dscale
 
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
@@ -1628,7 +1574,7 @@ class ModelSet:
                         thick = 0.
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
-                    zsize = np.max([  3.*oversample, int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
+                    zsize = np.max([  3.*oversample, int(np.floor( 4.*thick/pixscale_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
                     origpos_z = zarr - np.mean(zarr) + zsize/2.
@@ -1717,7 +1663,7 @@ class ModelSet:
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
                             n_wholepix_z_min=n_wholepix_z_min,
-                            rstep=rstep_samp, oversample=oversample,
+                            pixscale=pixscale_samp, oversample=oversample,
                             dscale=dscale, maxr=maxr/2., maxr_y=maxr_y_final/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass_transf, vobs_mass_transf,
                                 sigmar_transf, vx, ai_sky)

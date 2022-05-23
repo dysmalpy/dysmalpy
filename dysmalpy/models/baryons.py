@@ -1028,6 +1028,7 @@ class BlackHole(MassModel):
     BH_mass = DysmalParameter(default=1, bounds=(0., 12.))
     _subtype = 'baryonic'
     baryon_type = 'blackhole'
+    tracer = 'none'
 
     def __init__(self, **kwargs):
         super(BlackHole, self).__init__(**kwargs)
@@ -1140,6 +1141,7 @@ class ExpDisk(MassModel, _LightMassModel):
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     mass_to_light = DysmalParameter(default=1, fixed=True)
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type
@@ -1327,6 +1329,7 @@ class Sersic(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq=1.0, noord_flat=False, baryon_type='gas+stars', **kwargs):
 
@@ -1577,6 +1580,7 @@ class DiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', gas_component='disk', baryon_type='gas+stars',
@@ -2197,6 +2201,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', baryon_type='gas+stars', **kwargs):
@@ -2631,6 +2636,7 @@ class GaussianRing(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type
