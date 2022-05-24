@@ -53,75 +53,78 @@ class ConfigBase:
             kwarg_dict[key] = self.__dict__[key]
         return kwarg_dict
 
+# 
+# class Config_create_model_data(ConfigBase):
+#     """
+#     Class to handle settings for Galaxy.create_model_data.
+#     """
+#     def __init__(self, **kwargs):
+#
+#         super(Config_create_model_data, self).__init__(**kwargs)
+#
+#     def set_defaults(self):
+#         self.ndim_final = 3
+#         self.line_center = None
+#         self.aper_centers = None
+#         self.slit_width = None
+#         self.slit_pa = None
+#         self.profile1d_type = None
+#         self.from_instrument = True
+#         self.from_data = True
+#         self.aperture_radius = None
+#         self.pix_perp = None
+#         self.pix_parallel = None
+#         self.pix_length = None
+#         self.skip_downsample = False
+#         self.partial_aperture_weight = False
+#         #self.partial_weight = False   ## used for rot curve plotting -- but only passed to aperture
+#         self.gauss_extract_with_c = True # True or False or None, whether to use faster C++ 1d gaussian spectral fitting.
+#         # Default always try to use the C++ gaussian fitter
+#
+#
+# class Config_simulate_cube(ConfigBase):
+#     """
+#     Class to handle settings for model_set.simulate_cube
+#     """
+#     def __init__(self, **kwargs):
+#         super(Config_simulate_cube, self).__init__(**kwargs)
+#
+#     def set_defaults(self):
+#         self.nx_sky = None
+#         self.ny_sky = None
+#         self.rstep = None
+#         self.spec_type = 'velocity'
+#         self.spec_step = 10.
+#         self.spec_start = -1000.
+#         self.nspec = 201
+#         self.spec_unit = (u.km/u.s)
+#         self.xcenter = None
+#         self.ycenter = None
+#         self.oversample = 1
+#         self.oversize = 1
+#         self.transform_method = 'direct'
+#         self.zcalc_truncate = None     # Default will be set in galaxy.create_model_data:
+#                                        #    0D/1D/2D/3D: True/True/False/False
+#                                        #    because for the smaller spatial extent of a single spaxel
+#                                        #    for 2D/3D leads to asymmetries from truncation,
+#                                        #    while this is less important for 0D/1D (combo in apertures).
+#                                        #    Previous: True
+#         self.n_wholepix_z_min = 3
+#         self.lensing_datadir = None # datadir for the lensing model mesh.dat
+#         self.lensing_mesh = None # lensing model mesh.dat
+#         self.lensing_ra = None # lensing model ref ra
+#         self.lensing_dec = None # lensing model ref dec
+#         self.lensing_sra = None # lensing source plane image center ra
+#         self.lensing_sdec = None # lensing source plane image center dec
+#         self.lensing_ssizex = None # lensing source plane image size in x
+#         self.lensing_ssizey = None # lensing source plane image size in y
+#         self.lensing_spixsc = None # lensing source plane image pixel size in arcsec unit
+#         self.lensing_imra = None # lensing image plane image center ra
+#         self.lensing_imdec = None # lensing image plane image center dec
+#         self.lensing_transformer = None # a placeholder for the object pointer
+#
+#
 
-class Config_create_model_data(ConfigBase):
-    """
-    Class to handle settings for Galaxy.create_model_data.
-    """
-    def __init__(self, **kwargs):
-
-        super(Config_create_model_data, self).__init__(**kwargs)
-
-    def set_defaults(self):
-        self.ndim_final = 3
-        self.line_center = None
-        self.aper_centers = None
-        self.slit_width = None
-        self.slit_pa = None
-        self.profile1d_type = None
-        self.from_instrument = True
-        self.from_data = True
-        self.aperture_radius = None
-        self.pix_perp = None
-        self.pix_parallel = None
-        self.pix_length = None
-        self.skip_downsample = False
-        self.partial_aperture_weight = False
-        #self.partial_weight = False   ## used for rot curve plotting -- but only passed to aperture
-        self.gauss_extract_with_c = True # True or False or None, whether to use faster C++ 1d gaussian spectral fitting.
-        # Default always try to use the C++ gaussian fitter
-
-
-class Config_simulate_cube(ConfigBase):
-    """
-    Class to handle settings for model_set.simulate_cube
-    """
-    def __init__(self, **kwargs):
-        super(Config_simulate_cube, self).__init__(**kwargs)
-
-    def set_defaults(self):
-        self.nx_sky = None
-        self.ny_sky = None
-        self.rstep = None
-        self.spec_type = 'velocity'
-        self.spec_step = 10.
-        self.spec_start = -1000.
-        self.nspec = 201
-        self.spec_unit = (u.km/u.s)
-        self.xcenter = None
-        self.ycenter = None
-        self.oversample = 1
-        self.oversize = 1
-        self.transform_method = 'direct'
-        self.zcalc_truncate = None     # Default will be set in galaxy.create_model_data:
-                                       #    0D/1D/2D/3D: True/True/False/False
-                                       #    because for the smaller spatial extent of a single spaxel
-                                       #    for 2D/3D leads to asymmetries from truncation,
-                                       #    while this is less important for 0D/1D (combo in apertures).
-                                       #    Previous: True
-        self.n_wholepix_z_min = 3
-        self.lensing_datadir = None # datadir for the lensing model mesh.dat
-        self.lensing_mesh = None # lensing model mesh.dat
-        self.lensing_ra = None # lensing model ref ra
-        self.lensing_dec = None # lensing model ref dec
-        self.lensing_sra = None # lensing source plane image center ra
-        self.lensing_sdec = None # lensing source plane image center dec
-        self.lensing_ssizex = None # lensing source plane image size in x
-        self.lensing_ssizey = None # lensing source plane image size in y
-        self.lensing_spixsc = None # lensing source plane image pixel size in arcsec unit
-        self.lensing_imra = None # lensing image plane image center ra
-        self.lensing_imdec = None # lensing image plane image center dec
-        self.lensing_transformer = None # a placeholder for the object pointer
 
 
 class ConfigFitBase(ConfigBase):

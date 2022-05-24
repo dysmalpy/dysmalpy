@@ -569,13 +569,6 @@ class Report(object):
             datstr = 'Red. chisq: {}'.format(results.bestfit_redchisq)
         self.add_line( datstr )
 
-        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
-            for k in ['flux', 'velocity', 'dispersion']:
-                if 'bestfit_redchisq_{}'.format(k) in results.__dict__.keys():
-                    datstr = '    Red. chisq {}: {:0.4f}'.format(k,
-                                    results.__dict__['bestfit_redchisq_{}'.format(k)])
-                    self.add_line( datstr )
-
         if gal.data.ndim == 2:
             Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
             self.add_line( '' )
@@ -796,11 +789,17 @@ def create_results_report(gal, results, params=None, report_type='pretty', **kwa
 #########################
 def _check_data_inst_FOV_compatibility(gal):
     logger_msg = None
-    if gal.data.ndim == 1:
-        if min(gal.instrument.fov)/2. <  np.abs(gal.data.rarr).max() / gal.instrument.pixscale.value:
-            logger_msg = "FOV smaller than the maximum data extent!\n"
-            logger_msg += "FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(gal.instrument.fov[0],
-                            gal.instrument.fov[1], np.abs(gal.data.rarr).max()/ gal.instrument.pixscale)
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.fit_options.fit & (obs.data.ndim == 1):
+                if min(obs.instrument.fov)/2. <  np.abs(obs.data.rarr).max() / obs.instrument.pixscale.value:
+                    if logger_msg is None:
+                        logger_msg = ""
+                    else:
+                        logger_msg += "\n"
+                    logger_msg += "obs={}: FOV smaller than the maximum data extent!\n".format(obs.name)
+                    logger_msg += "                FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(obs.instrument.fov[0],
+                                    obs.instrument.fov[1], np.abs(obs.data.rarr).max()/ obs.instrument.pixscale)
 
     if logger_msg is not None:
         logger.warning(logger_msg)

@@ -424,9 +424,8 @@ class Observation:
                     disp = np.zeros(mom0.shape)
                     # <DZLIU><20210805> ++++++++++
                     my_least_chi_squares_1d_fitter = None
-                    if ('gauss_extract_with_c' in kwargs) & (_loaded_LeastChiSquares1D):
-                        if kwargs['gauss_extract_with_c'] is not None and \
-                           kwargs['gauss_extract_with_c'] is not False:
+                    if (_loaded_LeastChiSquares1D):
+                        if self.mod_options.s:
                             # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
                             # but note that if a spectrum has data all too close to zero, it will fail.
                             # try to prevent this by excluding too low data
@@ -595,7 +594,8 @@ class ObsModOptions:
     Class to hold options for creating the observed model
     """
     def __init__(self, xcenter=None, ycenter=None, oversample=1, oversize=1,
-                 transform_method='direct', zcalc_truncate=None, n_wholepix_z_min=3):
+                 transform_method='direct', zcalc_truncate=None, n_wholepix_z_min=3,
+                 gauss_extract_with_c=True):
 
         self.xcenter = xcenter
         self.ycenter = ycenter
@@ -604,6 +604,8 @@ class ObsModOptions:
         self.transform_method = transform_method
         self.zcalc_truncate = zcalc_truncate
         self.n_wholepix_z_min = n_wholepix_z_min
+        self.gauss_extract_with_c = gauss_extract_with_c
+        # Default always try to use the C++ gaussian fitter
 
 
 
