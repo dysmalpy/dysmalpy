@@ -165,7 +165,7 @@ class Galaxy:
             raise KeyError('{} not in self.observations !'.format(obs_name))
 
 
-    def create_model_data(self, obs_list=None, **kwargs):
+    def create_model_data(self, obs_list=None):
         r"""
         Function to simulate data for the galaxy
 
@@ -187,16 +187,9 @@ class Galaxy:
             obs_list = self.observations.keys()
 
         for obs_name in obs_list:
-
             # Get the individual observation
             obs = self.observations[obs_name]
-
-            obs.create_single_obs_model_data(self.model, self.dscale, **kwargs)
-
-
-            # # Reset observation within the observations ordered dict:
-            # self.observations[obs.name] = obs
-
+            obs.create_single_obs_model_data(self.model, self.dscale)
 
             #####################
 

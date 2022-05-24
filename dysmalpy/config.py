@@ -53,7 +53,7 @@ class ConfigBase:
             kwarg_dict[key] = self.__dict__[key]
         return kwarg_dict
 
-# 
+#
 # class Config_create_model_data(ConfigBase):
 #     """
 #     Class to handle settings for Galaxy.create_model_data.

@@ -64,6 +64,7 @@ class Observation:
         self.model_data = None
         self.mod_options = ObsModOptions()
         self.fit_options = ObsFitOptions()
+        self.lensing_options = None
 
 
         if instrument is not None:
@@ -202,7 +203,7 @@ class Observation:
                     self.instrument._lsf_kernel = None
                 # --------------------------------------------------
 
-    def create_single_obs_model_data(self, model, dscale, **kwargs):
+    def create_single_obs_model_data(self, model, dscale):
         r"""
         Function to simulate data for the galaxy
 
@@ -237,12 +238,12 @@ class Observation:
 
         if _loaded_lensing:
             # Only check to get lensing transformer if the lensing modules were successfully loaded.
-            if 'lensing_transformer' in kwargs:
-                if kwargs['lensing_transformer'] is not None:
-                    this_lensing_transformer = kwargs['lensing_transformer']['0']
+            if (self.lensing_options is not None):
+                if (self.lensing_options.lensing_transformer is not None):
+                    this_lensing_transformer = self.lensing_options.lensing_transformer['0']
 
             this_lensing_transformer = setup_lensing_transformer_from_params(\
-                    params = kwargs,
+                    lensing_options = self.lensing_options,
                     source_plane_nchan = self.instrument.nspec,
                     image_plane_sizex = nx_sky * oversample * oversize,
                     image_plane_sizey = ny_sky * oversample * oversize,
@@ -253,7 +254,7 @@ class Observation:
                     verbose = (logger.level >= logging.DEBUG),
                 )
 
-            if this_lensing_transformer is not None:
+            if (this_lensing_transformer is not None):
                 orig_inst = copy.deepcopy(self.instrument)
                 lens_inst = copy.deepcopy(self.instrument)
 
@@ -263,18 +264,11 @@ class Observation:
                 self.instrument = lens_inst
 
         else:
-            # Check if the key lensing params ARE set -- passed in kwargs here to the call to
+            # Check if self.lensing_options IS set -- passed to the call to
             #   `setup_lensing_transformer_from_params`.
             #   In this case, if the lensing loading failed, issue & raise an error.
-            mesh_file = mesh_ra = mesh_dec = None
-            if 'lensing_mesh' in kwargs:
-                mesh_file = kwargs['lensing_mesh']
-            if 'lensing_ra' in kwargs:
-                mesh_ra = kwargs['lensing_ra']
-            if 'lensing_dec' in kwargs:
-                mesh_dec = kwargs['lensing_dec']
 
-            if ((mesh_file is not None) & (mesh_ra is not None) & (mesh_dec is not None)):
+            if (self.lensing_options is not None):
                 wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
                 wmsg += "*******************************************\n"
                 wmsg += "*** ERROR ***\n"
@@ -299,10 +293,10 @@ class Observation:
             sim_cube[np.isnan(sim_cube)] = 0.0
 
             # store back
-            if 'lensing_transformer' in kwargs:
-                if kwargs['lensing_transformer'] is None:
-                    kwargs['lensing_transformer'] = {'0': None}
-                kwargs['lensing_transformer']['0'] = this_lensing_transformer
+            if (self.lensing_options is not None):
+                if (self.lensing_options.lensing_transformer is None):
+                    self.lensing_options.lensing_transformer = {'0': None}
+                self.lensing_options.lensing_transformer['0'] = this_lensing_transformer
 
             # mask by data mask if available
             if self.data is not None:
@@ -425,14 +419,16 @@ class Observation:
                     # <DZLIU><20210805> ++++++++++
                     my_least_chi_squares_1d_fitter = None
                     if (_loaded_LeastChiSquares1D):
-                        if self.mod_options.s:
-                            # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
-                            # but note that if a spectrum has data all too close to zero, it will fail.
-                            # try to prevent this by excluding too low data
-                            if self.data.mask is not None:
-                                this_fitting_mask = copy.copy(self.data.mask)
-                            else:
-                                this_fitting_mask = 'auto'
+                        if self.mod_options.gauss_extract_with_c:
+                            # # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
+                            # # but note that if a spectrum has data all too close to zero, it will fail.
+                            # # try to prevent this by excluding too low data
+                            # this_fitting_mask = 'auto'
+                            this_fitting_mask = None
+                            if self.data is not None:
+                                if self.data.mask is not None:
+                                    this_fitting_mask = copy.copy(self.data.mask)
+
                             if logger.level > logging.DEBUG:
                                 this_fitting_verbose = True
                             else:
@@ -606,6 +602,31 @@ class ObsModOptions:
         self.n_wholepix_z_min = n_wholepix_z_min
         self.gauss_extract_with_c = gauss_extract_with_c
         # Default always try to use the C++ gaussian fitter
+
+
+class ObsLensingOptions:
+    """
+    Class to hold options for lensing the observed model from source to image plane
+    """
+    def __init__(self, lensing_datadir = None, lensing_mesh = None,
+                 lensing_ra = None, lensing_dec = None,
+                 lensing_sra = None, lensing_sdec = None,
+                 lensing_ssizex = None, lensing_ssizey = None, lensing_spixsc = None,
+                 lensing_imra = None, lensing_imdec = None,
+                 lensing_transformer = None):
+
+        self.lensing_datadir = lensing_datadir          # datadir for the lensing model mesh.dat
+        self.lensing_mesh = lensing_mesh                # lensing model mesh.dat
+        self.lensing_ra = lensing_ra                    # lensing model ref ra
+        self.lensing_dec = lensing_dec                  # lensing model ref dec
+        self.lensing_sra = lensing_sra                  # lensing source plane image center ra
+        self.lensing_sdec = lensing_sdec                # lensing source plane image center dec
+        self.lensing_ssizex = lensing_ssizex            # lensing source plane image size in x
+        self.lensing_ssizey = lensing_ssizey            # lensing source plane image size in y
+        self.lensing_spixsc = lensing_spixsc            # lensing source plane image pixel size in arcsec unit
+        self.lensing_imra = lensing_imra                # lensing image plane image center ra
+        self.lensing_imdec = lensing_imdec              # lensing image plane image center dec
+        self.lensing_transformer = lensing_transformer  # a placeholder for the object pointer
 
 
 

@@ -116,7 +116,7 @@ def plot_bestfit(mcmcResults, gal,
                  remove_shift=False,
                  overwrite=False,
                  fill_mask=False,
-                 **kwargs_galmodel):
+                 **plot_kwargs):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
@@ -126,7 +126,7 @@ def plot_bestfit(mcmcResults, gal,
             fileout_channel=fileout_channel,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
             remove_shift=remove_shift, fill_mask=fill_mask,
-            overwrite=overwrite, **kwargs_galmodel)
+            overwrite=overwrite, **plot_kwargs)
 
     return None
 
@@ -995,7 +995,7 @@ def plot_data_model_comparison_2D(obs, model,
 
             if show_contours:
                 ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
-                            vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+                            vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
 
 
             if k == 'data':
@@ -1061,7 +1061,7 @@ def plot_data_model_comparison_3D(gal,
             show_contours=False,
             show_ruler=True,
             ruler_loc='lowerleft',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -1085,7 +1085,7 @@ def plot_data_model_comparison_3D(gal,
                     show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
                     show_contours=show_contours,
-                    **kwargs_galmodel)
+                    **plot_kwargs)
 
     if show_all_spax:
         #if fileout_spaxel is not None:
@@ -1129,7 +1129,7 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
             show_contours=False,
             show_ruler=True,
             ruler_loc='lowerleft',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -1149,7 +1149,7 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
                     yshift = yshift,
                     show_1d_apers=show_1d_apers,
                     remove_shift=True,
-                    overwrite=overwrite, **kwargs_galmodel)
+                    overwrite=overwrite, **plot_kwargs)
     elif gal.data.ndim == 2:
         plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data,
                     theta=theta,fitvelocity=fitvelocity,
@@ -1160,7 +1160,7 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
                     fileout=fileout,
                     show_1d_apers=show_1d_apers,
                     remove_shift=remove_shift,
-                    overwrite=overwrite, **kwargs_galmodel)
+                    overwrite=overwrite, **plot_kwargs)
 
     elif gal.data.ndim == 3:
         print("plot_model_multid: ndim=3: moment={}".format(moment))
@@ -1200,7 +1200,7 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
                     show_1d_apers=show_1d_apers, inst_corr=inst_corr,
                     vcrop=vcrop, vcrop_value=vcrop_value,
                     remove_shift=remove_shift, moment=moment, fill_mask=fill_mask,
-                    overwrite=overwrite, **kwargs_galmodel)
+                    overwrite=overwrite, **plot_kwargs)
 
 
     return None
@@ -1226,13 +1226,13 @@ def plot_model_multid_base(gal, data1d=None, data2d=None, theta=None,
             show_contours=False,
             show_ruler=True,
             ruler_loc='lowerleft',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
-            if key not in kwargs_galmodel.keys():
-                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+            if key not in plot_kwargs.keys():
+                plot_kwargs[key] = _kwargs_contour_defaults[key]
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -1567,7 +1567,7 @@ def plot_model_multid_base(gal, data1d=None, data2d=None, theta=None,
 
                 if show_contours:
                     ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
-                                vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+                                vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
 
 
                 if (show_1d_apers) & (data1d is not None):
@@ -3439,13 +3439,13 @@ def plot_model_2D_residual(gal, data1d=None, data2d=None, theta=None,
             show_contours=False,
             show_ruler=True,
             ruler_loc='lowerleft',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
-            if key not in kwargs_galmodel.keys():
-                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+            if key not in plot_kwargs.keys():
+                plot_kwargs[key] = _kwargs_contour_defaults[key]
 
     ######################################
     # Setup plot:
@@ -3685,7 +3685,7 @@ def plot_model_2D_residual(gal, data1d=None, data2d=None, theta=None,
 
                 if show_contours:
                     ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
-                                vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+                                vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
 
 
                 if (show_1d_apers) & (data1d is not None):
@@ -4046,7 +4046,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
             moment=False,
             partial_weight=True,
             plot_type='pdf',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     if (plotfile is None) & (outpath is None):
         raise ValueError
@@ -4081,14 +4081,12 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
                     fname_model_matchdata=fname_model_matchdata,
                     moment=moment,
                     partial_weight=partial_weight,
-                    overwrite=overwrite_curve_files,
-                    **kwargs_galmodel)
+                    overwrite=overwrite_curve_files)
     if not curve_files_exist_int:
         # *_vcirc_tot_bary_dm.dat
         create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
                     fname_intrinsic=fname_intrinsic,
-                    overwrite=overwrite_curve_files,
-                    **kwargs_galmodel)
+                    overwrite=overwrite_curve_files)
 
 
     if not file_exists:
