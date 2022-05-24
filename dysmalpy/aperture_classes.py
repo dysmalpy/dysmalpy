@@ -849,7 +849,6 @@ def setup_aperture_types(obs=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
             pix_length=None, partial_weight=True,
-            oversample=1,
             rotate_cube=False):
 
     # partial_weight:
@@ -871,15 +870,10 @@ def setup_aperture_types(obs=None, profile1d_type=None,
     nx = obs.instrument.fov[0]
     ny = obs.instrument.fov[1]
 
-    if (oversample > 1):
-        nx *= oversample
-        ny *= oversample
-        pixscale /= (1.* oversample)
-        aper_centers *= oversample
 
     try:
-        xcenter_samp = (obs.obs_options.xcenter + 0.5)*oversample - 0.5
-        ycenter_samp = (obs.obs_options.ycenter + 0.5)*oversample - 0.5
+        xcenter_samp = (obs.obs_options.xcenter + 0.5) - 0.5
+        ycenter_samp = (obs.obs_options.ycenter + 0.5) - 0.5
         center_pixel = [xcenter_samp, ycenter_samp]
     except:
         center_pixel = None
@@ -902,13 +896,9 @@ def setup_aperture_types(obs=None, profile1d_type=None,
     elif (profile1d_type.lower() == 'rect_ap_cube'):
         if (pix_perp is None):
             pix_perp = slit_width/pixscale
-        else:
-            pix_perp *= oversample
 
         if (pix_parallel is None):
             pix_parallel = slit_width/pixscale
-        else:
-            pix_parallel *= oversample
 
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
@@ -919,8 +909,6 @@ def setup_aperture_types(obs=None, profile1d_type=None,
     elif (profile1d_type.lower() == 'square_ap_cube'):
         if ('pix_length' is None):
             pix_length = slit_width/pixscale
-        else:
-            pix_length *= oversample
 
         apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa,
                  pix_length = pix_length,

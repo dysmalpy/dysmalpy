@@ -187,7 +187,7 @@ class Galaxy:
             raise KeyError('{} not in self.observations !'.format(obs_name))
 
 
-    def create_model_data(self, obs_list=None, skip_downsample=False, **kwargs):
+    def create_model_data(self, obs_list=None, **kwargs):
         r"""
         Function to simulate data for the galaxy
 
@@ -201,11 +201,6 @@ class Galaxy:
         obs_list : list, optional
             List of observations to make models for.
             If omitted, will default to making models for all observations in the galaxy.
-
-        skip_downsample : bool
-                          If True and `oversample` > 1 then do not downsample back to initial
-                          `rstep`. Note the settings of the Instrument will then be changed to
-                          match the new pixelscale and FOV size.
 
         """
         if obs_list is None:
@@ -321,21 +316,9 @@ class Galaxy:
                 obs.instrument = orig_inst
 
             # Correct for any oversampling
-            if (oversample > 1) & (not skip_downsample):
+            if (oversample > 1):
                 sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
                                     nx_sky*oversize))
-            else:
-                sim_cube_nooversamp = sim_cube
-
-            if skip_downsample:
-                pixscale /= (1.*oversample)
-                nx_sky *= oversample
-                ny_sky *= oversample
-                # Fix instrument:
-                obs.instrument.pixscale = pixscale * u.arcsec
-                obs.instrument.fov = [nx_sky, ny_sky]
-                obs.instrument.set_beam_kernel()
-
 
             # Apply beam smearing and/or instrumental spreading
             if obs.instrument is not None:
@@ -599,15 +582,6 @@ class Galaxy:
                 obs.model_data = Data0D(x=spec, flux=flux)
 
             ####
-            # Reset instrument to orig value
-            if skip_downsample:
-                pixscale *= oversample
-                nx_sky /= (1.*oversample)
-                ny_sky /= (1.*oversample)
-                # Fix instrument:
-                obs.instrument.pixscale = pixscale * u.arcsec
-                obs.instrument.fov = [nx_sky, ny_sky]
-                obs.instrument.set_beam_kernel()
 
             # Reset observation within the observations ordered dict:
             self.observations[obs.name] = obs
