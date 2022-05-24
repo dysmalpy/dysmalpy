@@ -213,8 +213,8 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
     else:
         ycenter = (vel_mod.shape[0]-1)/2. + 1
 
-    hdr['CRPIX1'] = (xcenter + model.geometry.xshift.value, 'Pixel coordinate of reference point')
-    hdr['CRPIX2'] = (ycenter + model.geometry.yshift.value, 'Pixel coordinate of reference point')
+    hdr['CRPIX1'] = (xcenter + model.geometries[obs.name].xshift.value, 'Pixel coordinate of reference point')
+    hdr['CRPIX2'] = (ycenter + model.geometries[obs.name].yshift.value, 'Pixel coordinate of reference point')
 
     hdr['BUNIT'] = (spec_unit, 'Spectral unit')
 

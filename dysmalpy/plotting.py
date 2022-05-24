@@ -810,7 +810,7 @@ def plot_data_model_comparison_2D(obs, model,
     cbar_pad="1%"
 
     nrows = 0
-    for cond in [fitflux, fitvelocity, fitdispersion]:
+    for cond in [obs.fit_options.fit_flux, obs.fit_options.fit_velocity, obs.fit_options.fit_dispersion]:
         if cond:
             nrows += 1
 
@@ -856,7 +856,7 @@ def plot_data_model_comparison_2D(obs, model,
     keyxarr = ['data', 'model', 'residual']
     keyxtitlearr = ['Data', 'Model', 'Residual']
     keyyarr, keyytitlearr, grid_arr, annstr_arr = ([] for _ in range(4))
-    if fitflux:
+    if obs.fit_options.fit_flux:
         keyyarr.append('flux')
         keyytitlearr.append(r'Flux')
         grid_arr.append(grid_flux)
@@ -874,7 +874,7 @@ def plot_data_model_comparison_2D(obs, model,
         if max_residual_flux is None:
             max_residual_flux = np.max(np.abs(obs.data.data['flux'][obs.data.mask]))
 
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         keyyarr.append('velocity')
         keyytitlearr.append(r'$V$')
         grid_arr.append(grid_vel)
@@ -891,7 +891,7 @@ def plot_data_model_comparison_2D(obs, model,
         vel_vmin -= vel_shift
         vel_vmax -= vel_shift
 
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         keyyarr.append('dispersion')
         keyytitlearr.append(r'$\sigma$')
         grid_arr.append(grid_disp)
@@ -987,7 +987,7 @@ def plot_data_model_comparison_2D(obs, model,
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=vmin, vmax=vmax, origin=origin)
 
-            ax = plot_major_minor_axes_2D(ax, gal, im, obs.data.mask)
+            ax = plot_major_minor_axes_2D(ax, obs, model, im, obs.data.mask)
             if show_ruler:
                 pixscale = obs.instrument.pixscale.value
                 ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
