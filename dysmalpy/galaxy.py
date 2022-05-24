@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import copy
 from collections import OrderedDict
+import os
 
 # Third party imports
 import astropy.cosmology as apy_cosmo
@@ -210,13 +211,11 @@ class Galaxy:
         if filename is not None:
             galtmp = copy.deepcopy(self)
 
-            galtmp.filename_velocity = copy.deepcopy(galtmp.data.filename_velocity)
-            galtmp.filename_dispersion = copy.deepcopy(galtmp.data.filename_dispersion)
-
             if not save_data:
-                galtmp.data = None
-                galtmp.model_data = None
-                galtmp.model_cube = None
+                for obs_name in galtmp.observations:
+                    galtmp.observations[obs_name].data = None
+                    galtmp.observations[obs_name].model_data = None
+                    galtmp.observations[obs_name].model_cube = None
 
             _pickle.dump(galtmp, open(filename, "wb") )
 
@@ -239,6 +238,8 @@ class Galaxy:
 
 
     def save_model_data(self, filename=None, overwrite=False):
+
+        logger.warning("Only writing 1 observation! FIX ME!!!!")
         # Check for existing file:
         if (not overwrite) and (filename is not None):
             if os.path.isfile(filename):
@@ -246,8 +247,9 @@ class Galaxy:
                 return None
 
         if filename is not None:
-            write_model_obs_file(gal=self, fname=filename,
-                            ndim=self.model_data.ndim, overwrite=overwrite)
+            for obs_name in self.observations:
+                obs = self.observations[obs_name]
+                write_model_obs_file(obs=obs, model=self.model, fname=filename, overwrite=overwrite)
 
 
 

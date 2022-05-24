@@ -123,7 +123,7 @@ class FitResults(object):
         if filename is not None:
             dump_pickle(self, filename=filename, overwrite=overwrite)  # Save FitResults class to a pickle file
 
-    def save_bestfit_vel_ascii(self, gal, filename=None,
+    def save_bestfit_vel_ascii(self, obs, model, filename=None,
                                model_aperture_r=config._model_aperture_r, overwrite=False):
         if filename is not None:
             try:
@@ -134,7 +134,7 @@ class FitResults(object):
             stepsize = 0.1  # stepsize 0.1 kpc
             r = np.arange(0., rmax + stepsize, stepsize)
 
-            gal.model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite)
+            model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite, tracer=obs.tracer)
 
     def save_bestfit_vcirc_mass_profiles(self, gal, outpath=None,
             fname_intrinsic=None, fname_intrinsic_m=None, overwrite=False):

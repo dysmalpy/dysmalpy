@@ -75,7 +75,7 @@ def fit_mpfit(gal, **kwargs):
 
 
     # TEMPORARY KLUDGE
-    obs_names = gal.observations.keys()
+    obs_names = list(gal.observations.keys())
     obs = gal.observations[obs_names[0]]
     logger.warning("TEMP HORRIBLE FNAME KLUDGE: ONLY WORKS FOR 1 OBS")
 
@@ -293,8 +293,6 @@ class MPFITResults(FitResults):
         self.bestfit_redchisq = chisq_red(gal)
         self.bestfit_chisq = chisq_eval(gal)
 
-        self.vmax_bestfit = gal.model.get_vmax()
-
         if kwargs_fit['f_results'] is not None:
             self.save_results(filename=kwargs_fit['f_results'], overwrite=kwargs_fit['overwrite'])
 
@@ -321,8 +319,12 @@ class MPFITResults(FitResults):
 
         # Save velocity / other profiles to ascii file:
         if kwargs_fit['f_vel_ascii'] is not None:
-            self.save_bestfit_vel_ascii(gal, filename=kwargs_fit['f_vel_ascii'],
-                    model_aperture_r=kwargs_fit['model_aperture_r'], overwrite=kwargs_fit['overwrite'])
+            logger.warning("Only writing best-fit vel ascii file for 1 observation! FIX ME!!!!!")
+
+            for obs_name in gal.observations:
+                obs = gal.observations[obs_name]
+                self.save_bestfit_vel_ascii(obs, gal.model, filename=kwargs_fit['f_vel_ascii'],
+                        model_aperture_r=kwargs_fit['model_aperture_r'], overwrite=kwargs_fit['overwrite'])
 
         if (kwargs_fit['f_vcirc_ascii'] is not None) or (kwargs_fit['f_mass_ascii'] is not None):
             self.save_bestfit_vcirc_mass_profiles(gal, outpath=kwargs_fit['outdir'],
@@ -429,7 +431,7 @@ def mpfit_chisq(theta, fjac=None, gal=None):
 
             chisq_arr_raw = chisq_arr_raw.flatten()
 
-        elif (gal.data.ndim == 1) or (gal.data.ndim == 2):
+        elif (obs.data.ndim == 1) or (obs.data.ndim == 2):
             # Weights:
             wgt_data = 1.
             if hasattr(obs.data, 'weight'):

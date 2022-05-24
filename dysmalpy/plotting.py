@@ -56,7 +56,7 @@ from .utils_io import create_vel_profile_files_obs1d, create_vel_profile_files_i
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
-from .config import Config_create_model_data, Config_simulate_cube
+#from .config import Config_create_model_data, Config_simulate_cube
 
 try:
     from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
@@ -411,13 +411,9 @@ def plot_data_model_comparison(gal,theta=None,
     # Plot data and model for each observation
     for obs_name in gal.observations:
         obs = gal.observations[obs_name]
-        if fileout_base is not None:
-            fileout_obs= "{}_{}.pdf".format(fileout_base, obs.name)
-        else:
-            fileout_obs = None
 
         plot_single_obs_data_model_comparison(obs, gal.model,
-                                       fileout=fileout_obs,
+                                       fileout=fileout,
                                        fileout_aperture=fileout_aperture,
                                        fileout_spaxel=fileout_spaxel,
                                        fileout_channel=fileout_channel,
@@ -475,7 +471,6 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
 
     if dummy_obs.instrument.ndim == 1:
         plot_data_model_comparison_1D(dummy_obs,
-                    data = None,
                     fileout=fileout,
                     overwrite=overwrite,
                     **plot_kwargs)
@@ -593,7 +588,7 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
     f = plt.figure()
     scale = 3.5
     ncols = 0
-    for cond in [fitflux, fitvelocity, fitdispersion]:
+    for cond in [obs.fit_options.fit_flux, obs.fit_options.fit_velocity, obs.fit_options.fit_dispersion]:
         if cond:
             ncols += 1
     nrows = 2

@@ -29,10 +29,10 @@ except:
     from . import aperture_classes
     from . import data_classes
 
-try:
-    from config import Config_simulate_cube, Config_create_model_data
-except:
-    from .config import Config_simulate_cube, Config_create_model_data
+# try:
+#     from config import Config_simulate_cube, Config_create_model_data
+# except:
+#     from .config import Config_simulate_cube, Config_create_model_data
 
 # try:
 #     from dysmalpy._version import __version__ as __dpy_version__
@@ -107,22 +107,24 @@ def read_bestfit_1d_obs_file(filename=None):
 
     return model_data
 
-def write_model_obs_file(gal=None, fname=None, ndim=None, overwrite=False):
+def write_model_obs_file(obs=None, model=None, fname=None, overwrite=False):
+
+    ndim = obs.instrument.ndim
     if ndim == 1:
-        write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_1d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
     elif ndim == 2:
-        write_model_2d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_2d_obs_file(obs=obs, model=model, fname=fname, overwrite=overwrite)
     elif ndim == 3:
-        write_model_3d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_3d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
     elif ndim == 0:
-        write_model_0d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+        write_model_0d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
     else:
         raise ValueError("ndim={} not recognized!".format(ndim))
 
 
-def write_model_1d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_1d_obs_file(obs=None, fname=None, overwrite=False):
     """
-    Short function to save *observed* space 1D model profile for a galaxy (eg, for plotting, etc)
+    Short function to save *observed* space 1D model profile for a obsaxy (eg, for plotting, etc)
     Follows form of H.Ü. example.
     """
     if (not overwrite) and (fname is not None):
@@ -130,15 +132,15 @@ def write_model_1d_obs_file(gal=None, fname=None, overwrite=False):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
             return None
 
-    model_r = gal.model_data.rarr
-    model_flux = gal.model_data.data['flux']
-    model_vel = gal.model_data.data['velocity']
-    model_disp = gal.model_data.data['dispersion']
+    model_r = obs.model_data.rarr
+    model_flux = obs.model_data.data['flux']
+    model_vel = obs.model_data.data['velocity']
+    model_disp = obs.model_data.data['dispersion']
 
     # Correct dispersion for instrumental resolution of data is inst-corrected:
-    if 'inst_corr' in gal.data.data.keys():
-        if gal.data.data['inst_corr']:
-            model_disp = np.sqrt( model_disp**2 - gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+    if 'inst_corr' in obs.data.data.keys():
+        if obs.data.data['inst_corr']:
+            model_disp = np.sqrt( model_disp**2 - obs.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
             model_disp[~np.isfinite(model_disp)] = 0
 
     # Write 1D profiles to text file
@@ -149,35 +151,35 @@ def write_model_1d_obs_file(gal=None, fname=None, overwrite=False):
     return None
 
 
-def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
     """
-    Method to save the model 2D maps for a galaxy.
+    Method to save the model 2D maps for a obsaxy.
     """
 
-    data_mask = gal.data.mask
+    data_mask = obs.data.mask
 
-    vel_mod =  gal.model_data.data['velocity']
+    vel_mod =  obs.model_data.data['velocity']
 
-    if gal.model_data.data['flux'] is not None:
-        flux_mod = gal.model_data.data['flux']
+    if obs.model_data.data['flux'] is not None:
+        flux_mod = obs.model_data.data['flux']
     else:
         flux_mod = np.ones(vel_mod.shape) * np.NaN
 
-    if gal.model_data.data['dispersion'] is not None:
-        disp_mod = gal.model_data.data['dispersion']
+    if obs.model_data.data['dispersion'] is not None:
+        disp_mod = obs.model_data.data['dispersion']
     else:
         disp_mod = np.ones(vel_mod.shape) * np.NaN
 
     # Correct model for instrument dispersion if the data is instrument corrected:
-    if ('inst_corr' in gal.data.data.keys()) & (gal.model_data.data['dispersion'] is not None):
-        if gal.data.data['inst_corr']:
+    if ('inst_corr' in obs.data.data.keys()) & (obs.model_data.data['dispersion'] is not None):
+        if obs.data.data['inst_corr']:
             disp_mod = np.sqrt(disp_mod**2 -
-                               gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                               obs.instrument.lsf.dispersion.to(u.km/u.s).value**2)
             disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                    # below the instrumental dispersion
 
     try:
-        spec_unit = gal.instrument.spec_start.unit.to_string()
+        spec_unit = obs.instrument.spec_start.unit.to_string()
     except:
         spec_unit = 'km/s'  # Assume default
 
@@ -190,9 +192,9 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
     hdr['WCSAXES'] = (2, 'Number of coordinate axes')
 
     try:
-        hdr['PIXSCALE'] = (gal.data.pixscale.value / 3600., 'pixel scale [deg]') # Convert pixscale from arcsec to deg
+        hdr['PIXSCALE'] = (obs.instrument.pixscale.value / 3600., 'pixel scale [deg]') # Convert pixscale from arcsec to deg
     except:
-        hdr['PIXSCALE'] = (gal.data.pixscale / 3600., 'pixel scale [deg]')  # Convert pixscale from arcsec to deg
+        hdr['PIXSCALE'] = (obs.instrument.pixscale / 3600., 'pixel scale [deg]')  # Convert pixscale from arcsec to deg
 
     hdr['CUNIT1'] = ('deg', 'Units of coordinate increment and value')
     hdr['CUNIT2'] = ('deg', 'Units of coordinate increment and value')
@@ -202,17 +204,17 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
     hdr['CRVAL1'] = (0., '[deg] Coordinate value at reference point')
     hdr['CRVAL2'] = (0., '[deg] Coordinate value at reference point')
     # Uses FITS standard where first pixel is (1,1)
-    if gal.data.xcenter is not None:
-        xcenter = gal.data.xcenter + 1
+    if obs.mod_options.xcenter is not None:
+        xcenter = obs.mod_options.xcenter + 1
     else:
         xcenter = (vel_mod.shape[1]-1)/2. + 1
-    if gal.data.ycenter is not None:
-        ycenter = gal.data.ycenter + 1
+    if obs.mod_options.ycenter is not None:
+        ycenter = obs.mod_options.ycenter + 1
     else:
         ycenter = (vel_mod.shape[0]-1)/2. + 1
 
-    hdr['CRPIX1'] = (xcenter + gal.model.geometry.xshift.value, 'Pixel coordinate of reference point')
-    hdr['CRPIX2'] = (ycenter + gal.model.geometry.yshift.value, 'Pixel coordinate of reference point')
+    hdr['CRPIX1'] = (xcenter + model.geometry.xshift.value, 'Pixel coordinate of reference point')
+    hdr['CRPIX2'] = (ycenter + model.geometry.yshift.value, 'Pixel coordinate of reference point')
 
     hdr['BUNIT'] = (spec_unit, 'Spectral unit')
 
@@ -234,13 +236,13 @@ def write_model_2d_obs_file(gal=None, fname=None, overwrite=False):
 
     return None
 
-def write_model_3d_obs_file(gal=None, fname=None, overwrite=False):
+def write_model_3d_obs_file(obs=None, fname=None, overwrite=False):
 
-    gal.model_data.data.write(fname, overwrite=overwrite)
+    obs.model_data.data.write(fname, overwrite=overwrite)
 
     return None
 
-def write_model_0d_obs_file(gal=None, fname=None, overwrite=False, spec_type=None):
+def write_model_0d_obs_file(obs=None, fname=None, overwrite=False, spec_type=None):
     if (not overwrite) and (fname is not None):
         if os.path.isfile(fname):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
@@ -248,15 +250,15 @@ def write_model_0d_obs_file(gal=None, fname=None, overwrite=False, spec_type=Non
 
     #
     if spec_type is None:
-        spec_type = gal.instrument.spec_orig_type
+        spec_type = obs.instrument.spec_orig_type
 
     try:
-        spec_unit = gal.instrument.spec_start.unit
+        spec_unit = obs.instrument.spec_start.unit
     except:
         spec_unit = '??'
 
-    x = gal.model_data.x
-    mod = gal.model_data.data
+    x = obs.model_data.x
+    mod = obs.model_data.data
 
     if spec_type.lower() == 'velocity':
         hdr = 'vel [{}], flux [...]'.format(spec_unit)
@@ -875,10 +877,16 @@ def create_vel_profile_files(gal=None, outpath=None,
             **kwargs):
 
     ####
-    create_vel_profile_files_obs1d(gal=gal, outpath=outpath,
-                moment=moment,partial_weight=partial_weight,
-                fname_model_matchdata=fname_model_matchdata, fname_finer=fname_finer,
-                overwrite=overwrite, **kwargs)
+    for obs_name in gal.observations:
+
+        obs = gal.observations[obs_name]
+
+        if obs.data.ndim == 1:
+            logger.warning("Only works for 1 observation! FIX ME!!!!!")
+            create_vel_profile_files_obs1d(obs=obs, gal=gal, outpath=outpath,
+                        moment=moment,partial_weight=partial_weight,
+                        fname_model_matchdata=fname_model_matchdata, fname_finer=fname_finer,
+                        overwrite=overwrite)
     ####
     create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
                 fname_intrinsic=fname_intrinsic, fname_intrinsic_m = fname_intrinsic_m,
@@ -886,42 +894,38 @@ def create_vel_profile_files(gal=None, outpath=None,
 
     return None
 
-def create_vel_profile_files_obs1d(gal=None, outpath=None,
+def create_vel_profile_files_obs1d(obs=None, gal=None, outpath=None,
             moment=False, partial_weight=True,
             fname_model_matchdata=None, fname_finer=None,
-            overwrite=False, **kwargs):
-    config_c_m_data = Config_create_model_data(**kwargs)
-    config_sim_cube = Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+            overwrite=False):
 
     if outpath is None:
         raise ValueError
 
     if fname_model_matchdata is None:
-        fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, gal.name)
+        fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, obs.name)
     if fname_finer is None:
-        fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, gal.name)
+        fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, obs.name)
 
     # ---------------------------------------------------------------------------
-    galin = copy.deepcopy(gal)
-    gal.create_model_data(**kwargs_galmodel)
+    obsin = copy.deepcopy(obs)
+    obsin.create_single_obs_model_data(gal.model, gal.dscale)
 
     # --------------------------------------------------------------------------
     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
-        write_model_1d_obs_file(gal=gal, fname=fname_model_matchdata, overwrite=overwrite)
+        write_model_1d_obs_file(obs=obs, fname=fname_model_matchdata, overwrite=overwrite)
 
     # Try finer scale:
     if (not os.path.isfile(fname_finer)) | (overwrite):
         # Reload galaxy object: reset things
-        gal = copy.deepcopy(galin)
-        write_1d_obs_finer_scale(gal=gal, fname=fname_finer, moment=moment,
-                partial_weight=partial_weight, overwrite=overwrite, **kwargs_galmodel)
+        write_1d_obs_finer_scale(obs=obs, fname=fname_finer, moment=moment,
+                partial_weight=partial_weight, overwrite=overwrite)
 
     return None
 
 def create_vel_profile_files_intrinsic(gal=None, outpath=None,
             fname_intrinsic=None, fname_intrinsic_m = None,
-            overwrite=False, **kwargs):
+            overwrite=False):
 
     if ((outpath is None) and (fname_intrinsic_m is None) and (fname_intrinsic is None)):
         raise ValueError("Must set 'outpath' if 'fname_intrinsic' or 'fname_intrinsic_m' are not specified!")
@@ -942,32 +946,13 @@ def create_vel_profile_files_intrinsic(gal=None, outpath=None,
 
     return None
 
-def write_1d_obs_finer_scale(gal=None, fname=None,
-            partial_weight=True,
-            moment=False,
-            overwrite=False, **kwargs):
-    config_c_m_data = Config_create_model_data(**kwargs)
-    config_sim_cube = Config_simulate_cube(**kwargs)
-    kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
+def write_1d_obs_finer_scale(obs=None, gal=None, fname=None, overwrite=False):
 
-
-    if kwargs_galmodel['profile1d_type'] is None:
-        kwargs_galmodel['profile1d_type'] = gal.data.profile1d_type
-
-    if (kwargs_galmodel['aperture_radius'] is not None):
-        if (kwargs_galmodel['aperture_radius'] < 0.):
-            kwargs_galmodel['aperture_radius'] = None
-    if (kwargs_galmodel['aperture_radius'] is None):
-        try:
-            kwargs_galmodel['aperture_radius'] = gal.data.slit_width.value * 0.5
-        except:
-            kwargs_galmodel['aperture_radius'] = gal.data.slit_width * 0.5
-
-    profile1d_type = kwargs_galmodel['profile1d_type']
-    aperture_radius = kwargs_galmodel['aperture_radius']
+    profile1d_type = obs.instrument.profile1d_type
+    aperture_radius =obs.instrument.apertures.pix_parallel
 
     # Try finer scale:
-    rmax_abs = np.max([2.5, np.max(np.abs(gal.model_data.rarr))])
+    rmax_abs = np.max([2.5, np.max(np.abs(obs.model_data.rarr))])
     # r_step = 0.025 #0.05
     # if rmax_abs > 4.:
     #     r_step = 0.05
@@ -977,57 +962,41 @@ def write_1d_obs_finer_scale(gal=None, fname=None,
 
 
     # Get slit-pa from model or data.
-    try:
-        kwargs_galmodel['slit_pa'] = gal.model.geometry.pa.value
-    except:
-        kwargs_galmodel['slit_pa'] = gal.data.slit_pa
+    slit_pa = gal.model.geometries[obs.name].pa.value
 
     if profile1d_type == 'rect_ap_cube':
-        f_par = interpolate.interp1d(gal.data.rarr, gal.data.apertures.pix_parallel,
+        f_par = interpolate.interp1d(obs.data.rarr, obs.instrument.apertures.pix_parallel,
                         kind='slinear', fill_value='extrapolate')
-        f_perp = interpolate.interp1d(gal.data.rarr, gal.data.apertures.pix_perp,
+        f_perp = interpolate.interp1d(obs.data.rarr, obs.instrument.apertures.pix_perp,
                         kind='slinear', fill_value='extrapolate')
 
         pix_parallel_interp = f_par(aper_centers_interp)
         pix_perp_interp = f_perp(aper_centers_interp)
 
-        gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal,
+        obs.instrument.apertures = aperture_classes.setup_aperture_types(obs=obs,
                     profile1d_type=profile1d_type,
                     aper_centers = aper_centers_interp,
                     aperture_radius=1.,
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
-                    pix_length=None, from_data=False,
-                    slit_pa=kwargs_galmodel['slit_pa'],
-                    partial_weight=partial_weight,
-                    moment=moment)
+                    pix_length=None,
+                    slit_pa=slit_pa,
+                    partial_weight=obs.instrument.apertures[0].partial_weight,
+                    moment=obs.instrument.apertures[0].moment)
     elif profile1d_type == 'circ_ap_cube':
-        gal.data.apertures = aperture_classes.setup_aperture_types(gal=gal,
+        obs.instrument.apertures = aperture_classes.setup_aperture_types(obs=obs,
                     profile1d_type=profile1d_type,
                     aper_centers = aper_centers_interp,
                     aperture_radius=aperture_radius,
                     pix_perp=None, pix_parallel=None,
-                    pix_length=None, from_data=False,
-                    slit_pa=kwargs_galmodel['slit_pa'],
-                    partial_weight=partial_weight,
-                    moment=moment)
+                    pix_length=None,
+                    slit_pa=slit_pa,
+                    partial_weight=obs.instrument.apertures[0].partial_weight,
+                    moment=obs.instrument.apertures[0].moment)
 
     # Create model:
-    kwargs_galmodel_in = kwargs_galmodel.copy()
-    kwargs_galmodel_in['from_data'] = False
-    kwargs_galmodel_in['from_instrument'] = True
-    kwargs_galmodel_in['ndim_final'] = 1
-    kwargs_galmodel_in['aper_centers'] = aper_centers_interp
-    kwargs_galmodel_in['aperture_radius'] = aperture_radius
-    if (profile1d_type == 'circ_ap_cube') | ( profile1d_type == 'rect_ap_cube'):
-        gal.create_model_data(**kwargs_galmodel_in)
-    else:
-        gal.instrument.slit_width = gal.data.slit_width
-        kwargs_galmodel_in['slit_width'] = gal.data.slit_width
-        kwargs_galmodel_in['slit_pa'] = gal.data.slit_pa
-        gal.create_model_data(**kwargs_galmodel_in)
+    obs.create_single_obs_model_data(gal.model, gal.dscale)
 
-
-    write_model_1d_obs_file(gal=gal, fname=fname, overwrite=overwrite)
+    write_model_1d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
 
     return None
 
@@ -1061,14 +1030,14 @@ def write_vcirc_tot_bar_dm(gal=None, fname=None, fname_m=None, overwrite=False):
     profiles_m[:,3] = np.log10(menc_dm)
     profiles_m[~np.isfinite(profiles_m)] = 0.
 
-    save_vcirc_tot_bar_dm_files(gal=gal, fname=fname, fname_m=fname_m,
+    save_vcirc_tot_bar_dm_files(fname=fname, fname_m=fname_m,
                     profiles=profiles, profiles_m=profiles_m, overwrite=overwrite)
 
     return None
 
 
 #
-def save_vcirc_tot_bar_dm_files(gal=None, fname=None, fname_m=None, profiles=None, profiles_m=None, overwrite=False):
+def save_vcirc_tot_bar_dm_files(fname=None, fname_m=None, profiles=None, profiles_m=None, overwrite=False):
     save_fname = True
     save_fname_m = True
     if (not overwrite) and (fname is not None):
