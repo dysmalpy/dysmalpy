@@ -208,7 +208,7 @@ class FitResults(object):
 ###############################################################
 
 
-def _chisq_generalized(gal, red_chisq=None, **kwargs):
+def _chisq_generalized(gal, red_chisq=None):
 
     if red_chisq is None:
         raise ValueError("'red_chisq' must be True or False!")
@@ -361,14 +361,14 @@ def _chisq_generalized(gal, red_chisq=None, **kwargs):
     return chsq_general
 
 
-def chisq_eval(gal, **kwargs):
+def chisq_eval(gal):
     """
     Evaluate chi square of model, relative to the data.
     """
     return _chisq_generalized(gal, red_chisq=False)
 
 
-def chisq_red(gal,**kwargs):
+def chisq_red(gal):
     """
     Evaluate reduced chi square of model, relative to the data.
     """

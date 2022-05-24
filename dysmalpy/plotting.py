@@ -106,9 +106,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 def plot_bestfit(mcmcResults, gal,
-                 fitvelocity=True,
-                 fitdispersion=True,
-                 fitflux=False,
                  show_1d_apers=False,
                  fileout=None,
                  fileout_aperture=None,
@@ -118,19 +115,17 @@ def plot_bestfit(mcmcResults, gal,
                  vcrop_value=800.,
                  remove_shift=False,
                  overwrite=False,
-                 moment=False,
                  fill_mask=False,
                  **kwargs_galmodel):
     """
     Plot data, bestfit model, and residuals from the MCMC fitting.
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
-            fitvelocity=fitvelocity, fitdispersion=fitdispersion,
-            fitflux=fitflux, fileout=fileout,
+            fileout=fileout,
             fileout_aperture=fileout_aperture, fileout_spaxel=fileout_spaxel,
             fileout_channel=fileout_channel,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
-            remove_shift=remove_shift, moment=moment, fill_mask=fill_mask,
+            remove_shift=remove_shift, fill_mask=fill_mask,
             overwrite=overwrite, **kwargs_galmodel)
 
     return None
@@ -386,10 +381,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     return None
 
 
-def plot_data_model_comparison(gal,theta = None,
-                               fitvelocity=True,
-                               fitdispersion=True,
-                               fitflux=False,
+def plot_data_model_comparison(gal,theta=None,
                                fileout=None,
                                fileout_aperture=None,
                                fileout_spaxel=None,
@@ -403,7 +395,6 @@ def plot_data_model_comparison(gal,theta = None,
                                vcrop_value=800.,
                                remove_shift=False,
                                overwrite=False,
-                               moment=False,
                                fill_mask=False,
                                show_contours=False,
                                show_ruler=True,
@@ -426,9 +417,6 @@ def plot_data_model_comparison(gal,theta = None,
             fileout_obs = None
 
         plot_single_obs_data_model_comparison(obs, gal.model,
-                                       fitvelocity=fitvelocity,
-                                       fitdispersion=fitdispersion,
-                                       fitflux=fitflux,
                                        fileout=fileout_obs,
                                        fileout_aperture=fileout_aperture,
                                        fileout_spaxel=fileout_spaxel,
@@ -442,7 +430,6 @@ def plot_data_model_comparison(gal,theta = None,
                                        vcrop_value=vcrop_value,
                                        remove_shift=remove_shift,
                                        overwrite=overwrite,
-                                       moment=moment,
                                        fill_mask=fill_mask,
                                        show_contours=show_contours,
                                        show_ruler=show_ruler,
@@ -451,9 +438,6 @@ def plot_data_model_comparison(gal,theta = None,
 
 
 def plot_single_obs_data_model_comparison(obs, model, theta = None,
-                               fitvelocity=True,
-                               fitdispersion=True,
-                               fitflux=False,
                                fileout=None,
                                fileout_aperture=None,
                                fileout_spaxel=None,
@@ -467,7 +451,6 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                                vcrop_value=800.,
                                remove_shift=False,
                                overwrite=False,
-                               moment=False,
                                fill_mask=False,
                                show_contours=False,
                                show_ruler=True,
@@ -493,17 +476,11 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
     if dummy_obs.instrument.ndim == 1:
         plot_data_model_comparison_1D(dummy_obs,
                     data = None,
-                    fitvelocity=fitvelocity,
-                    fitdispersion=fitdispersion,
-                    fitflux=fitflux,
                     fileout=fileout,
                     overwrite=overwrite,
                     **plot_kwargs)
     elif dummy_obs.instrument.ndim == 2:
         plot_data_model_comparison_2D(dummy_obs, dummy_model,
-                    fitvelocity=fitvelocity,
-                    fitdispersion=fitdispersion,
-                    fitflux=fitflux,
                     fileout=fileout,
                     show_contours=show_contours,
                     show_ruler=show_ruler,
@@ -587,11 +564,7 @@ def plot_data_model_comparison_0D(obs, fileout=None,
         plt.show()
 
 
-def plot_data_model_comparison_1D(obs,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
-            fileout=None, overwrite=False):
+def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -630,15 +603,15 @@ def plot_data_model_comparison_1D(obs,
 
     keyxtitle = r'$r$ [arcsec]'
     keyyarr, keyytitlearr, keyyresidtitlearr = ([] for _ in range(3))
-    if fitflux:
+    if obs.fit_options.fit_flux:
         keyyarr.append('flux')
         keyytitlearr.append(r'Flux [arb]')
         keyyresidtitlearr.append(r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]')
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         keyyarr.append('velocity')
         keyytitlearr.append(r'$V$ [km/s]')
         keyyresidtitlearr.append(r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]')
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         keyyarr.append('dispersion')
         keyytitlearr.append(r'$\sigma$ [km/s]')
         keyyresidtitlearr.append(r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]')
@@ -797,9 +770,6 @@ def plot_data_model_comparison_1D(obs,
 
 
 def plot_data_model_comparison_2D(obs, model,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
@@ -850,7 +820,7 @@ def plot_data_model_comparison_2D(obs, model,
             nrows += 1
 
     cntr = 0
-    if fitflux:
+    if obs.fit_options.fit_flux:
         cntr += 1
         grid_flux = ImageGrid(f, 100*nrows+10+cntr,
                              nrows_ncols=nrows_ncols,
@@ -862,7 +832,7 @@ def plot_data_model_comparison_2D(obs, model,
                              cbar_mode=cbar_mode,
                              cbar_size=cbar_size,
                              cbar_pad=cbar_pad)
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         cntr += 1
         grid_vel = ImageGrid(f, 100*nrows+10+cntr,
                              nrows_ncols=nrows_ncols,
@@ -874,7 +844,7 @@ def plot_data_model_comparison_2D(obs, model,
                              cbar_mode=cbar_mode,
                              cbar_size=cbar_size,
                              cbar_pad=cbar_pad)
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         cntr += 1
         grid_disp = ImageGrid(f, 100*nrows+10+cntr,
                              nrows_ncols=nrows_ncols,
