@@ -3043,26 +3043,97 @@ def plot_3D_data_automask_info(gal, mask_dict, axes=None):
 
 #############################################################
 
-#############################################################
-
 def plot_model_1D(gal,
             fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
             best_dispersion=None,
             inst_corr=True,
-            fileout=None,
-            **kwargs_galmodel):
+            fileout_base=None):
+
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.instrument.ndim == 1:
+            if fileout_base is not None:
+                fileout_obs= "{}_{}.pdf".format(fileout_base, obs.name)
+            else:
+                fileout_obs = None
+
+            plot_single_obs_model_1D(obs,
+                fitvelocity=fitvelocity,
+                fitdispersion=fitdispersion,
+                fitflux=fitflux,
+                best_dispersion=best_dispersion,
+                inst_corr=inst_corr,
+                fileout=fileout_obs)
+
+def plot_model_2D(gal,
+            fitvelocity=True,
+            fitdispersion=True,
+            fitflux=False,
+            fileout_base=None,
+            symmetric_residuals=True,
+            max_residual=100.,
+            inst_corr=True,
+            show_contours=True,
+            show_ruler=True,
+            len_ruler=None,
+            ruler_unit='arcsec',
+            apply_mask=True,
+            ruler_loc='lowerleft',
+            color_annotate='black',
+            color_bad='white',
+            **plot_kwargs):
+
+
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.instrument.ndim == 2:
+            if fileout_base is not None:
+                fileout_obs= "{}_{}.pdf".format(fileout_base, obs.name)
+            else:
+                fileout_obs = None
+
+            plot_single_obs_model_2D(obs, gal.model,
+                        dscale=gal.dscale,
+                        fitvelocity=fitvelocity,
+                        fitdispersion=fitdispersion,
+                        fitflux=fitflux,
+                        fileout=fileout_obs,
+                        symmetric_residuals=symmetric_residuals,
+                        max_residual=max_residual,
+                        inst_corr=inst_corr,
+                        show_contours=show_contours,
+                        show_ruler=show_ruler,
+                        len_ruler=len_ruler,
+                        ruler_unit=ruler_unit,
+                        apply_mask=apply_mask,
+                        ruler_loc=ruler_loc,
+                        color_annotate=color_annotate,
+                        color_bad=color_bad,
+                        **plot_kwargs)
+
+
+#############################################################
+
+def plot_single_obs_model_1D(obs,
+            fitvelocity=True,
+            fitdispersion=True,
+            fitflux=False,
+            best_dispersion=None,
+            inst_corr=True,
+            fileout=None):
+
     ######################################
     # Setup data/model comparison: if this isn't the fit dimension
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
 
-    model_data = gal.model_data
+    model_data = obs.model_data
 
     if inst_corr:
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - \
-                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                    obs.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
 
 
     ######################################
@@ -3073,11 +3144,6 @@ def plot_model_1D(gal,
     nrows = 1
 
     keyxtitle = r'$r$ [arcsec]'
-    # keyyarr = ['velocity', 'dispersion', 'flux']
-    # keyytitlearr = [r'$V$ [km/s]', r'$\sigma$ [km/s]', 'Flux [arb]']
-    # keyyresidtitlearr = [r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]',
-    #                 r'$\sigma_{\mathrm{data}} - \sigma_{\mathrm{model}}$ [km/s]',
-    #                 r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]']
     keyyarr = []
     keyytitlearr = []
     keyyresidtitlearr = []
@@ -3124,6 +3190,8 @@ def plot_model_1D(gal,
         axes[k].set_ylabel(keyytitlearr[j])
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
 
+    f.suptitle(obs.name)
+
     #############################################################
     # Save to file:
     if fileout is not None:
@@ -3133,7 +3201,9 @@ def plot_model_1D(gal,
         plt.show()
 
 
-def plot_model_2D(gal,
+
+def plot_single_obs_model_2D(obs, model,
+            dscale=None,
             fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
@@ -3149,29 +3219,35 @@ def plot_model_2D(gal,
             ruler_loc='lowerleft',
             color_annotate='black',
             color_bad='white',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
-            if key not in kwargs_galmodel.keys():
-                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+            if key not in plot_kwargs.keys():
+                plot_kwargs[key] = _kwargs_contour_defaults[key]
 
     ######################################
     # Setup plot:
-    f = plt.figure(figsize=(9.5, 6))
+    
+    # f = plt.figure(figsize=(9.5, 6))
+    # scale = 3.5
+
+    f = plt.figure()
     scale = 3.5
+    nrows = 1
 
     ncols = 0
     for cond in [fitflux, fitvelocity, fitdispersion]:
         if cond:
             ncols += 1
 
+    f.set_size_inches(1.1*ncols*scale, nrows*scale)
 
     cntr = 0
     if fitflux:
         cntr += 1
-        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_flux = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,
@@ -3185,7 +3261,7 @@ def plot_model_2D(gal,
 
     if fitvelocity:
         cntr += 1
-        grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_vel = ImageGrid(f, 100+ncols*10+cntr,
                              nrows_ncols=(1, 1),
                              direction="row",
                              axes_pad=0.5,
@@ -3198,7 +3274,7 @@ def plot_model_2D(gal,
                              )
     if fitdispersion:
         cntr += 1
-        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_disp = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,
@@ -3220,18 +3296,18 @@ def plot_model_2D(gal,
         keyytitlearr.append(r'Flux')
         grid_arr.append(grid_flux)
 
-        msk = np.isfinite(gal.model_data.data['flux'])
-        flux_vmin = gal.model_data.data['flux'][msk].min()
-        flux_vmax = gal.model_data.data['flux'][msk].max()
+        msk = np.isfinite(obs.model_data.data['flux'])
+        flux_vmin = obs.model_data.data['flux'][msk].min()
+        flux_vmax = obs.model_data.data['flux'][msk].max()
 
     if fitvelocity:
         keyyarr.append('velocity')
         keyytitlearr.append(r'$V$')
         grid_arr.append(grid_vel)
 
-        msk = np.isfinite(gal.model_data.data['velocity'])
-        vel_vmin = gal.model_data.data['velocity'][msk].min()
-        vel_vmax = gal.model_data.data['velocity'][msk].max()
+        msk = np.isfinite(obs.model_data.data['velocity'])
+        vel_vmin = obs.model_data.data['velocity'][msk].min()
+        vel_vmax = obs.model_data.data['velocity'][msk].max()
         if np.abs(vel_vmax) > 400.:
             vel_vmax = 400.
         if np.abs(vel_vmin) > 400.:
@@ -3242,9 +3318,9 @@ def plot_model_2D(gal,
         keyytitlearr.append(r'$\sigma$')
         grid_arr.append(grid_disp)
 
-        msk = np.isfinite(gal.model_data.data['dispersion'])
-        disp_vmin = gal.model_data.data['dispersion'][msk].min()
-        disp_vmax = gal.model_data.data['dispersion'][msk].max()
+        msk = np.isfinite(obs.model_data.data['dispersion'])
+        disp_vmin = obs.model_data.data['dispersion'][msk].min()
+        disp_vmax = obs.model_data.data['dispersion'][msk].max()
 
         if np.abs(disp_vmax) > 500:
             disp_vmax = 500.
@@ -3254,30 +3330,24 @@ def plot_model_2D(gal,
     int_mode = "nearest"
     origin = 'lower'
     cmap = copy.copy(cm.get_cmap("Spectral_r"))
-    # cmap.set_bad(color='k')
-    # color_annotate = 'white'
-    #
-    # cmap.set_bad(color='white')
-    # color_annotate = 'black'
 
     cmap.set_bad(color=color_bad)
-    #color_annotate = 'black'
 
     for j in range(len(keyyarr)):
-        msk = np.isfinite(gal.model_data.data[keyyarr[j]])
+        msk = np.isfinite(obs.model_data.data[keyyarr[j]])
         # Also use mask if defined:
-        msk[~gal.model_data.mask] = False
+        msk[~obs.model_data.mask] = False
         grid = grid_arr[j]
 
         for ax, k in zip(grid, keyxarr):
-            im = gal.model_data.data[keyyarr[j]].copy()
+            im = obs.model_data.data[keyyarr[j]].copy()
             if apply_mask:
                 im[~msk] = np.NaN
             if keyyarr[j] == 'flux':
                 vmin = flux_vmin
                 vmax = flux_vmax
             elif keyyarr[j] == 'velocity':
-                vel_shift = gal.model.geometry.vel_shift.value
+                vel_shift = model.geometries[obs.name].vel_shift.value
                 im -= vel_shift
 
                 vel_vmin -= vel_shift
@@ -3288,11 +3358,11 @@ def plot_model_2D(gal,
 
             elif keyyarr[j] == 'dispersion':
                 if inst_corr:
-                    im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                    im = np.sqrt(im ** 2 - obs.instrument.lsf.dispersion.to(
                                  u.km / u.s).value ** 2)
 
-                    disp_vmin = max(0, np.sqrt(disp_vmin**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
-                    disp_vmax = np.sqrt(disp_vmax**2 - gal.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
+                    disp_vmin = max(0, np.sqrt(disp_vmin**2 - obs.instrument.lsf.dispersion.to(u.km / u.s).value ** 2))
+                    disp_vmax = np.sqrt(disp_vmax**2 - obs.instrument.lsf.dispersion.to(u.km / u.s).value ** 2)
 
                 vmin = disp_vmin
                 vmax = disp_vmax
@@ -3310,25 +3380,31 @@ def plot_model_2D(gal,
 
             if show_contours:
                 ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyyarr[j], plottype=k,
-                            vmin=vmin, vmax=vmax, kwargs=kwargs_galmodel)
+                            vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
 
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.model_data.mask)
+            ax = plot_major_minor_axes_2D(ax, obs, model, im, obs.model_data.mask)
             if show_ruler:
-                pixscale = gal.instrument.pixscale.value
+                pixscale = obs.instrument.pixscale.value
                 if (len_ruler is None):
                     len_arcsec = 1.
                 elif (len_ruler is not None):
                     if ruler_unit.lower() == 'arcsec':
                         len_arcsec = len_ruler
                     elif ruler_unit.lower() == 'kpc':
-                        len_arcsec = len_ruler * gal.dscale
+                        if dscale is not None:
+                            len_arcsec = len_ruler * dscale
+                        else:
+                            logger.warning("No 'dscale' provided! Using 1arcsec ruler")
+                            len_arcsec = 1.
+                            ruler_unit = 'arcsec'
                 ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=len_arcsec,
                                             ruler_loc=ruler_loc,  color=color_annotate,
-                                            ruler_unit=ruler_unit, dscale=gal.dscale)
+                                            ruler_unit=ruler_unit, dscale=dscale)
 
             cbar = ax.cax.colorbar(imax)
             cbar.ax.tick_params(labelsize=8)
 
+    f.suptitle(obs.name)
 
 
     #############################################################
@@ -5407,21 +5483,21 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     return ax
 
 
-def plot_major_minor_axes_2D(ax, gal, im, mask, finer_step=True,
+def plot_major_minor_axes_2D(ax, obs, model, im, mask, finer_step=True,
     lw_major = 3., lw_minor = 2.25, fac2 = 0.66, fac_len_minor_marker = 1./20.,
     color_kin_axes = 'black', color_kin_axes2 = 'white'):
     ####################################
     # Show MAJOR AXIS line, center:
     try:
-        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
-                            gal.data.ycenter + gal.model.geometry.yshift.value)
+        center_pixel_kin = (obs.data.xcenter + model.geometries[obs.name].xshift.value,
+                            obs.data.ycenter + model.geometries[obs.name].yshift.value)
     except:
-        center_pixel_kin = ((im.shape[1]-1.)/ 2. + gal.model.geometry.xshift.value,
-                            (im.shape[0]-1.)/ 2. + gal.model.geometry.yshift.value)
+        center_pixel_kin = ((im.shape[1]-1.)/ 2. + model.geometries[obs.name].xshift.value,
+                            (im.shape[0]-1.)/ 2. + model.geometries[obs.name].yshift.value)
 
     return plot_major_minor_axes_2D_general(ax, im, mask,
                         center_pixel_kin=center_pixel_kin,
-                        PA_deg=gal.model.components['geom'].pa.value,
+                        PA_deg=model.geometries[obs.name].pa.value,
                         finer_step=finer_step,
                         lw_major=lw_major, lw_minor=lw_minor,
                         fac2=fac2, fac_len_minor_marker=fac_len_minor_marker,
@@ -5630,3 +5706,14 @@ def plot_contours_2D_multitype(im, ax=None, mapname='velocity', plottype='data',
                             linestyles=kwargs['ls_cont'], linewidths=kwargs['lw_cont'])
 
     return ax
+
+
+############
+
+# def _count_nObs_ndim(gal, ndim):
+#     nObsnD = 0
+#     for obs_name in gal.observations:
+#         obs = gal.observations[obs_name]#
+#         if obs.instrument.ndim == ndim:#
+#             nObsnD += 1
+#     return nObsnD

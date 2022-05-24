@@ -319,6 +319,8 @@ class Galaxy:
             if (oversample > 1):
                 sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
                                     nx_sky*oversize))
+            else:
+                sim_cube_nooversamp = sim_cube
 
             # Apply beam smearing and/or instrumental spreading
             if obs.instrument is not None:
