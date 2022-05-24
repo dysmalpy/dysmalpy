@@ -858,7 +858,7 @@ def setup_aperture_types(obs=None, profile1d_type=None,
         raise ValueError("Must set 'aper_centers'!")
     if slit_pa is None:
         raise ValueError("Must set 'slit_pa'!")
-    if slit_width is None:
+    if (slit_width is None) & (profile1d_type != 'circ_ap_cube'):
         raise ValueError("Must set 'slit_width'!")
 
     # if False:
@@ -886,6 +886,8 @@ def setup_aperture_types(obs=None, profile1d_type=None,
         if (aperture_radius is not None):
             rpix = aperture_radius/pixscale
         else:
+            if slit_width is None:
+                raise ValueError("If not setting 'aperture_radius', must set 'slit_width'.")
             rpix = slit_width/pixscale/2.
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
