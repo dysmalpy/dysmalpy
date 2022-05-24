@@ -42,7 +42,7 @@ except:
     _loaded_LeastChiSquares1D = False
 
 
-__all__ = ["Observation", "ObsOptions"]
+__all__ = ["Observation", "ObsModOptions", "ObsFitOptions"]
 
 
 class Observation:
@@ -62,7 +62,9 @@ class Observation:
         self._data = None
         self.model_cube = None
         self.model_data = None
-        self.obs_options = ObsOptions()
+        self.mod_options = ObsModOptions()
+        self.fit_options = ObsFitOptions()
+
 
         if instrument is not None:
             self.add_instrument(instrument)
@@ -227,8 +229,8 @@ class Observation:
         spec_unit = self.instrument.spec_step.unit
         nspec = self.instrument.nspec
         pixscale = self.instrument.pixscale.value
-        oversample = self.obs_options.oversample
-        oversize = self.obs_options.oversize
+        oversample = self.mod_options.oversample
+        oversize = self.mod_options.oversize
 
         # Apply lensing transformation if necessary
         this_lensing_transformer = None
@@ -532,8 +534,8 @@ class Observation:
 
             try:
                 # Catch case where center_pixel is (None, None)
-                if (self.obs_options.xcenter is not None) & (self.obs_options.ycenter is not None):
-                    center_pixel = (self.obs_options.xcenter, self.obs_options.ycenter)
+                if (self.mod_options.xcenter is not None) & (self.mod_options.ycenter is not None):
+                    center_pixel = (self.mod_options.xcenter, self.mod_options.ycenter)
                 else:
                     center_pixel = None
             except:
@@ -588,7 +590,7 @@ class Observation:
 
 
 
-class ObsOptions:
+class ObsModOptions:
     """
     Class to hold options for creating the observed model
     """
@@ -602,3 +604,28 @@ class ObsOptions:
         self.transform_method = transform_method
         self.zcalc_truncate = zcalc_truncate
         self.n_wholepix_z_min = n_wholepix_z_min
+
+
+
+class ObsFitOptions:
+    """
+    Class to hold options for creating fitting an observation (or not)
+
+    fit : bool
+        whether to fit the Obs at all.
+        Default: True
+
+
+    fit_velocity, fit_dispersion, fit_flux : bool
+        1D/2D specific. Whether to include the velocity/dispersion/flux
+        profiles / maps in the fitting or not.
+        Default: True for velocity/dispersion, False for flux.
+
+    """
+    def __init__(self, fit=True,
+                 fit_velocity=True, fit_dispersion=True, fit_flux=False):
+
+        self.fit = fit
+        self.fit_velocity = fit_velocity
+        self.fit_dispersion = fit_dispersion
+        self.fit_flux = fit_flux

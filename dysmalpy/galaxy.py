@@ -60,9 +60,9 @@ class Galaxy:
             on the components included in the ModelSet.
     obs_list : list
             List of `~dysmalpy.observation.Observation` objects,
-            which hold `~dysmalpy.instrument.Instrument`, `~dysmalpy.observation.ObsOptions`,
+            which hold `~dysmalpy.instrument.Instrument`, `~dysmalpy.observation.ObsModOptions`,
             and  `~dysmalpy.data_classes.Data` instances.
-            For each `obs`, `obs.instrument` and `obs.obs_options`
+            For each `obs`, `obs.instrument` and `obs.mod_options`
             describes how `model` is converted to observed space data.
     name : str, optional
            Name of the galaxy. Default is "galaxy."
