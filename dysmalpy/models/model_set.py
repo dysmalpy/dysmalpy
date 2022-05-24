@@ -1312,7 +1312,7 @@ class ModelSet:
         if obs is None:
             raise ValueError("Must pass 'obs' instance!")
 
-        if obs.obs_options.transform_method.lower().strip() not in ['direct', 'rotate']:
+        if obs.mod_options.transform_method.lower().strip() not in ['direct', 'rotate']:
             raise ValueError("Transform method {} unknown! "
                     "Must be 'direct' or 'rotate'!".format(transform_method))
 
@@ -1327,13 +1327,13 @@ class ModelSet:
         spec_start = obs.instrument.spec_start.to(obs.instrument.spec_step.unit).value
         spec_unit = obs.instrument.spec_step.unit
 
-        oversample = obs.obs_options.oversample
-        oversize = obs.obs_options.oversize
-        xcenter = obs.obs_options.xcenter
-        ycenter = obs.obs_options.ycenter
-        transform_method = obs.obs_options.transform_method
-        zcalc_truncate = obs.obs_options.zcalc_truncate
-        n_wholepix_z_min = obs.obs_options.n_wholepix_z_min
+        oversample = obs.mod_options.oversample
+        oversize = obs.mod_options.oversize
+        xcenter = obs.mod_options.xcenter
+        ycenter = obs.mod_options.ycenter
+        transform_method = obs.mod_options.transform_method
+        zcalc_truncate = obs.mod_options.zcalc_truncate
+        n_wholepix_z_min = obs.mod_options.n_wholepix_z_min
         # ----------------------------------------------
 
 
