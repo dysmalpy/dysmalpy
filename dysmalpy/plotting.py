@@ -386,9 +386,71 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
     return None
 
 
-
-
 def plot_data_model_comparison(gal,theta = None,
+                               fitvelocity=True,
+                               fitdispersion=True,
+                               fitflux=False,
+                               fileout=None,
+                               fileout_aperture=None,
+                               fileout_spaxel=None,
+                               fileout_channel=None,
+                               show_multid=True,
+                               show_apertures=True,
+                               show_all_spax=True,
+                               show_channel=True,
+                               vcrop=False,
+                               show_1d_apers=False,
+                               vcrop_value=800.,
+                               remove_shift=False,
+                               overwrite=False,
+                               moment=False,
+                               fill_mask=False,
+                               show_contours=False,
+                               show_ruler=True,
+                               ruler_loc='lowerleft',
+                               **kwargs_galmodel):
+
+
+    # Update model parameters and create new set of model data if
+    # theta array provided
+    if theta is not None:
+        gal.model.update_parameters(theta)
+        gal.create_model_data()
+
+    # Plot data and model for each observation
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if fileout_base is not None:
+            fileout_obs= "{}_{}.pdf".format(fileout_base, obs.name)
+        else:
+            fileout_obs = None
+
+        plot_single_obs_data_model_comparison(obs, gal.model,
+                                       fitvelocity=fitvelocity,
+                                       fitdispersion=fitdispersion,
+                                       fitflux=fitflux,
+                                       fileout=fileout_obs,
+                                       fileout_aperture=fileout_aperture,
+                                       fileout_spaxel=fileout_spaxel,
+                                       fileout_channel=fileout_channel,
+                                       show_multid=show_multid,
+                                       show_apertures=show_apertures,
+                                       show_all_spax=show_all_spax,
+                                       show_channel=show_channel,
+                                       vcrop=vcrop,
+                                       show_1d_apers=show_1d_apers,
+                                       vcrop_value=vcrop_value.,
+                                       remove_shift=remove_shift,
+                                       overwrite=overwrite,
+                                       moment=moment,
+                                       fill_mask=fill_mask,
+                                       show_contours=show_contours,
+                                       show_ruler=show_ruler,
+                                       ruler_loc=ruler_loc,
+                                       **kwargs_galmodel)
+
+
+def plot_single_obs_data_model_comparison(obs, model, theta = None,
                                fitvelocity=True,
                                fitdispersion=True,
                                fitflux=False,
@@ -415,31 +477,30 @@ def plot_data_model_comparison(gal,theta = None,
     Plot data, model, and residuals between the data and this model.
     """
 
-    dummy_gal = copy.deepcopy(gal)
+    dummy_obs = copy.deepcopy(obs)
+    dummy_model = copy.deepcopy(model)
+
+    if fileout is not None:
+        fileout_in = fileout
+        f_r = fileout.split('.')
+        f_base = ".".join(f_r[:-1])
+        fileout = "{}_{}.{}".format(f_base, obs.name, f_r[-1])
 
     if remove_shift:
-        dummy_gal.data.aper_center_pix_shift = (0,0)
-        dummy_gal.model.geometry.xshift = 0
-        dummy_gal.model.geometry.yshift = 0
+        dummy_model.geometries[obs.name].xshift = 0
+        dummy_model.geometries[obs.name].yshift = 0
 
-    if (theta is not None) & (gal.data.ndim == 3):
-        dummy_gal.model.update_parameters(theta)     # Update the parameters
-        dummy_gal.create_model_data(**kwargs_galmodel)
-
-
-    if gal.data.ndim == 1:
-        plot_data_model_comparison_1D(dummy_gal,
+    if dummy_obs.instrument.ndim == 1:
+        plot_data_model_comparison_1D(dummy_obs,
                     data = None,
-                    theta = theta,
                     fitvelocity=fitvelocity,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
                     fileout=fileout,
                     overwrite=overwrite,
                     **kwargs_galmodel)
-    elif gal.data.ndim == 2:
-        plot_data_model_comparison_2D(dummy_gal,
-                    theta = theta,
+    elif dummy_obs.instrument.ndim == 2:
+        plot_data_model_comparison_2D(dummy_obs, dummy_model,
                     fitvelocity=fitvelocity,
                     fitdispersion=fitdispersion,
                     fitflux=fitflux,
@@ -449,42 +510,43 @@ def plot_data_model_comparison(gal,theta = None,
                     ruler_loc=ruler_loc,
                     overwrite=overwrite,
                     **kwargs_galmodel)
-    elif gal.data.ndim == 3:
-        plot_data_model_comparison_3D(dummy_gal,
-                    theta = theta,
-                    show_1d_apers=show_1d_apers,
-                    fileout=fileout,
-                    fileout_aperture=fileout_aperture,
-                    fileout_spaxel=fileout_spaxel,
-                    fileout_channel=fileout_channel,
-                    vcrop=vcrop,
-                    vcrop_value=vcrop_value,
-                    overwrite=overwrite,
-                    moment=moment,
-                    show_multid=show_multid,
-                    show_apertures=show_apertures,
-                    show_all_spax=show_all_spax,
-                    show_channel=show_channel,
-                    fill_mask=fill_mask,
-                    show_contours=show_contours,
-                    show_ruler=show_ruler,
-                    ruler_loc=ruler_loc,
-                    **kwargs_galmodel)
+    elif dummy_obs.instrument.ndim == 3:
+        # plot_data_model_comparison_3D(dummy_obs,
+        #             show_1d_apers=show_1d_apers,
+        #             fileout=fileout,
+        #             fileout_aperture=fileout_aperture,
+        #             fileout_spaxel=fileout_spaxel,
+        #             fileout_channel=fileout_channel,
+        #             vcrop=vcrop,
+        #             vcrop_value=vcrop_value,
+        #             overwrite=overwrite,
+        #             moment=moment,
+        #             show_multid=show_multid,
+        #             show_apertures=show_apertures,
+        #             show_all_spax=show_all_spax,
+        #             show_channel=show_channel,
+        #             fill_mask=fill_mask,
+        #             show_contours=show_contours,
+        #             show_ruler=show_ruler,
+        #             ruler_loc=ruler_loc,
+        #             **kwargs_galmodel)
+
+        raise ValueError('FIX ME!!!!')
 
     elif gal.data.ndim == 0:
-        plot_data_model_comparison_0D(dummy_gal,
+        plot_data_model_comparison_0D(dummy_obs, dummy_model,
                                       fileout=fileout,
                                       overwrite=overwrite,
                                       **kwargs_galmodel)
     else:
-        logger.warning("nDim="+str(gal.data.ndim)+" not supported!")
-        raise ValueError("nDim="+str(gal.data.ndim)+" not supported!")
+        logger.warning("nDim="+str(obs.instrument.ndim)+" not supported!")
+        raise ValueError("nDim="+str(obs.instrument.ndim)+" not supported!")
 
     return None
 
 
-def plot_data_model_comparison_0D(gal, data = None, fileout=None,
-        overwrite=False, **kwargs_galmodel):
+def plot_data_model_comparison_0D(obs, fileout=None,
+        overwrite=False):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -492,22 +554,9 @@ def plot_data_model_comparison_0D(gal, data = None, fileout=None,
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    ######################################
-    # Setup data/model comparison: if this isn't the fit dimension
-    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-    if data is not None:
 
-        # Setup the model with the correct dimensionality:
-        galnew = copy.deepcopy(gal)
-        galnew.data = data
-        galnew.create_model_data(**kwargs_galmodel)
-        model_data = galnew.model_data
-
-    else:
-        # Default: fit in 1D, compare to 1D data:
-        data = gal.data
-        model_data = gal.model_data
-
+    data = obs.data
+    model_data = obs.model_data
 
     ######################################
     # Setup plot:
@@ -526,7 +575,9 @@ def plot_data_model_comparison_0D(gal, data = None, fileout=None,
     ax.plot(model_data.x, data.data - model_data.data, color='blue', lw=1.0)
 
     ax.set_ylabel('Normalized Flux')
-    ax.set_xlabel(gal.instrument.spec_type.capitalize() + ' [' + gal.instrument.spec_step.unit.name + ']')
+    ax.set_xlabel(obs.instrument.spec_type.capitalize() + ' [' + obs.instrument.spec_step.unit.name + ']')
+
+    f.suptitle(obs.name)
 
     # Save to file:
     if fileout is not None:
@@ -536,14 +587,11 @@ def plot_data_model_comparison_0D(gal, data = None, fileout=None,
         plt.show()
 
 
-def plot_data_model_comparison_1D(gal,
-            data = None,
-            theta = None,
+def plot_data_model_comparison_1D(obs,
             fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
-            fileout=None, overwrite=False,
-            **kwargs_galmodel):
+            fileout=None, overwrite=False):
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -551,21 +599,9 @@ def plot_data_model_comparison_1D(gal,
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    ######################################
-    # Setup data/model comparison: if this isn't the fit dimension
-    #   data/model comparison (eg, fit in 2D, showing 1D comparison)
-    if data is not None:
-
-        # Setup the model with the correct dimensionality:
-        galnew = copy.deepcopy(gal)
-        galnew.data = data
-        galnew.create_model_data(**kwargs_galmodel)
-        model_data = galnew.model_data
-
-    else:
-        # Default: fit in 1D, compare to 1D data:
-        data = gal.data
-        model_data = gal.model_data
+    # Default: fit in 1D, compare to 1D data:
+    data = obs.data
+    model_data = obs.model_data
 
     # Correct model for instrument dispersion if the data is instrument corrected:
 
@@ -576,7 +612,7 @@ def plot_data_model_comparison_1D(gal,
     if inst_corr:
             model_data.data['dispersion'] = \
                 np.sqrt( model_data.data['dispersion']**2 - \
-                    gal.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
+                    obs.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
 
 
     ######################################
@@ -619,23 +655,23 @@ def plot_data_model_comparison_1D(gal,
 
         # msk = data.data.mask
         if keyyarr[j] == 'velocity':
-            if hasattr(gal.data, 'mask_velocity'):
-                if gal.data.mask_velocity is not None:
-                    msk = gal.data.mask_velocity
+            if hasattr(obs.data, 'mask_velocity'):
+                if obs.data.mask_velocity is not None:
+                    msk = obs.data.mask_velocity
                 else:
-                    msk = gal.data.mask
+                    msk = obs.data.mask
             else:
-                msk = gal.data.mask
+                msk = obs.data.mask
         elif keyyarr[j] == 'dispersion':
-            if hasattr(gal.data, 'mask_vel_disp'):
-                if gal.data.mask_vel_disp is not None:
-                    msk = gal.data.mask_vel_disp
+            if hasattr(obs.data, 'mask_vel_disp'):
+                if obs.data.mask_vel_disp is not None:
+                    msk = obs.data.mask_vel_disp
                 else:
-                    msk = gal.data.mask
+                    msk = obs.data.mask
             else:
-                msk = gal.data.mask
+                msk = obs.data.mask
         elif keyyarr[j] == 'flux':
-            msk = gal.data.mask
+            msk = obs.data.mask
         else:
             msk = np.array(np.ones(len(data.rarr)), dtype=bool)
 
@@ -659,8 +695,8 @@ def plot_data_model_comparison_1D(gal,
 
         # Weights: effective errorbars show in blue, for reference
         if hasattr(data, 'weight'):
-            if gal.data.weight is not None:
-                wgt = gal.data.weight
+            if obs.data.weight is not None:
+                wgt = obs.data.weight
                 axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
                         xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
                         marker=None, ls='None', ecolor='blue', zorder=-1.,
@@ -733,8 +769,8 @@ def plot_data_model_comparison_1D(gal,
 
         # Weights: effective errorbars show in blue, for reference
         if hasattr(data, 'weight'):
-            if gal.data.weight is not None:
-                wgt = gal.data.weight
+            if obs.data.weight is not None:
+                wgt = obs.data.weight
                 axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
                         xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
                         marker=None, ls='None', ecolor='blue', zorder=-1.,
@@ -747,6 +783,10 @@ def plot_data_model_comparison_1D(gal,
         axes[k].axhline(y=0, ls='--', color='k', zorder=-10.)
         axes[k].set_xlabel(keyxtitle)
         axes[k].set_ylabel(keyyresidtitlearr[j])
+
+    # Figure title is the observation name
+    f.suptitle(obs.name)
+
     #############################################################
     # Save to file:
     if fileout is not None:
@@ -756,8 +796,7 @@ def plot_data_model_comparison_1D(gal,
         plt.show()
 
 
-def plot_data_model_comparison_2D(gal,
-            theta = None,
+def plot_data_model_comparison_2D(obs, model,
             fitvelocity=True,
             fitdispersion=True,
             fitflux=False,
@@ -769,13 +808,13 @@ def plot_data_model_comparison_2D(gal,
             show_contours=False,
             show_ruler=True,
             ruler_loc='lowerleft',
-            **kwargs_galmodel):
+            **plot_kwargs):
 
     if show_contours:
         # Set contour defaults, if not specifed:
         for key in _kwargs_contour_defaults.keys():
-            if key not in kwargs_galmodel.keys():
-                kwargs_galmodel[key] = _kwargs_contour_defaults[key]
+            if key not in plot_kwargs.keys():
+                plot_kwargs[key] = _kwargs_contour_defaults[key]
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -784,8 +823,8 @@ def plot_data_model_comparison_2D(gal,
             return None
 
     try:
-        if 'inst_corr' in gal.data.data.keys():
-            inst_corr = gal.data.data['inst_corr']
+        if 'inst_corr' in obs.data.data.keys():
+            inst_corr = obs.data.data['inst_corr']
     except:
         inst_corr = False
 
@@ -858,17 +897,17 @@ def plot_data_model_comparison_2D(gal,
         grid_arr.append(grid_flux)
         annstr_arr.append('f')
 
-        if gal.data is not None:
-            flux_vmin = gal.data.data['flux'][gal.data.mask].min()
-            flux_vmax = gal.data.data['flux'][gal.data.mask].max()
+        if obs.data is not None:
+            flux_vmin = obs.data.data['flux'][obs.data.mask].min()
+            flux_vmax = obs.data.data['flux'][obs.data.mask].max()
             if flux_vmin == flux_vmax:
-                flux_vmin = gal.model_data.data['flux'].min()
-                flux_vmax = gal.model_data.data['flux'].max()
+                flux_vmin = obs.model_data.data['flux'].min()
+                flux_vmax = obs.model_data.data['flux'].max()
         else:
-            flux_vmin = gal.model_data.data['flux'].min()
-            flux_vmax = gal.model_data.data['flux'].max()
+            flux_vmin = obs.model_data.data['flux'].min()
+            flux_vmax = obs.model_data.data['flux'].max()
         if max_residual_flux is None:
-            max_residual_flux = np.max(np.abs(gal.data.data['flux'][gal.data.mask]))
+            max_residual_flux = np.max(np.abs(obs.data.data['flux'][obs.data.mask]))
 
     if fitvelocity:
         keyyarr.append('velocity')
@@ -876,11 +915,11 @@ def plot_data_model_comparison_2D(gal,
         grid_arr.append(grid_vel)
         annstr_arr.append('V')
 
-        vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
-        vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
+        vel_vmin = obs.data.data['velocity'][obs.data.mask].min()
+        vel_vmax = obs.data.data['velocity'][obs.data.mask].max()
 
         try:
-            vel_shift = gal.model.geometry.vel_shift.value
+            vel_shift = model.geometries[obs.name].vel_shift.value
         except:
             vel_shift = 0
 
@@ -893,12 +932,12 @@ def plot_data_model_comparison_2D(gal,
         grid_arr.append(grid_disp)
         annstr_arr.append('\sigma')
 
-        if gal.data is not None:
-            disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-            disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+        if obs.data is not None:
+            disp_vmin = obs.data.data['dispersion'][obs.data.mask].min()
+            disp_vmax = obs.data.data['dispersion'][obs.data.mask].max()
         else:
-            disp_vmin = gal.model_data.data['dispersion'].min()
-            disp_vmax = gal.model_data.data['dispersion'].max()
+            disp_vmin = obs.model_data.data['dispersion'].min()
+            disp_vmax = obs.model_data.data['dispersion'].max()
 
 
 
@@ -924,7 +963,7 @@ def plot_data_model_comparison_2D(gal,
         for ax, k, xt in zip(grid, keyxarr, keyxtitlearr):
 
             if k == 'data':
-                im = gal.data.data[keyyarr[j]].copy()
+                im = obs.data.data[keyyarr[j]].copy()
 
                 if keyyarr[j] == 'velocity':
                     im -= vel_shift
@@ -939,14 +978,14 @@ def plot_data_model_comparison_2D(gal,
 
                 cmaptmp = cmap
             elif k == 'model':
-                im = gal.model_data.data[keyyarr[j]].copy()
+                im = obs.model_data.data[keyyarr[j]].copy()
                 if keyyarr[j] == 'velocity':
                     im -= vel_shift
                     vmin = vel_vmin
                     vmax = vel_vmax
                 elif keyyarr[j] == 'dispersion':
                     if inst_corr:
-                        im = np.sqrt(im ** 2 - gal.instrument.lsf.dispersion.to(
+                        im = np.sqrt(im ** 2 - obs.instrument.lsf.dispersion.to(
                                      u.km / u.s).value ** 2)
                     vmin = disp_vmin
                     vmax = disp_vmax
@@ -956,12 +995,12 @@ def plot_data_model_comparison_2D(gal,
 
                 cmaptmp = cmap
             elif k == 'residual':
-                im_data = gal.data.data[keyyarr[j]].copy()
-                im_model = gal.model_data.data[keyyarr[j]].copy()
+                im_data = obs.data.data[keyyarr[j]].copy()
+                im_model = obs.model_data.data[keyyarr[j]].copy()
                 if keyyarr[j] == 'dispersion':
                     if inst_corr:
                         im_model = np.sqrt(im_model ** 2 -
-                                       gal.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
+                                       obs.instrument.lsf.dispersion.to( u.km / u.s).value ** 2)
                 im = im_data - im_model
                 if symmetric_residuals:
                     if keyyarr[j] == 'flux':
@@ -978,14 +1017,14 @@ def plot_data_model_comparison_2D(gal,
 
 
             # Mask image:
-            im[~gal.data.mask] = np.nan
+            im[~obs.data.mask] = np.nan
 
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=vmin, vmax=vmax, origin=origin)
 
-            ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
+            ax = plot_major_minor_axes_2D(ax, gal, im, obs.data.mask)
             if show_ruler:
-                pixscale = gal.instrument.pixscale.value
+                pixscale = obs.instrument.pixscale.value
                 ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
                                       ruler_loc=ruler_loc, color=color_annotate)
 
@@ -1006,8 +1045,8 @@ def plot_data_model_comparison_2D(gal,
 
             ####
             if k == 'residual':
-                med = np.median(im[gal.data.mask])
-                rms = np.std(im[gal.data.mask])
+                med = np.median(im[obs.data.mask])
+                rms = np.std(im[obs.data.mask])
                 median_str  = r"${}".format(annstr_arr[j])+r"_{med}="+r"{:0.1f}".format(med)+r"$"
                 scatter_str = r"${}".format(annstr_arr[j])+r"_{rms}="+r"{:0.1f}".format(rms)+r"$"
                 ax.annotate(median_str,
@@ -1021,6 +1060,8 @@ def plot_data_model_comparison_2D(gal,
             cbar.ax.tick_params(labelsize=8)
 
 
+    # Figure title is the observation name
+    f.suptitle(obs.name)
 
     #############################################################
     # Save to file:
@@ -3229,7 +3270,7 @@ def plot_single_obs_model_2D(obs, model,
 
     ######################################
     # Setup plot:
-    
+
     # f = plt.figure(figsize=(9.5, 6))
     # scale = 3.5
 
