@@ -408,7 +408,7 @@ def plot_data_model_comparison(gal,theta = None,
                                show_contours=False,
                                show_ruler=True,
                                ruler_loc='lowerleft',
-                               **kwargs_galmodel):
+                               **plot_kwargs):
 
 
     # Update model parameters and create new set of model data if
@@ -447,7 +447,7 @@ def plot_data_model_comparison(gal,theta = None,
                                        show_contours=show_contours,
                                        show_ruler=show_ruler,
                                        ruler_loc=ruler_loc,
-                                       **kwargs_galmodel)
+                                       **plot_kwargs)
 
 
 def plot_single_obs_data_model_comparison(obs, model, theta = None,
@@ -472,7 +472,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                                show_contours=False,
                                show_ruler=True,
                                ruler_loc='lowerleft',
-                               **kwargs_galmodel):
+                               **plot_kwargs):
     """
     Plot data, model, and residuals between the data and this model.
     """
@@ -498,7 +498,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                     fitflux=fitflux,
                     fileout=fileout,
                     overwrite=overwrite,
-                    **kwargs_galmodel)
+                    **plot_kwargs)
     elif dummy_obs.instrument.ndim == 2:
         plot_data_model_comparison_2D(dummy_obs, dummy_model,
                     fitvelocity=fitvelocity,
@@ -509,7 +509,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                     show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
                     overwrite=overwrite,
-                    **kwargs_galmodel)
+                    **plot_kwargs)
     elif dummy_obs.instrument.ndim == 3:
         # plot_data_model_comparison_3D(dummy_obs,
         #             show_1d_apers=show_1d_apers,
@@ -529,7 +529,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
         #             show_contours=show_contours,
         #             show_ruler=show_ruler,
         #             ruler_loc=ruler_loc,
-        #             **kwargs_galmodel)
+        #             **plot_kwargs)
 
         raise ValueError('FIX ME!!!!')
 
@@ -537,7 +537,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
         plot_data_model_comparison_0D(dummy_obs, dummy_model,
                                       fileout=fileout,
                                       overwrite=overwrite,
-                                      **kwargs_galmodel)
+                                      **plot_kwargs)
     else:
         logger.warning("nDim="+str(obs.instrument.ndim)+" not supported!")
         raise ValueError("nDim="+str(obs.instrument.ndim)+" not supported!")

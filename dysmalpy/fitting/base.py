@@ -208,236 +208,234 @@ class FitResults(object):
 ###############################################################
 
 
-def _chisq_generalized(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-              use_weights=False, red_chisq=None, **kwargs):
+def _chisq_generalized(gal, red_chisq=None, **kwargs):
+
     if red_chisq is None:
         raise ValueError("'red_chisq' must be True or False!")
-    if gal.data.ndim == 3:
-        # Will have problem with vel shift: data, model won't match...
 
-        msk = gal.data.mask
-        dat = gal.data.data.unmasked_data[:].value[msk]
-        mod = gal.model_data.data.unmasked_data[:].value[msk]
-        err = gal.data.error.unmasked_data[:].value[msk]
+    chsq_general = 0.0
 
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight[msk]
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
 
+        if obs.fit_options.fit:
 
-        # Artificially mask zero errors which are masked
-        #err[((err==0) & (msk==0))] = 99.
-        chisq_arr_raw = (((dat - mod)/err)**2) * wgt
-        if red_chisq:
-            if gal.model.nparams_free > np.sum(msk) :
-                raise ValueError("More free parameters than data points!")
-            invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
-        else:
-            invnu = 1.
-        chsq_general = chisq_arr_raw.sum() * invnu
+            # 3D observation
+            if obs.instrument.ndim == 3:
+                # Will have problem with vel shift: data, model won't match...
 
-    elif ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
+                msk = obs.data.mask
+                dat = obs.data.data.unmasked_data[:].value[msk]
+                mod = obs.model_data.data.unmasked_data[:].value[msk]
+                err = obs.data.error.unmasked_data[:].value[msk]
 
-        if fitvelocity:
-            #msk = gal.data.mask
-            if hasattr(gal.data, 'mask_velocity'):
-                if gal.data.mask_velocity is not None:
-                    msk = gal.data.mask_velocity
+                # Weights:
+                wgt_data = 1.
+                if hasattr(obs.data, 'weight'):
+                    if obs.data.weight is not None:
+                        wgt_data = obs.data.weight[msk]
+
+                # Artificially mask zero errors which are masked
+                #err[((err==0) & (msk==0))] = 99.
+                chisq_arr_raw = (((dat - mod)/err)**2) * wgt_data
+                if red_chisq:
+                    if gal.model.nparams_free > np.sum(msk) :
+                        raise ValueError("More free parameters than data points!")
+                    invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free)) * obs.weight
                 else:
-                    msk = gal.data.mask
-            else:
-                msk = gal.data.mask
+                    invnu = 1.
+                chsq_general += chisq_arr_raw.sum() * invnu * obs.weight
 
-            vel_dat = gal.data.data['velocity'][msk]
-            vel_mod = gal.model_data.data['velocity'][msk]
-            vel_err = gal.data.error['velocity'][msk]
+            elif ((obs.instrument.ndim == 1) or (obs.instrument.ndim ==2)):
 
-        if fitdispersion:
-            if hasattr(gal.data, 'mask_vel_disp'):
-                if gal.data.mask_vel_disp is not None:
-                    msk = gal.data.mask_vel_disp
+                if obs.fit_options.fit_velocity:
+                    #msk = obs.data.mask
+                    if hasattr(obs.data, 'mask_velocity'):
+                        if obs.data.mask_velocity is not None:
+                            msk = obs.data.mask_velocity
+                        else:
+                            msk = obs.data.mask
+                    else:
+                        msk = obs.data.mask
+
+                    vel_dat = obs.data.data['velocity'][msk]
+                    vel_mod = obs.model_data.data['velocity'][msk]
+                    vel_err = obs.data.error['velocity'][msk]
+
+                if obs.fit_options.fit_dispersion:
+                    if hasattr(obs.data, 'mask_vel_disp'):
+                        if obs.data.mask_vel_disp is not None:
+                            msk = obs.data.mask_vel_disp
+                        else:
+                            msk = obs.data.mask
+                    else:
+                        msk = obs.data.mask
+                    disp_dat = obs.data.data['dispersion'][msk]
+                    disp_mod = obs.model_data.data['dispersion'][msk]
+                    disp_err = obs.data.error['dispersion'][msk]
+
+                    # Correct model for instrument dispersion if the data is instrument corrected:
+                    if 'inst_corr' in obs.data.data.keys():
+                        if obs.data.data['inst_corr']:
+                            disp_mod = np.sqrt(disp_mod**2 -
+                                               obs.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                            disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
+                                                                   # below the instrumental dispersion
+
+                if obs.fit_options.fit_flux:
+                    msk = obs.data.mask
+                    flux_dat = obs.data.data['flux'][msk]
+                    flux_mod = obs.model_data.data['flux'][msk]
+                    try:
+                        flux_err = obs.data.error['flux'][msk]
+                    except:
+                        flux_err = 0.1*obs.data.data['flux'][msk] # PLACEHOLDER
+
+
+
+                # Weights:
+                wgt_data = 1.
+                if hasattr(obs.data, 'weight'):
+                    if obs.data.weight is not None:
+                        wgt_data = obs.data.weight[msk]
+
+                #####
+                fac_mask = 0
+                chisq_arr_sum = 0
+
+                if obs.fit_options.fit_velocity:
+                    fac_mask += 1
+                    ### Data includes velocity
+                    # Includes velocity shift
+                    chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt_data
+                    chisq_arr_sum += chisq_arr_raw_vel.sum()
+
+                if obs.fit_options.fit_dispersion:
+                    fac_mask += 1
+                    chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt_data
+                    chisq_arr_sum += chisq_arr_raw_disp.sum()
+
+                if obs.fit_options.fit_flux:
+                    fac_mask += 1
+                    chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt_data
+                    chisq_arr_sum += chisq_arr_raw_flux.sum()
+
+                ####
+                if red_chisq:
+                    if gal.model.nparams_free > fac_mask*np.sum(msk) :
+                        raise ValueError("More free parameters than data points!")
+                    invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free)) * obs.weight
                 else:
-                    msk = gal.data.mask
+                    invnu = 1. * obs.weight
+
+                ####
+                chsq_general += (chisq_arr_sum) * invnu
+
+            elif obs.instrument.ndim == 0:
+
+                msk = obs.data.mask
+                data = obs.data.data
+                mod = obs.model_data.data
+                err = obs.data.error
+
+                # Weights:
+                wgt_data = 1.
+                if hasattr(obs.data, 'weight'):
+                    if obs.data.weight is not None:
+                        wgt_data = obs.data.weight
+
+                chisq_arr = (((data - mod)/err)**2) * wgt_data
+                if red_chisq:
+                    if gal.model.nparams_free > np.sum(msk):
+                        raise ValueError("More free parameters than data points!")
+                    invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free)) * obs.weight
+                else:
+                    invnu = 1. * obs.weight
+
+                chsq_general += chisq_arr.sum() * invnu
+
             else:
-                msk = gal.data.mask
-            disp_dat = gal.data.data['dispersion'][msk]
-            disp_mod = gal.model_data.data['dispersion'][msk]
-            disp_err = gal.data.error['dispersion'][msk]
-
-            # Correct model for instrument dispersion if the data is instrument corrected:
-            if 'inst_corr' in gal.data.data.keys():
-                if gal.data.data['inst_corr']:
-                    disp_mod = np.sqrt(disp_mod**2 -
-                                       gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
-                    disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
-                                                           # below the instrumental dispersion
-
-        if fitflux:
-            msk = gal.data.mask
-            flux_dat = gal.data.data['flux'][msk]
-            flux_mod = gal.model_data.data['flux'][msk]
-            try:
-                flux_err = gal.data.error['flux'][msk]
-            except:
-                flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
-
-
-
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight[msk]
-
-
-        #####
-        fac_mask = 0
-        chisq_arr_sum = 0
-
-        if fitvelocity:
-            fac_mask += 1
-            ### Data includes velocity
-            # Includes velocity shift
-            chisq_arr_raw_vel = (((vel_dat - vel_mod)/vel_err)**2) * wgt
-            chisq_arr_sum += chisq_arr_raw_vel.sum()
-
-        if fitdispersion:
-            fac_mask += 1
-            chisq_arr_raw_disp = (((disp_dat - disp_mod)/disp_err)**2) * wgt
-            chisq_arr_sum += chisq_arr_raw_disp.sum()
-
-        if fitflux:
-            fac_mask += 1
-            chisq_arr_raw_flux = (((flux_dat - flux_mod)/flux_err)**2) * wgt
-            chisq_arr_sum += chisq_arr_raw_flux.sum()
-
-        ####
-        if red_chisq:
-            if gal.model.nparams_free > fac_mask*np.sum(msk) :
-                raise ValueError("More free parameters than data points!")
-            invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
-        else:
-            invnu = 1.
-
-        ####
-        chsq_general = (chisq_arr_sum) * invnu
-
-    elif gal.data.ndim == 0:
-
-        msk = gal.data.mask
-        data = gal.data.data
-        mod = gal.model_data.data
-        err = gal.data.error
-
-        # Weights:
-        wgt = 1.
-        if use_weights:
-            if hasattr(gal.data, 'weight'):
-                if gal.data.weight is not None:
-                    wgt = gal.data.weight
-
-        chisq_arr = (((data - mod)/err)**2) * wgt
-        if red_chisq:
-            if gal.model.nparams_free > np.sum(msk):
-                raise ValueError("More free parameters than data points!")
-            invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free))
-        else:
-            invnu = 1.
-
-        chsq_general = chisq_arr.sum() * invnu
-
-    else:
-        logger.warning("ndim={} not supported!".format(gal.data.ndim))
-        raise ValueError
+                logger.warning("ndim={} not supported!".format(obs.instrument.ndim))
+                raise ValueError
 
     return chsq_general
 
 
-def chisq_eval(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-               use_weights=False, **kwargs):
+def chisq_eval(gal, **kwargs):
     """
     Evaluate chi square of model, relative to the data.
     """
-    return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
-                  fitflux=fitflux, use_weights=use_weights, red_chisq=False)
+    return _chisq_generalized(gal, red_chisq=False)
 
 
-def chisq_red(gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-              use_weights=False, **kwargs):
+def chisq_red(gal,**kwargs):
     """
     Evaluate reduced chi square of model, relative to the data.
     """
-    return _chisq_generalized(gal, fitvelocity=fitvelocity, fitdispersion=fitdispersion,
-                  fitflux=fitflux, use_weights=use_weights, red_chisq=True)
+    return _chisq_generalized(gal,red_chisq=True)
 
 
-def _chisq_general_per_type(gal, type=None, use_weights=False, red_chisq=True, **kwargs):
+def _chisq_general_per_type(obs, type=None, red_chisq=True, nparams_free=None, **kwargs):
     """
     Evaluate reduced chi square of model for one specific map/profile
     (i.e., flux/velocity/dispersion), relative to the data.
     """
     # type = 'velocity', 'disperesion', or 'flux'
 
-    if ((gal.data.ndim != 1) & (gal.data.ndim != 2)):
+    if ((obs.data.ndim != 1) & (obs.data.ndim != 2)):
         msg = "_chisq_general_per_type() can only be called when\n"
-        msg += "gal.data.ndim = 1 or 2!"
+        msg += "obs.data.ndim = 1 or 2!"
         raise ValueError(msg)
 
 
     if (type.strip().lower() == 'velocity'):
-        #msk = gal.data.mask
-        if hasattr(gal.data, 'mask_velocity'):
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
+        #msk = obs.data.mask
+        if hasattr(obs.data, 'mask_velocity'):
+            if obs.data.mask_velocity is not None:
+                msk = obs.data.mask_velocity
             else:
-                msk = gal.data.mask
+                msk = obs.data.mask
         else:
-            msk = gal.data.mask
+            msk = obs.data.mask
 
-        vel_dat = gal.data.data['velocity'][msk]
-        vel_mod = gal.model_data.data['velocity'][msk]
-        vel_err = gal.data.error['velocity'][msk]
+        vel_dat = obs.data.data['velocity'][msk]
+        vel_mod = obs.model_data.data['velocity'][msk]
+        vel_err = obs.data.error['velocity'][msk]
 
     if (type.strip().lower() == 'dispersion'):
-        if hasattr(gal.data, 'mask_vel_disp'):
-            if gal.data.mask_vel_disp is not None:
-                msk = gal.data.mask_vel_disp
+        if hasattr(obs.data, 'mask_vel_disp'):
+            if obs.data.mask_vel_disp is not None:
+                msk = obs.data.mask_vel_disp
             else:
-                msk = gal.data.mask
+                msk = obs.data.mask
         else:
-            msk = gal.data.mask
-        disp_dat = gal.data.data['dispersion'][msk]
-        disp_mod = gal.model_data.data['dispersion'][msk]
-        disp_err = gal.data.error['dispersion'][msk]
+            msk = obs.data.mask
+        disp_dat = obs.data.data['dispersion'][msk]
+        disp_mod = obs.model_data.data['dispersion'][msk]
+        disp_err = obs.data.error['dispersion'][msk]
 
         # Correct model for instrument dispersion if the data is instrument corrected:
-        if 'inst_corr' in gal.data.data.keys():
-            if gal.data.data['inst_corr']:
+        if 'inst_corr' in obs.data.data.keys():
+            if obs.data.data['inst_corr']:
                 disp_mod = np.sqrt(disp_mod**2 -
-                                   gal.instrument.lsf.dispersion.to(u.km/u.s).value**2)
+                                   obs.instrument.lsf.dispersion.to(u.km/u.s).value**2)
                 disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
                                                        # below the instrumental dispersion
 
     if (type.strip().lower() == 'flux'):
-        msk = gal.data.mask
-        flux_dat = gal.data.data['flux'][msk]
-        flux_mod = gal.model_data.data['flux'][msk]
+        msk = obs.data.mask
+        flux_dat = obs.data.data['flux'][msk]
+        flux_mod = obs.model_data.data['flux'][msk]
         try:
-            flux_err = gal.data.error['flux'][msk]
+            flux_err = obs.data.error['flux'][msk]
         except:
-            flux_err = 0.1*gal.data.data['flux'][msk] # PLACEHOLDER
+            flux_err = 0.1*obs.data.data['flux'][msk] # PLACEHOLDER
 
     # Weights:
-    wgt = 1.
-    if use_weights:
-        if hasattr(gal.data, 'weight'):
-            if gal.data.weight is not None:
-                wgt = gal.data.weight[msk]
-
+    wgt_data = 1.
+    if hasattr(obs.data, 'weight'):
+        if obs.data.weight is not None:
+            wgt_data = obs.data.weight[msk]
 
     #####
     fac_mask = 0
@@ -462,24 +460,26 @@ def _chisq_general_per_type(gal, type=None, use_weights=False, red_chisq=True, *
 
     ####
     if red_chisq:
-        if gal.model.nparams_free > fac_mask*np.sum(msk) :
+        if nparams_free is None:
+            raise ValueError("If `red_chisq` = TRUE, then must set `nparams_free`.")
+        if nparams_free > fac_mask*np.sum(msk) :
             raise ValueError("More free parameters than data points!")
-        invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
+        invnu = 1./ (1.*(fac_mask*np.sum(msk) - nparams_free)) * obs.weight
     else:
-        invnu = 1.
+        invnu = 1. * obs.weight
 
     ####
     chsq_general = (chisq_arr_sum) * invnu
 
     return chsq_general
 
-def chisq_red_per_type(gal, type=None, use_weights=False, **kwargs):
+def chisq_red_per_type(obs, nparams_free, type=None, **kwargs):
     """
     Evaluate reduced chi square of the model velocity/dispersion/flux map/profile
     """
     if type is None:
         raise ValueError("'type' mustu be 'velocity', 'dispersion', or 'flux'!")
-    return _chisq_general_per_type(gal, type=type, use_weights=use_weights, red_chisq=True)
+    return _chisq_general_per_type(obs, type=type, red_chisq=True, nparams_free=nparams_free)
 
 
 def make_arr_cmp_params(results):
