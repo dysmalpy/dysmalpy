@@ -465,6 +465,12 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
         f_base = ".".join(f_r[:-1])
         fileout = "{}_{}.{}".format(f_base, obs.name, f_r[-1])
 
+        if dummy_obs.instrument.ndim == 3:
+
+            fileout_aperture = "{}_{}_apertures.{}".format(f_base, obs.name, f_r[-1])
+            fileout_spaxel = "{}_{}_spaxels.{}".format(f_base, obs.name, f_r[-1])
+            fileout_channel = "{}_{}_channels.{}".format(f_base, obs.name, f_r[-1])
+
     if remove_shift:
         dummy_model.geometries[obs.name].xshift = 0
         dummy_model.geometries[obs.name].yshift = 0
@@ -483,27 +489,27 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                     overwrite=overwrite,
                     **plot_kwargs)
     elif dummy_obs.instrument.ndim == 3:
-        # plot_data_model_comparison_3D(dummy_obs,
-        #             show_1d_apers=show_1d_apers,
-        #             fileout=fileout,
-        #             fileout_aperture=fileout_aperture,
-        #             fileout_spaxel=fileout_spaxel,
-        #             fileout_channel=fileout_channel,
-        #             vcrop=vcrop,
-        #             vcrop_value=vcrop_value,
-        #             overwrite=overwrite,
-        #             moment=moment,
-        #             show_multid=show_multid,
-        #             show_apertures=show_apertures,
-        #             show_all_spax=show_all_spax,
-        #             show_channel=show_channel,
-        #             fill_mask=fill_mask,
-        #             show_contours=show_contours,
-        #             show_ruler=show_ruler,
-        #             ruler_loc=ruler_loc,
-        #             **plot_kwargs)
 
         raise ValueError('FIX ME!!!!')
+        plot_data_model_comparison_3D(dummy_obs,
+                    show_1d_apers=show_1d_apers,
+                    fileout=fileout,
+                    fileout_aperture=fileout_aperture,
+                    fileout_spaxel=fileout_spaxel,
+                    fileout_channel=fileout_channel,
+                    vcrop=vcrop,
+                    vcrop_value=vcrop_value,
+                    overwrite=overwrite,
+                    moment=moment,
+                    show_multid=show_multid,
+                    show_apertures=show_apertures,
+                    show_all_spax=show_all_spax,
+                    show_channel=show_channel,
+                    fill_mask=fill_mask,
+                    show_contours=show_contours,
+                    show_ruler=show_ruler,
+                    ruler_loc=ruler_loc,
+                    **plot_kwargs)
 
     elif gal.data.ndim == 0:
         plot_data_model_comparison_0D(dummy_obs, dummy_model,

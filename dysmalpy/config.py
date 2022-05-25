@@ -242,3 +242,97 @@ class Config_fit_mpfit(ConfigFitBase):
         self.maxiter=200
 
         self.outdir='mpfit_fit_results/'
+
+
+class OutputOptions:
+    """
+    Class to hold all options for file output during and after fitting
+    """
+
+    def __init__(outdir='./',
+                 save_model=True,
+                 save_model_bestfit=True,
+                 save_bestfit_cube=True,
+                 save_data=True,
+                 save_vel_ascii=True,
+                 save_results=True,
+                 file_base=None,
+                 do_plotting=True,
+                 plot_type='pdf',
+                 overwrite=False
+                 ):
+
+        self.outdir = outdir
+        self.save_model = save_model
+        self.save_model_bestfit = save_model_bestfit
+        self.save_bestfit_cube = save_bestfit_cube
+        self.save_data = save_data
+        self.save_vel_ascii = save_vel_ascii
+        self.save_results = save_results
+        self.file_base = file_base
+        self.do_plotting = do_plotting
+        self.plot_type = plot_type
+        self.overwrite=overwrite
+
+        # Galaxy specific filenames
+        self.f_model = None
+        self.f_vcirc_ascii = None
+        self.f_mass_ascii = None
+        self.f_results = None
+        self.f_plot_bestfit = None
+
+        # Observation and tracer specific filenames
+        self.f_model_bestfit = OrderedDict()
+        self.f_bestfit_cube = OrderedDict()
+        self.f_vel_ascii = OrderedDict()
+
+    def set_output_options(self, gal, fit_type):
+
+        if self.file_base is None:
+            self.file_base = gal.name
+
+        if self.file_base[-1] == '_':
+            self.file_base = self.file_base[0:]
+
+        if self.save_model:
+            self.f_model = "{}{}_model.pickle".format(self.outdir,self.file_base)
+
+        if self.save_model_besfit:
+
+            for obs_name in gal.observations:
+
+                obs = gal.observations[obs_name]
+
+                if obs.data.ndim == 1:
+                    self.f_model_bestfit[obs_name] = "{}{}_{}_{}".format(self.outdir, self.file_base, obs_name, 'out-1dplots.txt')
+                elif obs.data.ndim == 2:
+                    self.f_model_bestfit[obs_name] = "{}{}_{}_{}".format(self.outdir, self.file_base, obs_name, 'out-velmaps.fits')
+                elif obs.data.ndim == 3:
+                    self.f_model_bestfit[obs_name] = "{}{}_{}_{}".format(self.outdir, self.file_base, obs_name, 'out-cube.fits')
+                elif obs.data.ndim == 0:
+                    self.f_model_bestfit[obs_name] = "{}{}_{}_{}".format(self.outdir, self.file_base, obs_name,'out-0d.txt')
+
+        if self.save_bestfit_cube:
+
+            for obs_name in gal.observations:
+
+                obs = gal.observations[obs_name]
+                f_bestfit_cube[obs_name] = "{}{}_{}_bestfit_cube.fits".format(self.outdir, self.file_base, obs_name)
+
+        if self.save_vel_ascii:
+
+            self.f_vcirc_ascii = "{}{}_bestfit_vcirc.dat".format(self.outdir,self.file_base)
+            self.f_mass_ascii = "{}{}_bestfit_menc.dat".format(self.outdir,self.file_base)
+
+
+            for tracer in gal.model.dispersions:
+
+                self.f_vel_ascii[tracer] = "{}{}_{}_{}".format(self.outdir, self.file_base, tracer, 'bestfit_velprofile.dat')
+
+        if self.save_results:
+
+            self.f_results = "{}{}_{}_results.pickle".format(self.outdir, self.file_base, fit_type)
+
+        if self.do_plotting:
+
+            self.f_plot_bestfit = "{}{}_{}_bestfit.{}".format(self.outdir, self.file_base, fit_type, self.plot_type)
