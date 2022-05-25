@@ -9,6 +9,9 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import warnings
 
+# Local imports
+from dysmalpy.fitting import MCMCFitter, MPFITFitter
+
 # Third party imports
 import numpy as np
 import astropy.units as u
@@ -286,7 +289,25 @@ class OutputOptions:
         self.f_bestfit_cube = OrderedDict()
         self.f_vel_ascii = OrderedDict()
 
-    def set_output_options(self, gal, fit_type):
+        # MCMC fitting specific filenames
+        self.f_sampler_continue = None
+        self.f_sampler = None
+        self.f_sampler_tmp = None
+        self.f_burn_sampler = None
+        self.f_plot_trace_burnin = None
+        self.f_plot_trace = None
+        self.f_plot_param_corner = None
+        self.f_chain_ascii = None
+
+
+    def set_output_options(self, gal, fitter):
+
+        if isinstance(fitter, MCMCFitter):
+            fit_type = 'mcmc'
+        elif isinstance(fitter, MPFITFitter):
+            fit_type = 'mpfit'
+        else:
+            raise ValueError("Unrecognized Fitter!")
 
         if self.file_base is None:
             self.file_base = gal.name
@@ -336,3 +357,30 @@ class OutputOptions:
         if self.do_plotting:
 
             self.f_plot_bestfit = "{}{}_{}_bestfit.{}".format(self.outdir, self.file_base, fit_type, self.plot_type)
+
+        if fit_type == 'mcmc':
+
+            if fitter._emcee_version < 3:
+                self._set_mcmc_filenames_221()
+            else:
+                self._set_mcmc_filenames_3()
+
+    def _set_mcmc_filenames_221(self):
+
+        self.f_sampler_continue = self.outdir+self.file_base+'_mcmc_sampler_continue.pickle'
+        self.f_sampler = self.outdir+self.file_base+'_mcmc_sampler.pickle'
+        self.f_sampler_tmp = self.outdir+self.file_base+'_mcmc_sampler_INPROGRESS.pickle'
+        self.f_burn_sampler = self.outdir+self.file_base+'_mcmc_burn_sampler.pickle'
+        self.f_plot_trace_burnin = self.outdir+self.file_base+'_mcmc_burnin_trace.{}'.format(self.plot_type)
+        self.f_plot_trace = self.outdir+self.file_base+'_mcmc_trace.{}'.format(self.plot_type)
+        self.f_plot_param_corner = self.outdir+self.file_base+'_mcmc_param_corner.{}'.format(self.plot_type)
+        self.f_chain_ascii = self.outdir+self.file_base+'_mcmc_chain_blobs.dat'
+
+    def _set_mcmc_filenames_3(self):
+
+        ftype_sampler = 'h5'
+        self.f_sampler = self.outdir+self.file_base+'_mcmc_sampler.{}'.format(ftype_sampler)
+        self.f_plot_trace_burnin = self.outdir+self.file_base+'_mcmc_burnin_trace.{}'.format(self.plot_type)
+        self.f_plot_trace = self.outdir+self.file_base+'_mcmc_trace.{}'.format(self.plot_type)
+        self.f_plot_param_corner = self.outdir+self.file_base+'_mcmc_param_corner.{}'.format(self.plot_type)
+        self.f_chain_ascii = oself.outdir+self.file_base+'_mcmc_chain_blobs.dat'
