@@ -26,11 +26,11 @@ from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 
 # Local imports:
 from .base import chisq_red, chisq_eval, chisq_red_per_type
-from .mcmc import fit_mcmc, MCMCResults, _reload_all_fitting_mcmc
-from .mpfit import fit_mpfit, MPFITResults, _reload_all_fitting_mpfit
+from .mcmc import MCMCFitter, MCMCResults, _reload_all_fitting_mcmc
+from .mpfit import MPFITFitter, MPFITResults, _reload_all_fitting_mpfit
 
 
-__all__ = ['fit_mcmc', 'fit_mpfit',
+__all__ = ['MCMCFitter', 'MPFITFitter',
            'MCMCResults', 'MPFITResults',
            'reload_all_fitting',
            'chisq_red', 'chisq_eval', 'chisq_red_per_type']

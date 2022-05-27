@@ -108,9 +108,6 @@ logger = logging.getLogger('DysmalPy')
 def plot_bestfit(mcmcResults, gal,
                  show_1d_apers=False,
                  fileout=None,
-                 fileout_aperture=None,
-                 fileout_spaxel=None,
-                 fileout_channel=None,
                  vcrop=False,
                  vcrop_value=800.,
                  remove_shift=False,
@@ -122,8 +119,6 @@ def plot_bestfit(mcmcResults, gal,
     """
     plot_data_model_comparison(gal, theta = mcmcResults.bestfit_parameters,
             fileout=fileout,
-            fileout_aperture=fileout_aperture, fileout_spaxel=fileout_spaxel,
-            fileout_channel=fileout_channel,
             vcrop=vcrop, vcrop_value=vcrop_value, show_1d_apers=show_1d_apers,
             remove_shift=remove_shift, fill_mask=fill_mask,
             overwrite=overwrite, **plot_kwargs)
@@ -383,13 +378,6 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
 
 def plot_data_model_comparison(gal,theta=None,
                                fileout=None,
-                               fileout_aperture=None,
-                               fileout_spaxel=None,
-                               fileout_channel=None,
-                               show_multid=True,
-                               show_apertures=True,
-                               show_all_spax=True,
-                               show_channel=True,
                                vcrop=False,
                                show_1d_apers=False,
                                vcrop_value=800.,
@@ -414,13 +402,6 @@ def plot_data_model_comparison(gal,theta=None,
 
         plot_single_obs_data_model_comparison(obs, gal.model,
                                        fileout=fileout,
-                                       fileout_aperture=fileout_aperture,
-                                       fileout_spaxel=fileout_spaxel,
-                                       fileout_channel=fileout_channel,
-                                       show_multid=show_multid,
-                                       show_apertures=show_apertures,
-                                       show_all_spax=show_all_spax,
-                                       show_channel=show_channel,
                                        vcrop=vcrop,
                                        show_1d_apers=show_1d_apers,
                                        vcrop_value=vcrop_value,
@@ -435,13 +416,6 @@ def plot_data_model_comparison(gal,theta=None,
 
 def plot_single_obs_data_model_comparison(obs, model, theta = None,
                                fileout=None,
-                               fileout_aperture=None,
-                               fileout_spaxel=None,
-                               fileout_channel=None,
-                               show_multid=True,
-                               show_apertures=True,
-                               show_all_spax=True,
-                               show_channel=True,
                                vcrop=False,
                                show_1d_apers=False,
                                vcrop_value=800.,
@@ -465,11 +439,8 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
         f_base = ".".join(f_r[:-1])
         fileout = "{}_{}.{}".format(f_base, obs.name, f_r[-1])
 
-        if dummy_obs.instrument.ndim == 3:
-
-            fileout_aperture = "{}_{}_apertures.{}".format(f_base, obs.name, f_r[-1])
-            fileout_spaxel = "{}_{}_spaxels.{}".format(f_base, obs.name, f_r[-1])
-            fileout_channel = "{}_{}_channels.{}".format(f_base, obs.name, f_r[-1])
+        if (not overwrite) & os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
 
     if remove_shift:
         dummy_model.geometries[obs.name].xshift = 0
@@ -494,31 +465,23 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
         plot_data_model_comparison_3D(dummy_obs,
                     show_1d_apers=show_1d_apers,
                     fileout=fileout,
-                    fileout_aperture=fileout_aperture,
-                    fileout_spaxel=fileout_spaxel,
-                    fileout_channel=fileout_channel,
                     vcrop=vcrop,
                     vcrop_value=vcrop_value,
                     overwrite=overwrite,
-                    moment=moment,
-                    show_multid=show_multid,
-                    show_apertures=show_apertures,
-                    show_all_spax=show_all_spax,
-                    show_channel=show_channel,
                     fill_mask=fill_mask,
                     show_contours=show_contours,
                     show_ruler=show_ruler,
                     ruler_loc=ruler_loc,
                     **plot_kwargs)
 
-    elif gal.data.ndim == 0:
+    elif dummy_obs.instrument.ndim == 0:
         plot_data_model_comparison_0D(dummy_obs, dummy_model,
                                       fileout=fileout,
                                       overwrite=overwrite,
                                       **plot_kwargs)
     else:
-        logger.warning("nDim="+str(obs.instrument.ndim)+" not supported!")
-        raise ValueError("nDim="+str(obs.instrument.ndim)+" not supported!")
+        logger.warning("nDim="+str(dummy_obs.instrument.ndim)+" not supported!")
+        raise ValueError("nDim="+str(dummy_obs.instrument.ndim)+" not supported!")
 
     return None
 
@@ -627,7 +590,6 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
         axes.append(plt.subplot(gs[0,j]))
         k += 1
 
-        # msk = data.data.mask
         if keyyarr[j] == 'velocity':
             if hasattr(obs.data, 'mask_velocity'):
                 if obs.data.mask_velocity is not None:
@@ -1044,12 +1006,9 @@ def plot_data_model_comparison_2D(obs, model,
         plt.show()
 
 
-def plot_data_model_comparison_3D(gal,
+def plot_data_model_comparison_3D(obs, gal,
             theta = None,
             fileout=None,
-            fileout_aperture=None,
-            fileout_spaxel=None,
-            fileout_channel=None,
             symmetric_residuals=True,
             show_1d_apers = False,
             max_residual=100.,
@@ -1058,10 +1017,6 @@ def plot_data_model_comparison_3D(gal,
             vcrop_value=800.,
             overwrite=False,
             moment=False,
-            show_multid=True,
-            show_apertures=True,
-            show_all_spax=True,
-            show_channel=True,
             remove_shift=False,
             fill_mask=False,
             show_contours=False,
@@ -1069,47 +1024,56 @@ def plot_data_model_comparison_3D(gal,
             ruler_loc='lowerleft',
             **plot_kwargs):
 
+    if fileout is not None:
+        fileout_in = fileout
+        f_r = fileout.split('.')
+        f_base = ".".join(f_r[:-1])
+        fileout_aperture = "{}_apertures.{}".format(f_base, f_r[-1])
+        fileout_spaxel = "{}_spaxels.{}".format(f_base, f_r[-1])
+        fileout_channel = "{}_channels.{}".format(f_base, f_r[-1])
+
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
-        if os.path.isfile(fileout):
-            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-            return None
+        for f in [fileout, fileout_aperture, fileout_spaxel, fileout_channel]:
+            if os.path.isfile(f):
+                logger.warning("overwrite={} & File already exists! Will not save file: {} \n ".format(overwrite, f))
+                return None
 
-    if show_multid:
-        plot_model_multid(gal, theta=theta,
-                    fileout=fileout,
-                    symmetric_residuals=symmetric_residuals, max_residual=max_residual,
-                    show_1d_apers=show_1d_apers,
-                    fitvelocity=True, fitdispersion=True, fitflux=True,
-                    inst_corr=True,
-                    vcrop=vcrop,
-                    vcrop_value=vcrop_value,
-                    overwrite=overwrite,
-                    moment=moment,
-                    remove_shift=False,
-                    fill_mask=fill_mask,
-                    show_ruler=show_ruler,
-                    ruler_loc=ruler_loc,
-                    show_contours=show_contours,
-                    **plot_kwargs)
+    # if show_multid:
+    plot_model_multid(gal, theta=theta,
+                fileout=fileout,
+                symmetric_residuals=symmetric_residuals, max_residual=max_residual,
+                show_1d_apers=show_1d_apers,
+                # fitvelocity=True, fitdispersion=True, fitflux=True,
+                inst_corr=True,
+                vcrop=vcrop,
+                vcrop_value=vcrop_value,
+                overwrite=overwrite,
+                moment=moment,
+                remove_shift=False,
+                fill_mask=fill_mask,
+                show_ruler=show_ruler,
+                ruler_loc=ruler_loc,
+                show_contours=show_contours,
+                **plot_kwargs)
 
-    if show_all_spax:
-        #if fileout_spaxel is not None:
-        plot_spaxel_compare_3D_cubes(gal, fileout=fileout_spaxel,
-                        typ='all', show_model=True, overwrite=overwrite)
+    # if show_all_spax:
+    #if fileout_spaxel is not None:
+    plot_spaxel_compare_3D_cubes(gal, fileout=fileout_spaxel,
+                    typ='all', show_model=True, overwrite=overwrite)
 
-    if show_apertures:
-        #if fileout_aperture is not None:
-        plot_aperture_compare_3D_cubes(gal, fileout=fileout_aperture,
-                            fill_mask=fill_mask, overwrite=overwrite)
+    # if show_apertures:
+    #if fileout_aperture is not None:
+    plot_aperture_compare_3D_cubes(gal, fileout=fileout_aperture,
+                        fill_mask=fill_mask, overwrite=overwrite)
 
-    if show_channel:
-        #if fileout_channel is not None:
-        plot_channel_maps_3D_cube(gal,
-                    show_data=True, show_model=True,show_residual=True,
-                    vbounds = [-450., 450.], delv = 100.,
-                    vbounds_shift=True, cmap=cm.Greys,
-                    fileout=fileout_channel, overwrite=overwrite)
+    # if show_channel:
+    #if fileout_channel is not None:
+    plot_channel_maps_3D_cube(gal,
+                show_data=True, show_model=True,show_residual=True,
+                vbounds = [-450., 450.], delv = 100.,
+                vbounds_shift=True, cmap=cm.Greys,
+                fileout=fileout_channel, overwrite=overwrite)
 
 
 
@@ -1143,32 +1107,12 @@ def plot_model_multid(gal, theta=None, fitvelocity=True,
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    if gal.data.ndim == 1:
-        plot_model_multid_base(gal, data1d=gal.data, data2d=gal.data2d,
-                    theta=theta,fitvelocity=fitvelocity,
-                    fitdispersion=fitdispersion, fitflux=fitflux,
-                    symmetric_residuals=symmetric_residuals, max_residual=max_residual,
-                    show_contours=show_contours, show_ruler=show_ruler,
-                    ruler_loc=ruler_loc,
-                    fileout=fileout,
-                    xshift = xshift,
-                    yshift = yshift,
-                    show_1d_apers=show_1d_apers,
-                    remove_shift=True,
-                    overwrite=overwrite, **plot_kwargs)
-    elif gal.data.ndim == 2:
-        plot_model_multid_base(gal, data1d=gal.data1d, data2d=gal.data,
-                    theta=theta,fitvelocity=fitvelocity,
-                    fitdispersion=fitdispersion, fitflux=fitflux,
-                    symmetric_residuals=symmetric_residuals,  max_residual=max_residual,
-                    show_contours=show_contours, show_ruler=show_ruler,
-                    ruler_loc=ruler_loc,
-                    fileout=fileout,
-                    show_1d_apers=show_1d_apers,
-                    remove_shift=remove_shift,
-                    overwrite=overwrite, **plot_kwargs)
+    if gal.data.ndim < 3:
+        raise ValueError("Multid not supported for 1D/2D observations: Plotting done separately now!")
+    else:
+        raise ValueError("FIX ME")
 
-    elif gal.data.ndim == 3:
+
         print("plot_model_multid: ndim=3: moment={}".format(moment))
         gal = extract_1D_2D_data_from_cube(gal, inst_corr=True,
                                            fill_mask=fill_mask, moment=moment)
@@ -3078,6 +3022,7 @@ def plot_model_1D(gal,
                 best_dispersion=best_dispersion,
                 inst_corr=inst_corr,
                 fileout=fileout_obs)
+
 
 def plot_model_2D(gal,
             fitvelocity=True,

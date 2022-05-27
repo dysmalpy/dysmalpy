@@ -15,23 +15,19 @@ import logging
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 from dysmalpy import plotting
 from dysmalpy import galaxy
-from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
-
-# Local imports:
-from .base import FitResults, chisq_eval, chisq_red, chisq_red_per_type
+from dysmalpy.fitting import base
 
 # Third party imports
 import os
 import numpy as np
 import astropy.units as u
-import copy
 from dysmalpy.extern.mpfit import mpfit
 
 import time, datetime
 
 
-__all__ = ['fit_mpfit', 'MPFITResults']
+__all__ = ['MPFITFitter', 'MPFITResults']
 
 
 # LOGGER SETTINGS
@@ -39,247 +35,161 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-def fit_mpfit(gal, **kwargs):
+
+class MPFITFitter(base.Fitter):
     """
-    Fit observed kinematics using MPFIT and a DYSMALPY model set.
+    Class to hold the MPFIT fitter attributes + methods
     """
+    def __init__(self, **kwargs):
+        self._set_defaults()
+        super(MPFITFitter, self).__init__(**kwargs)
 
-    #config_c_m_data = config.Config_create_model_data(**kwargs)
-    #config_sim_cube = config.Config_simulate_cube(**kwargs)
-    #kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-    logger.warning("MAKE SURE PARAMS GET INTO obs.mod_options, ETC!!")
-
-
-
-    config_fit = config.Config_fit_mpfit(**kwargs)
-    kwargs_fit = config_fit.dict
-    logger.warning("RETHINK FIT OPTIONS CONFIG CLASSES!!")
+    def _set_defaults(self):
+        self.maxiter=200
 
 
-    # Check the FOV is large enough to cover the data output:
-    dpy_utils_io._check_data_inst_FOV_compatibility(gal)
+    def fit(self, gal, output_options):
+        """
+        Fit observed kinematics using MPFIT and a DYSMALPY model set.
 
-    # Create output directory
-    if len(kwargs_fit['outdir']) > 0:
-        if kwargs_fit['outdir'][-1] != '/': kwargs_fit['outdir'] += '/'
-    ensure_dir(kwargs_fit['outdir'])
+        Parameters
+        ----------
+            gal : `Galaxy` instance
+                observed galaxy, including kinematics.
+                also contains instrument the galaxy was observed with (gal.instrument)
+                and the DYSMALPY model set, with the parameters to be fit (gal.model)
 
-    # If the output filenames aren't defined: use default output filenames
+            output_options : `config.OutputOptions` instance
+                instance holding ouptut options for MCMC fitting.
 
-    if kwargs_fit['save_model'] and (kwargs_fit['f_model'] is None):
-        kwargs_fit['f_model'] = kwargs_fit['outdir']+'galaxy_model.pickle'
-    if kwargs_fit['save_bestfit_cube'] and (kwargs_fit['f_cube'] is None):
-        kwargs_fit['f_cube'] = kwargs_fit['outdir']+'mpfit_bestfit_cube.fits'
-    if kwargs_fit['f_plot_bestfit'] is None:
-        kwargs_fit['f_plot_bestfit'] = kwargs_fit['outdir'] + 'mpfit_best_fit.{}'.format(kwargs_fit['plot_type'])
+        Returns
+        -------
+            mpfitResults : `MPFITResults` instance
+                MPFITResults class instance containing the bestfit parameters, fit information, etc.
 
+        """
 
-    # TEMPORARY KLUDGE
-    obs_names = list(gal.observations.keys())
-    obs = gal.observations[obs_names[0]]
-    logger.warning("TEMP HORRIBLE FNAME KLUDGE: ONLY WORKS FOR 1 OBS")
+        # Check the FOV is large enough to cover the data output:
+        dpy_utils_io._check_data_inst_FOV_compatibility(gal)
 
-    # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-    if (obs.data.ndim == 3) & (kwargs_fit['f_plot_spaxel'] is None):
-        kwargs_fit['f_plot_spaxel'] = kwargs_fit['outdir']+'mpfit_best_fit_spaxels.{}'.format(kwargs_fit['plot_type'])
-    if (obs.data.ndim == 3) & (kwargs_fit['f_plot_aperture'] is None):
-        kwargs_fit['f_plot_aperture'] = kwargs_fit['outdir']+'mpfit_best_fit_apertures.{}'.format(kwargs_fit['plot_type'])
-    if (obs.data.ndim == 3) & (kwargs_fit['f_plot_channel'] is None):
-        kwargs_fit['f_plot_channel'] = kwargs_fit['outdir']+'mpfit_best_fit_channel.{}'.format(kwargs_fit['plot_type'])
+        # Set output options: filenames / which to save, etc
+        output_options.set_output_options(gal, self)
 
-    if kwargs_fit['save_results'] & (kwargs_fit['f_results'] is None):
-        kwargs_fit['f_results'] = kwargs_fit['outdir'] + 'mpfit_results.pickle'
-    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vel_ascii'] is None):
-        kwargs_fit['f_vel_ascii'] = kwargs_fit['outdir'] + 'galaxy_bestfit_vel_profile.dat'
-    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_vcirc_ascii'] is None):
-        kwargs_fit['f_vcirc_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_vcirc.dat'
-    if kwargs_fit['save_vel_ascii'] & (kwargs_fit['f_mass_ascii'] is None):
-        kwargs_fit['f_mass_ascii'] = kwargs_fit['outdir']+'galaxy_bestfit_menc.dat'
-
-    if kwargs_fit['save_model_bestfit'] & (kwargs_fit['f_model_bestfit'] is None):
-        if obs.data.ndim == 1:
-            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-1dplots.txt'
-        elif obs.data.ndim == 2:
-            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-velmaps.fits'
-        elif obs.data.ndim == 3:
-            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-cube.fits'
-        elif obs.data.ndim == 0:
-            kwargs_fit['f_model_bestfit'] = kwargs_fit['outdir']+'galaxy_out-0d.txt'
-
-    # ---------------------------------------------------
-    # Null filenames if not saving:
-    save_keys = ['save_model', 'save_bestfit_cube',  'save_results',
-                'save_vel_ascii', 'save_model_bestfit']
-    fname_keys = ['f_model', 'f_cube', 'f_results',
-                    'f_vel_ascii', 'f_vcirc_ascii', 'f_mass_ascii', 'f_model_bestfit']
-    for sk, fk in zip(save_keys, fname_keys):
-        if not kwargs_fit[sk]:
-            kwargs_fit[fk] = None
-
-    if not kwargs_fit['do_plotting']:
-        fname_keys = ['f_plot_bestfit']
-        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        if (obs.data.ndim == 3):
-            for kw in ['f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel']:
-                fname_keys.append(kw)
-        for fk in fname_keys:
-            kwargs_fit[fk] = None
+        base._check_existing_files_overwrite(output_options, fit_type='mpfit')
 
 
-    # ---------------------------------------------------
-    # Check for existing files if overwrite=False:
-    if (not kwargs_fit['overwrite']):
-        fnames = []
-        fnames_opt = [ kwargs_fit['f_plot_bestfit'], kwargs_fit['f_results'],
-                        kwargs_fit['f_vel_ascii'], kwargs_fit['f_vcirc_ascii'],
-                        kwargs_fit['f_mass_ascii'],
-                        kwargs_fit['f_model'], kwargs_fit['f_cube'] ]
-        for fname in fnames_opt:
-            if fname is not None:
-                fnames.append(fname)
-
-        for fname in fnames:
-            if fname is not None:
-                if os.path.isfile(fname):
-                    logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(kwargs_fit['overwrite'], fname))
-
-        # Return early if it won't save the results, sampler:
-        if kwargs_fit['f_results'] is not None:
-            if os.path.isfile(kwargs_fit['f_results']):
-                msg = "overwrite={}, and 'f_results' won't be saved,".format(kwargs_fit['overwrite'])
-                msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
-                logger.warning(msg)
-                return None
-
-    # ---------------------------------------------------
-
-    # Setup file redirect logging:
-    if kwargs_fit['f_log'] is not None:
-        loggerfile = logging.FileHandler(kwargs_fit['f_log'])
-        loggerfile.setLevel(logging.INFO)
-        logger.addHandler(loggerfile)
+        # Setup file redirect logging:
+        if output_options.f_log is not None:
+            loggerfile = logging.FileHandler(output_options.f_log)
+            loggerfile.setLevel(logging.INFO)
+            logger.addHandler(loggerfile)
 
 
-    # ---------------------------------------------------
+        # ---------------------------------------------------
 
-    # Setup the parinfo dictionary that mpfit needs
-    p_initial = gal.model.get_free_parameters_values()
-    pkeys = gal.model.get_free_parameter_keys()
-    nparam = len(p_initial)
-    parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0, 'parname':''} for i in
-               range(nparam)]
+        # Setup the parinfo dictionary that mpfit needs
+        p_initial = gal.model.get_free_parameters_values()
+        pkeys = gal.model.get_free_parameter_keys()
+        nparam = len(p_initial)
+        parinfo = [{'value':0, 'limited': [1, 1], 'limits': [0., 0.], 'fixed': 0, 'parname':''} for i in
+                   range(nparam)]
 
-    for cmp in pkeys:
-        for param_name in pkeys[cmp]:
+        for cmp in pkeys:
+            for param_name in pkeys[cmp]:
 
-            if pkeys[cmp][param_name] != -99:
+                if pkeys[cmp][param_name] != -99:
 
-                bounds = gal.model.components[cmp].bounds[param_name]
-                k = pkeys[cmp][param_name]
-                parinfo[k]['limits'][0] = bounds[0]
-                parinfo[k]['limits'][1] = bounds[1]
-                parinfo[k]['value'] = p_initial[k]
-                parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
+                    bounds = gal.model.components[cmp].bounds[param_name]
+                    k = pkeys[cmp][param_name]
+                    parinfo[k]['limits'][0] = bounds[0]
+                    parinfo[k]['limits'][1] = bounds[1]
+                    parinfo[k]['value'] = p_initial[k]
+                    parinfo[k]['parname'] = '{}:{}'.format(cmp, param_name)
 
-    # Setup dictionary of arguments that mpfit_chisq needs
+        # Setup dictionary of arguments that mpfit_chisq needs
+        fa = {'gal':gal}
 
-    # fa_init = {'gal':gal, 'fitvelocity':kwargs_fit['fitvelocity'],
-    #             'fitdispersion':kwargs_fit['fitdispersion'],
-    #             'fitflux':kwargs_fit['fitflux'], 'use_weights': kwargs_fit['use_weights']}
-    # fa = {**fa_init, **kwargs_galmodel}
-    fa = {'gal':gal}
+        # Run mpfit
+        # Output some fitting info to logger:
+        logger.info("*************************************")
+        logger.info(" Fitting: {} using MPFIT".format(gal.name))
+        for obs_name in gal.observations:
+            obs = gal.observations[obs_name]
+            logger.info("    obs: {}".format(obs.name))
+            if obs.data.filename_velocity is not None:
+                logger.info("        velocity file: {}".format(obs.data.filename_velocity))
+            if obs.data.filename_dispersion is not None:
+                logger.info("        dispers. file: {}".format(obs.data.filename_dispersion))
 
-    # Run mpfit
-    # Output some fitting info to logger:
-    logger.info("*************************************")
-    logger.info(" Fitting: {} using MPFIT".format(gal.name))
-    for obs_name in gal.observations:
-        obs = gal.observations[obs_name]
-        logger.info("    obs: {}".format(obs.name))
-        if obs.data.filename_velocity is not None:
-            logger.info("        velocity file: {}".format(obs.data.filename_velocity))
-        if obs.data.filename_dispersion is not None:
-            logger.info("        dispers. file: {}".format(obs.data.filename_dispersion))
+            logger.info('        nSubpixels: {}'.format(obs.mod_options.oversample))
 
-        logger.info('        nSubpixels: {}'.format(obs.mod_options.oversample))
+        if ('halo' in gal.model.components.keys()):
+            logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
+        if 'disk+bulge' in gal.model.components.keys():
+            if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
+                logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
+            if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
+                logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
 
-    if ('halo' in gal.model.components.keys()):
-        logger.info('\n'+'mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-    if 'disk+bulge' in gal.model.components.keys():
-        if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
-            logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))
-        if 'truncate_lmstar_halo' in gal.model.components['disk+bulge'].__dict__.keys():
-            logger.info('truncate_lmstar_halo: {}'.format(gal.model.components['disk+bulge'].truncate_lmstar_halo))
+        # ----------------------------------
 
-    # ----------------------------------
+        logger.info('\nMPFIT Fitting:\n'
+                    'Start: {}\n'.format(datetime.datetime.now()))
+        start = time.time()
 
-    logger.info('\nMPFIT Fitting:\n'
-                'Start: {}\n'.format(datetime.datetime.now()))
-    start = time.time()
+        m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=self.maxiter,
+                  iterfunct=mpfit_printer, iterkw={'logger': logger})
 
-    m = mpfit(mpfit_chisq, parinfo=parinfo, functkw=fa, maxiter=kwargs_fit['maxiter'],
-              iterfunct=mpfit_printer, iterkw={'logger': logger})
+        end = time.time()
+        elapsed = end - start
+        endtime = str(datetime.datetime.now())
+        timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed / 60.),
+                                                                      (elapsed / 60. - np.floor(
+                                                                          elapsed / 60.)) * 60.)
+        statusmsg = 'MPFIT Status = {}'.format(m.status)
+        if m.status <= 0:
+            errmsg = 'MPFIT Error/Warning Message = {}'.format(m.errmsg)
+        elif m.status == 5:
+            errmsg = 'MPFIT Error/Warning Message = Maximum number of iterations reached. Fit may not have converged!'
+        else:
+            errmsg = 'MPFIT Error/Warning Message = None'
 
-    end = time.time()
-    elapsed = end - start
-    endtime = str(datetime.datetime.now())
-    timemsg = 'Time= {:3.2f} (sec), {:3.0f}:{:3.2f} (m:s)'.format(elapsed, np.floor(elapsed / 60.),
-                                                                  (elapsed / 60. - np.floor(
-                                                                      elapsed / 60.)) * 60.)
-    statusmsg = 'MPFIT Status = {}'.format(m.status)
-    if m.status <= 0:
-        errmsg = 'MPFIT Error/Warning Message = {}'.format(m.errmsg)
-    elif m.status == 5:
-        errmsg = 'MPFIT Error/Warning Message = Maximum number of iterations reached. Fit may not have converged!'
-    else:
-        errmsg = 'MPFIT Error/Warning Message = None'
+        logger.info('\nEnd: ' + endtime + '\n'
+                    '\n******************\n'
+                    '' + timemsg + '\n'
+                    '' + statusmsg + '\n'
+                    '' + errmsg + '\n'
+                    '******************')
 
-    logger.info('\nEnd: ' + endtime + '\n'
-                '\n******************\n'
-                '' + timemsg + '\n'
-                '' + statusmsg + '\n'
-                '' + errmsg + '\n'
-                '******************')
+        # Save all of the fitting results in an MPFITResults object
+        mpfitResults = MPFITResults(model=gal.model, blob_name=self.blob_name)
 
-    # Save all of the fitting results in an MPFITResults object
-    mpfitResults = MPFITResults(model=gal.model,
-                                f_plot_bestfit=kwargs_fit['f_plot_bestfit'],
-                                f_results=kwargs_fit['f_results'],
-                                blob_name=kwargs_fit['blob_name'])
+        mpfitResults.input_results(m, gal.model)
 
-    mpfitResults.input_results(m, model=gal.model,
-                    model_aperture_r=kwargs_fit['model_aperture_r'],
-                    model_key_halo=kwargs_fit['model_key_halo'])
+        #####
+        # Do all analysis, plotting, saving:
+        mpfitResults.analyze_plot_save_results(gal, output_options=output_options)
 
-    #####
-    # Do all analysis, plotting, saving:
-    mpfitResults.analyze_plot_save_results(gal, kwargs_fit=kwargs_fit)
+        # Clean up logger:
+        if output_options.f_log is not None:
+            logger.removeHandler(loggerfile)
 
-    # Clean up logger:
-    if kwargs_fit['f_log'] is not None:
-        logger.removeHandler(loggerfile)
+        return mpfitResults
 
 
-    return mpfitResults
 
-
-class MPFITResults(FitResults):
+class MPFITResults(base.FitResults):
     """
     Class to hold results of using MPFIT to fit to DYSMALPY models.
     """
-    def __init__(self, model=None, f_plot_bestfit=None, f_plot_spaxel=None,
-                    f_plot_aperture=None, f_plot_channel=None,
-                    f_results=None, blob_name=None, **kwargs):
+    def __init__(self, model=None, blob_name=None):
 
         self._mpfit_object = None
 
-        self.blob_name = blob_name
+        super(MPFITResults, self).__init__(model=model, blob_name=blob_name,
+                                           fit_method='MPFIT')
 
-        super(MPFITResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                        f_plot_spaxel=f_plot_spaxel, f_plot_aperture=f_plot_aperture, f_plot_channel=f_plot_channel,
-                        f_results=f_results, fit_method='MPFIT')
-
-    def analyze_plot_save_results(self, gal, kwargs_fit=None):
+    def analyze_plot_save_results(self, gal, output_options=None):
         """
         Wrapper for analyzing MPFIT results and all remaining saving / plotting after fit.
         """
@@ -290,50 +200,62 @@ class MPFITResults(FitResults):
         gal.create_model_data()
 
         ###
-        self.bestfit_redchisq = chisq_red(gal)
-        self.bestfit_chisq = chisq_eval(gal)
+        self.bestfit_redchisq = base.chisq_red(gal)
+        self.bestfit_chisq = base.chisq_eval(gal)
 
-        if kwargs_fit['f_results'] is not None:
-            self.save_results(filename=kwargs_fit['f_results'], overwrite=kwargs_fit['overwrite'])
+        if output_options.save_results & (output_options.f_results is not None):
+            self.save_results(filename=output_options.f_results, overwrite=output_options.overwrite)
 
-        if kwargs_fit['f_model'] is not None:
+        if output_options.save_model & (output_options.f_model is not None):
             # Save model w/ updated theta equal to best-fit:
-            gal.preserve_self(filename=kwargs_fit['f_model'], save_data=kwargs_fit['save_data'],
-                        overwrite=kwargs_fit['overwrite'])
+            gal.preserve_self(output_options.f_model,
+                              save_data=output_options.save_data,
+                              overwrite=output_options.overwrite)
 
-        if kwargs_fit['f_model_bestfit'] is not None:
-            gal.save_model_data(filename=kwargs_fit['f_model_bestfit'], overwrite=kwargs_fit['overwrite'])
+        if output_options.save_model_bestfit & (output_options.f_model_bestfit is not None):
+            gal.save_model_data(filenames=output_options.f_model_bestfit, overwrite=output_options.overwrite)
 
-        if kwargs_fit['save_bestfit_cube']:
+        if output_options.save_bestfit_cube & (output_options.f_bestfit_cube is not None):
             for obs_name in gal.observations:
-                logger.warning("CANT SAVE MORE THAN ONE RIGHT NOW")
                 obs = gal.observations[obs_name]
-                obs.model_cube.data.write(kwargs_fit['f_cube'], overwrite=kwargs_fit['overwrite'])
+                fcube = output_options.f_bestfit_cube[obs_name]
+                obs.model_cube.data.write(fcube, overwrite=output_options.overwrite)
 
-        if kwargs_fit['do_plotting'] & (kwargs_fit['f_plot_bestfit'] is not None):
-            plotting.plot_bestfit(self, gal, fileout=kwargs_fit['f_plot_bestfit'],
-                            fileout_aperture=kwargs_fit['f_plot_aperture'],
-                            fileout_spaxel=kwargs_fit['f_plot_spaxel'],
-                            fileout_channel=kwargs_fit['f_plot_channel'],
-                            overwrite=kwargs_fit['overwrite'])
+        if output_options.do_plotting & (output_options.f_plot_bestfit is not None):
+            self.plot_bestfit(gal, fileout=output_options.f_plot_bestfit,
+                              overwrite=output_options.overwrite)
 
         # Save velocity / other profiles to ascii file:
-        if kwargs_fit['f_vel_ascii'] is not None:
-            logger.warning("Only writing best-fit vel ascii file for 1 observation! FIX ME!!!!!")
-
-            for obs_name in gal.observations:
-                obs = gal.observations[obs_name]
-                self.save_bestfit_vel_ascii(obs, gal.model, filename=kwargs_fit['f_vel_ascii'],
-                        model_aperture_r=kwargs_fit['model_aperture_r'], overwrite=kwargs_fit['overwrite'])
-
-        if (kwargs_fit['f_vcirc_ascii'] is not None) or (kwargs_fit['f_mass_ascii'] is not None):
-            self.save_bestfit_vcirc_mass_profiles(gal, outpath=kwargs_fit['outdir'],
-                    fname_intrinsic=kwargs_fit['f_vcirc_ascii'],
-                    fname_intrinsic_m=kwargs_fit['f_mass_ascii'], overwrite=kwargs_fit['overwrite'])
+        if output_options.save_vel_ascii & (output_options.f_vel_ascii is not None):
+            for tracer in gal.model.dispersions:
+                self.save_bestfit_vel_ascii(tracer, gal.model,
+                                            filename=output_options.f_vel_ascii[tracer],
+                                            overwrite=output_options.overwrite)
 
 
-    def input_results(self, mpfit_obj, model=None,
-                    model_aperture_r=None, model_key_halo=None):
+        if ((output_options.save_vel_ascii)) & ((output_options.f_vcirc_ascii is not None) or \
+             (output_options.f_mass_ascii is not None)):
+            self.save_bestfit_vcirc_mass_profiles(gal, outpath=output_options.outdir,
+                    fname_intrinsic=output_options.f_vcirc_ascii,
+                    fname_intrinsic_m=output_options.f_mass_ascii,
+                    overwrite=output_options.overwrite)
+
+
+        if (output_options.save_reports):
+            if (output_options.f_report_pretty is not None):
+                self.results_report(gal=gal, filename=output_options.f_report_pretty,
+                                    report_type='pretty',
+                                    output_options=output_options,
+                                    overwrite=output_options.overwrite)
+            if (output_options.f_report_machine is not None):
+                self.results_report(gal=gal, filename=output_options.f_report_machine,
+                                    report_type='machine',
+                                    output_options=output_options,
+                                    overwrite=output_options.overwrite)
+
+
+
+    def input_results(self, mpfit_obj, model):
         """
         Save the best fit results from MPFIT in the MPFITResults object
         """
@@ -364,13 +286,13 @@ class MPFITResults(FitResults):
 
             for blobn in blob_names:
                 if blobn.lower() == 'fdm':
-                    param_bestfit = model.get_dm_frac_effrad(model_aperture_r=model_aperture_r)
+                    param_bestfit = model.get_dm_frac_r_ap()
                 elif blobn.lower() == 'mvirial':
-                    param_bestfit = model.get_mvirial(model_key_halo=model_key_halo)
+                    param_bestfit = model.get_mvirial()
                 elif blobn.lower() == 'alpha':
-                    param_bestfit = model.get_halo_alpha(model_key_halo=model_key_halo)
+                    param_bestfit = model.get_halo_alpha()
                 elif blobn.lower() == 'rb':
-                    param_bestfit = model.get_halo_rb(model_key_halo=model_key_halo)
+                    param_bestfit = model.get_halo_rb()
 
                 self.analyze_blob_value(bestfit=param_bestfit, parname=blobn.lower())
 
@@ -388,17 +310,10 @@ class MPFITResults(FitResults):
         self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
 
 
-    def plot_results(self, gal, f_plot_bestfit=None,
-                     f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
-                     overwrite=False):
+    def plot_results(self, gal, output_options):
         """Plot/replot the bestfit for the MPFIT fitting"""
-        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        logger.warning("NEED TO FIX FILENAMES FOR MULTI-OBS")
-        self.plot_bestfit(gal, fileout=f_plot_bestfit,
-                         fileout_aperture=f_plot_aperture,
-                         fileout_spaxel=f_plot_spaxel,
-                         fileout_channel=f_plot_channel,
-                         overwrite=overwrite)
+        self.plot_bestfit(gal, fileout=output_options.f_plot_bestfit,
+                          overwrite=output_options.overwrite)
 
 
 def mpfit_chisq(theta, fjac=None, gal=None):

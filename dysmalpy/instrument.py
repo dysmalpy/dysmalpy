@@ -76,9 +76,12 @@ class Instrument:
                  apertures=None,
                  integrate_cube=True, slit_width=None, slit_pa=None,
                  fov=None,
+                 ndim=None,
                  name='Instrument'):
 
         self.name = name
+        self.ndim = ndim
+        
         self.pixscale = pixscale
 
         # Case of two beams: analytic and empirical: if beam_type==None, assume analytic

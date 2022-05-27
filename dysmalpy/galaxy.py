@@ -24,6 +24,7 @@ _pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
 
 # Local imports
 # Package imports
+from dysmalpy.observation import Observation
 from dysmalpy.models import ModelSet
 from dysmalpy.utils_io import write_model_obs_file
 
@@ -96,7 +97,12 @@ class Galaxy:
         #    (properties, not attributes for data[*], instrument)
 
         self.__dict__ = state
-        # quick test if necessary to migrate:
+
+        # --------------------------------
+        # v2 Migration: Move everything under observations,
+        #               and get rid of separate 1d/2d/3d datas:
+
+        # Oldest migration:
         if '_data' in state.keys():
             pass
         else:
@@ -105,6 +111,56 @@ class Galaxy:
                 if (mkey in state.keys()) and ('_{}'.format(mkey) not in state.keys()):
                     self.__dict__['_{}'.format(mkey)] = state[mkey]
                     del self.__dict__[mkey]
+
+
+        # Now migrate to the new observation framework:
+        if 'observations' in state.keys():
+            pass
+        else:
+            inst = self.__dict__['_instrument']
+            data=self.__dict__['_data']
+            inst.ndim = data.ndim
+            key_mig_dat2inst = ['apertures', 'slit_width', 'slit_pa',
+                                'smoothing_type', 'smoothing_npix']
+            for key in key_mig_dat2inst:
+                if key in data.__dict__.keys():
+                    inst.__dict__[key] = data.__dict__[key]
+
+            if 'apertures' in data.__dict__.keys():
+                inst.moment = data.apertures.apertures[0].moment
+            else:
+                inst.apertures = None
+                if 'moment' in data.__dict__.keys():
+                    inst.moment = data.moment
+                else:
+                    inst.moment = False
+
+            if 'line_center' not in inst.__dict__.keys():
+                inst.line_center = None
+
+            dat_del_keys = ['apertures', 'aper_center_pix_shift',
+                            'slit_width', 'slit_pa',
+                            'smoothing_type', 'smoothing_npix']
+            for dkey in dat_del_keys:
+                if dkey in data.__dict__.keys():
+                    del data.__dict__[dkey]
+
+            obs = Observation('OBS', 'LINE', instrument=inst, data=data)
+            obs.model_cube = self.__dict__['model_cube']
+            obs.model_data = self.__dict__['model_data']
+
+            self.observations = OrderedDict()
+            self.add_observation(obs)
+
+            # Delete old-format keys:
+            delete_keys = ['_data', '_data1d', '_data2d', '_data3d',
+                           '_instrument', 'model_cube', 'model_data',
+                           'filename_velocity', 'filename_dispersion']
+            for dkey in delete_keys:
+                del self.__dict__[dkey]
+
+        # --------------------------------
+
 
     def copy(self):
         return copy.deepcopy(self)
@@ -230,18 +286,20 @@ class Galaxy:
             return galtmp
 
 
-    def save_model_data(self, filename=None, overwrite=False):
+    def save_model_data(self, filenames=None, overwrite=False):
 
-        logger.warning("Only writing 1 observation! FIX ME!!!!")
-        # Check for existing file:
-        if (not overwrite) and (filename is not None):
-            if os.path.isfile(filename):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
-                return None
+        # Check for existing files:
+        if (not overwrite) and (filenames is not None):
+            for obs_name in self.observations:
+                filename = filenames[obs_name]
+                if os.path.isfile(filename):
+                    logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
+                    return None
 
-        if filename is not None:
+        if filenames is not None:
             for obs_name in self.observations:
                 obs = self.observations[obs_name]
+                filename = filenames[obs_name]
                 write_model_obs_file(obs=obs, model=self.model, fname=filename, overwrite=overwrite)
 
 

@@ -295,14 +295,14 @@ class Report(object):
         self._report += string
 
 
-    def create_results_report(self, gal, results, params=None, **kwargs):
+    def create_results_report(self, gal, results, output_options=None):
         if self.report_type.lower().strip() == 'pretty':
-            self._create_results_report_pretty(gal, results, params=params, **kwargs)
+            self._create_results_report_pretty(gal, results, output_options=output_options)
         elif self.report_type.lower().strip() == 'machine':
-            self._create_results_report_machine(gal, results, params=params, **kwargs)
+            self._create_results_report_machine(gal, results, output_options=output_options)
 
 
-    def _create_results_report_pretty(self, gal, results, params=None, **kwargs):
+    def _create_results_report_pretty(self, gal, results, output_options=None):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -322,155 +322,81 @@ class Report(object):
         self.add_line( '' )
 
 
-        if hasattr(gal.data, 'filename_velocity') & hasattr(gal.data, 'filename_dispersion'):
-            if (gal.data.filename_velocity is not None) & (gal.data.filename_dispersion is not None):
-                self.add_line( 'Datafiles:' )
-                self.add_line( ' vel:  {}'.format(gal.data.filename_velocity) )
-                self.add_line( ' disp: {}'.format(gal.data.filename_dispersion) )
-                if hasattr(gal.data, 'file_flux'):
-                    if gal.data.file_flux is not None:
-                        self.add_line( ' flux: {}'.format(gal.data.file_flux) )
-            elif (gal.data.filename_velocity is not None):
-                self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
-        elif hasattr(gal.data, 'filename_velocity'):
-            if (gal.data.filename_velocity is not None):
-                self.add_line( 'Datafile: {}'.format(gal.data.filename_velocity) )
-        else:
-            if params is not None:
-                try:
-                    self.add_line( 'Datafiles:' )
-                    self.add_line( ' vel:  {}'.format(params['fdata_vel']) )
-                    self.add_line( ' verr: {}'.format(params['fdata_verr']) )
-                    self.add_line( ' disp: {}'.format(params['fdata_disp']) )
-                    self.add_line( ' derr: {}'.format(params['fdata_derr']) )
-                    if params['fitflux']:
-                        try:
-                            self.add_line( ' flux: {}'.format(params['fdata_flux']) )
-                            self.add_line( ' ferr: {}'.format(params['fdata_ferr']) )
-                        except:
-                            pass
-                    try:
-                        self.add_line( ' mask: {}'.format(params['fdata_mask']) )
-                    except:
-                        pass
-                except:
-                    try:
-                        self.add_line( 'Datafiles:' )
-                        self.add_line( ' cube:  {}'.format(params['fdata_cube']) )
-                        self.add_line( ' err:   {}'.format(params['fdata_err']) )
-                    except:
-                        pass
+        for obs_name in gal.observations:
+            obs = gal.observations[obs_name]
+            self.add_line( "    obs: {}".format(obs.name) )
+            self.add_line( '         Datafiles:' )
+            if hasattr(obs.data, 'filename_velocity'):
+                if (obs.data.filename_velocity is not None):
+                    self.add_line( '             vel :  {}'.format(obs.data.filename_velocity) )
+            if hasattr(obs.data, 'filename_dispersion'):
+                if (obs.data.filename_dispersion is not None):
+                    self.add_line( '             disp: {}'.format(obs.data.filename_dispersion) )
+            if hasattr(obs.data, 'file_flux'):
+                if obs.data.file_flux is not None:
+                    self.add_line( '             flux: {}'.format(gal.data.file_flux) )
 
-        if params is not None:
-            self.add_line( 'Paramfile: {}'.format(params['param_filename']) )
+            if hasattr(obs.data, 'file_cube'):
+                if (obs.data.file_cube is not None):
+                    self.add_line( '             cube: {}'.format(obs.data.file_cube) )
+
+            if hasattr(obs.data, 'file_mask'):
+                if (obs.data.file_mask is not None):
+                    self.add_line( '             mask: {}'.format(obs.data.file_mask) )
+
+
+            # --------------------------------------
+            if 'apertures' in obs.instrument.__dict__.keys():
+                if obs.instrument.apertures is not None:
+                    aper_type = str(type(obs.instrument.apertures)).split('.')[-1][:-2]
+                    self.add_line( '         apertures:        {}'.format(aper_type) )
+
+
+            # Save info on fit_dispersion / fit_flux
+            if (obs.instrument.ndim == 1) | (obs.instrument.ndim == 2):
+                if obs.fit_options.fit_velocity is not None:
+                    self.add_line( '         fit_velocity:           {}'.format(obs.fit_options.fit_velocity))
+                if obs.fit_options.fit_dispersion is not None:
+                    self.add_line( '         fit_dispersion:         {}'.format(obs.fit_options.fit_dispersion))
+                if obs.fit_options.fit_flux is not None:
+                    self.add_line( '         fit_flux:               {}'.format(obs.fit_options.fit_flux))
+
+
+            # Save info on weighting / moments :
+            if hasattr(obs.fit_options, 'weighting_method'):
+                if obs.fit_options.weighting_method  is not None:
+                    self.add_line( '         weighting_method:      {}'.format(obs.fit_options.weighting_method))
+
+            if (obs.instrument.ndim == 1) | (obs.instrument.ndim == 2):
+                self.add_line( '         moment:           {}'.format(obs.instrument.moment))
+
+            if 'apertures' in obs.instrument.__dict__.keys():
+                if obs.instrument.apertures is not None:
+                    partial_weight = obs.instrument.apertures.apertures[0].partial_weight
+                    self.add_line( '         partial_weight:        {}'.format(partial_weight))
+
+            # Save info on z calculation / oversampling:
+            if obs.mod_options.zcalc_truncate is not None:
+                self.add_line( '         zcalc_truncate:        {}'.format(obs.mod_options.zcalc_truncate))
+            if obs.mod_options.n_wholepix_z_min is not None:
+                self.add_line( '         n_wholepix_z_min:      {}'.format(obs.mod_options.n_wholepix_z_min))
+            if obs.mod_options.oversample is not None:
+                self.add_line( '         oversample:            {}'.format(obs.mod_options.oversample))
+            if obs.mod_options.oversize is not None:
+                self.add_line( '         oversize:              {}'.format(obs.mod_options.oversize))
+
+            self.add_line( '' )
+
+        if output_options is not None:
+            if (output_options.f_params is not None):
+                self.add_line( 'Paramfile: {}'.format(output_options.f_params) )
 
         self.add_line( '' )
         self.add_line( 'Fitting method: {}'.format(results.fit_method.upper()))
         if 'status' in results.__dict__.keys():
             self.add_line( '    fit status: {}'.format(results.status))
         self.add_line( '' )
-        if params is not None:
-            if 'fit_module' in params.keys():
-                self.add_line( '   fit_module: {}'.format(params['fit_module']))
 
-        # --------------------------------------
-        if 'profile1d_type' in gal.data.__dict__.keys():
-            self.add_line( 'profile1d_type:        {}'.format(gal.data.profile1d_type) )
-
-
-        fitvelocity = True
-        fitdispersion = fitflux = None
-        weighting_method = moment_calc = partial_weight = zcalc_truncate = None
-        n_wholepix_z_min = oversample = oversize = None
-        if params is not None:
-            if 'fitvelocity' in params.keys():
-                fitvelocity = params['fitvelocity']
-            if 'fitdispersion' in params.keys():
-                fitdispersion = params['fitdispersion']
-            if 'fitflux' in params.keys():
-                fitflux = params['fitflux']
-            if 'weighting_method' in params.keys():
-                weighting_method = params['weighting_method']
-            if 'moment_calc' in params.keys():
-                moment_calc = params['moment_calc']
-            if 'partial_weight' in params.keys():
-                partial_weight = params['partial_weight']
-
-            if 'zcalc_truncate' in params.keys():
-                zcalc_truncate = params['zcalc_truncate']
-
-            if 'n_wholepix_z_min' in params.keys():
-                n_wholepix_z_min = params['n_wholepix_z_min']
-
-            if 'oversample' in params.keys():
-                oversample = params['oversample']
-            if 'oversize' in params.keys():
-                oversize = params['oversize']
-
-        if 'apertures' in gal.data.__dict__.keys():
-            if gal.data.apertures is not None:
-                if moment_calc is None:
-                    moment_calc = gal.data.apertures.apertures[0].moment
-                if partial_weight is None:
-                    partial_weight = gal.data.apertures.apertures[0].partial_weight
-
-        if zcalc_truncate is None:
-            if 'zcalc_truncate' in kwargs.keys():
-                zcalc_truncate = kwargs['zcalc_truncate']
-            else:
-                config_sim_cube = Config_simulate_cube()
-                zcalc_truncate = "[Default: {}]".format(config_sim_cube.zcalc_truncate)
-
-            if n_wholepix_z_min is None:
-                if 'n_wholepix_z_min' in kwargs.keys():
-                    n_wholepix_z_min = kwargs['n_wholepix_z_min']
-                else:
-                    config_sim_cube = Config_simulate_cube()
-                    n_wholepix_z_min = "[Default: {}]".format(config_sim_cube.n_wholepix_z_min)
-
-        if oversample is None:
-            if 'oversample' in kwargs.keys():
-                oversample = kwargs['oversample']
-            else:
-                config_sim_cube = Config_simulate_cube()
-                oversample = "[Default: {}]".format(config_sim_cube.oversample)
-        if oversize is None:
-            if 'oversize' in kwargs.keys():
-                oversize = kwargs['oversize']
-            else:
-                config_sim_cube = Config_simulate_cube()
-                oversize = "[Default: {}]".format(config_sim_cube.oversize)
-
-        # Save info on fitdispersion / fitflux
-        if fitvelocity is not None:
-            self.add_line( 'fitvelocity:           {}'.format(fitvelocity))
-        if fitdispersion is not None:
-            self.add_line( 'fitdispersion:         {}'.format(fitdispersion))
-        if fitflux is not None:
-            self.add_line( 'fitflux:               {}'.format(fitflux))
-        if ((fitdispersion is not None) or (fitflux is not None)):
-            self.add_line( '' )
-
-        # Save info on weighting / moments :
-        if weighting_method is not None:
-            self.add_line( 'weighting_method:      {}'.format(weighting_method))
-        if moment_calc is not None:
-            self.add_line( 'moment_calc:           {}'.format(moment_calc))
-        if partial_weight is not None:
-            self.add_line( 'partial_weight:        {}'.format(partial_weight))
-
-
-        # Save info on z calculation / oversampling:
-        if zcalc_truncate is not None:
-            self.add_line( 'zcalc_truncate:        {}'.format(zcalc_truncate))
-        if n_wholepix_z_min is not None:
-            self.add_line( 'n_wholepix_z_min:      {}'.format(n_wholepix_z_min))
-        if oversample is not None:
-            self.add_line( 'oversample:            {}'.format(oversample))
-        if oversize is not None:
-            self.add_line( 'oversize:              {}'.format(oversize))
-
-        self.add_line( '' )
 
         # INFO on pressure support type:
         self.add_line( 'pressure_support:      {}'.format(gal.model.kinematic_options.pressure_support))
@@ -571,18 +497,28 @@ class Report(object):
             datstr = 'Red. chisq: {}'.format(results.bestfit_redchisq)
         self.add_line( datstr )
 
-        if gal.data.ndim == 2:
-            Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
-            self.add_line( '' )
-            self.add_line( '-----------' )
-            datstr = 'Rout,max,2D: {:0.4f}'.format(Routmax2D)
-            self.add_line( datstr )
+
+        self.add_line( '' )
+
+        # If 2D data: Rmaxout2D:
+        ncount_2d = 0
+        for obs_name in gal.observations:
+            obs = gal.observations[obs_name]
+            if obs.instrument.ndim == 2:
+                if ncount_2d == 0:
+                    self.add_line( '-----------' )
+                ncount_2d += 1
+                Routmax2D = _calc_Rout_max_2D(model=gal.model, obs=obs, results=results, dscale=gal.dscale)
+                datstr = 'obs {}: Rout,max,2D: {:0.4f}'.format(obs.name, Routmax2D)
+                self.add_line( datstr )
+
 
         self.add_line( '' )
 
 
 
-    def _create_results_report_machine(self, gal, results, params=None, **kwargs):
+
+    def _create_results_report_machine(self, gal, results, output_options=None):
         # --------------------------------------------
         if results.blob_name is not None:
             if isinstance(results.blob_name, str):
@@ -593,6 +529,7 @@ class Report(object):
             blob_names = None
 
         # --------------------------------------------
+
 
         namestr = '# component             param_name      fixed       best_value   l68_err     u68_err'
         self.add_line( namestr )
@@ -672,61 +609,6 @@ class Report(object):
         self.add_line( datstr )
 
 
-
-        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
-            for k in ['flux', 'velocity', 'dispersion']:
-                if 'bestfit_redchisq_{}'.format(k) in results.__dict__.keys():
-                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('redchisq_{}'.format(k), '-----',
-                            '-----', results.__dict__['bestfit_redchisq_{}'.format(k)], -99, -99)
-                    self.add_line( datstr )
-
-        if 'profile1d_type' in gal.data.__dict__.keys():
-            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('profile1d_type', '-----',
-                        '-----', gal.data.profile1d_type, -99, -99)
-            self.add_line( datstr )
-
-
-        #############
-        weighting_method = moment_calc = partial_weight = None
-        if params is not None:
-            if 'weighting_method' in params.keys():
-                if params['weighting_method'] is not None:
-                    weighting_method = params['weighting_method']
-
-            if 'moment_calc' in params.keys():
-                if params['moment_calc'] is not None:
-                    moment_calc = params['moment_calc']
-
-            if 'partial_weight' in params.keys():
-                if params['partial_weight'] is not None:
-                    partial_weight = params['partial_weight']
-
-        if 'apertures' in gal.data.__dict__.keys():
-            if gal.data.apertures is not None:
-                if moment_calc is None:
-                     moment_calc = gal.data.apertures.apertures[0].moment
-                if partial_weight is None:
-                    partial_weight = gal.data.apertures.apertures[0].partial_weight
-
-        # Apply some defaults:
-        if (partial_weight is None) and (gal.data.ndim == 1):
-            partial_weight = True
-
-        # Write settings:
-        if weighting_method is not None:
-            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('weighting_method', '-----',
-                        '-----', str(weighting_method), -99, -99)
-            self.add_line( datstr )
-        if moment_calc is not None:
-            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('moment_calc', '-----',
-                        '-----', str(moment_calc), -99, -99)
-            self.add_line( datstr )
-        if partial_weight is not None:
-            datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('partial_weight', '-----',
-                        '-----', str(partial_weight), -99, -99)
-            self.add_line( datstr )
-
-
         # INFO on pressure support type:
         datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support', '-----',
                     '-----', str(gal.model.kinematic_options.pressure_support), -99, -99)
@@ -737,37 +619,61 @@ class Report(object):
             self.add_line( datstr )
 
 
-        # If 2D data: Rmaxout2D:
-        if gal.data.ndim == 2:
-            Routmax2D = _calc_Rout_max_2D(gal=gal, results=results)
-            datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format('Routmax2D', '-----',
-                        '-----', Routmax2D, -99, -99)
-            self.add_line( datstr )
+
+        for obs_name in gal.observations:
+            obs = gal.observations[obs_name]
+
+
+            if 'apertures' in obs.instrument.__dict__.keys():
+                if obs.instrument.apertures is not None:
+                    aper_type = str(type(obs.instrument.apertures)).split('.')[-1][:-2]
+                    lblstr = 'obs:{}:apertures'.format(''.join(obs_name.split(' ')))
+                    datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                                '-----', aper_type, -99, -99)
+                    self.add_line( datstr )
+
+            if hasattr(obs.fit_options, 'weighting_method'):
+                if obs.fit_options.weighting_method  is not None:
+                    lblstr = 'obs:{}:weighting_method'.format(''.join(obs_name.split(' ')))
+                    datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                                '-----', str(obs.fit_options.weighting_method), -99, -99)
+                    self.add_line( datstr )
+
+
+            if (obs.instrument.ndim == 1) | (obs.instrument.ndim == 2):
+                lblstr = 'obs:{}:moment'.format(''.join(obs_name.split(' ')))
+                datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                            '-----', str(obs.instrument.moment), -99, -99)
+                self.add_line( datstr )
+
+            if 'apertures' in obs.instrument.__dict__.keys():
+                if obs.instrument.apertures is not None:
+                    lblstr = 'obs:{}:partial_weight'.format(''.join(obs_name.split(' ')))
+                    datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                                '-----', str(obs.instrument.apertures.apertures[0].partial_weight), -99, -99)
+                    self.add_line( datstr )
+
+
+
+            # If 2D data: Rmaxout2D:
+            ncount_2d = 0
+            if obs.instrument.ndim == 2:
+                if ncount_2d == 0:
+                    self.add_line( '-----------' )
+                ncount_2d += 1
+                Routmax2D = _calc_Rout_max_2D(model=gal.model, obs=obs, results=results, dscale=gal.dscale)
+                lblstr = 'obs:{}:Routmax2D'.format(''.join(obs_name.split(' ')))
+                datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                            '-----', Routmax2D, -99, -99)
+                self.add_line( datstr )
+
 
         ########
 
-    # Backwards compatibility:
-    def create_results_report_short(self, gal, results, params=None):
-        # Depreciated:
-        wrn_msg = "Method report.create_results_report_short() depreciated.\n"
-        wrn_msg += "Use report.create_results_report() in the future."
-        raise FutureWarning(wrn_msg)
-
-        self._create_results_report_pretty(gal, results, params=params)
-
-    def create_results_report_long(self, gal, results, params=None):
-        # Depreciated:
-        wrn_msg = "Method report.create_results_report_long() depreciated.\n"
-        wrn_msg += "Use report.create_results_report() in the future."
-        raise FutureWarning(wrn_msg)
-
-        self._create_results_report_machine(gal, results, params=params)
 
 
 
-
-
-def create_results_report(gal, results, params=None, report_type='pretty', **kwargs):
+def create_results_report(gal, results, output_options=None, report_type='pretty'):
 
     if results.fit_method is None:
         return None
@@ -782,7 +688,7 @@ def create_results_report(gal, results, params=None, report_type='pretty', **kwa
 
 
     report = Report(report_type=report_type, fit_method=results.fit_method)
-    report.create_results_report(gal, results, params=params, **kwargs)
+    report.create_results_report(gal, results, output_options=output_options)
 
     return report.report
 
@@ -811,31 +717,23 @@ def _check_data_inst_FOV_compatibility(gal):
 
 
 # BETTER METHOD: ALONG MAJOR AXIS:
-def _calc_Rout_max_2D(gal=None, results=None):
-    gal.model.update_parameters(results.bestfit_parameters)
-    nx_sky = gal.data.data['velocity'].shape[1]
-    ny_sky = gal.data.data['velocity'].shape[0]
+def _calc_Rout_max_2D(model=None, obs=None, results=None, dscale=None):
+    model.update_parameters(results.bestfit_parameters)
+    nx_sky = obs.data.data['velocity'].shape[1]
+    ny_sky = obs.data.data['velocity'].shape[0]
 
     try:
-        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value,
-                            gal.data.ycenter + gal.model.geometry.yshift.value)
+        center_pixel_kin = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value,
+                            obs.mod_options.ycenter + model.geometries[obs.name].yshift.value)
     except:
-        center_pixel_kin = (int(nx_sky/ 2.) + gal.model.geometry.xshift.value,
-                            int(ny_sky/ 2.) + gal.model.geometry.yshift.value)
+        center_pixel_kin = (int(nx_sky/ 2.) + model.geometries[obs.name].xshift.value,
+                            int(ny_sky/ 2.) + model.geometries[obs.name].yshift.value)
 
     # Start going to neg, pos of center, at PA, and check if mask True/not
     #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
-    cPA = np.cos(gal.model.components['geom'].pa.value * np.pi/180.)
-    sPA = np.sin(gal.model.components['geom'].pa.value * np.pi/180.)
+    cPA = np.cos(model.components['geom'].pa.value * np.pi/180.)
+    sPA = np.sin(model.components['geom'].pa.value * np.pi/180.)
 
-    ## but just considering +- MA -> all in y.
-    ## xnew = -rMA * sPA
-    ## ynew = rMA * cPA
-    ## then for MINA -> all in x
-    ## xnew2 = rMINA * cPA
-    ## ynew2 = rMINA * sPA
-
-    #rstep_A = 1.
     rstep_A = 0.25
     rMA_tmp = 0
     rMA_arr = []
@@ -851,7 +749,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
                 rMA_arr.append(-1.*(rMA_tmp - fac*rstep_A))  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
-            elif not gal.data.mask[int(np.round(ytmp)), int(np.round(xtmp))]:
+            elif not obs.data.mask[int(np.round(ytmp)), int(np.round(xtmp))]:
                 rMA_arr.append(-1.*rMA_tmp)  # switch sign: pos / blue for calc becomes neg
                 rMA_tmp = 0
                 ended_MA = True
@@ -859,7 +757,7 @@ def _calc_Rout_max_2D(gal=None, results=None):
     Routmax2D = np.max(np.abs(np.array(rMA_arr)))
 
     # In pixels. Convert to arcsec then to kpc:
-    Routmax2D_kpc = Routmax2D * gal.instrument.pixscale.value / gal.dscale
+    Routmax2D_kpc = Routmax2D * obs.instrument.pixscale.value / dscale
     return Routmax2D_kpc
 
 

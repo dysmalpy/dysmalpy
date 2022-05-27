@@ -120,7 +120,6 @@ class KinematicOptions:
 
     def apply_adiabatic_contract(self, model, r, vbaryon_sq, vhalo_sq,
                                  compute_dm=False, return_vsq=False,
-                                 model_aperture_r=config._model_aperture_r,
                                  step1d = 0.2):
         """
         Function that applies adiabatic contraction to a ModelSet
@@ -144,11 +143,6 @@ class KinematicOptions:
 
         return_vsq : bool
             If True, return square velocities instead of taking sqrt.
-
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float
             Step size in kpc to use during adiabatic contraction calculation
@@ -174,7 +168,7 @@ class KinematicOptions:
                 rmaxin = r
 
             try:
-                r_ap = model_aperture_r(model)
+                r_ap = model.model_aperture_r()
             except:
                 r_ap = 0.
 

@@ -73,6 +73,18 @@ class Observation:
         if data is not None:
             self.add_data(data)
 
+    def __deepcopy__(self, memo):
+        self2 = type(self)(name=self.name, tracer=self.tracer, weight=self.weight,
+                           instrument=self._instrument, data=self._data)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
+    def __copy__(self):
+        self2 = type(self)(name=self.name, tracer=self.tracer, weight=self.weight,
+                           instrument=self._instrument, data=self._data)
+        self2.__dict__.update(self.__dict__)
+        return self2
+
     def add_instrument(self, instrument):
         self.instrument = instrument
 
@@ -429,10 +441,15 @@ class Observation:
                                 if self.data.mask is not None:
                                     this_fitting_mask = copy.copy(self.data.mask)
 
-                            if logger.level > logging.DEBUG:
-                                this_fitting_verbose = True
-                            else:
-                                this_fitting_verbose = False
+                            # # Only do verbose if logging level is DEBUG or lower
+                            # if logger.level <= logging.DEBUG:
+                            #     this_fitting_verbose = True
+                            # else:
+                            #     this_fitting_verbose = False
+                            ## Force non-verbose, because multiprocessing pool
+                            ##    resets logging to logger.level = 0....
+                            this_fitting_verbose = False
+
                             # do the least chisquares fitting
                             my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
                                     x = self.model_cube.data.spectral_axis.to(u.km/u.s).value,

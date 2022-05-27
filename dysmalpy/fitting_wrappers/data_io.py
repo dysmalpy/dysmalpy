@@ -205,41 +205,43 @@ def read_fitting_params(fname=None):
 
 
 
-def save_results_ascii_files(fit_results=None, gal=None, params=None, overwrite=False):
-    filename_extra = ''
-    if 'filename_extra' in params.keys():
-        if params['filename_extra'] is not None:
-            filename_extra =  params['filename_extra']
-    f_ascii_pretty = params['outdir']+'{}{}_{}_best_fit_results_report.info'.format(params['galID'],
-                            filename_extra, params['fit_method'])
-    f_ascii_machine = params['outdir']+'{}{}_{}_best_fit_results.dat'.format(params['galID'],
-                            filename_extra, params['fit_method'])
+# def save_results_ascii_files(fit_results=None, gal=None, params=None, overwrite=False):
+#     raise ValueError
+#
+#     filename_extra = ''
+#     if 'filename_extra' in params.keys():
+#         if params['filename_extra'] is not None:
+#             filename_extra =  params['filename_extra']
+#     f_ascii_pretty = params['outdir']+'{}{}_{}_best_fit_results_report.info'.format(params['galID'],
+#                             filename_extra, params['fit_method'])
+#     f_ascii_machine = params['outdir']+'{}{}_{}_best_fit_results.dat'.format(params['galID'],
+#                             filename_extra, params['fit_method'])
+#
+#     fit_results.results_report(gal=gal, filename=f_ascii_pretty, params=params,
+#                     report_type='pretty', overwrite=overwrite)
+#     fit_results.results_report(gal=gal, filename=f_ascii_machine, params=params,
+#                         report_type='machine', overwrite=overwrite)
+#
+#     return None
 
-    fit_results.results_report(gal=gal, filename=f_ascii_pretty, params=params,
-                    report_type='pretty', overwrite=overwrite)
-    fit_results.results_report(gal=gal, filename=f_ascii_machine, params=params,
-                        report_type='machine', overwrite=overwrite)
 
-    return None
-
-
-def save_results_ascii_files_mcmc(fit_results=None, gal=None, params=None, outdir=None, galID=None):
-    # Backwards compatibility:
-    # Depreciated:
-    wrn_msg = "Method save_results_ascii_files_mcmc() depreciated.\n"
-    wrn_msg += "Use save_results_ascii_files() in the future."
-    raise FutureWarning(wrn_msg)
-    save_results_ascii_files(fit_results=fit_results, gal=gal, params=params, overwrite=True)
-    return None
-
-def save_results_ascii_files_mpfit(fit_results=None, gal=None, params=None, outdir=None, galID=None):
-    # Backwards compatibility:
-    # Depreciated:
-    wrn_msg = "Method save_results_ascii_files_mpfit() depreciated.\n"
-    wrn_msg += "Use save_results_ascii_files() in the future."
-    raise FutureWarning(wrn_msg)
-    save_results_ascii_files(fit_results=fit_results, gal=gal, params=params, overwrite=True)
-    return None
+# def save_results_ascii_files_mcmc(fit_results=None, gal=None, params=None, outdir=None, galID=None):
+#     # Backwards compatibility:
+#     # Depreciated:
+#     wrn_msg = "Method save_results_ascii_files_mcmc() depreciated.\n"
+#     wrn_msg += "Use save_results_ascii_files() in the future."
+#     raise FutureWarning(wrn_msg)
+#     save_results_ascii_files(fit_results=fit_results, gal=gal, params=params, overwrite=True)
+#     return None
+#
+# def save_results_ascii_files_mpfit(fit_results=None, gal=None, params=None, outdir=None, galID=None):
+#     # Backwards compatibility:
+#     # Depreciated:
+#     wrn_msg = "Method save_results_ascii_files_mpfit() depreciated.\n"
+#     wrn_msg += "Use save_results_ascii_files() in the future."
+#     raise FutureWarning(wrn_msg)
+#     save_results_ascii_files(fit_results=fit_results, gal=gal, params=params, overwrite=True)
+#     return None
 
 
 

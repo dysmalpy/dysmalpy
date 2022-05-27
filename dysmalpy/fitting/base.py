@@ -24,7 +24,7 @@ from collections import OrderedDict
 import astropy.units as u
 import copy
 
-__all__ =  ['FitResults',
+__all__ =  ['Fitter', 'FitResults',
             'chisq_red', 'chisq_eval', 'chisq_red_per_type']
 
 
@@ -33,24 +33,45 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
+class Fitter(object):
+    """
+    General class to hold the fitter attributes + methods
+    """
+
+    def __init__(self, **kwargs):
+        self._set_defaults_base()
+        self._fill_values(**kwargs)
+
+    def _set_defaults_base(self):
+        self.blob_name = None
+
+    def _fill_values(self, **kwargs):
+        for key in self.__dict__.keys():
+            if key in kwargs.keys():
+                self.__dict__[key] = kwargs[key]
+
+    @abc.abstractmethod
+    def fit(self, *args, **kwargs):
+        """Fit a galaxy with output options"""
+        pass
+
+
+
+
 class FitResults(object):
     """
     General class to hold the results of any fitting
     """
 
-    def __init__(self,
-                 model=None,
-                 f_plot_bestfit=None,
-                 f_plot_spaxel=None,
-                 f_plot_aperture=None,
-                 f_plot_channel=None,
-                 f_results=None,
-                 fit_method=None):
+    def __init__(self, model=None,
+                 #output_options=None,
+                 fit_method=None, blob_name=None):
 
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
         self.bestfit_redchisq = None
         self._fixed = None
+        self.blob_name = blob_name
 
         if model is not None:
             self.set_model(model)
@@ -63,14 +84,8 @@ class FitResults(object):
             self.nparams_free = None
             self.chain_param_names = None
 
-        self.f_plot_bestfit = f_plot_bestfit
+        # self.output_options = output_options
 
-        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        self.f_plot_spaxel = f_plot_spaxel
-        self.f_plot_aperture = f_plot_aperture
-        self.f_plot_channel = f_plot_channel
-
-        self.f_results = f_results
         self.fit_method = fit_method
 
     def set_model(self, model):
@@ -123,8 +138,7 @@ class FitResults(object):
         if filename is not None:
             dump_pickle(self, filename=filename, overwrite=overwrite)  # Save FitResults class to a pickle file
 
-    def save_bestfit_vel_ascii(self, obs, model, filename=None,
-                               model_aperture_r=config._model_aperture_r, overwrite=False):
+    def save_bestfit_vel_ascii(self, tracer, model, filename=None, overwrite=False):
         if filename is not None:
             try:
                 r_ap = model_aperture_r(self)
@@ -134,7 +148,8 @@ class FitResults(object):
             stepsize = 0.1  # stepsize 0.1 kpc
             r = np.arange(0., rmax + stepsize, stepsize)
 
-            model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite, tracer=obs.tracer)
+            model.write_vrot_vcirc_file(r=r, filename=filename, overwrite=overwrite, tracer=tracer)
+
 
     def save_bestfit_vcirc_mass_profiles(self, gal, outpath=None,
             fname_intrinsic=None, fname_intrinsic_m=None, overwrite=False):
@@ -157,26 +172,14 @@ class FitResults(object):
         :return:
         """
 
-    def plot_bestfit(self, gal, fitvelocity=True, fitdispersion=True,
-                     fitflux=False, fileout=None, overwrite=False, **kwargs_galmodel):
-        """Plot/replot the bestfit for the MCMC fitting"""
-        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        # f_plot_spaxel=None,
-        # f_plot_aperture=None,
-        # f_plot_channel=None,
-        #if fileout is None:
-        #    fileout = self.f_plot_bestfit
-        # Check for existing file:
-        if (not overwrite) and (fileout is not None):
-            if os.path.isfile(fileout):
-                logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
-                return None
-        plotting.plot_bestfit(self, gal, fitvelocity=fitvelocity,
-                              fitdispersion=fitdispersion, fitflux=fitflux,
-                              fileout=fileout, overwrite=overwrite, **kwargs_galmodel)
+    def plot_bestfit(self, gal, fileout=None, overwrite=False):
+        """Plot/replot the bestfit for the fitting"""
+
+        plotting.plot_bestfit(self, gal, fileout=fileout, overwrite=overwrite)
+
 
     def reload_results(self, filename=None):
-        """Reload MCMC results saved earlier: the whole object"""
+        """Reload results saved earlier: the whole object"""
         if filename is None:
             filename = self.f_results
         resultsSaved = load_pickle(filename)
@@ -186,8 +189,8 @@ class FitResults(object):
             except:
                 pass
 
-    def results_report(self, gal=None, filename=None, params=None,
-                    report_type='pretty', overwrite=False, **kwargs):
+    def results_report(self, gal=None, filename=None, output_options=None,
+                       report_type='pretty', overwrite=False):
         """Return a result report string, or save to file.
            report_type = 'pretty':   More human-readable
                        = 'machine':  Machine-readable ascii table (though with mixed column types)
@@ -196,9 +199,11 @@ class FitResults(object):
         """
 
         report = dpy_utils_io.create_results_report(gal, self, report_type=report_type,
-                        params=params, **kwargs)
+                                                    output_options=output_options)
 
         if filename is not None:
+            if overwrite & os.path.isfile(filename):
+                os.remove(filename)
             with open(filename, 'w') as f:
                 f.write(report)
         else:
@@ -241,7 +246,7 @@ def _chisq_generalized(gal, red_chisq=None):
                 if red_chisq:
                     if gal.model.nparams_free > np.sum(msk) :
                         raise ValueError("More free parameters than data points!")
-                    invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free)) * obs.weight
+                    invnu = 1./ (1.*(np.sum(msk) - gal.model.nparams_free))
                 else:
                     invnu = 1.
                 chsq_general += chisq_arr_raw.sum() * invnu * obs.weight
@@ -324,12 +329,12 @@ def _chisq_generalized(gal, red_chisq=None):
                 if red_chisq:
                     if gal.model.nparams_free > fac_mask*np.sum(msk) :
                         raise ValueError("More free parameters than data points!")
-                    invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free)) * obs.weight
+                    invnu = 1./ (1.*(fac_mask*np.sum(msk) - gal.model.nparams_free))
                 else:
-                    invnu = 1. * obs.weight
+                    invnu = 1.
 
                 ####
-                chsq_general += (chisq_arr_sum) * invnu
+                chsq_general += (chisq_arr_sum) * invnu * obs.weight
 
             elif obs.instrument.ndim == 0:
 
@@ -348,11 +353,11 @@ def _chisq_generalized(gal, red_chisq=None):
                 if red_chisq:
                     if gal.model.nparams_free > np.sum(msk):
                         raise ValueError("More free parameters than data points!")
-                    invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free)) * obs.weight
+                    invnu = 1. / (1. * (np.sum(msk) - gal.model.nparams_free))
                 else:
-                    invnu = 1. * obs.weight
+                    invnu = 1.
 
-                chsq_general += chisq_arr.sum() * invnu
+                chsq_general += chisq_arr.sum() * invnu * obs.weight
 
             else:
                 logger.warning("ndim={} not supported!".format(obs.instrument.ndim))
@@ -490,3 +495,53 @@ def make_arr_cmp_params(results):
             arr = np.append( arr, cmp.strip().lower()+':'+param.strip().lower() )
 
     return arr
+
+
+def _check_existing_files_overwrite(output_options, fit_type=None, fitter=None):
+    # ---------------------------------------------------
+    # Check for existing files if overwrite=False:
+    if (not output_options.overwrite):
+
+        fnames = []
+        fnames_opt = [ output_options.f_model, output_options.f_vcirc_ascii,
+                       output_options.f_mass_ascii, output_options.f_results,
+                       output_options.f_plot_bestfit ]
+
+        if (fit_type.lower() == 'mcmc'):
+            fnames_opt.append(output_options.f_plot_trace_burnin)
+            fnames_opt.append(output_options.f_plot_trace)
+            fnames_opt.append(output_options.f_plot_param_corner)
+            fnames_opt.append(output_options.f_chain_ascii)
+
+        for fname in fnames_opt:
+            if fname is not None:
+                fnames.append(fname)
+
+        file_bundle_names = ['f_model_bestfit', 'f_vel_ascii', 'f_bestfit_cube']
+        for fbunname in file_bundle_names:
+            for obsn in output_options.__dict__[fbunname]:
+                if output_options.__dict__[fbunname][obsn] is not None:
+                    fnames.append(output_options.__dict__[fbunname][obsn])
+
+
+        for fname in fnames:
+            if fname is not None:
+                if os.path.isfile(fname):
+                    logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(output_options.overwrite, fname))
+
+        # Return early if it won't save the results, sampler:
+        if output_options.f_results is not None:
+            if os.path.isfile(output_options.f_results):
+                msg = "overwrite={}, and 'f_results' won't be saved,".format(output_options.overwrite)
+                msg += " so the fit will not be saved.\n Specify new outfile or delete old files."
+                logger.warning(msg)
+                return None
+
+
+    else:
+        # Overwrite=True: remove old file versions
+        if (fit_type.upper() == 'mcmc'):
+            if os.path.isfile(output_options.f_sampler): os.remove(output_options.f_sampler)
+            if os.path.isfile(output_options.f_plot_param_corner): os.remove(output_options.f_plot_param_corner)
+
+    # ---------------------------------------------------
