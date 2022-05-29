@@ -11,8 +11,8 @@ import logging
 
 # Third party imports
 import numpy as np
-import scipy.misc as scp_misc
-import scipy.integrate as scp_integrate
+# import scipy.misc as scp_misc
+# import scipy.integrate as scp_integrate
 
 # Local imports
 from .base import _DysmalFittable3DModel, HigherOrderKinematicsSeparate, \

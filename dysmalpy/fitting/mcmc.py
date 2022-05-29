@@ -21,8 +21,9 @@ from dysmalpy import plotting
 from dysmalpy import galaxy
 from dysmalpy.parameters import UniformLinearPrior
 from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
-from dysmalpy.utils import fit_uncertainty_ellipse
-from dysmalpy import utils_io as dpy_utils_io
+# from dysmalpy.utils import fit_uncertainty_ellipse
+# from dysmalpy import utils_io as dpy_utils_io
+from dysmalpy import utils as dpy_utils
 from dysmalpy.fitting import base
 
 
@@ -67,7 +68,7 @@ class MCMCFitter(base.Fitter):
         self._emcee_version = _emcee_version
 
         self._set_defaults()
-        super(MCMCFitter, self).__init__(**kwargs)
+        super(MCMCFitter, self).__init__(fit_method='MCMC', **kwargs)
 
     def _set_defaults(self):
         # MCMC specific defaults
@@ -136,7 +137,10 @@ class MCMCFitter(base.Fitter):
         #     raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
 
         # Check the FOV is large enough to cover the data output:
-        dpy_utils_io._check_data_inst_FOV_compatibility(gal)
+        dpy_utils._check_data_inst_FOV_compatibility(gal)
+
+        # Pre-calculate instrument kernels:
+        gal = dpy_utils._set_instrument_kernels(gal)
 
         # --------------------------------
         # Basic setup:
@@ -919,16 +923,12 @@ class MCMCResults(base.FitResults):
 
     """
     def __init__(self, model=None, sampler=None,
-                 # output_options=None,
                  linked_posterior_names=None,
-                 blob_name=None,
-                 nPostBins=50):
-                 #, **kwargs):
+                 blob_name=None, nPostBins=50):
 
         self.sampler = sampler
         self.linked_posterior_names = linked_posterior_names
         self.nPostBins =nPostBins
-        # self.blob_name = blob_name
 
         self.bestfit_parameters_l68_err = None
         self.bestfit_parameters_u68_err = None
@@ -936,8 +936,8 @@ class MCMCResults(base.FitResults):
         self.bestfit_parameters_u68 = None
 
 
-        super(MCMCResults, self).__init__(model=model, #output_options=output_options,
-                                          blob_name=blob_name, fit_method='MCMC')
+        super(MCMCResults, self).__init__(model=model, blob_name=blob_name,
+                                          fit_method='MCMC')
 
 
     def analyze_plot_save_results(self, gal, output_options=None):
@@ -1251,7 +1251,7 @@ class MCMCResults(base.FitResults):
             # eg, Single blob value flatblobs
             chain_y = self.sampler[namey[0]]
 
-        PA, stddev_x, stddev_y  = fit_uncertainty_ellipse(chain_x, chain_y, bins=bins)
+        PA, stddev_x, stddev_y  = dpy_utils.fit_uncertainty_ellipse(chain_x, chain_y, bins=bins)
         return PA, stddev_x, stddev_y
 
 

@@ -17,7 +17,6 @@ import scipy.special as scp_spec
 import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import astropy.constants as apy_con
-import astropy.units as u
 
 
 from astropy.table import Table

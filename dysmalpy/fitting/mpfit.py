@@ -15,7 +15,8 @@ import logging
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 from dysmalpy import plotting
 from dysmalpy import galaxy
-from dysmalpy import utils_io as dpy_utils_io
+# from dysmalpy import utils_io as dpy_utils_io
+from dysmalpy import utils as dpy_utils
 from dysmalpy.fitting import base
 
 # Third party imports
@@ -42,7 +43,7 @@ class MPFITFitter(base.Fitter):
     """
     def __init__(self, **kwargs):
         self._set_defaults()
-        super(MPFITFitter, self).__init__(**kwargs)
+        super(MPFITFitter, self).__init__(fit_method='MPFIT', **kwargs)
 
     def _set_defaults(self):
         self.maxiter=200
@@ -70,7 +71,10 @@ class MPFITFitter(base.Fitter):
         """
 
         # Check the FOV is large enough to cover the data output:
-        dpy_utils_io._check_data_inst_FOV_compatibility(gal)
+        dpy_utils._check_data_inst_FOV_compatibility(gal)
+
+        # Pre-calculate instrument kernels:
+        gal = dpy_utils._set_instrument_kernels(gal)
 
         # Set output options: filenames / which to save, etc
         output_options.set_output_options(gal, self)
@@ -310,10 +314,10 @@ class MPFITResults(base.FitResults):
         self.__dict__['bestfit_{}_err'.format(pname)] = err_fill
 
 
-    def plot_results(self, gal, output_options):
+
+    def plot_results(self, gal, f_plot_bestfit=None, overwrite=False):
         """Plot/replot the bestfit for the MPFIT fitting"""
-        self.plot_bestfit(gal, fileout=output_options.f_plot_bestfit,
-                          overwrite=output_options.overwrite)
+        self.plot_bestfit(gal, fileout=f_plot_bestfit, overwrite=overwrite)
 
 
 def mpfit_chisq(theta, fjac=None, gal=None):

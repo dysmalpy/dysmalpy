@@ -45,12 +45,12 @@ class Data(object):
         self.shape = shape
         self.mask = np.array(mask, dtype=bool)
 
-        self.smoothing_type = smoothing_type
-        self.smoothing_npix = smoothing_npix
-
         self.filename_velocity = filename_velocity
         self.filename_dispersion = filename_dispersion
 
+        self.smoothing_type = smoothing_type
+        self.smoothing_npix = smoothing_npix
+        
         self.xcenter = xcenter
         self.ycenter = ycenter
 
@@ -496,9 +496,6 @@ class Data0D(Data):
             error = flux_err
 
         ############
-        self.integrate_cube = integrate_cube
-        self.slit_width = slit_width
-        self.slit_pa = slit_pa
         self.x = x
         shape = x.shape
 

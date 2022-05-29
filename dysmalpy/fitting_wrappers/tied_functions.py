@@ -6,8 +6,6 @@ from __future__ import (absolute_import, division, print_function,
 import os, sys
 
 import numpy as np
-import astropy.units as u
-import astropy.constants as apy_con
 
 from dysmalpy import parameters
 

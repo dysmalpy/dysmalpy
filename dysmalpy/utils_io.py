@@ -23,21 +23,10 @@ import astropy.units as u
 import datetime
 
 try:
-    import aperture_classes
-    import data_classes
+    import aperture_classes, data_classes
 except:
     from . import aperture_classes
     from . import data_classes
-
-# try:
-#     from config import Config_simulate_cube, Config_create_model_data
-# except:
-#     from .config import Config_simulate_cube, Config_create_model_data
-
-# try:
-#     from dysmalpy._version import __version__ as __dpy_version__
-# except:
-#     from ._version import __version__ as __dpy_version__
 
 
 #--------------------------------------------------------------
@@ -94,16 +83,8 @@ def read_bestfit_1d_obs_file(filename=None):
     gal_vel =   dat_arr[:,2]
     gal_disp =  dat_arr[:,3]
 
-    slit_width = None
-    slit_pa = None
-
-
-    #
     model_data = data_classes.Data1D(r=gal_r, velocity=gal_vel,
-                             vel_disp=gal_disp, flux=gal_flux,
-                             slit_width=slit_width,
-                             slit_pa=slit_pa)
-    model_data.apertures = None
+                                     vel_disp=gal_disp, flux=gal_flux)
 
     return model_data
 
@@ -695,26 +676,6 @@ def create_results_report(gal, results, output_options=None, report_type='pretty
 
 
 #########################
-def _check_data_inst_FOV_compatibility(gal):
-    logger_msg = None
-    for obs_name in gal.observations:
-        obs = gal.observations[obs_name]
-        if obs.fit_options.fit & (obs.data.ndim == 1):
-                if min(obs.instrument.fov)/2. <  np.abs(obs.data.rarr).max() / obs.instrument.pixscale.value:
-                    if logger_msg is None:
-                        logger_msg = ""
-                    else:
-                        logger_msg += "\n"
-                    logger_msg += "obs={}: FOV smaller than the maximum data extent!\n".format(obs.name)
-                    logger_msg += "                FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(obs.instrument.fov[0],
-                                    obs.instrument.fov[1], np.abs(obs.data.rarr).max()/ obs.instrument.pixscale)
-
-    if logger_msg is not None:
-        logger.warning(logger_msg)
-
-    return None
-
-
 
 # BETTER METHOD: ALONG MAJOR AXIS:
 def _calc_Rout_max_2D(model=None, obs=None, results=None, dscale=None):
@@ -731,8 +692,8 @@ def _calc_Rout_max_2D(model=None, obs=None, results=None, dscale=None):
 
     # Start going to neg, pos of center, at PA, and check if mask True/not
     #   in steps of pix, then rounding. if False: stop, and set 1 less as the end.
-    cPA = np.cos(model.components['geom'].pa.value * np.pi/180.)
-    sPA = np.sin(model.components['geom'].pa.value * np.pi/180.)
+    cPA = np.cos(model.geometries[obs.name].pa.value * np.pi/180.)
+    sPA = np.sin(model.geometries[obs.name].pa.value * np.pi/180.)
 
     rstep_A = 0.25
     rMA_tmp = 0
@@ -780,9 +741,9 @@ def create_vel_profile_files(gal=None, outpath=None,
         obs = gal.observations[obs_name]
 
         if obs.data.ndim == 1:
-            logger.warning("Only works for 1 observation! FIX ME!!!!!")
-            create_vel_profile_files_obs1d(obs=obs, gal=gal, outpath=outpath,
-                        moment=moment,partial_weight=partial_weight,
+            create_vel_profile_files_obs1d(obs=obs, model=gal.model,
+                        gal_name=gal.name, dscale=gal.dscale,
+                        outpath=outpath,
                         fname_model_matchdata=fname_model_matchdata, fname_finer=fname_finer,
                         overwrite=overwrite)
     ####
@@ -792,8 +753,8 @@ def create_vel_profile_files(gal=None, outpath=None,
 
     return None
 
-def create_vel_profile_files_obs1d(obs=None, gal=None, outpath=None,
-            moment=False, partial_weight=True,
+def create_vel_profile_files_obs1d(obs=None, model=None, dscale=None,
+            gal_name=None, outpath=None,
             fname_model_matchdata=None, fname_finer=None,
             overwrite=False):
 
@@ -801,13 +762,13 @@ def create_vel_profile_files_obs1d(obs=None, gal=None, outpath=None,
         raise ValueError
 
     if fname_model_matchdata is None:
-        fname_model_matchdata = "{}{}_out-1dplots.txt".format(outpath, obs.name)
+        fname_model_matchdata = "{}{}_{}_out-1dplots.txt".format(outpath, gal_name, obs.name)
     if fname_finer is None:
-        fname_finer = "{}{}_out-1dplots_finer_sampling.txt".format(outpath, obs.name)
+        fname_finer = "{}{}_{}_out-1dplots_finer_sampling.txt".format(outpath, gal_name, obs.name)
 
     # ---------------------------------------------------------------------------
     obsin = copy.deepcopy(obs)
-    obsin.create_single_obs_model_data(gal.model, gal.dscale)
+    obsin.create_single_obs_model_data(model, dscale)
 
     # --------------------------------------------------------------------------
     if (not os.path.isfile(fname_model_matchdata)) | (overwrite):
@@ -816,8 +777,11 @@ def create_vel_profile_files_obs1d(obs=None, gal=None, outpath=None,
     # Try finer scale:
     if (not os.path.isfile(fname_finer)) | (overwrite):
         # Reload galaxy object: reset things
-        write_1d_obs_finer_scale(obs=obs, fname=fname_finer, moment=moment,
-                partial_weight=partial_weight, overwrite=overwrite)
+        dummy_obs = copy.deepcopy(obs)
+        dummy_obs.data = None
+        write_1d_obs_finer_scale(obs=dummy_obs, model=model, dscale=dscale,
+                                 fname=fname_finer, overwrite=overwrite,
+                                 inst_corr=obs.data.data['inst_corr'])
 
     return None
 
@@ -844,24 +808,32 @@ def create_vel_profile_files_intrinsic(gal=None, outpath=None,
 
     return None
 
-def write_1d_obs_finer_scale(obs=None, gal=None, fname=None, overwrite=False):
+def write_1d_obs_finer_scale(obs=None, model=None, dscale=None, fname=None,
+                             overwrite=False, inst_corr=None):
 
-    profile1d_type = obs.instrument.profile1d_type
-    aperture_radius =obs.instrument.apertures.pix_parallel
+    # profile1d_type = obs.instrument.profile1d_type
+    if isinstance(obs.instrument.apertures, aperture_classes.RectApertures):
+        profile1d_type = 'rect_ap_cube'
+    elif isinstance(obs.instrument.apertures, aperture_classes.CircApertures):
+        profile1d_type = 'circ_ap_cube'
+    elif isinstance(obs.instrument.apertures, aperture_classes.CircularPVApertures):
+        profile1d_type = 'circ_ap_pv'
+
+    try:
+        aperture_radius = obs.instrument.apertures.pix_perp[0]*obs.instrument.pixscale.value
+    except:
+        aperture_radius=None
 
     # Try finer scale:
     rmax_abs = np.max([2.5, np.max(np.abs(obs.model_data.rarr))])
-    # r_step = 0.025 #0.05
-    # if rmax_abs > 4.:
-    #     r_step = 0.05
     r_step = 0.05
-    #aper_centers_interp = np.arange(0, rmax_abs+r_step, r_step)
     aper_centers_interp = np.arange(-rmax_abs, rmax_abs+r_step, r_step)
 
 
     # Get slit-pa from model or data.
-    slit_pa = gal.model.geometries[obs.name].pa.value
+    slit_pa = model.geometries[obs.name].pa.value
 
+    do_extract = True
     if profile1d_type == 'rect_ap_cube':
         f_par = interpolate.interp1d(obs.data.rarr, obs.instrument.apertures.pix_parallel,
                         kind='slinear', fill_value='extrapolate')
@@ -878,8 +850,7 @@ def write_1d_obs_finer_scale(obs=None, gal=None, fname=None, overwrite=False):
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
                     pix_length=None,
                     slit_pa=slit_pa,
-                    partial_weight=obs.instrument.apertures[0].partial_weight,
-                    moment=obs.instrument.apertures[0].moment)
+                    partial_weight=obs.instrument.apertures.apertures[0].partial_weight)
     elif profile1d_type == 'circ_ap_cube':
         obs.instrument.apertures = aperture_classes.setup_aperture_types(obs=obs,
                     profile1d_type=profile1d_type,
@@ -888,13 +859,27 @@ def write_1d_obs_finer_scale(obs=None, gal=None, fname=None, overwrite=False):
                     pix_perp=None, pix_parallel=None,
                     pix_length=None,
                     slit_pa=slit_pa,
-                    partial_weight=obs.instrument.apertures[0].partial_weight,
-                    moment=obs.instrument.apertures[0].moment)
+                    partial_weight=obs.instrument.apertures.apertures[0].partial_weight)
+    elif profile1d_type == 'circ_ap_pv':
+        obs.instrument.apertures = aperture_classes.setup_aperture_types(obs=obs,
+                    profile1d_type=profile1d_type,
+                    aper_centers = aper_centers_interp,
+                    aperture_radius=aperture_radius,
+                    pix_perp=None, pix_parallel=None,
+                    pix_length=None,
+                    slit_pa=slit_pa, slit_width=obs.instrument.slit_width)
+    else:
+        do_extract = False
 
-    # Create model:
-    obs.create_single_obs_model_data(gal.model, gal.dscale)
+    if do_extract:
+        # Create model:
+        obs.create_single_obs_model_data(model, dscale)
 
-    write_model_1d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
+        # Dummy to pass the inst corr settings:
+        obs._data = data_classes.Data1D(obs.model_data.rarr, obs.model_data.data['velocity'],
+                                        inst_corr=inst_corr)
+
+        write_model_1d_obs_file(obs=obs, fname=fname, overwrite=overwrite)
 
     return None
 

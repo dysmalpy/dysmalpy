@@ -13,7 +13,6 @@ import logging
 # Third party imports
 import numpy as np
 import scipy.interpolate as scp_interp
-import astropy.units as u
 
 from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq, gaus_fit_apy_mod_fitter
 
@@ -551,7 +550,8 @@ def SinglePixelPVApertures(Apertures):
 
     """
     def __init__(self, slit_width=None, slit_PA=None,
-                 pixscale=None, rarr=None):
+                 pixscale=None, rarr=None,
+                 moment=True):
 
         self.slit_width = slit_width
         self.slit_PA = slit_PA
@@ -592,7 +592,8 @@ def CircularPVApertures(Apertures):
 
     """
     def __init__(self, slit_width=None, slit_PA=None,
-                 pixscale=None, rarr=None):
+                 pixscale=None, rarr=None,
+                 moment=True):
 
         self.slit_width = slit_width
         self.slit_PA = slit_PA
@@ -906,7 +907,7 @@ def setup_aperture_types(obs=None, profile1d_type=None,
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
                 partial_weight=partial_weight, rotate_cube=rotate_cube,
-                moment=moment)
+                moment=obs.instrument.moment)
 
     elif (profile1d_type.lower() == 'square_ap_cube'):
         if ('pix_length' is None):
@@ -920,11 +921,13 @@ def setup_aperture_types(obs=None, profile1d_type=None,
 
     elif (profile1d_type.lower() == 'circ_ap_pv'):
         apertures = CircularPVApertures(rarr=aper_centers, slit_PA=slit_pa,
-                                        slit_width=slit_width, pixscale=pixscale)
+                                        slit_width=slit_width, pixscale=pixscale,
+                                        moment=obs.instrument.moment)
 
     elif (profile1d_type.lower() == 'single_pix_pv'):
         apertures = SinglePixelPVApertures(rarr=aper_centers, slit_PA=slit_pa,
-                                           slit_width=slit_width, pixscale=pixscale)
+                                           slit_width=slit_width, pixscale=pixscale,
+                                           moment=obs.instrument.moment)
 
     else:
         raise TypeError('Unknown method for measuring the 1D profiles.')

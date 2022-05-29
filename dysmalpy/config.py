@@ -167,8 +167,7 @@ class OutputOptions:
 
 
             for tracer in gal.model.dispersions:
-
-                self.f_vel_ascii[tracer] = "{}{}_{}_{}".format(self.outdir, self.file_base, tracer, 'bestfit_velprofile.dat')
+                self.f_vel_ascii[tracer] = "{}{}_{}_bestfit_velprofile.dat".format(self.outdir, self.file_base, tracer)
 
         if self.save_results:
 
@@ -191,7 +190,7 @@ class OutputOptions:
 
 
     def clear_filenames(self):
-        
+
         keys = self.__dict__.keys()
         for key in keys:
             if key[0:2] == 'f_':

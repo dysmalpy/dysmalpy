@@ -23,11 +23,8 @@ except:
    from . import utils as model_utils
 
 
-from dysmalpy import config
-
 # Third party imports
 import numpy as np
-import scipy.ndimage as scp_ndi
 import astropy.constants as apy_con
 import astropy.units as u
 import pyximport; pyximport.install()

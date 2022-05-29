@@ -10,13 +10,13 @@ from __future__ import (absolute_import, division, print_function,
 # Standard library
 import logging
 import copy
+from collections import OrderedDict
 
 import os
 import datetime
 
 # Third party imports
 import numpy as np
-import six
 import astropy.units as u
 import matplotlib as mpl
 
@@ -38,7 +38,7 @@ from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FixedLocator, FixedFormatter
+from matplotlib.ticker import MultipleLocator
 
 import matplotlib.colors as mplcolors
 from mpl_toolkits.axes_grid1 import ImageGrid, AxesGrid
@@ -53,6 +53,7 @@ from spectral_cube import SpectralCube, BooleanArrayMask
 from .utils import calc_pix_position, apply_smoothing_3D, gaus_fit_sp_opt_leastsq, gaus_fit_apy_mod_fitter
 from .utils_io import create_vel_profile_files_obs1d, create_vel_profile_files_intrinsic, \
                       read_bestfit_1d_obs_file, read_model_intrinsic_profile
+from .observation import Observation
 from .aperture_classes import CircApertures
 from .data_classes import Data1D, Data2D
 from .extern.altered_colormaps import new_diverging_cmap
@@ -158,18 +159,18 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
     lwTrace = 1.5
     trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
     trace_colors = []
-    for i in six.moves.xrange(nTraceWalkers):
+    for i in range(nTraceWalkers):
         trace_colors.append(cmap(1./float(nTraceWalkers)*i))
 
     norm_inds = np.setdiff1d(range(nWalkers), trace_inds)
 
 
-    for k in six.moves.xrange(nRows):
+    for k in range(nRows):
         axes.append(plt.subplot(gs[k,0]))
 
         axes[k].plot(mcmcResults.sampler['chain'][norm_inds,:,k].T, '-', color='black', alpha=alpha)
 
-        for j in six.moves.xrange(nTraceWalkers):
+        for j in range(nTraceWalkers):
             axes[k].plot(mcmcResults.sampler['chain'][trace_inds[j],:,k].T, '-',
                     color=trace_colors[j], lw=lwTrace, alpha=alphaTrace)
 
@@ -316,7 +317,7 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
 
     axes = fig.axes
     nFreeParam = len(truths)
-    for i in six.moves.xrange(nFreeParam):
+    for i in range(nFreeParam):
         ax = axes[i*nFreeParam + i]
         # Format the quantile display.
         best = truths[i]
@@ -348,8 +349,8 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
         ax.set_ylim(ylim)
 
     if priors is not None:
-        for i in six.moves.xrange(nFreeParam):
-            for j in six.moves.xrange(nFreeParam):
+        for i in range(nFreeParam):
+            for j in range(nFreeParam):
                 # need the off-diagonals:
                 if j >= i:
                     pass
@@ -426,6 +427,7 @@ def plot_single_obs_data_model_comparison(obs, model, theta = None,
                                vcrop=False,
                                show_1d_apers=False,
                                vcrop_value=800.,
+                               remove_shift=False,
                                overwrite=False,
                                fill_mask=False,
                                show_contours=False,
@@ -588,7 +590,7 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
 
     axes = []
     k = -1
-    for j in six.moves.xrange(ncols):
+    for j in range(ncols):
         # Comparison:
         axes.append(plt.subplot(gs[0,j]))
         k += 1
@@ -615,10 +617,11 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
             msk = np.array(np.ones(len(data.rarr)), dtype=bool)
 
         # Masked points
-        axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
-                xerr=None, yerr = data.error[keyyarr[j]][~msk],
-                marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
+        if data.error[keyyarr[j]] is not None:
+            axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk],
+                    xerr=None, yerr=data.error[keyyarr[j]][~msk],
+                    marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
         if np.any(~msk):
             lbl_mask = 'Masked data'
         else:
@@ -627,19 +630,20 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
             c='darkgrey', marker='o', s=25, lw=1, label=lbl_mask, alpha=0.5)
 
         # Unmasked points
-        axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
-                xerr=None, yerr = data.error[keyyarr[j]][msk],
-                marker=None, ls='None', ecolor='k', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        if data.error[keyyarr[j]] is not None:
+            axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
+                    xerr=None, yerr=data.error[keyyarr[j]][msk],
+                    marker=None, ls='None', ecolor='k', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
 
-        # Weights: effective errorbars show in blue, for reference
-        if hasattr(data, 'weight'):
-            if obs.data.weight is not None:
-                wgt = obs.data.weight
-                axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
-                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
-                        marker=None, ls='None', ecolor='blue', zorder=-1.,
-                        lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+            # Weights: effective errorbars show in blue, for reference
+            if hasattr(data, 'weight'):
+                if obs.data.weight is not None:
+                    wgt = obs.data.weight
+                    axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk],
+                            xerr=None, yerr=data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
+                            marker=None, ls='None', ecolor='blue', zorder=-1.,
+                            lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
 
         axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk],
             c='black', marker='o', s=25, lw=1, label='Data')
@@ -693,27 +697,29 @@ def plot_data_model_comparison_1D(obs, fileout=None, overwrite=False):
         k += 1
 
         # Masked points
-        axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
-                xerr=None, yerr = data.error[keyyarr[j]][~msk],
-                marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
+        if data.error[keyyarr[j]] is not None:
+            axes[k].errorbar( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
+                    xerr=None, yerr = data.error[keyyarr[j]][~msk],
+                    marker=None, ls='None', ecolor='darkgrey', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None, alpha=0.5 )
         axes[k].scatter( data.rarr[~msk], data.data[keyyarr[j]][~msk]-model_data.data[keyyarr[j]][~msk],
             c='lightsalmon', marker='s', s=25, lw=1, label=None, alpha=0.3)
 
         # Unmasked points:
-        axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
-                xerr=None, yerr = data.error[keyyarr[j]][msk],
-                marker=None, ls='None', ecolor='k', zorder=-1.,
-                lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+        if data.error[keyyarr[j]] is not None:
+            axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
+                    xerr=None, yerr = data.error[keyyarr[j]][msk],
+                    marker=None, ls='None', ecolor='k', zorder=-1.,
+                    lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
 
-        # Weights: effective errorbars show in blue, for reference
-        if hasattr(data, 'weight'):
-            if obs.data.weight is not None:
-                wgt = obs.data.weight
-                axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
-                        xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
-                        marker=None, ls='None', ecolor='blue', zorder=-1.,
-                        lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
+            # Weights: effective errorbars show in blue, for reference
+            if hasattr(data, 'weight'):
+                if obs.data.weight is not None:
+                    wgt = obs.data.weight
+                    axes[k].errorbar( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
+                            xerr=None, yerr = data.error[keyyarr[j]][msk]/np.sqrt(wgt[msk]),
+                            marker=None, ls='None', ecolor='blue', zorder=-1.,
+                            lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
         #
         axes[k].scatter( data.rarr[msk], data.data[keyyarr[j]][msk]-model_data.data[keyyarr[j]][msk],
             c='red', marker='s', s=25, lw=1, label=None)
@@ -1035,6 +1041,8 @@ def plot_data_model_comparison_3D(obs, model,
         fileout_aperture = "{}_apertures.{}".format(f_base, f_r[-1])
         fileout_spaxel = "{}_spaxels.{}".format(f_base, f_r[-1])
         fileout_channel = "{}_channels.{}".format(f_base, f_r[-1])
+    else:
+        fileout_aperture = fileout_spaxel = fileout_channel = None
 
     # Check for existing file:
     if (not overwrite) and (fileout is not None):
@@ -1082,7 +1090,7 @@ def plot_3D_extracted_to_1D_2D(obs_in, model_in,
             yshift = None,
             vcrop=False,
             vcrop_value=800.,
-            remove_shift=True,
+            remove_shift=False,
             overwrite=False,
             fill_mask=False,
             show_contours=False,
@@ -1095,11 +1103,21 @@ def plot_3D_extracted_to_1D_2D(obs_in, model_in,
     model = copy.deepcopy(model_in)
 
     print("plot_model_multid: ndim=3: moment={}".format(obs.instrument.moment))
-    obs_extract = extract_1D_2D_data_from_cube(obs, model, inst_corr=True,
+    obs_extract, model = extract_1D_2D_obs_from_cube(obs, model, inst_corr=True,
                                                fill_mask=fill_mask)
 
 
+    if fileout is not None:
+        f_r = fileout.split('.')
+        f_base = ".".join(f_r[:-1])
+        fileout_1D = "{}_{}.{}".format(f_base, "extract_1D", f_r[-1])
+        fileout_2D = "{}_{}.{}".format(f_base, "extract_2D", f_r[-1])
+    else:
+        fileout_1D = fileout_2D = None
+
     # Data haven't actually been corrected for instrument LSF yet
+    # (Note: 1D/2D *models* will be corrected for LSF during plotting,
+    #        based on the data['inst_corr'] setting)
     if obs_extract['extract_1D'].data.data['inst_corr']:
         inst_corr_sigma = obs_extract['extract_1D'].instrument.lsf.dispersion.to(u.km/u.s).value
         disp_prof_1D = np.sqrt(obs_extract['extract_1D'].data.data['dispersion']**2 - inst_corr_sigma**2 )
@@ -1107,10 +1125,10 @@ def plot_3D_extracted_to_1D_2D(obs_in, model_in,
         obs_extract['extract_1D'].data.data['dispersion'] = disp_prof_1D
 
         if 'filled_mask_data' in obs_extract['extract_1D'].data.__dict__.keys():
-            inst_corr_sigma = obs_extract['extract_1D'].instrument.lsf.dispersion.to(u.km/u.s).value
             disp_prof_1D = np.sqrt(obs_extract['extract_1D'].data.filled_mask_data.data['dispersion']**2 - inst_corr_sigma**2 )
             disp_prof_1D[~np.isfinite(disp_prof_1D)] = 0.
             obs_extract['extract_1D'].data.filled_mask_data.data['dispersion'] = disp_prof_1D
+
 
     if obs_extract['extract_2D'].data.data['inst_corr']:
         inst_corr_sigma = obs_extract['extract_2D'].instrument.lsf.dispersion.to(u.km/u.s).value
@@ -1119,16 +1137,13 @@ def plot_3D_extracted_to_1D_2D(obs_in, model_in,
         im[~np.isfinite(im)] = 0.
         obs_extract['extract_2D'].data.data['dispersion'] = im
 
-    # Make corresponding models:
-    obs_extract['extract_1D'].create_single_obs_model_data(model, dscale)
-    obs_extract['extract_2D'].create_single_obs_model_data(model, dscale)
 
-    plot_data_model_comparison_1D(obs_extract['extract_1D'], fileout=fileout,
+    plot_data_model_comparison_1D(obs_extract['extract_1D'], fileout=fileout_1D,
                                   overwrite=overwrite, **plot_kwargs)
 
 
     plot_data_model_comparison_2D(obs_extract['extract_2D'], model,
-                                  fileout=fileout, show_contours=show_contours,
+                                  fileout=fileout_2D, show_contours=show_contours,
                                   show_ruler=show_ruler, ruler_loc=ruler_loc,
                                   overwrite=overwrite, **plot_kwargs)
 
@@ -1249,7 +1264,7 @@ def plot_aperture_compare_3D_cubes(obs, model, datacube=None, errcube=None,
     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
 
 
-    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
+    suptitle = '{}: ndim={}'.format(obs.name,obs.instrument.ndim)
 
 
     gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
@@ -1403,7 +1418,7 @@ def plot_spaxel_compare_3D_cubes(obs, datacube=None, errcube=None,
                       (nrows+(nrows-1)*pady+yextra)*scale)
 
 
-    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
+    suptitle = '{}: ndim={}'.format(obs.name, obs.instrument.ndim)
 
     gs = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
 
@@ -2426,7 +2441,7 @@ def plot_single_obs_model_1D(obs,
 
     axes = []
     k = -1
-    for j in six.moves.xrange(ncols):
+    for j in range(ncols):
         # Comparison:
         axes.append(plt.subplot(gs[0,j]))
         k += 1
@@ -2670,344 +2685,345 @@ def plot_single_obs_model_2D(obs, model,
 
 
 
-def plot_model_2D_residual(gal, data1d=None, data2d=None, theta=None,
-            fitvelocity=True, fitdispersion=True, fitflux=False,
-            symmetric_residuals=True,
-            max_residual=100.,
-            xshift = None,
-            yshift = None,
-            fileout=None,
-            vcrop = False,
-            vcrop_value = 800.,
-            show_1d_apers=False,
-            remove_shift = True,
-            inst_corr=None,
-            show_contours=False,
-            show_ruler=True,
-            ruler_loc='lowerleft',
-            **plot_kwargs):
-
-    if show_contours:
-        # Set contour defaults, if not specifed:
-        for key in _kwargs_contour_defaults.keys():
-            if key not in plot_kwargs.keys():
-                plot_kwargs[key] = _kwargs_contour_defaults[key]
-
-    ######################################
-    # Setup plot:
-
-    ncols = 0
-    for cond in [fitflux, fitvelocity, fitdispersion]:
-        if cond:
-            ncols += 1
-
-    nrows = 1
-
-
-    padx = 0.25
-    pady = 0.25
-
-    xextra = 0.15
-    yextra = 0.
-
-    scale = 2.5
-
-    f = plt.figure()
-    f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-
-
-    suptitle = '{}: Fitting dim: n={}'.format(gal.name, gal.data.ndim)
-
-
-    padx = 0.2
-    pady = 0.1
-    gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-    grid_2D = []
-    for jj in six.moves.xrange(nrows):
-        for mm in six.moves.xrange(ncols):
-            grid_2D.append(plt.subplot(gs02[jj,mm]))
-
-
-
-    if theta is not None:
-        gal.model.update_parameters(theta)     # Update the parameters
-
-
-    inst_corr_2d = None
-    if inst_corr is None:
-        if 'inst_corr' in data2d.data.keys():
-            inst_corr_2d = data2d.data['inst_corr']
-    else:
-        inst_corr_2d = inst_corr
-
-
-    if inst_corr_2d:
-        inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
-    else:
-        inst_corr_sigma = 0.
-
-    galorig = copy.deepcopy(gal)
-    instorig = copy.deepcopy(gal.instrument)
-    try:
-        instorig2d = copy.deepcopy(gal.instrument2d)
-    except:
-        instorig2d = copy.deepcopy(gal.instrument)
-
-
-    # In case missing / set to None:
-    if instorig2d is None:
-        instorig2d = copy.deepcopy(gal.instrument)
-    # ----------------------------------------------------------------------
-    # 2D plotting
-
-    if data2d is None:
-        for ax in grid_2D:
-            ax.set_axis_off()
-
-    else:
-        gal = copy.deepcopy(galorig)
-        if gal.data.ndim == 1:
-            apply_shift = True
-        else:
-            apply_shift = False
-
-
-        gal.data = copy.deepcopy(data2d)
-        gal.instrument = copy.deepcopy(instorig2d)
-        pixscale = gal.instrument.pixscale.value
-
-        gal.model.update_parameters(theta)
-
-        if apply_shift:
-            if xshift is not None:
-                gal.model.geometry.xshift = xshift
-            if yshift is not None:
-                gal.model.geometry.yshift = yshift
-
-        #
-        kwargs_galmodel_2d = kwargs_galmodel.copy()
-        kwargs_galmodel_2d['ndim_final'] = 2
-        kwargs_galmodel_2d['from_data'] = True
-        gal.create_model_data(**kwargs_galmodel_2d)
-
-
-        keyyarr = ['residual']
-        keyytitlearr = ['Residual']
-
-
-        keyxarr, keyxtitlearr = ([] for _ in range(2))
-        if fitflux:
-            keyxarr.append('flux')
-            keyxtitlearr.append(r'Flux')
-        if fitvelocity:
-            keyxarr.append('velocity')
-            keyxtitlearr.append(r'$V$')
-        if fitdispersion:
-            keyxarr.append('dispersion')
-            keyxtitlearr.append(r'$\sigma$')
-
-        int_mode = "nearest"
-        origin = 'lower'
-        cmap = copy.copy(cm.get_cmap("Spectral_r"))
-        cmap.set_bad(color='k')
-
-
-        cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
-        cmap_resid.set_bad(color='k')
-
-        color_annotate = 'white'
-
-
-        # -----------------------
-        vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
-        vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
-
-
-        # Check for not too crazy:
-        if vcrop:
-            if vel_vmin < -vcrop_value:
-                vel_vmin = -vcrop_value
-            if vel_vmax > vcrop_value:
-                vel_vmax = vcrop_value
-
-
-        vel_shift = gal.model.geometry.vel_shift.value
-
-        #
-        vel_vmin -= vel_shift
-        vel_vmax -= vel_shift
-
-        disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-        disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
-
-        # Check for not too crazy:
-        if vcrop:
-            if disp_vmin < 0:
-                disp_vmin = 0
-            if disp_vmax > vcrop_value:
-                disp_vmax = vcrop_value
-
-        flux_vmin = gal.data.data['flux'][gal.data.mask].min()
-        flux_vmax = gal.data.data['flux'][gal.data.mask].max()
-
-        alpha_unmasked = 1.
-        alpha_masked = 0.5
-        alpha_bkgd = 1.
-        alpha_aper = 0.8
-
-        vmin_2d = []
-        vmax_2d = []
-        vmin_2d_resid = []
-        vmax_2d_resid = []
-
-        for j in six.moves.xrange(len(keyxarr)):
-            for mm in six.moves.xrange(len(keyyarr)):
-                kk = j*len(keyyarr) + mm
-
-                k = keyyarr[mm]
-
-                ax = grid_2D[kk]
-
-                xt = keyxtitlearr[j]
-                yt = keyytitlearr[mm]
-
-                print("plot_model_2D_residual: doing j={}: {} // mm={}: {}".format(j, keyxarr[j], mm, k))
-                # -----------------------------------
-
-                if k == 'residual':
-                    if keyxarr[j] == 'velocity':
-                        im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-                        im[~gal.data.mask] = np.nan
-                        if symmetric_residuals:
-                            vmin = -max_residual
-                            vmax = max_residual
-                    elif keyxarr[j] == 'dispersion':
-                        im_model = gal.model_data.data['dispersion'].copy()
-                        im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
-
-                        im = gal.data.data['dispersion'] - im_model
-                        im[~gal.data.mask] = np.nan
-
-                        if symmetric_residuals:
-                            vmin = -max_residual
-                            vmax = max_residual
-                    elif keyxarr[j] == 'flux':
-                        im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
-                        im[~gal.data.mask] = np.nan
-
-                        if symmetric_residuals:
-                            fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
-                            vmin = -fabsmax
-                            vmax = fabsmax
-
-                    cmaptmp = cmap_resid
-                    vmin_2d_resid.append(vmin)
-                    vmax_2d_resid.append(vmax)
-
-                else:
-                    raise ValueError("key not supported.")
-
-
-                imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-                                 vmin=vmin, vmax=vmax, origin=origin)
-
-                # ++++++++++++++++++++++++++
-                imtmp = im.copy()
-                imtmp[gal.data.mask] = vel_vmax
-                imtmp[~gal.data.mask] = np.nan
-
-                # Create an alpha channel of linearly increasing values moving to the right.
-                alphas = np.ones(im.shape)
-                alphas[~gal.data.mask] = alpha_masked
-                alphas[gal.data.mask] = 1.-alpha_unmasked
-                # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-                imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
-                imtmpalph = cm.Greys_r(imtmpalph)
-                # Now set the alpha channel to the one we created above
-                imtmpalph[..., -1] = alphas
-
-                immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-                # ++++++++++++++++++++++++++
-
-                if show_contours:
-                    ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
-                                vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
-
-
-                if (show_1d_apers) & (data1d is not None):
-
-                    ax = show_1d_apers_plot(ax, gal, data1d, data2d,
-                                    galorig=galorig, alpha_aper=alpha_aper,
-                                    remove_shift=remove_shift)
-
-
-                ####################################
-                # Show a 1arcsec line:
-                if show_ruler:
-                    ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
-                                            ruler_loc=ruler_loc, color=color_annotate)
-                ####################################
-
-                ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
-
-                if j == 0:
-                    ax.set_ylabel(yt)
-
-                for pos in ['top', 'bottom', 'left', 'right']:
-                    ax.spines[pos].set_visible(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
-                print("ytitle={}".format(yt))
-
-                if mm == 0:
-                    ax.set_title(xt)
-
-                #########
-                cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                        fraction=5./101., aspect=20.)
-                cbar = plt.colorbar(imax, cax=cax, **kw)
-                cbar.ax.tick_params(labelsize=8)
-
-
-                if k == 'residual':
-                    med = np.median(im[gal.data.mask])
-                    rms = np.std(im[gal.data.mask])
-                    if keyxarr[j] == 'velocity':
-                        median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                    elif keyxarr[j] == 'dispersion':
-                        median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                    elif keyxarr[j] == 'flux':
-                        median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
-                        scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
-                    ax.annotate(median_str,
-                        (0.01,-0.05), xycoords='axes fraction',
-                        ha='left', va='top', fontsize=8)
-                    ax.annotate(scatter_str,
-                        (0.99,-0.05), xycoords='axes fraction',
-                        ha='right', va='top', fontsize=8)
-
-
-    ################
-
-    f.suptitle(suptitle, fontsize=16, y=0.95)
-
-    #############################################################
-    # Save to file:
-    if fileout is not None:
-        plt.savefig(fileout, bbox_inches='tight', dpi=300)
-        plt.close()
-    else:
-        plt.draw()
-        plt.show()
-
-    return None
+# def plot_model_2D_residual(obs, model,
+#             theta=None, dscale=None,
+#             symmetric_residuals=True,
+#             max_residual=100.,
+#             xshift = None,
+#             yshift = None,
+#             fileout=None,
+#             vcrop = False,
+#             vcrop_value = 800.,
+#             show_1d_apers=False,
+#             remove_shift = False,
+#             inst_corr=None,
+#             show_contours=False,
+#             show_ruler=True,
+#             ruler_loc='lowerleft',
+#             **plot_kwargs):
+#
+#     if show_contours:
+#         # Set contour defaults, if not specifed:
+#         for key in _kwargs_contour_defaults.keys():
+#             if key not in plot_kwargs.keys():
+#                 plot_kwargs[key] = _kwargs_contour_defaults[key]
+#
+#     ######################################
+#     # Setup plot:
+#
+#     ncols = 0
+#     for cond in [obs.fit_options.fit_flux, obs.fit_options.fit_velocity,
+#                  obs.fit_options.fit_dispersion]:
+#         if cond:
+#             ncols += 1
+#
+#     nrows = 1
+#
+#
+#     padx = 0.25
+#     pady = 0.25
+#
+#     xextra = 0.15
+#     yextra = 0.
+#
+#     scale = 2.5
+#
+#     f = plt.figure()
+#     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
+#
+#
+#     suptitle = '{}: Fitting dim: n={}'.format(obs.name, obs.data.ndim)
+#
+#
+#     padx = 0.2
+#     pady = 0.1
+#     gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
+#     grid_2D = []
+#     for jj in range(nrows):
+#         for mm in range(ncols):
+#             grid_2D.append(plt.subplot(gs02[jj,mm]))
+#
+#
+#
+#     if theta is not None:
+#         model.update_parameters(theta)     # Update the parameters
+#
+#
+#     inst_corr_2d = None
+#     if inst_corr is None:
+#         if 'inst_corr' in data2d.data.keys():
+#             inst_corr_2d = data2d.data['inst_corr']
+#     else:
+#         inst_corr_2d = inst_corr
+#
+#
+#     if inst_corr_2d:
+#         inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
+#     else:
+#         inst_corr_sigma = 0.
+#
+#     galorig = copy.deepcopy(gal)
+#     instorig = copy.deepcopy(gal.instrument)
+#     try:
+#         instorig2d = copy.deepcopy(gal.instrument2d)
+#     except:
+#         instorig2d = copy.deepcopy(gal.instrument)
+#
+#
+#     # In case missing / set to None:
+#     if instorig2d is None:
+#         instorig2d = copy.deepcopy(gal.instrument)
+#     # ----------------------------------------------------------------------
+#     # 2D plotting
+#
+#     if data2d is None:
+#         for ax in grid_2D:
+#             ax.set_axis_off()
+#
+#     else:
+#         gal = copy.deepcopy(galorig)
+#         if gal.data.ndim == 1:
+#             apply_shift = True
+#         else:
+#             apply_shift = False
+#
+#
+#         gal.data = copy.deepcopy(data2d)
+#         gal.instrument = copy.deepcopy(instorig2d)
+#         pixscale = gal.instrument.pixscale.value
+#
+#         gal.model.update_parameters(theta)
+#
+#         if apply_shift:
+#             if xshift is not None:
+#                 gal.model.geometry.xshift = xshift
+#             if yshift is not None:
+#                 gal.model.geometry.yshift = yshift
+#
+#         #
+#         kwargs_galmodel_2d = kwargs_galmodel.copy()
+#         kwargs_galmodel_2d['ndim_final'] = 2
+#         kwargs_galmodel_2d['from_data'] = True
+#         gal.create_model_data(**kwargs_galmodel_2d)
+#
+#
+#         keyyarr = ['residual']
+#         keyytitlearr = ['Residual']
+#
+#
+#         keyxarr, keyxtitlearr = ([] for _ in range(2))
+#         if fitflux:
+#             keyxarr.append('flux')
+#             keyxtitlearr.append(r'Flux')
+#         if fitvelocity:
+#             keyxarr.append('velocity')
+#             keyxtitlearr.append(r'$V$')
+#         if fitdispersion:
+#             keyxarr.append('dispersion')
+#             keyxtitlearr.append(r'$\sigma$')
+#
+#         int_mode = "nearest"
+#         origin = 'lower'
+#         cmap = copy.copy(cm.get_cmap("Spectral_r"))
+#         cmap.set_bad(color='k')
+#
+#
+#         cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
+#         cmap_resid.set_bad(color='k')
+#
+#         color_annotate = 'white'
+#
+#
+#         # -----------------------
+#         vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
+#         vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
+#
+#
+#         # Check for not too crazy:
+#         if vcrop:
+#             if vel_vmin < -vcrop_value:
+#                 vel_vmin = -vcrop_value
+#             if vel_vmax > vcrop_value:
+#                 vel_vmax = vcrop_value
+#
+#
+#         vel_shift = gal.model.geometry.vel_shift.value
+#
+#         #
+#         vel_vmin -= vel_shift
+#         vel_vmax -= vel_shift
+#
+#         disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
+#         disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
+#
+#         # Check for not too crazy:
+#         if vcrop:
+#             if disp_vmin < 0:
+#                 disp_vmin = 0
+#             if disp_vmax > vcrop_value:
+#                 disp_vmax = vcrop_value
+#
+#         flux_vmin = gal.data.data['flux'][gal.data.mask].min()
+#         flux_vmax = gal.data.data['flux'][gal.data.mask].max()
+#
+#         alpha_unmasked = 1.
+#         alpha_masked = 0.5
+#         alpha_bkgd = 1.
+#         alpha_aper = 0.8
+#
+#         vmin_2d = []
+#         vmax_2d = []
+#         vmin_2d_resid = []
+#         vmax_2d_resid = []
+#
+#         for j in range(len(keyxarr)):
+#             for mm in range(len(keyyarr)):
+#                 kk = j*len(keyyarr) + mm
+#
+#                 k = keyyarr[mm]
+#
+#                 ax = grid_2D[kk]
+#
+#                 xt = keyxtitlearr[j]
+#                 yt = keyytitlearr[mm]
+#
+#                 print("plot_model_2D_residual: doing j={}: {} // mm={}: {}".format(j, keyxarr[j], mm, k))
+#                 # -----------------------------------
+#
+#                 if k == 'residual':
+#                     if keyxarr[j] == 'velocity':
+#                         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
+#                         im[~gal.data.mask] = np.nan
+#                         if symmetric_residuals:
+#                             vmin = -max_residual
+#                             vmax = max_residual
+#                     elif keyxarr[j] == 'dispersion':
+#                         im_model = gal.model_data.data['dispersion'].copy()
+#                         im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
+#
+#                         im = gal.data.data['dispersion'] - im_model
+#                         im[~gal.data.mask] = np.nan
+#
+#                         if symmetric_residuals:
+#                             vmin = -max_residual
+#                             vmax = max_residual
+#                     elif keyxarr[j] == 'flux':
+#                         im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
+#                         im[~gal.data.mask] = np.nan
+#
+#                         if symmetric_residuals:
+#                             fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
+#                             vmin = -fabsmax
+#                             vmax = fabsmax
+#
+#                     cmaptmp = cmap_resid
+#                     vmin_2d_resid.append(vmin)
+#                     vmax_2d_resid.append(vmax)
+#
+#                 else:
+#                     raise ValueError("key not supported.")
+#
+#
+#                 imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
+#                                  vmin=vmin, vmax=vmax, origin=origin)
+#
+#                 # ++++++++++++++++++++++++++
+#                 imtmp = im.copy()
+#                 imtmp[gal.data.mask] = vel_vmax
+#                 imtmp[~gal.data.mask] = np.nan
+#
+#                 # Create an alpha channel of linearly increasing values moving to the right.
+#                 alphas = np.ones(im.shape)
+#                 alphas[~gal.data.mask] = alpha_masked
+#                 alphas[gal.data.mask] = 1.-alpha_unmasked
+#                 # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
+#                 imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
+#                 imtmpalph = cm.Greys_r(imtmpalph)
+#                 # Now set the alpha channel to the one we created above
+#                 imtmpalph[..., -1] = alphas
+#
+#                 immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
+#                 # ++++++++++++++++++++++++++
+#
+#                 if show_contours:
+#                     ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
+#                                 vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
+#
+#
+#                 if (show_1d_apers) & (data1d is not None):
+#
+#                     ax = show_1d_apers_plot(ax, gal, data1d, data2d, model=gal.model,
+#                                     obsorig=galorig, alpha_aper=alpha_aper,
+#                                     remove_shift=remove_shift)
+#
+#
+#                 ####################################
+#                 # Show a 1arcsec line:
+#                 if show_ruler:
+#                     ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
+#                                             ruler_loc=ruler_loc, color=color_annotate)
+#                 ####################################
+#
+#                 ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
+#
+#                 if j == 0:
+#                     ax.set_ylabel(yt)
+#
+#                 for pos in ['top', 'bottom', 'left', 'right']:
+#                     ax.spines[pos].set_visible(False)
+#                 ax.set_xticks([])
+#                 ax.set_yticks([])
+#                 print("ytitle={}".format(yt))
+#
+#                 if mm == 0:
+#                     ax.set_title(xt)
+#
+#                 #########
+#                 cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
+#                         fraction=5./101., aspect=20.)
+#                 cbar = plt.colorbar(imax, cax=cax, **kw)
+#                 cbar.ax.tick_params(labelsize=8)
+#
+#
+#                 if k == 'residual':
+#                     med = np.median(im[gal.data.mask])
+#                     rms = np.std(im[gal.data.mask])
+#                     if keyxarr[j] == 'velocity':
+#                         median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
+#                         scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
+#                     elif keyxarr[j] == 'dispersion':
+#                         median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
+#                         scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
+#                     elif keyxarr[j] == 'flux':
+#                         median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
+#                         scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
+#                     ax.annotate(median_str,
+#                         (0.01,-0.05), xycoords='axes fraction',
+#                         ha='left', va='top', fontsize=8)
+#                     ax.annotate(scatter_str,
+#                         (0.99,-0.05), xycoords='axes fraction',
+#                         ha='right', va='top', fontsize=8)
+#
+#
+#     ################
+#
+#     f.suptitle(suptitle, fontsize=16, y=0.95)
+#
+#     #############################################################
+#     # Save to file:
+#     if fileout is not None:
+#         plt.savefig(fileout, bbox_inches='tight', dpi=300)
+#         plt.close()
+#     else:
+#         plt.draw()
+#         plt.show()
+#
+#     return None
 
 
 #############################################################
 
-def plot_model_comparison_2D(gal1=None, gal2=None,
+def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
         show_models=True,
         label_gal1='Gal1',
         label_gal2='Gal2',
@@ -3053,15 +3069,15 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     pady = 0.1
     gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
     grid_2D = []
-    for jj in six.moves.xrange(nrows):
-        for mm in six.moves.xrange(ncols):
+    for jj in range(nrows):
+        for mm in range(ncols):
             grid_2D.append(plt.subplot(gs02[jj,mm]))
 
 
 
     if inst_corr:
-        inst_corr_sigma = gal1.instrument.lsf.dispersion.to(u.km/u.s).value
-        inst_corr_sigma2 = gal2.instrument.lsf.dispersion.to(u.km/u.s).value
+        inst_corr_sigma = obs1.instrument.lsf.dispersion.to(u.km/u.s).value
+        inst_corr_sigma2 = obs2.instrument.lsf.dispersion.to(u.km/u.s).value
         # Check values are equivalent:
         if inst_corr_sigma != inst_corr_sigma2:
             raise ValueError
@@ -3072,7 +3088,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     # ----------------------------------------------------------------------
     # 2D plotting
 
-    pixscale = gal1.instrument.pixscale.value
+    pixscale = obs1.instrument.pixscale.value
 
 
     if show_models:
@@ -3104,27 +3120,27 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     if show_models:
         vel_vmin = disp_vmin = flux_vmin = 999.
         vel_vmax = disp_vmax = flux_vmax = -999.
-        for gal in [gal1, gal2]:
-            vel_vmin = np.min([vel_vmin, gal.model_data.data['velocity'][gal.model_data.mask].min()])
-            vel_vmax = np.max([vel_vmin, gal.model_data.data['velocity'][gal.model_data.mask].max()])
+        for obs in [obs1, obs2]:
+            vel_vmin = np.min([vel_vmin, obs.model_data.data['velocity'][obs.model_data.mask].min()])
+            vel_vmax = np.max([vel_vmin, obs.model_data.data['velocity'][obs.model_data.mask].max()])
 
             if inst_corr:
-                im = gal.model_data.data['dispersion'].copy()
+                im = obs.model_data.data['dispersion'].copy()
                 im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
-                msk = gal.model_data.mask.copy()
+                msk = obs.model_data.mask.copy()
                 msk[~np.isfinite(im)] = False
                 disp_vmin = np.min([disp_vmin, im[msk].min()])
                 disp_vmax = np.max([disp_vmax, im[msk].max()])
             else:
-                disp_vmin = np.min([disp_vmin, gal.model_data.data['dispersion'][gal.model_data.mask].min()])
-                disp_vmax = np.max([disp_vmax, gal.model_data.data['dispersion'][gal.model_data.mask].max()])
+                disp_vmin = np.min([disp_vmin, obs.model_data.data['dispersion'][obs.model_data.mask].min()])
+                disp_vmax = np.max([disp_vmax, obs.model_data.data['dispersion'][obs.model_data.mask].max()])
 
 
-            flux_vmin = np.min([flux_vmin, gal.model_data.data['flux'][gal.model_data.mask].min()])
-            flux_vmax = np.max([flux_vmax, gal.model_data.data['flux'][gal.model_data.mask].max()])
+            flux_vmin = np.min([flux_vmin, obs.model_data.data['flux'][obs.model_data.mask].min()])
+            flux_vmax = np.max([flux_vmax, obs.model_data.data['flux'][obs.model_data.mask].max()])
 
         # Apply vel shift from model:
-        vel_shift = gal1.model.geometry.vel_shift.value
+        vel_shift = model.geometries[obs1.name].vel_shift.value
         vel_vmin -= vel_shift
         vel_vmax -= vel_shift
 
@@ -3147,8 +3163,8 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
     alpha_aper = 0.8
 
 
-    for mm in six.moves.xrange(len(keyyarr)):
-        for j in six.moves.xrange(len(keyxarr)):
+    for mm in range(len(keyyarr)):
+        for j in range(len(keyxarr)):
             kk = mm*len(keyyarr) + j
 
             k = keyyarr[mm]
@@ -3161,43 +3177,43 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
             # -----------------------------------
             if (k == 'gal1') | (k == 'gal2'):
                 if (k == 'gal1'):
-                    gal = gal1
+                    obs = obs1
                 elif (k == 'gal2'):
-                    gal = gal2
+                    obs = obs2
                 if keyxarr[j] == 'velocity':
-                    im = gal.model_data.data['velocity'].copy()
-                    im -= gal.model.geometry.vel_shift.value
+                    im = obs.model_data.data['velocity'].copy()
+                    im -= obs.model.geometry.vel_shift.value
                     vmin = vel_vmin
                     vmax = vel_vmax
                 elif keyxarr[j] == 'dispersion':
-                    im = gal.model_data.data['dispersion'].copy()
+                    im = obs.model_data.data['dispersion'].copy()
                     im = np.sqrt(im ** 2 - inst_corr_sigma ** 2)
 
                     vmin = disp_vmin
                     vmax = disp_vmax
 
                 elif keyxarr[j] == 'flux':
-                    im = gal.model_data.data['flux'].copy()
+                    im = obs.model_data.data['flux'].copy()
 
                     vmin = flux_vmin
                     vmax = flux_vmax
 
-                mask = gal.model_data.mask
+                mask = obs.model_data.mask
                 cmaptmp = cmap
                 gal = None
 
             elif k == 'residual':
                 if keyxarr[j] == 'velocity':
-                    im = gal2.model_data.data['velocity'].copy() - gal1.model_data.data['velocity'].copy()
-                    im -= gal2.model.geometry.vel_shift.value - gal1.model.geometry.vel_shift.value
+                    im = obs2.model_data.data['velocity'].copy() - obs1.model_data.data['velocity'].copy()
+                    im -= obs2.model.geometry.vel_shift.value - obs1.model.geometry.vel_shift.value
                     if symmetric_residuals:
                         vmin = -max_residual
                         vmax = max_residual
                 elif keyxarr[j] == 'dispersion':
-                    im_model1 = gal1.model_data.data['dispersion'].copy()
+                    im_model1 = obs1.model_data.data['dispersion'].copy()
                     im_model1 = np.sqrt(im_model1 ** 2 - inst_corr_sigma ** 2)
 
-                    im_model2 = gal2.model_data.data['dispersion'].copy()
+                    im_model2 = obs2.model_data.data['dispersion'].copy()
                     im_model2 = np.sqrt(im_model2 ** 2 - inst_corr_sigma ** 2)
 
                     im = im_model2 - im_model1
@@ -3206,7 +3222,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                         vmin = -max_residual
                         vmax = max_residual
                 elif keyxarr[j] == 'flux':
-                    im = gal2.model_data.data['flux'].copy() - gal1.model_data.data['flux'].copy()
+                    im = obs2.model_data.data['flux'].copy() - obs1.model_data.data['flux'].copy()
 
                     if symmetric_residuals:
                         if show_models:
@@ -3219,7 +3235,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                     vmin = im[np.isfinite(im)].min()
                     vmax = im[np.isfinite(im)].max()
 
-                mask = gal1.model_data.mask
+                mask = obs1.model_data.mask
                 cmaptmp = cmap_resid
 
             else:
@@ -3241,7 +3257,7 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
             ####################################
 
 
-            ax = plot_major_minor_axes_2D(ax, gal1, im, gal1.model_data.mask)
+            ax = plot_major_minor_axes_2D(ax, obs1, im, obs1.model_data.mask)
 
             if j == 0:
                 ax.set_ylabel(yt)
@@ -3250,16 +3266,13 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
                 ax.spines[pos].set_visible(False)
             ax.set_xticks([])
             ax.set_yticks([])
-            #print("ytitle={}".format(yt))
 
             if mm == 0:
                 ax.set_title(xt)
 
             #########
             cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                    #fraction=5./101.,
-                    fraction=4.75/101.,
-                    aspect=20.)
+                    fraction=4.75/101., aspect=20.)
             cbar = plt.colorbar(imax, cax=cax, **kw)
             cbar.ax.tick_params(labelsize=8)
 
@@ -3283,27 +3296,72 @@ def plot_model_comparison_2D(gal1=None, gal2=None,
 #############################################################
 
 
-def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=False,
+def plot_rotcurve_components(gal,
+            overwrite=False,
+            overwrite_curve_files=False,
             outpath = None,
             plotfile = None,
             fname_model_matchdata = None,
             fname_model_finer = None,
             fname_intrinsic = None,
-            moment=False,
-            partial_weight=True,
             plot_type='pdf',
             **plot_kwargs):
 
     if (plotfile is None) & (outpath is None):
         raise ValueError
-    if plotfile is None:
-        plotfile = '{}{}_rot_components.{}'.format(outpath, gal.name, plot_type)
-    if fname_model_matchdata is None:
-        fname_model_matchdata = '{}{}_out-1dplots.txt'.format(outpath, gal.name)
-    if fname_model_finer is None:
-        fname_model_finer = '{}{}_out-1dplots_finer_sampling.txt'.format(outpath, gal.name)
+
     if fname_intrinsic is None:
         fname_intrinsic = '{}{}_vcirc_tot_bary_dm.dat'.format(outpath, gal.name)
+
+
+    # Check if the rot curves are done:
+    if overwrite_curve_files:
+        curve_files_exist_int = False
+    else:
+        curve_files_exist_int = os.path.isfile(fname_intrinsic)
+
+    if not curve_files_exist_int:
+        # *_vcirc_tot_bary_dm.dat
+        create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
+                    fname_intrinsic=fname_intrinsic,
+                    overwrite=overwrite_curve_files)
+
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.instrument.ndim == 1:
+            plot_single_obs_rotcurve_components(obs, gal.model,
+                        gal_name=gal.name,  overwrite=overwrite,
+                        dscale=gal.dscale, z=gal.z,
+                        overwrite_curve_files=overwrite_curve_files,
+                        outpath = outpath, plotfile = plotfile,
+                        fname_model_matchdata = fname_model_matchdata,
+                        fname_model_finer = fname_model_finer,
+                        fname_intrinsic = fname_intrinsic,
+                        plot_type=plot_type, **plot_kwargs)
+
+    return None
+
+def plot_single_obs_rotcurve_components(obs, model,
+            dscale=None, z=None,
+            gal_name = None,
+            overwrite=False, overwrite_curve_files=False,
+            outpath = None,
+            plotfile = None,
+            fname_model_matchdata = None,
+            fname_model_finer = None,
+            fname_intrinsic = None,
+            plot_type='pdf',
+            **plot_kwargs):
+
+    if (plotfile is None) & (outpath is None):
+        raise ValueError
+    fbase = '{}{}_{}'.format(outpath, gal_name, obs.name)
+    if plotfile is None:
+        plotfile = '{}_rot_components.{}'.format(fbase, plot_type)
+    if fname_model_matchdata is None:
+        fname_model_matchdata = '{}_out-1dplots.txt'.format(fbase)
+    if fname_model_finer is None:
+        fname_model_finer = '{}_out-1dplots_finer_sampling.txt'.format(fbase)
 
     # check if the file exists:
     if overwrite:
@@ -3313,25 +3371,19 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
     # Check if the rot curves are done:
     if overwrite_curve_files:
-        curve_files_exist_int = False
+        # curve_files_exist_int = False
         curve_files_exist_obs1d = False
         file_exists = False
     else:
-        curve_files_exist_int = os.path.isfile(fname_intrinsic)
+        # curve_files_exist_int = os.path.isfile(fname_intrinsic)
         curve_files_exist_obs1d = os.path.isfile(fname_model_finer)
 
     if not curve_files_exist_obs1d:
         # *_out-1dplots_finer_sampling.txt, *_out-1dplots.txt
-        create_vel_profile_files_obs1d(gal=gal, outpath=outpath,
+        create_vel_profile_files_obs1d(obs=obs, model=model, dscale=dscale,
+                    gal_name=gal_name, outpath=outpath,
                     fname_finer=fname_model_finer,
                     fname_model_matchdata=fname_model_matchdata,
-                    moment=moment,
-                    partial_weight=partial_weight,
-                    overwrite=overwrite_curve_files)
-    if not curve_files_exist_int:
-        # *_vcirc_tot_bary_dm.dat
-        create_vel_profile_files_intrinsic(gal=gal, outpath=outpath,
-                    fname_intrinsic=fname_intrinsic,
                     overwrite=overwrite_curve_files)
 
 
@@ -3342,9 +3394,10 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         model_int = read_model_intrinsic_profile(filename=fname_intrinsic)
 
         deg2rad = np.pi/180.
-        sini = np.sin(gal.model.components['geom'].inc.value*deg2rad)
+        sini = np.sin(model.geometries[obs.name].inc.value*deg2rad)
 
-        vel_asymm_drift_sq = gal.model.kinematic_options.get_asymm_drift_profile(model_int.rarr, gal.model)
+        vel_asymm_drift_sq = model.kinematic_options.get_asymm_drift_profile(model_int.rarr,
+                                                    model, tracer=obs.tracer)
         vsq = model_int.data['vcirc_tot'] ** 2 - vel_asymm_drift_sq
         vsq[vsq<0] = 0.
 
@@ -3352,8 +3405,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
         model_int.data['vrot_sini'] = model_int.data['vrot']*sini
 
-        sini_l = np.sin(np.max([gal.model.components['geom'].inc.value - 5., 0.])*deg2rad)
-        sini_u = np.sin(np.min([gal.model.components['geom'].inc.value + 5., 90.])*deg2rad)
+        sini_l = np.sin(np.max([model.geometries[obs.name].inc.value - 5., 0.])*deg2rad)
+        sini_u = np.sin(np.min([model.geometries[obs.name].inc.value + 5., 90.])*deg2rad)
 
         model_int.data['vcirc_tot_linc'] = np.sqrt((model_int.data['vrot_sini']/sini_l)**2 + vel_asymm_drift_sq )
         model_int.data['vcirc_tot_uinc'] = np.sqrt((model_int.data['vrot_sini']/sini_u)**2 + vel_asymm_drift_sq )
@@ -3372,8 +3425,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         f.set_size_inches(1.1*ncols*scale, nrows*scale)
         gs = gridspec.GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
         axes = []
-        for i in six.moves.xrange(nrows):
-            for j in six.moves.xrange(ncols):
+        for i in range(nrows):
+            for j in range(ncols):
                 # Comparison:
                 axes.append(plt.subplot(gs[i,j]))
 
@@ -3400,8 +3453,8 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ax = axes[0]
 
 
-        xlim = [-0.05, np.max([np.max(np.abs(gal.data.rarr)) + 0.5, 2.0])]
-        xlim2 = np.array(xlim) / gal.dscale
+        xlim = [-0.05, np.max([np.max(np.abs(obs.data.rarr)) + 0.5, 2.0])]
+        xlim2 = np.array(xlim) / dscale
         ylim = [0., np.max(model_int.data['vcirc_tot'])*1.15]
 
 
@@ -3409,31 +3462,29 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ax.plot( model_obs.rarr, model_obs.data['velocity'],
             c='red', lw=lw, zorder=3., label=r'$V_{\mathrm{rot}} \sin(i)$ observed')
 
-        ax.axhline(y=gal.model.components['dispprof'].sigma0.value, ls='--', color='blueviolet',
+        ax.axhline(y=model.dispersions[obs.tracer].sigma0.value, ls='--', color='blueviolet',
                 zorder=-20., label=r'Intrinsic $\sigma_0$')
 
-        if hasattr(gal.data, 'mask_velocity'):
-            if gal.data.mask_velocity is not None:
-                msk = gal.data.mask_velocity
-            else:
-                msk = gal.data.mask
-        else:
-            msk = gal.data.mask
+        msk = obs.data.mask
+        if hasattr(obs.data, 'mask_velocity'):
+            if obs.data.mask_velocity is not None:
+                msk = obs.data.mask_velocity
 
         # Masked points
-        ax.errorbar( np.abs(gal.data.rarr[~msk]), np.abs(gal.data.data['velocity'][~msk]),
-                xerr=None, yerr = gal.data.error['velocity'][~msk],
+        ax.errorbar( np.abs(obs.data.rarr[~msk]), np.abs(obs.data.data['velocity'][~msk]),
+                xerr=None, yerr = obs.data.error['velocity'][~msk],
                 marker=None, ls='None', ecolor='lightgrey', zorder=4.,
                 alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        ax.scatter( np.abs(gal.data.rarr[~msk]), np.abs(gal.data.data['velocity'][~msk]),
-            edgecolor='lightgrey', facecolor='whitesmoke', marker='s', s=25, lw=1, zorder=5., label=None)
+        ax.scatter( np.abs(obs.data.rarr[~msk]), np.abs(obs.data.data['velocity'][~msk]),
+                    edgecolor='lightgrey', facecolor='whitesmoke', marker='s', s=25, lw=1,
+                    zorder=5., label=None)
 
         # Unmasked points
-        ax.errorbar( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
-                xerr=None, yerr = gal.data.error['velocity'][msk],
+        ax.errorbar( np.abs(obs.data.rarr[msk]), np.abs(obs.data.data['velocity'][msk]),
+                xerr=None, yerr = obs.data.error['velocity'][msk],
                 marker=None, ls='None', ecolor='dimgrey', zorder=4.,
                 alpha=0.75, lw = errbar_lw,capthick= errbar_lw,capsize=errbar_cap,label=None )
-        ax.scatter( np.abs(gal.data.rarr[msk]), np.abs(gal.data.data['velocity'][msk]),
+        ax.scatter( np.abs(obs.data.rarr[msk]), np.abs(obs.data.data['velocity'][msk]),
             edgecolor='dimgrey', facecolor='white', marker='s', s=25, lw=1, zorder=5., label='Data')
 
 
@@ -3453,7 +3504,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
 
 
-        ax.annotate(r'{} $z={:0.1f}$'.format(gal.name, gal.z), (0.5, 0.96),
+        ax.annotate(r'{}: {} $z={:0.1f}$'.format(gal_name, obs.name, z), (0.5, 0.96),
                 xycoords='axes fraction', ha='center', va='top', fontsize=fontsize_title)
 
         ax.set_xlabel(keyxtitle, fontsize=fontsize_label)
@@ -3517,7 +3568,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 
 
         xlim2 = [xlim2[0], np.max(model_int.rarr)+0.1]
-        xlim = np.array(xlim2) * gal.dscale
+        xlim = np.array(xlim2) * dscale
 
         ax2 = ax.twiny()
 
@@ -3532,10 +3583,10 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
         ###
 
 
-        if 'disk+bulge' in gal.model.components.keys():
-            ax2.axvline(x=gal.model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
+        if 'disk+bulge' in model.components.keys():
+            ax2.axvline(x=model.components['disk+bulge'].r_eff_disk.value, ls='--', color='dimgrey', zorder=-10.)
             ax2.annotate(r'$R_{\mathrm{eff}}$',
-                (gal.model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
+                (model.components['disk+bulge'].r_eff_disk.value + 0.05*(xlim2[1]-xlim2[0]), 0.025*(ylim[1]-ylim[0])), # 0.05
                 xycoords='data', ha='left', va='bottom', color='dimgrey', fontsize=fontsize_ann)
 
         ###
@@ -3606,7 +3657,7 @@ def plot_rotcurve_components(gal=None, overwrite=False, overwrite_curve_files=Fa
 def make_clean_mcmc_plot_names(mcmcResults):
     names = []
     for key in mcmcResults.free_param_names.keys():
-        for i in six.moves.xrange(len(mcmcResults.free_param_names[key])):
+        for i in range(len(mcmcResults.free_param_names[key])):
             param = mcmcResults.free_param_names[key][i]
             key_nice = " ".join(key.split("_"))
             param_nice = " ".join(param.split("_"))
@@ -3617,27 +3668,36 @@ def make_clean_mcmc_plot_names(mcmcResults):
 
 #############################################################
 
-def extract_1D_2D_data_from_cube(obs, model, slit_width=None, slit_pa=None,
-                                 aper_dist=None, inst_corr=True, fill_mask=False):
+def extract_1D_2D_obs_from_cube(obs, model, slit_width=None, slit_pa=None,
+                                aper_dist=None, inst_corr=True, fill_mask=False):
 
     obs_extract = OrderedDict()
 
     obs_extract['extract_2D'] = extract_2D_from_cube(obs.data.data, obs,
                                       errcube=obs.data.error,
-                                      moment=obs.instrument.moment,
+                                      modcube=obs.model_data.data,
                                       inst_corr=inst_corr)
 
     obs_extract['extract_1D'] = extract_1D_from_cube(obs.data.data, obs, model,
-                                      errcube=obsgal.data.error,
-                                      slit_width=slit_width,
-                                      slit_pa=slit_pa,
-                                      aper_dist=aper_dist,
-                                      moment=obs.instrument.moment,
-                                      inst_corr=inst_corr,
+                                      errcube=obs.data.error,
+                                      modcube=obs.model_data.data,
+                                      slit_width=slit_width, slit_pa=slit_pa,
+                                      aper_dist=aper_dist, inst_corr=inst_corr,
                                       fill_mask=fill_mask)
 
+    # Add geometries for these obs to model:
+    geom1d = copy.deepcopy(model.geometries[obs.name])
+    geom1d.name = "{}_1D".format(model.geometries[obs.name].name)
+    geom1d.obs_name = obs_extract['extract_1D'].name
 
-    return obs_extract
+    geom2d = copy.deepcopy(model.geometries[obs.name])
+    geom2d.name = "{}_2D".format(model.geometries[obs.name].name)
+    geom2d.obs_name = obs_extract['extract_2D'].name
+
+    model.add_component(geom1d)
+    model.add_component(geom2d)
+
+    return obs_extract, model
 
 
 def aper_centers_arcsec_from_cube(datacube, obs, model, mask=None,
@@ -3747,11 +3807,136 @@ def aper_centers_arcsec_from_cube(datacube, obs, model, mask=None,
 ###################################################################
 ###################################################################
 
-def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
+# def extract_1D_from_cube(datacube, obs, model, errcube=None, modcube=None, mask=None,
+#                          slit_width=None, slit_pa=None, aper_dist=None,
+#                          inst_corr=True, fill_mask=False):
+#
+#     # ############################################
+#
+#     # Set up the observation
+#     obs1d = Observation(name="{}_1d_extract".format(obs.name),
+#                         tracer=obs.tracer)
+#     for key in ['flux', 'velocity', 'dispersion']:
+#         obs1d.fit_options.__dict__['fit_{}'.format(key)] = True
+#     inst1d = copy.deepcopy(obs.instrument)
+#     inst1d.ndim = 1
+#
+#     if slit_width is None:
+#         try:
+#             slit_width = obs.instrument.beam.major.to(u.arcsec).value
+#         except:
+#             slit_width = obs.instrument.beam.major_fwhm.to(u.arcsec).value
+#     if slit_pa is None:
+#         slit_pa = model.geometries[obs.name].pa.value
+#
+#     if mask is None:
+#         mask = obs.data.mask.copy()
+#
+#     pixscale = obs.instrument.pixscale.value
+#
+#     inst1d.slit_width = slit_width
+#     inst1d.slit_pa = slit_pa
+#
+#     rpix = slit_width/pixscale/2.
+#
+#     # Aper centers: pick roughly number fitting into size:
+#     nx = datacube.shape[2]
+#     ny = datacube.shape[1]
+#     try:
+#         center_pixel = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value,
+#                         obs.mod_options.ycenter + model.geometries[obs.name].yshift.value)
+#     except:
+#         center_pixel = (int(nx / 2.) + model.geometries[obs.name].xshift,
+#                         int(ny / 2.) + model.geometries[obs.name].yshift)
+#
+#     aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, obs, model,
+#                 mask=mask,
+#                 slit_width=slit_width, slit_pa=slit_pa,
+#                 aper_dist=aper_dist, fill_mask=fill_mask)
+#
+#
+#     #######
+#
+#     vel_arr = datacube.spectral_axis.to(u.km/u.s).value
+#
+#     apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
+#              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+#              moment=obs.instrument.moment)
+#
+#     data_scaled = datacube.unmasked_data[:].value
+#
+#
+#     if errcube is not None:
+#         ecube = errcube.unmasked_data[:].value * mask
+#     else:
+#         ecube = None
+#
+#     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
+#                     cube=data_scaled, mask=mask, err=ecube,
+#                     center_pixel = center_pixel, pixscale=pixscale)
+#
+#
+#     if not fill_mask:
+#         # Remove points where the fit was bad
+#         ind = np.isfinite(vel1d) & np.isfinite(disp1d)
+#
+#         data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
+#                         vel_disp=disp1d[ind], flux=flux1d[ind],
+#                         inst_corr=inst_corr)
+#         apertures_redo = CircApertures(rarr=aper_centers_arcsec[ind], slit_PA=slit_pa, rpix=rpix,
+#                             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+#                             moment=obs.instrument.moment)
+#         inst1d.apertures = apertures_redo
+#     else:
+#         data1d = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
+#                         inst_corr=inst_corr)
+#
+#         inst1d.apertures = apertures
+#
+#     data1d.profile1d_type = 'circ_ap_cube'
+#     obs1d.mod_options.xcenter = obs.mod_options.xcenter
+#     obs1d.mod_options.ycenter = obs.mod_options.ycenter
+#
+#     if fill_mask:
+#         # Unmask any fully masked bits, and fill with the other mask:
+#         mask2d = np.sum(mask, axis=0)
+#         whzero = np.where(mask2d == 0)
+#         maskspec = np.sum(np.sum(mask, axis=2), axis=1)
+#         maskspec[maskspec>0] = 1
+#         mask_filled = np.tile(maskspec.reshape((maskspec.shape[0],1,1)), (1, data_scaled.shape[1], data_scaled.shape[2]))
+#         mask[:, whzero[0], whzero[1]] = mask_filled[:, whzero[0], whzero[1]]
+#
+#         if errcube is not None:
+#             ecube = errcube.unmasked_data[:].value * mask
+#         else:
+#             ecube = None
+#         aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
+#                         cube=data_scaled, mask=mask, err=ecube,
+#                         center_pixel = center_pixel, pixscale=pixscale)
+#         data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,
+#                                          vel_disp=disp1d, flux=flux1d,
+#                                          inst_corr=inst_corr)
+#
+#
+#
+#     obs1d.instrument = inst1d
+#     obs1d.data = data1d
+#
+#     return obs1d
+
+def extract_1D_from_cube(datacube, obs, model, errcube=None, modcube=None, mask=None,
                          slit_width=None, slit_pa=None, aper_dist=None,
-                         moment=False, inst_corr=True, fill_mask=False):
+                         inst_corr=True, fill_mask=False):
 
     # ############################################
+
+    # Set up the observation
+    obs1d = Observation(name="{}_1d_extract".format(obs.name),
+                        tracer=obs.tracer)
+    for key in ['flux', 'velocity', 'dispersion']:
+        obs1d.fit_options.__dict__['fit_{}'.format(key)] = True
+    inst1d = copy.deepcopy(obs.instrument)
+    inst1d.ndim = 1
 
     if slit_width is None:
         try:
@@ -3764,7 +3949,47 @@ def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
     if mask is None:
         mask = obs.data.mask.copy()
 
-    pixscale = obs.instrument.pixscale.value
+    #pixscale = obs.instrument.pixscale.value
+
+    inst1d.slit_width = slit_width
+    inst1d.slit_pa = slit_pa
+
+
+    obs1d.mod_options.xcenter = obs.mod_options.xcenter
+    obs1d.mod_options.ycenter = obs.mod_options.ycenter
+
+
+    data1d, inst1d = extract_1D_from_cube_general(datacube, obs, model, inst1d,
+                                     errcube=errcube, mask=mask,
+                                     slit_width=slit_width, slit_pa=slit_pa,
+                                     aper_dist=aper_dist,
+                                     inst_corr=inst_corr, fill_mask=fill_mask)
+
+    obs1d.instrument = inst1d
+    obs1d.data = data1d
+
+    if modcube is not None:
+        mod1d, _ = extract_1D_from_cube_general(modcube, obs, model, copy.deepcopy(inst1d),
+                                         errcube=None, mask=mask,
+                                         slit_width=slit_width, slit_pa=slit_pa,
+                                         aper_dist=aper_dist,
+                                         inst_corr=inst_corr, fill_mask=fill_mask)
+        obs1d.model_data = mod1d
+
+
+    return obs1d
+
+def extract_1D_from_cube_general(datacube, obs, model, inst1d, errcube=None, mask=None,
+                                 slit_width=None, slit_pa=None, aper_dist=None,
+                                 inst_corr=True, fill_mask=False):
+
+    # ############################################
+
+
+    pixscale = inst1d.pixscale.value
+    slit_width = inst1d.slit_width
+    slit_pa = inst1d.slit_pa
+
 
     rpix = slit_width/pixscale/2.
 
@@ -3779,8 +4004,7 @@ def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
                         int(ny / 2.) + model.geometries[obs.name].yshift)
 
     aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, obs, model,
-                mask=mask,
-                slit_width=slit_width, slit_pa=slit_pa,
+                mask=mask, slit_width=slit_width, slit_pa=slit_pa,
                 aper_dist=aper_dist, fill_mask=fill_mask)
 
 
@@ -3789,7 +4013,8 @@ def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
     vel_arr = datacube.spectral_axis.to(u.km/u.s).value
 
     apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
-             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=moment)
+             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+             moment=obs.instrument.moment)
 
     data_scaled = datacube.unmasked_data[:].value
 
@@ -3809,19 +4034,19 @@ def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
         ind = np.isfinite(vel1d) & np.isfinite(disp1d)
 
         data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
-                                 vel_disp=disp1d[ind], flux=flux1d[ind],
-                                 slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
+                        vel_disp=disp1d[ind], flux=flux1d[ind],
+                        inst_corr=inst_corr)
         apertures_redo = CircApertures(rarr=aper_centers_arcsec[ind], slit_PA=slit_pa, rpix=rpix,
-                            nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale, moment=moment)
-        data1d.apertures = apertures_redo
+                            nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+                            moment=obs.instrument.moment)
+        inst1d.apertures = apertures_redo
     else:
         data1d = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
-                            slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
-        data1d.apertures = apertures
+                        inst_corr=inst_corr)
+
+        inst1d.apertures = apertures
 
     data1d.profile1d_type = 'circ_ap_cube'
-    data1d.xcenter = gal.data.xcenter
-    data1d.ycenter = gal.data.ycenter
 
     if fill_mask:
         # Unmask any fully masked bits, and fill with the other mask:
@@ -3839,16 +4064,23 @@ def extract_1D_from_cube(datacube, obs, model, errcube=None, mask=None,
         aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
                         cube=data_scaled, mask=mask, err=ecube,
                         center_pixel = center_pixel, pixscale=pixscale)
-        data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
-                            slit_width=slit_width, slit_pa=slit_pa, inst_corr=inst_corr)
+        data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,
+                                         vel_disp=disp1d, flux=flux1d,
+                                         inst_corr=inst_corr)
 
 
-    return data1d
+    return data1d, inst1d
 
+def extract_2D_from_cube(cube, obs, errcube=None, modcube=None, inst_corr=True):
 
-def extract_2D_from_cube(cube, obs, errcube=None,
-                         inst_corr=True, moment=False,
-                         gauss_extract_with_c=True):
+    # Set up the observation
+    obs2d = Observation(name="{}_2d_extract".format(obs.name),
+                        tracer=obs.tracer)
+    for key in ['flux', 'velocity', 'dispersion']:
+        obs2d.fit_options.__dict__['fit_{}'.format(key)] = True
+    inst2d = copy.deepcopy(obs.instrument)
+    inst2d.ndim = 2
+
     # cube must be SpectralCube instance!
     data2d = extract_2D_from_cube_general(cube, err=errcube, mask=obs.data.mask,
                                           inst_corr=inst_corr,
@@ -3856,17 +4088,27 @@ def extract_2D_from_cube(cube, obs, errcube=None,
                                           LSF_disp_kms=0,
                                           moment=obs.instrument.moment,
                                           pixscale=obs.instrument.pixscale.value,
-                                          xcenter=obs.mod_options.xcenter,
-                                          ycenter=obs.mod_options.ycenter,
                                           gauss_extract_with_c=obs.mod_options.gauss_extract_with_c)
 
-    return data2d
+    obs2d.instrument = inst2d
+    obs2d.data = data2d
+
+    if modcube is not None:
+        mod2d = extract_2D_from_cube_general(modcube, err=None, mask=obs.data.mask,
+                                              inst_corr=inst_corr,
+                                              directly_correct_LSF=False,
+                                              LSF_disp_kms=0,
+                                              moment=obs.instrument.moment,
+                                              pixscale=obs.instrument.pixscale.value,
+                                              gauss_extract_with_c=obs.mod_options.gauss_extract_with_c)
+
+        obs2d.model_data = mod2d
+
+    return obs2d
 
 def extract_2D_from_cube_general(cube, err=None, mask=None,
-                                 inst_corr=True,
+                                 inst_corr=True, pixscale=None, moment=False,
                                  directly_correct_LSF=False, LSF_disp_kms=0,
-                                 moment=False,
-                                 pixscale=None, xcenter=None, ycenter=None,
                                  gauss_extract_with_c=True):
     # cube must be SpectralCube instance!
     orig_mask = copy.deepcopy(mask)
@@ -4059,9 +4301,8 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
         raise ValueError
 
     data2d = Data2D(pixscale=pixscale, velocity=vel, vel_disp=disp, mask=mask,
-                        flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
-                        inst_corr=inst_corr, moment=moment,
-                        xcenter=xcenter, ycenter=ycenter)
+                    flux=flux, vel_err=None, vel_disp_err=None, flux_err=None,
+                    inst_corr=inst_corr)
 
     return data2d
 
@@ -4108,8 +4349,10 @@ def extract_2D_from_cube_file(fname=None, fname_err=None, fname_mask=None,
                                      moment=moment, inst_corr=inst_corr,
                                      directly_correct_LSF=directly_correct_LSF,
                                      LSF_disp_kms=LSF_disp_kms, pixscale=pixscale,
-                                     xcenter=xcenter, ycenter=ycenter,
                                      gauss_extract_with_c=gauss_extract_with_c)
+
+    data2d.xcenter = xcenter
+    data2d.ycenter = ycenter
 
     return data2d
 
@@ -4402,12 +4645,12 @@ def plot_2D_from_cube_files(fileout=None,
 #############################################################
 
 
-def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, remove_shift=True):
+def show_1d_apers_plot(ax, obs, data1d, data2d, model=None, obsorig=None, alpha_aper=0.8, remove_shift=True):
 
     aper_centers = data1d.rarr
     slit_width = data1d.slit_width
     slit_pa = data1d.slit_pa
-    rstep = gal.instrument.pixscale.value
+    rstep = obs.instrument.pixscale.value
     try:
         rstep1d = gal.instrument1d.pixscale.value
     except:
@@ -4423,10 +4666,10 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
         # Goes "backwards": pos -> neg [but the aper shapes are ALSO stored this way]
         pa = slit_pa + 180
 
-    print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(galorig.data.ndim,
-                                    gal.model.geometry.xshift.value,
-                                    gal.model.geometry.yshift.value,
-                                    gal.model.geometry.vel_shift.value))
+    print(" ndim={}:  xshift={}, yshift={}, vsys2d={}".format(obsorig.data.ndim,
+                                    model.geometries[obs.name].xshift.value,
+                                    model.geometries[obs.name].yshift.value,
+                                    model.geometries[obs.name].vel_shift.value))
 
 
 
@@ -4434,33 +4677,25 @@ def show_1d_apers_plot(ax, gal, data1d, data2d, galorig=None, alpha_aper=0.8, re
     ny = data2d.data['velocity'].shape[0]
 
     try:
-        center_pixel_kin = (gal.data.xcenter + gal.model.geometry.xshift.value*rstep/rstep1d,
-                            gal.data.ycenter + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel_kin = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value*rstep/rstep1d,
+                            obs.mod_options.ycenter + model.geometries[obs.name].yshift.value*rstep/rstep1d)
     except:
-        center_pixel_kin = (int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                            int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel_kin = (int(nx / 2.) + model.geometries[obs.name].xshift.value*rstep/rstep1d,
+                            int(ny / 2.) + model.geometries[obs.name].yshift.value*rstep/rstep1d)
 
     if not remove_shift:
-        if data1d.aper_center_pix_shift is not None:
-            try:
-                center_pixel = (gal.data.xcenter + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
-                                gal.data.ycenter + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-            except:
-                center_pixel = (int(nx / 2.) + data1d.aper_center_pix_shift[0]*rstep/rstep1d,
-                                int(ny / 2.) + data1d.aper_center_pix_shift[1]*rstep/rstep1d)
-        else:
-            try:
-                center_pixel = (gal.data.xcenter, gal.data.ycenter)
-            except:
-                center_pixel = None
+        try:
+            center_pixel = (obs.mod_options.xcenter, obs.mod_options.ycenter)
+        except:
+            center_pixel = None
     else:
         center_pixel = center_pixel_kin
 
 
 
     if center_pixel is None:
-        center_pixel = (int(nx / 2.) + gal.model.geometry.xshift.value*rstep/rstep1d,
-                        int(ny / 2.) + gal.model.geometry.yshift.value*rstep/rstep1d)
+        center_pixel = (int(nx / 2.) + model.geometries[obs.name].xshift.value*rstep/rstep1d,
+                        int(ny / 2.) + model.geometries[obs.name].yshift.value*rstep/rstep1d)
 
     # +++++++++++++++++
 
@@ -4494,8 +4729,8 @@ def plot_major_minor_axes_2D(ax, obs, model, im, mask, finer_step=True,
     ####################################
     # Show MAJOR AXIS line, center:
     try:
-        center_pixel_kin = (obs.data.xcenter + model.geometries[obs.name].xshift.value,
-                            obs.data.ycenter + model.geometries[obs.name].yshift.value)
+        center_pixel_kin = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value,
+                            obs.mod_options.ycenter + model.geometries[obs.name].yshift.value)
     except:
         center_pixel_kin = ((im.shape[1]-1.)/ 2. + model.geometries[obs.name].xshift.value,
                             (im.shape[0]-1.)/ 2. + model.geometries[obs.name].yshift.value)

@@ -9,11 +9,9 @@ from __future__ import (absolute_import, division, print_function,
 ## Standard library
 import logging
 import abc
-import six
 
 # DYSMALPY code
 from dysmalpy import plotting
-from dysmalpy import config
 from dysmalpy import utils_io as dpy_utils_io
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 
@@ -22,7 +20,6 @@ import os
 import numpy as np
 from collections import OrderedDict
 import astropy.units as u
-import copy
 
 __all__ =  ['Fitter', 'FitResults',
             'chisq_red', 'chisq_eval', 'chisq_red_per_type']
@@ -43,6 +40,7 @@ class Fitter(object):
         self._fill_values(**kwargs)
 
     def _set_defaults_base(self):
+        self.fit_method = None
         self.blob_name = None
 
     def _fill_values(self, **kwargs):
@@ -83,8 +81,6 @@ class FitResults(object):
             self._free_param_keys = OrderedDict()
             self.nparams_free = None
             self.chain_param_names = None
-
-        # self.output_options = output_options
 
         self.fit_method = fit_method
 
@@ -490,7 +486,7 @@ def chisq_red_per_type(obs, nparams_free, type=None, **kwargs):
 def make_arr_cmp_params(results):
     arr = np.array([])
     for cmp in results.free_param_names.keys():
-        for i in six.moves.xrange(len(results.free_param_names[cmp])):
+        for i in range(len(results.free_param_names[cmp])):
             param = results.free_param_names[cmp][i]
             arr = np.append( arr, cmp.strip().lower()+':'+param.strip().lower() )
 

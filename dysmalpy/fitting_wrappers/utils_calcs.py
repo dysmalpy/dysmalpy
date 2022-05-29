@@ -4,13 +4,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os, sys
-
-import datetime
+import os
 
 import numpy as np
 import astropy.units as u
-import astropy.constants as apy_con
 
 try:
     import photutils
@@ -317,32 +314,32 @@ def _auto_truncate_crop_cube(cube, params=None,
 
 
 
-def pad_3D_mask_to_uncropped_size(gal=None, mask=None):
-    spec_unit=u.Unit(gal.data.data.wcs.wcs.cunit[2].to_string())
-    spec_arr = gal.data.data.spectral_axis.to(spec_unit).value
+def pad_3D_mask_to_uncropped_size(obs=None, mask=None):
+    spec_unit=u.Unit(obs.data.data.wcs.wcs.cunit[2].to_string())
+    spec_arr = obs.data.data.spectral_axis.to(spec_unit).value
 
-    if gal.data.cube_precrop_sh is not None:
-        mask_cube = np.zeros(gal.data.cube_precrop_sh)
-        sp_trm = gal.data.sp_trm
+    if obs.data.cube_precrop_sh is not None:
+        mask_cube = np.zeros(obs.data.cube_precrop_sh)
+        sp_trm = obs.data.sp_trm
         if sp_trm is None:
             sp_trm = [0,mask_cube.shape[2],0,mask_cube.shape[1]]
 
-        if gal.data.wh_spec_keep is not None:
-            spc_trm = [gal.data.wh_spec_keep[0], gal.data.wh_spec_keep[-1]+1]
+        if obs.data.wh_spec_keep is not None:
+            spc_trm = [obs.data.wh_spec_keep[0], obs.data.wh_spec_keep[-1]+1]
         else:
             spc_trm = [0, mask_cube.shape[0]]
 
-        if gal.data.wh_ends_trim is not None:
-            spc_trm[0] += gal.data.wh_ends_trim[0]
-            spc_trm[1] += gal.data.wh_ends_trim[0]
-            if gal.data.wh_ends_trim[1]< 0:
-                spc_trm[1] += gal.data.wh_ends_trim[1]
+        if obs.data.wh_ends_trim is not None:
+            spc_trm[0] += obs.data.wh_ends_trim[0]
+            spc_trm[1] += obs.data.wh_ends_trim[0]
+            if obs.data.wh_ends_trim[1]< 0:
+                spc_trm[1] += obs.data.wh_ends_trim[1]
 
         mask_cube[spc_trm[0]:spc_trm[1], sp_trm[2]:sp_trm[3], sp_trm[0]:sp_trm[1]] = mask.copy()
 
-        spec_step = gal.data.data.wcs.wcs.cdelt[2]
-        spec_start = gal.data.data.wcs.wcs.crval[2] - (spc_trm[0]+1-gal.data.data.wcs.wcs.crpix[2])
-        spec_arr = np.arange(gal.data.cube_precrop_sh[0]) * spec_step + spec_start
+        spec_step = obs.data.data.wcs.wcs.cdelt[2]
+        spec_start = obs.data.data.wcs.wcs.crval[2] - (spc_trm[0]+1-obs.data.data.wcs.wcs.crpix[2])
+        spec_arr = np.arange(obs.data.cube_precrop_sh[0]) * spec_step + spec_start
 
     else:
         mask_cube = mask.copy()

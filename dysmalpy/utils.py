@@ -8,12 +8,13 @@ from __future__ import (absolute_import, division, print_function,
 
 # Standard library
 import warnings
+import logging
 
 # Third party imports
 import numpy as np
 import astropy.modeling as apy_mod
 import astropy.stats as apy_stats
-import astropy.units as u
+# import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
 import scipy.ndimage as sp_ndi
@@ -23,9 +24,12 @@ from scipy.stats import norm
 from astropy.convolution import Gaussian2DKernel
 from astropy.convolution import convolve_fft as apy_convolve_fft
 
-from spectral_cube import SpectralCube, BooleanArrayMask
-
 std2fwhm = (2. *np.sqrt(2.*np.log(2.)))
+
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
+
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
@@ -33,7 +37,7 @@ def rebin(arr, new_2dshape):
              new_2dshape[0], arr.shape[1] // new_2dshape[0],
              new_2dshape[1], arr.shape[2] // new_2dshape[1])
     return arr.reshape(shape).sum(-1).sum(-2)
-
+    
 
 def calc_pixel_distance(nx, ny, center_coord):
     """
@@ -340,28 +344,6 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
 
         return vel, disp
 
-
-# def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
-#     if smoothing_type is None:
-#         return cube
-#     else:
-#         if (smoothing_type.lower() == 'median'):
-#             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
-#             cb = cube.filled_data[:].value
-#             if (smoothing_npix % 2) == 1:
-#                 cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
-#             else:
-#                 cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
-#
-#             cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
-#                                               mask=cube.mask, meta=cube.meta,
-#                                               fill_value=cube.fill_value)
-#             #cube = cube.spatial_smooth_median(smoothing_npix)
-#
-#         else:
-#             print("Smoothing type={} not supported".format(smoothing_type))
-#
-#         return cube
 
 def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
     if smoothing_type is None:
@@ -691,3 +673,36 @@ def get_cin_cout(shape, asint=False):
             carr[j] = ca
 
     return tuple(carr)
+
+
+
+#########################
+def _check_data_inst_FOV_compatibility(gal):
+    logger_msg = None
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.fit_options.fit & (obs.data.ndim == 1):
+                if min(obs.instrument.fov)/2. <  np.abs(obs.data.rarr).max() / obs.instrument.pixscale.value:
+                    if logger_msg is None:
+                        logger_msg = ""
+                    else:
+                        logger_msg += "\n"
+                    logger_msg += "obs={}: FOV smaller than the maximum data extent!\n".format(obs.name)
+                    logger_msg += "                FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(obs.instrument.fov[0],
+                                    obs.instrument.fov[1], np.abs(obs.data.rarr).max()/ obs.instrument.pixscale)
+
+    if logger_msg is not None:
+        logger.warning(logger_msg)
+
+    return None
+
+def _set_instrument_kernels(gal):
+    # Pre-calculate instrument kernels:
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.instrument._beam_kernel is None:
+            obs.instrument.set_beam_kernel()
+        if obs.instrument._lsf_kernel is None:
+            obs.instrument.set_lsf_kernel(spec_center=obs.instrument.line_center)
+
+    return gal

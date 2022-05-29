@@ -81,7 +81,7 @@ class Instrument:
 
         self.name = name
         self.ndim = ndim
-        
+
         self.pixscale = pixscale
 
         # Case of two beams: analytic and empirical: if beam_type==None, assume analytic
@@ -220,6 +220,7 @@ class Instrument:
         self._beam_kernel = None
         self._lsf_kernel = None
 
+
     def set_beam_kernel(self, support_scaling=12.):
         """
         Calculate and store the PSF convolution kernel
@@ -279,7 +280,7 @@ class Instrument:
             kernel = self.lsf.as_velocity_kernel(self.spec_step)
 
         elif (self.spec_step is not None) and (self.spec_type == 'wavelength'):
-            if (self.spec_center is None) and (spec_center is None):
+            if (self.line_center is None) and (spec_center is None):
                 raise ValueError("Center wavelength not defined in either "
                                  "the instrument or call to convolve.")
 
@@ -287,7 +288,7 @@ class Instrument:
                 kernel = self.lsf.as_wave_kernel(self.spec_step, spec_center)
 
             else:
-                kernel = self.lsf.as_wave_kernel(self.spec_step, self.spec_center)
+                kernel = self.lsf.as_wave_kernel(self.spec_step, self.line_center)
 
         kern1D = kernel.array
         kern3D = np.zeros(shape=(kern1D.shape[0], 1, 1,))

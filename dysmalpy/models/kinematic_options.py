@@ -18,8 +18,6 @@ import scipy.optimize as scp_opt
 # Local imports
 from .baryons import DiskBulge, LinearDiskBulge, Sersic, ExpDisk
 
-from dysmalpy import config
-
 __all__ = ['KinematicOptions']
 
 

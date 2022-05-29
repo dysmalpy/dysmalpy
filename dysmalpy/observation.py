@@ -97,11 +97,14 @@ class Observation:
 
     @data.setter
     def data(self, new_data):
-        if not np.any(isinstance(new_data, Data1D) | isinstance(new_data, Data2D) | \
-            isinstance(new_data, Data3D) | isinstance(new_data, Data0D)):
+        if not np.any(isinstance(new_data, Data1D) | \
+                      isinstance(new_data, Data2D) | \
+                      isinstance(new_data, Data3D) | \
+                      isinstance(new_data, Data0D) | \
+                      isinstance(new_data, type(None))):
             raise TypeError("Data must be one of the following instances: "
                             "   dysmalpy.Data0D, dysmalpy.Data1D, "
-                            "   dysmalpy.Data2D, dysmalpy.Data3D")
+                            "   dysmalpy.Data2D, dysmalpy.Data3D, or None")
         self._data = new_data
         self._setup_checks()
 
@@ -111,13 +114,15 @@ class Observation:
 
     @instrument.setter
     def instrument(self, new_instrument):
-        if not (isinstance(new_instrument, Instrument)) | (new_instrument is None):
+        if not (isinstance(new_instrument, Instrument)) | \
+                isinstance(new_instrument, type(None)):
             raise TypeError("Instrument must be a dysmalpy.Instrument instance.")
         self._instrument = new_instrument
         self._setup_checks()
 
     def _setup_checks(self):
         self._check_1d_datasize()
+        self._check_2d_instrument()
         self._check_3d_instrument()
 
     def _check_1d_datasize(self):
@@ -137,6 +142,26 @@ class Observation:
                     wmsg += "********************************************************************\n"
                     logger.warning(wmsg)
                     raise ValueError(wmsg)
+                # --------------------------------------------------
+
+    def _check_2d_instrument(self):
+        if (self.data is not None) & (self.instrument is not None):
+            if (isinstance(self.data, Data2D)):
+                # --------------------------------------------------
+                # Check FOV on instrument and reset if not matching:
+                if ((self.instrument.fov[0] != self.data.shape[1]) | \
+                   (self.instrument.fov[1] != self.data.shape[0])):
+                    wmsg =  "dysmalpy.Galaxy:\n"
+                    wmsg += "********************************************************************\n"
+                    wmsg += "*** INFO ***\n"
+                    wmsg += "instrument.fov[0,1]="
+                    wmsg += "({},{}) is being reset".format(self.instrument.fov[0], self.instrument.fov[1])
+                    wmsg += " to match 2D maps ({}, {})\n".format(self.data.shape[1], self.data.shape[0])
+                    wmsg += "********************************************************************\n"
+                    logger.info(wmsg)
+                    self.instrument.fov = [self.data.shape[1], self.data.shape[0]]
+                    # Reset kernel
+                    self.instrument._beam_kernel = None
                 # --------------------------------------------------
 
     def _check_3d_instrument(self):
@@ -270,7 +295,8 @@ class Observation:
                 orig_inst = copy.deepcopy(self.instrument)
                 lens_inst = copy.deepcopy(self.instrument)
 
-                lens_inst.fov = (this_lensing_transformer.source_plane_nx, this_lensing_transformer.source_plane_ny)
+                lens_inst.fov = (this_lensing_transformer.source_plane_nx,
+                                 this_lensing_transformer.source_plane_ny)
                 lens_inst.pixscale.value = this_lensing_transformer.source_plane_pixsc
 
                 self.instrument = lens_inst
@@ -356,9 +382,8 @@ class Observation:
             sim_cube_final = sim_cube_obs
 
         self.model_cube = Data3D(cube=sim_cube_final, pixscale=pixscale,
-                                spec_type=self.instrument.spec_type,
-                                spec_arr=spec,
-                                spec_unit=self.instrument.spec_step.unit)
+                                 spec_arr=spec, spec_type=spec_type,
+                                 spec_unit=spec_unit)
 
         if ndim_final == 3:
 
@@ -397,10 +422,8 @@ class Observation:
                 mask_cube = None
 
             self.model_data = Data3D(cube=sim_cube_final_scale, pixscale=pixscale,
-                                     mask_cube=mask_cube,
-                                     spec_type=self.instrument.spec_type,
-                                     spec_arr=spec,
-                                     spec_unit=self.instrument.spec_step.spec_unit)
+                                     mask_cube=mask_cube, spec_arr=spec,
+                                     spec_type=spec_type, spec_unit=spec_unit)
 
         elif ndim_final == 2:
             if self.instrument.smoothing_type is not None:
@@ -428,7 +451,7 @@ class Observation:
                     flux = np.zeros(mom0.shape)
                     vel = np.zeros(mom0.shape)
                     disp = np.zeros(mom0.shape)
-                    # <DZLIU><20210805> ++++++++++
+                    # ++++++++++++++++++++++++++++++++++++++++++++++++++
                     my_least_chi_squares_1d_fitter = None
                     if (_loaded_LeastChiSquares1D):
                         if self.mod_options.gauss_extract_with_c:
@@ -460,13 +483,13 @@ class Observation:
                                     nthread = 4,
                                     verbose = this_fitting_verbose)
                     if my_least_chi_squares_1d_fitter is not None:
-                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now()))
                         my_least_chi_squares_1d_fitter.runFitting()
                         flux = my_least_chi_squares_1d_fitter.outparams[0,:,:] * np.sqrt(2 * np.pi) * my_least_chi_squares_1d_fitter.outparams[2,:,:]
                         vel = my_least_chi_squares_1d_fitter.outparams[1,:,:]
                         disp = my_least_chi_squares_1d_fitter.outparams[2,:,:]
-                        flux[np.isnan(flux)] = 0.0 #<DZLIU><DEBUG># 20210809 fixing this bug
-                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
+                        flux[np.isnan(flux)] = 0.0
+                        logger.debug('my_least_chi_squares_1d_fitter '+str(datetime.datetime.now()))
                     else:
                         for i in range(mom0.shape[0]):
                             for j in range(mom0.shape[1]):
@@ -480,7 +503,7 @@ class Observation:
                                 disp[i,j] = best_fit[2]
                                 if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
                                     logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
-                    # <DZLIU><20210805> ----------
+                    # ++++++++++++++++++++++++++++++++++++++++++++++++++
 
             elif spec_type == "wavelength":
                 cube_with_vel = self.model_cube.data.with_spectral_unit(u.km/u.s,
@@ -523,7 +546,7 @@ class Observation:
                 mask = None
 
             self.model_data = Data2D(pixscale=pixscale, velocity=vel,
-                                    vel_disp=disp, flux=flux, mask=mask)
+                                     vel_disp=disp, flux=flux, mask=mask)
 
         elif ndim_final == 1:
             if spec_type == 'wavelength':
@@ -579,7 +602,7 @@ class Observation:
 
             # Gather results:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
-                                    vel_disp=disp1d, flux=flux1d, mask=mask1d)
+                                     vel_disp=disp1d, flux=flux1d, mask=mask1d)
 
         elif ndim_final == 0:
             if self.instrument.integrate_cube:
