@@ -189,7 +189,7 @@ class ModelSet:
         """
         # Default: use old behavior of model_key_re = ['disk+bulge','r_eff_disk']:
 
-        comp = model.components.__getitem__(model_key_re[0])
+        comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
         r_eff = comp.parameters[param_i]
 

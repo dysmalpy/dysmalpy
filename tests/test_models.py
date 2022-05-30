@@ -15,7 +15,7 @@ import astropy.units as u
 from dysmalpy.fitting_wrappers import dysmalpy_make_model
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
-from dysmalpy import galaxy, models, parameters, instrument, config
+from dysmalpy import galaxy, models, parameters, instrument, config, observation
 
 
 # TESTING DIRECTORY
@@ -155,7 +155,8 @@ class HelperSetups(object):
         disp_bounds = {'sigma0': (10, 200)}
 
         disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
-                                                  bounds=disp_bounds, name='dispprof')
+                                                  bounds=disp_bounds, name='dispprof',
+                                                  tracer='halpha')
 
         return disp_prof
 
@@ -187,7 +188,8 @@ class HelperSetups(object):
                        'yshift': (-10, -4)}
 
         geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
-                               fixed=geom_fixed, bounds=geom_bounds, name='geom')
+                               fixed=geom_fixed, bounds=geom_bounds, name='geom',
+                               obs_name='halpha_1D')
 
         return geom
 
@@ -195,8 +197,9 @@ class HelperSetups(object):
         bicone = models.BiconicalOutflow(n=0.5, vmax=300., rturn=0.5, thetain=30, dtheta=20.,
                                          rend=1., norm_flux=11., tau_flux=5., name='bicone')
         # To fully match old tests, set norm_flux = 0.
-        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom')
-        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof')
+        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom',
+                                      obs_name='halpha_1d')
+        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof', tracer='halpha')
         return bicone, bicone_geom, bicone_disp
 
     def setup_uniform_inflow(self):
@@ -251,8 +254,12 @@ class HelperSetups(object):
 
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1, instrument=True):
-        # Initialize the Galaxy, Instrument, and Model Set
+        # Initialize the Galaxy, Observation, Instrument, and Model Set
         gal = galaxy.Galaxy(z=self.z, name=self.name)
+        obs = observation.Observation(name='halpha_1D', tracer='halpha')
+        obs.mod_options.oversample = 3
+        obs.mod_options.zcalc_truncate = True
+
         mod_set = models.ModelSet()
 
         bary = self.setup_diskbulge()
@@ -284,7 +291,10 @@ class HelperSetups(object):
 
         if instrument:
             inst = self.setup_instrument()
-            gal.instrument = inst
+            obs.instrument = inst
+
+        # Add the observation to the Galaxy
+        gal.add_observation(obs)
 
         return gal
 
@@ -313,6 +323,11 @@ class HelperSetups(object):
         inst.spec_step = spec_step
         inst.spec_start = spec_start
         inst.nspec = nspec
+
+        # Extraction information
+        inst.ndim = 3                            # Dimensionality of data
+        inst.moment = False                      # For 1D/2D data, if True then velocities and dispersion calculated from moments
+                                                 # Default is False, meaning Gaussian extraction used
 
         # Set the beam kernel so it doesn't have to be calculated every step
         inst.set_beam_kernel()
@@ -487,7 +502,7 @@ class TestModels:
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_asymm_drift_exactsersic(self):
@@ -501,7 +516,7 @@ class TestModels:
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_asymm_drift_selfgrav(self):
@@ -514,7 +529,7 @@ class TestModels:
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_composite_model(self):
@@ -548,19 +563,20 @@ class TestModels:
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
             assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
 
-    
+
     def test_simulate_cube(self):
         gal = self.helper.setup_fullmodel(instrument=True)
 
         ##################
         # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
+        #kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
-        gal.create_model_data(**kwargs_galmodel)
+        #gal.create_model_data(**kwargs_galmodel)
+        gal.create_model_data()
 
         # Get cube:
-        cube = gal.model_cube.data.unmasked_data[:].value
+        cube = gal.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
@@ -589,15 +605,11 @@ class TestModels:
         inflow = self.helper.setup_uniform_inflow()
         gal_inflow.model.add_component(inflow)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_inflow.create_model_data(**kwargs_galmodel)
+        gal_inflow.create_model_data()
 
         # Get cube:
-        cube = gal_inflow.model_cube.data.unmasked_data[:].value
+        cube = gal_inflow.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
@@ -626,15 +638,11 @@ class TestModels:
         bar = self.helper.setup_bar_inflow()
         gal_bar.model.add_component(bar)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_bar.create_model_data(**kwargs_galmodel)
+        gal_bar.create_model_data()
 
         # Get cube:
-        cube = gal_bar.model_cube.data.unmasked_data[:].value
+        cube = gal_bar.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
@@ -662,15 +670,11 @@ class TestModels:
         wedge = self.helper.setup_wedge_inflow()
         gal_wedge.model.add_component(wedge)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_wedge.create_model_data(**kwargs_galmodel)
+        gal_wedge.create_model_data()
 
         # Get cube:
-        cube = gal_wedge.model_cube.data.unmasked_data[:].value
+        cube = gal_wedge.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
@@ -699,15 +703,11 @@ class TestModels:
         spiral = self.helper.setup_spiral_density_waves_flatVrot()
         gal_spiral.model.add_component(spiral)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_spiral.create_model_data(**kwargs_galmodel)
+        gal_spiral.create_model_data()
 
         # Get cube:
-        cube = gal_spiral.model_cube.data.unmasked_data[:].value
+        cube = gal_spiral.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
@@ -739,15 +739,11 @@ class TestModels:
         gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
         gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_bicone.create_model_data(**kwargs_galmodel)
+        gal_bicone.create_model_data()
 
         # Get cube:
-        cube = gal_bicone.model_cube.data.unmasked_data[:].value
+        cube = gal_bicone.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:

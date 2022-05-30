@@ -166,7 +166,7 @@ class KinematicOptions:
                 rmaxin = r
 
             try:
-                r_ap = model.model_aperture_r()
+                r_ap = model._model_aperture_r()
             except:
                 r_ap = 0.
 
