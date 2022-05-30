@@ -2310,12 +2310,9 @@ def plot_3D_data_automask_info(obs, mask_dict, axes=None):
 #############################################################
 
 def plot_model_1D(gal,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
-            best_dispersion=None,
-            inst_corr=True,
-            fileout_base=None):
+                  best_dispersion=None,
+                  inst_corr=True,
+                  fileout_base=None):
 
     for obs_name in gal.observations:
         obs = gal.observations[obs_name]
@@ -2326,18 +2323,12 @@ def plot_model_1D(gal,
                 fileout_obs = None
 
             plot_single_obs_model_1D(obs,
-                fitvelocity=fitvelocity,
-                fitdispersion=fitdispersion,
-                fitflux=fitflux,
                 best_dispersion=best_dispersion,
                 inst_corr=inst_corr,
                 fileout=fileout_obs)
 
 
 def plot_model_2D(gal,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
             fileout_base=None,
             symmetric_residuals=True,
             max_residual=100.,
@@ -2363,9 +2354,6 @@ def plot_model_2D(gal,
 
             plot_single_obs_model_2D(obs, gal.model,
                         dscale=gal.dscale,
-                        fitvelocity=fitvelocity,
-                        fitdispersion=fitdispersion,
-                        fitflux=fitflux,
                         fileout=fileout_obs,
                         symmetric_residuals=symmetric_residuals,
                         max_residual=max_residual,
@@ -2384,9 +2372,9 @@ def plot_model_2D(gal,
 #############################################################
 
 def plot_single_obs_model_1D(obs,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
+            # fitvelocity=True,
+            # fitdispersion=True,
+            # fitflux=False,
             best_dispersion=None,
             inst_corr=True,
             fileout=None):
@@ -2415,17 +2403,17 @@ def plot_single_obs_model_1D(obs,
     keyytitlearr = []
     keyyresidtitlearr = []
 
-    if fitflux:
+    if obs.fit_options.fit_flux:
         ncols += 1
         keyyarr.append('flux')
         keyytitlearr.append('Flux [arb]')
         keyyresidtitlearr.append(r'$\mathrm{Flux_{data} - Flux_{model}}$ [arb]')
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         ncols += 1
         keyyarr.append('velocity')
         keyytitlearr.append(r'$V$ [km/s]')
         keyyresidtitlearr.append(r'$V_{\mathrm{data}} - V_{\mathrm{model}}$ [km/s]')
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         ncols += 1
         keyyarr.append('dispersion')
         keyytitlearr.append(r'$\sigma$ [km/s]')
@@ -2471,9 +2459,6 @@ def plot_single_obs_model_1D(obs,
 
 def plot_single_obs_model_2D(obs, model,
             dscale=None,
-            fitvelocity=True,
-            fitdispersion=True,
-            fitflux=False,
             fileout=None,
             symmetric_residuals=True,
             max_residual=100.,
@@ -2505,14 +2490,15 @@ def plot_single_obs_model_2D(obs, model,
     nrows = 1
 
     ncols = 0
-    for cond in [fitflux, fitvelocity, fitdispersion]:
+    for cond in [obs.fit_options.fit_flux, obs.fit_options.fit_velocity,
+                 obs.fit_options.fit_dispersion]:
         if cond:
             ncols += 1
 
     f.set_size_inches(1.1*ncols*scale, nrows*scale)
 
     cntr = 0
-    if fitflux:
+    if obs.fit_options.fit_flux:
         cntr += 1
         grid_flux = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
@@ -2526,7 +2512,7 @@ def plot_single_obs_model_2D(obs, model,
                               cbar_pad="1%",
                               )
 
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         cntr += 1
         grid_vel = ImageGrid(f, 100+ncols*10+cntr,
                              nrows_ncols=(1, 1),
@@ -2539,7 +2525,7 @@ def plot_single_obs_model_2D(obs, model,
                              cbar_size="5%",
                              cbar_pad="1%",
                              )
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         cntr += 1
         grid_disp = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
@@ -2558,7 +2544,7 @@ def plot_single_obs_model_2D(obs, model,
     keyxtitlearr = ['Model']
 
     keyyarr, keyytitlearr, grid_arr = ([] for _ in range(3))
-    if fitflux:
+    if obs.fit_options.fit_flux:
         keyyarr.append('flux')
         keyytitlearr.append(r'Flux')
         grid_arr.append(grid_flux)
@@ -2567,7 +2553,7 @@ def plot_single_obs_model_2D(obs, model,
         flux_vmin = obs.model_data.data['flux'][msk].min()
         flux_vmax = obs.model_data.data['flux'][msk].max()
 
-    if fitvelocity:
+    if obs.fit_options.fit_velocity:
         keyyarr.append('velocity')
         keyytitlearr.append(r'$V$')
         grid_arr.append(grid_vel)
@@ -2580,7 +2566,7 @@ def plot_single_obs_model_2D(obs, model,
         if np.abs(vel_vmin) > 400.:
             vel_vmin = -400.
 
-    if fitdispersion:
+    if obs.fit_options.fit_dispersion:
         keyyarr.append('dispersion')
         keyytitlearr.append(r'$\sigma$')
         grid_arr.append(grid_disp)
@@ -3023,7 +3009,8 @@ def plot_single_obs_model_2D(obs, model,
 
 #############################################################
 
-def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
+def plot_model_comparison_2D(obs1=None, obs2=None,
+        model1=None, model2=None,
         show_models=True,
         label_gal1='Gal1',
         label_gal2='Gal2',
@@ -3140,7 +3127,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
             flux_vmax = np.max([flux_vmax, obs.model_data.data['flux'][obs.model_data.mask].max()])
 
         # Apply vel shift from model:
-        vel_shift = model.geometries[obs1.name].vel_shift.value
+        vel_shift = model1.geometries[obs1.name].vel_shift.value
         vel_vmin -= vel_shift
         vel_vmax -= vel_shift
 
@@ -3178,11 +3165,13 @@ def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
             if (k == 'gal1') | (k == 'gal2'):
                 if (k == 'gal1'):
                     obs = obs1
+                    model = model1
                 elif (k == 'gal2'):
                     obs = obs2
+                    model = model2
                 if keyxarr[j] == 'velocity':
                     im = obs.model_data.data['velocity'].copy()
-                    im -= obs.model.geometry.vel_shift.value
+                    im -= model.geometries[obs.name].vel_shift.value
                     vmin = vel_vmin
                     vmax = vel_vmax
                 elif keyxarr[j] == 'dispersion':
@@ -3205,7 +3194,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
             elif k == 'residual':
                 if keyxarr[j] == 'velocity':
                     im = obs2.model_data.data['velocity'].copy() - obs1.model_data.data['velocity'].copy()
-                    im -= obs2.model.geometry.vel_shift.value - obs1.model.geometry.vel_shift.value
+                    im -= model2.geometries[obs2.name].vel_shift.value - model1.geometries[obs1.name].vel_shift.value
                     if symmetric_residuals:
                         vmin = -max_residual
                         vmax = max_residual
@@ -3256,8 +3245,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None, model=None,
                                       ruler_loc='lowerright', color=color_annotate)
             ####################################
 
-
-            ax = plot_major_minor_axes_2D(ax, obs1, im, obs1.model_data.mask)
+            ax = plot_major_minor_axes_2D(ax, obs1, model1, im, obs1.model_data.mask)
 
             if j == 0:
                 ax.set_ylabel(yt)
@@ -3807,123 +3795,6 @@ def aper_centers_arcsec_from_cube(datacube, obs, model, mask=None,
 ###################################################################
 ###################################################################
 
-# def extract_1D_from_cube(datacube, obs, model, errcube=None, modcube=None, mask=None,
-#                          slit_width=None, slit_pa=None, aper_dist=None,
-#                          inst_corr=True, fill_mask=False):
-#
-#     # ############################################
-#
-#     # Set up the observation
-#     obs1d = Observation(name="{}_1d_extract".format(obs.name),
-#                         tracer=obs.tracer)
-#     for key in ['flux', 'velocity', 'dispersion']:
-#         obs1d.fit_options.__dict__['fit_{}'.format(key)] = True
-#     inst1d = copy.deepcopy(obs.instrument)
-#     inst1d.ndim = 1
-#
-#     if slit_width is None:
-#         try:
-#             slit_width = obs.instrument.beam.major.to(u.arcsec).value
-#         except:
-#             slit_width = obs.instrument.beam.major_fwhm.to(u.arcsec).value
-#     if slit_pa is None:
-#         slit_pa = model.geometries[obs.name].pa.value
-#
-#     if mask is None:
-#         mask = obs.data.mask.copy()
-#
-#     pixscale = obs.instrument.pixscale.value
-#
-#     inst1d.slit_width = slit_width
-#     inst1d.slit_pa = slit_pa
-#
-#     rpix = slit_width/pixscale/2.
-#
-#     # Aper centers: pick roughly number fitting into size:
-#     nx = datacube.shape[2]
-#     ny = datacube.shape[1]
-#     try:
-#         center_pixel = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value,
-#                         obs.mod_options.ycenter + model.geometries[obs.name].yshift.value)
-#     except:
-#         center_pixel = (int(nx / 2.) + model.geometries[obs.name].xshift,
-#                         int(ny / 2.) + model.geometries[obs.name].yshift)
-#
-#     aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, obs, model,
-#                 mask=mask,
-#                 slit_width=slit_width, slit_pa=slit_pa,
-#                 aper_dist=aper_dist, fill_mask=fill_mask)
-#
-#
-#     #######
-#
-#     vel_arr = datacube.spectral_axis.to(u.km/u.s).value
-#
-#     apertures = CircApertures(rarr=aper_centers_arcsec, slit_PA=slit_pa, rpix=rpix,
-#              nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
-#              moment=obs.instrument.moment)
-#
-#     data_scaled = datacube.unmasked_data[:].value
-#
-#
-#     if errcube is not None:
-#         ecube = errcube.unmasked_data[:].value * mask
-#     else:
-#         ecube = None
-#
-#     aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
-#                     cube=data_scaled, mask=mask, err=ecube,
-#                     center_pixel = center_pixel, pixscale=pixscale)
-#
-#
-#     if not fill_mask:
-#         # Remove points where the fit was bad
-#         ind = np.isfinite(vel1d) & np.isfinite(disp1d)
-#
-#         data1d = Data1D(r=aper_centers[ind], velocity=vel1d[ind],
-#                         vel_disp=disp1d[ind], flux=flux1d[ind],
-#                         inst_corr=inst_corr)
-#         apertures_redo = CircApertures(rarr=aper_centers_arcsec[ind], slit_PA=slit_pa, rpix=rpix,
-#                             nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
-#                             moment=obs.instrument.moment)
-#         inst1d.apertures = apertures_redo
-#     else:
-#         data1d = Data1D(r=aper_centers, velocity=vel1d,vel_disp=disp1d, flux=flux1d,
-#                         inst_corr=inst_corr)
-#
-#         inst1d.apertures = apertures
-#
-#     data1d.profile1d_type = 'circ_ap_cube'
-#     obs1d.mod_options.xcenter = obs.mod_options.xcenter
-#     obs1d.mod_options.ycenter = obs.mod_options.ycenter
-#
-#     if fill_mask:
-#         # Unmask any fully masked bits, and fill with the other mask:
-#         mask2d = np.sum(mask, axis=0)
-#         whzero = np.where(mask2d == 0)
-#         maskspec = np.sum(np.sum(mask, axis=2), axis=1)
-#         maskspec[maskspec>0] = 1
-#         mask_filled = np.tile(maskspec.reshape((maskspec.shape[0],1,1)), (1, data_scaled.shape[1], data_scaled.shape[2]))
-#         mask[:, whzero[0], whzero[1]] = mask_filled[:, whzero[0], whzero[1]]
-#
-#         if errcube is not None:
-#             ecube = errcube.unmasked_data[:].value * mask
-#         else:
-#             ecube = None
-#         aper_centers, flux1d, vel1d, disp1d = apertures.extract_1d_kinematics(spec_arr=vel_arr,
-#                         cube=data_scaled, mask=mask, err=ecube,
-#                         center_pixel = center_pixel, pixscale=pixscale)
-#         data1d.filled_mask_data = Data1D(r=aper_centers, velocity=vel1d,
-#                                          vel_disp=disp1d, flux=flux1d,
-#                                          inst_corr=inst_corr)
-#
-#
-#
-#     obs1d.instrument = inst1d
-#     obs1d.data = data1d
-#
-#     return obs1d
-
 def extract_1D_from_cube(datacube, obs, model, errcube=None, modcube=None, mask=None,
                          slit_width=None, slit_pa=None, aper_dist=None,
                          inst_corr=True, fill_mask=False):
@@ -4426,14 +4297,12 @@ def plot_axes_flux_vel_disp(flux, vel, disp, axes=None,
             ax.spines[pos].set_visible(False)
         ax.set_xticks([])
         ax.set_yticks([])
-        #print("ytitle={}".format(yt))
 
         if show_xlabels:
             ax.set_title(xt)
 
         #########
         cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-                #fraction=5./101.,
                 fraction=4.75/101.,
                 aspect=20.)
         cbar = plt.colorbar(imax, cax=cax, **kw)

@@ -85,10 +85,10 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
         ############################################################################################
         # ------------------------------------------------------------
         # Setup galaxy, model:
-        gal = setup_gal_model_base(params=params)
+        gal = utils_io.setup_gal_model_base(params=params)
 
         # Set up empty observation:
-        obs = make_empty_observation(0, params=params, ndim=3)
+        obs = utils_io.make_empty_observation(0, params=params, ndim=3)
 
         # Add the observation to the Galaxy
         gal.add_observation(obs)
