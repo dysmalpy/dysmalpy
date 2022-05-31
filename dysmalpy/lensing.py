@@ -437,7 +437,7 @@ def setup_lensing_transformer_from_params(
             source_plane_cendec = lensing_options.lensing_sdec
         if source_plane_pixsc is None:
             source_plane_pixsc = lensing_options.lensing_spixsc
-        if image_plane_cenra is None:]
+        if image_plane_cenra is None:
             image_plane_cenra = lensing_options.lensing_imra
         if image_plane_cendec is None:
             image_plane_cendec = lensing_options.lensing_imdec

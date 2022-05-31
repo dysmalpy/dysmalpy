@@ -152,16 +152,16 @@ def load_observation(obs_ind, params=None, data_loader=None,
                                 skip_auto_truncate_crop=skip_auto_truncate_crop,
                                 return_crop_info=return_crop_info, extra=extra)
             else:
-                try:
-                    data = data_io.load_single_obs_3D_data(params=params,
-                                    skip_mask=skip_mask, skip_automask=skip_automask,
-                                    skip_auto_truncate_crop=skip_auto_truncate_crop,
-                                    return_crop_info=return_crop_info, extra="")
-                except:
-                    data = data_io.load_single_obs_3D_data(params=params,
-                                    skip_mask=skip_mask, skip_automask=skip_automask,
-                                    skip_auto_truncate_crop=skip_auto_truncate_crop,
-                                    return_crop_info=return_crop_info, extra=extra)
+                #try:
+                data = data_io.load_single_obs_3D_data(params=params,
+                                skip_mask=skip_mask, skip_automask=skip_automask,
+                                skip_auto_truncate_crop=skip_auto_truncate_crop,
+                                return_crop_info=return_crop_info, extra="")
+                #except:
+                    # data = data_io.load_single_obs_3D_data(params=params,
+                    #                 skip_mask=skip_mask, skip_automask=skip_automask,
+                    #                 skip_auto_truncate_crop=skip_auto_truncate_crop,
+                    #                 return_crop_info=return_crop_info, extra=extra)
 
             # Need to copy [x/y]center from data back up to obs.mod_options,
             # as this changes in cases of cropping
@@ -353,7 +353,7 @@ def _setup_mcmc_fitter(params=None):
                 'save_burn', 'save_intermediate_sampler_chain',
                 'nStep_intermediate_save', 'continue_steps', 'nPostBins']:
         if key in params.keys():
-            dict_fitter_settings[key] = params['blob_name']
+            dict_fitter_settings[key] = params[key]
 
     if 'linked_posteriors' in params.keys():
         if params['linked_posteriors'] is not None:
