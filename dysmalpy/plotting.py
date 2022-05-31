@@ -3998,8 +3998,6 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
     if err is not None:
         err_cube =  SpectralCube(data=err.unmasked_data[:].value, mask=mask, wcs=err.wcs)
 
-
-
     if moment:
         extrac_type = 'moment'
     else:
@@ -4026,7 +4024,9 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
         my_least_chi_squares_1d_fitter = None
         if (gauss_extract_with_c) & (_loaded_LeastChiSquares1D):
             if gauss_extract_with_c is not None and \
-               gauss_extract_with_c is not False:
+                gauss_extract_with_c is not False:
+
+                print("Using gauss_extract_with_c !!!")
                 # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
                 # but note that if a spectrum has data all too close to zero, it will fail.
                 # try to prevent this by excluding too low data
@@ -4042,21 +4042,25 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
                     dataerr = None
 
                 # data_cleaned = copy.deepcopy(datacube.unmasked_data[:,:,:].value)
+                # this_fitting_mask = 'auto'
+                this_fitting_mask = None
                 if mask_start is not None:
                     this_fitting_mask = copy.copy(mask_start)
-                else:
-                    this_fitting_mask = 'auto'
 
-                if logger.level > logging.DEBUG:
-                    this_fitting_verbose = True
-                else:
-                    this_fitting_verbose = False
+                # # Only do verbose if logging level is DEBUG or lower
+                # if logger.level <= logging.DEBUG:
+                #     this_fitting_verbose = True
+                # else:
+                #     this_fitting_verbose = False
+                ## Force non-verbose, because multiprocessing pool
+                ##    resets logging to logger.level = 0....
+                this_fitting_verbose = False
 
 
                 # do the least chisquares fitting
                 my_least_chi_squares_1d_fitter = LeastChiSquares1D(\
                         x = datacube.spectral_axis.to(u.km/u.s).value,
-                        data = data_cleaned, #datacube.unmasked_data[:,:,:].value, #
+                        data = data_cleaned,
                         dataerr = dataerr,
                         datamask = this_fitting_mask,
                         initparams = np.array([mom0 / np.sqrt(2 * np.pi) / np.abs(mom2), mom1, mom2]),
@@ -4079,6 +4083,8 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
             alt_fit = True
 
         if alt_fit:
+            print("Using alt_fit: Apy mod fitter (w/ error) or scipy fitter (no error) !!!")
+
             # HAS ERROR:
             if err is not None:
                 # print("Doing alt fit: astropy model!")

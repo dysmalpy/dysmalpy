@@ -501,7 +501,7 @@ class Observation:
                                 flux[i,j] = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
                                 vel[i,j] = best_fit[1]
                                 disp[i,j] = best_fit[2]
-                                if i==mom0.shape[0]-1 and j==mom0.shape[1]-1:
+                                if i==(mom0.shape[0]-1) and j==(mom0.shape[1]-1):
                                     logger.debug('gaus_fit_sp_opt_leastsq '+str(mom0.shape[0])+'x'+str(mom0.shape[1])+' '+str(datetime.datetime.now())) #<DZLIU><DEBUG>#
                     # ++++++++++++++++++++++++++++++++++++++++++++++++++
 
