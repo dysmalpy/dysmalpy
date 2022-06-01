@@ -23,6 +23,15 @@ path = os.path.abspath(__file__)
 _dir_tests = os.path.dirname(path) + os.sep
 _dir_tests_data = _dir_tests+'test_data' + os.sep
 
+# ALT NOORDERMEER DIRECTORY:
+_dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
+                                 os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
+
+
+
+
+# MASSIVE RING DIRECTORIES:
+_dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', None)
 
 
 class HelperSetups(object):
@@ -335,21 +344,6 @@ class HelperSetups(object):
 
         return inst
 
-    def setup_3Dcube_kwargs(self):
-        param_filename = 'make_model_3Dcube.params'
-        param_filename_full=_dir_tests_data+param_filename
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
-
-        return kwargs_galmodel
-
 
 class TestModels:
     helper = HelperSetups()
@@ -372,8 +366,9 @@ class TestModels:
             # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(bary.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
-            assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
-            assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+            if _dir_deprojected_sersic_models is not None:
+                assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
+                assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
 
 
@@ -422,8 +417,9 @@ class TestModels:
             # Assert vcirc, menc, density, dlnrho_dlnr values are the same
             assert math.isclose(sersic.circular_velocity(r), vcirc[i], rel_tol=ftol)
             assert math.isclose(sersic.enclosed_mass(r), menc[i], rel_tol=ftol)
-            assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
-            assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+            if _dir_deprojected_sersic_models is not None:
+                assert math.isclose(sersic.rhogas(r), rho[i], rel_tol=ftol)
+                assert math.isclose(sersic.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
 
     def test_NFW(self):
@@ -464,45 +460,47 @@ class TestModels:
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
     def test_massive_gaussian_ring(self):
-        gausring = self.helper.setup_massive_gaussian_ring()
+        if _dir_gaussian_ring_tables is not None:
+            gausring = self.helper.setup_massive_gaussian_ring()
 
-        ftol = 1.e-9
-        rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
-        vcirc = np.array([0., np.NaN, np.NaN, 55.28490315178013,
-                          115.61430265260948, 116.36168966861332,
-                          97.409470113934, 83.55004344269108, 75.312359412538]) #km/s
-        menc = np.array([0.0, 39716658.10417131, 1187568328.9910522,
-                         4152924363.1541986, 7725273046.944063, 9558434405.20822,
-                         9960786376.52532, 9998475800.392485, 9999974666.918144]) # Msun
+            ftol = 1.e-9
+            rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
+            vcirc = np.array([0., np.NaN, np.NaN, 55.28490315178013,
+                              115.61430265260948, 116.36168966861332,
+                              97.409470113934, 83.55004344269108, 75.312359412538]) #km/s
+            menc = np.array([0.0, 39716658.10417131, 1187568328.9910522,
+                             4152924363.1541986, 7725273046.944063, 9558434405.20822,
+                             9960786376.52532, 9998475800.392485, 9999974666.918144]) # Msun
 
-        dlnrho_dlnr = np.array([0.0, 5.545177444479562, 3.5489135644669196,
-                                -0.0, -5.323370346700379, -12.42119747563422,
-                                -21.293481386801517, -31.940222080202275, -44.3614195558365])
-        rho = np.array([1825.1474473944347, 7475803.944527601, 76757123.1000771,
-                        119612863.11244161, 76757123.1000771, 20283415.964593038,
-                        2207217.3991932594, 98907.84290890688, 1825.1474473944347])  # msun/kpc^3 ??
+            dlnrho_dlnr = np.array([0.0, 5.545177444479562, 3.5489135644669196,
+                                    -0.0, -5.323370346700379, -12.42119747563422,
+                                    -21.293481386801517, -31.940222080202275, -44.3614195558365])
+            rho = np.array([1825.1474473944347, 7475803.944527601, 76757123.1000771,
+                            119612863.11244161, 76757123.1000771, 20283415.964593038,
+                            2207217.3991932594, 98907.84290890688, 1825.1474473944347])  # msun/kpc^3 ??
 
-        for i, r in enumerate(rarr):
-            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
-            if np.isfinite(vcirc[i]):
-                assert math.isclose(gausring.circular_velocity(r), vcirc[i], rel_tol=ftol)
-            else:
-                assert ~np.isfinite(gausring.circular_velocity(r))
-            assert math.isclose(gausring.enclosed_mass(r), menc[i], rel_tol=ftol)
-            assert math.isclose(gausring.rhogas(r), rho[i], rel_tol=ftol)
-            assert math.isclose(gausring.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+            for i, r in enumerate(rarr):
+                # Assert vcirc, menc, density, dlnrho_dlnr values are the same
+                if np.isfinite(vcirc[i]):
+                    assert math.isclose(gausring.circular_velocity(r), vcirc[i], rel_tol=ftol)
+                else:
+                    assert ~np.isfinite(gausring.circular_velocity(r))
+                assert math.isclose(gausring.enclosed_mass(r), menc[i], rel_tol=ftol)
+                assert math.isclose(gausring.rhogas(r), rho[i], rel_tol=ftol)
+                assert math.isclose(gausring.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_asymm_drift_pressuregradient(self):
-        gal = self.helper.setup_fullmodel(pressure_support_type=3)
+        if _dir_deprojected_sersic_models is not None:
+            gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
-        ftol = 1.e-9
-        rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.91717537419922, 258.9907912770804,
-                         259.0402880219702, 252.58915056627905]) # km/s
+            ftol = 1.e-9
+            rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
+            vrot = np.array([0.0, 248.91717537419922, 258.9907912770804,
+                             259.0402880219702, 252.58915056627905]) # km/s
 
-        for i, r in enumerate(rarr):
-            # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
+            for i, r in enumerate(rarr):
+                # Assert vrot values are the same
+                assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_asymm_drift_exactsersic(self):
@@ -569,10 +567,8 @@ class TestModels:
 
         ##################
         # Create cube:
-        #kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
-        #gal.create_model_data(**kwargs_galmodel)
         gal.create_model_data()
 
         # Get cube:
