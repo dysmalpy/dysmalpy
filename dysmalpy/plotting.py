@@ -4032,10 +4032,10 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
                 # try to prevent this by excluding too low data
 
                 # CLEAN DATA
-                data_cleaned = datacube.filled_data[:,:,:].value
+                data_cleaned = datacube.unmasked_data[:,:,:].value
 
                 if err is not None:
-                    dataerr = err_cube.filled_data[:,:,:].value
+                    dataerr = err_cube.unmasked_data[:,:,:].value
                     dataerr[dataerr==0.] = 99.
                     dataerr[dataerr==99.] = dataerr.min()
                 else:
@@ -4090,7 +4090,7 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
                 # print("Doing alt fit: astropy model!")
                 wgt_cube = np.array(datacube.mask._mask, dtype=np.int64)  # use mask as weights to get "weighted" solution
                 try:
-                    ecube = err_cube.unmasked_data[:].value
+                    ecube = err_cube.filled_data[:].value
                     ecube[ecube==99.] = ecube.min()
                     wgt_cube = 1./(ecube)
                 except:
@@ -4123,12 +4123,15 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
                             flux_arr = flux_arr[np.isfinite(flux_arr)]
 
 
-                        best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
-                        ########################
+                            best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
+                            ########################
 
-                        flux[i,j] = np.sqrt( 2. * np.pi) * best_fit.stddev.value * best_fit.amplitude
-                        vel[i,j] = best_fit.mean.value
-                        disp[i,j] = best_fit.stddev.value
+                            flux[i,j] = np.sqrt( 2. * np.pi) * best_fit.stddev.value * best_fit.amplitude
+                            vel[i,j] = best_fit.mean.value
+                            disp[i,j] = best_fit.stddev.value
+
+                        else:
+                            flux[i, j] = vel[i,j] = disp[i,j] = np.nan
 
             # NO ERROR:
             else:

@@ -60,19 +60,20 @@ def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ft
                 raise ValueError('{}, ndim={}, {}:{}'.format(fit_method,ndim,compn,paramn))
 
 
-def expected_output_files_base(galID, param_filename=None, fit_method=None):
+def expected_output_files_base(galID, param_filename=None, fit_method=None, ndim=None):
     fit_method = fit_method.lower().strip()
     list_files = ['{}_{}'.format(galID, param_filename),
                   '{}_{}.log'.format(galID, fit_method),
                   '{}_model.pickle'.format(galID),
                   '{}_{}_results.pickle'.format(galID, fit_method),
-                  '{}_{}_bestfit_OBS.pdf'.format(galID, fit_method),
                   '{}_{}_bestfit_results.dat'.format(galID, fit_method),
                   '{}_{}_bestfit_results_report.info'.format(galID, fit_method),
                   '{}_OBS_bestfit_cube.fits'.format(galID),
                   '{}_bestfit_menc.dat'.format(galID),
                   '{}_bestfit_vcirc.dat'.format(galID),
                   '{}_LINE_bestfit_velprofile.dat'.format(galID)]
+    if ndim < 3:
+        list_files.append('{}_{}_bestfit_OBS.pdf'.format(galID, fit_method))
 
     if fit_method == 'mpfit':
         pass
@@ -87,7 +88,7 @@ def expected_output_files_base(galID, param_filename=None, fit_method=None):
     return list_files
 
 def expected_output_files_1D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=1)
 
     list_files.append('{}_OBS_out-1dplots.txt'.format(galID))
     list_files.append('{}_OBS_out-1dplots_finer_sampling.txt'.format(galID))
@@ -98,18 +99,20 @@ def expected_output_files_1D(galID, param_filename=None, fit_method=None):
     return list_files
 
 def expected_output_files_2D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=2)
 
     list_files.append('{}_OBS_out-velmaps.fits'.format(galID))
     return list_files
 
 def expected_output_files_3D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=3)
 
     list_files.append('{}_OBS_out-cube.fits'.format(galID))
-    list_files.append('{}_OBS_apertures.pdf'.format(galID))
-    list_files.append('{}_OBS_channel.pdf'.format(galID))
-    list_files.append('{}_OBS_spaxels.pdf'.format(galID))
+    list_files.append('{}_{}_bestfit_OBS_apertures.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_channels.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_spaxels.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_extract_1D.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_extract_2D.pdf'.format(galID, fit_method))
 
     return list_files
 
@@ -207,7 +210,7 @@ class TestFittingWrappers:
         param_filename = 'fitting_3D_mpfit.params'
         params = read_params(param_filename=param_filename)
         outdir_full = _dir_tests_data+params['outdir']
-
+        #print("gauss_extract_with_c = {}",format(params['gauss_extract_with_c']))
         run_fit(param_filename=param_filename)
 
         # Make sure all files exist:
