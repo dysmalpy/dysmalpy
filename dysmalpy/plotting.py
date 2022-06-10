@@ -2248,6 +2248,198 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
 
 #############################################################
 
+def plot_channel_maps_cube_overlay(obs, model,
+                              vbounds = [-450., 450.], delv = 100.,
+                              vbounds_shift=True,
+                              cmap=cm.Greys, cmap_resid=cm.seismic,
+                              fileout=None, overwrite=False):
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+
+    vbounds = np.array(vbounds)
+    if vbounds_shift:
+        vbounds += model.geometries[obs.name].vel_shift.value
+
+    v_slice_lims_arr = np.arange(vbounds[0], vbounds[1]+delv, delv)
+
+
+    #################################################
+    # center slice: flux limits:
+    ind = int(np.round((len(v_slice_lims_arr)-2)/2.))
+    v_slice_lims = v_slice_lims_arr[ind:ind+2]
+    subcube = obs.data.data.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+    im = subcube.moment0().value * obs.data.mask
+    flux_lims = [im.min(), im.max()]
+    fac = 1.
+    immax = np.max(np.abs(im))
+    flux_lims_resid = [-fac*immax, fac*immax]
+    #################################################
+
+    f = plt.figure()
+    scale = 2. #3.
+
+    n_cols = int(np.ceil(np.sqrt(len(v_slice_lims_arr)-1)))
+    n_rows = int(np.ceil((len(v_slice_lims_arr)-1.)/(1.*n_cols)))
+
+
+    wspace_outer = 0.
+    wspace = hspace = padfac = 0.1
+    fac = 1.
+    f.set_size_inches(fac*scale*n_cols+(n_cols-1)*scale*padfac,scale*n_rows+(n_rows-1)*scale*padfac)
+
+    gs =  gridspec.GridSpec(n_rows,n_cols, wspace=wspace, hspace=hspace)
+
+
+    axes = []
+    for j in range(n_rows):
+        for i in range(n_cols):
+            axes.append(plt.subplot(gs[j,i]))
+
+
+    center = np.array([(obs.model_data.data.shape[2]-1.)/2., (obs.model_data.data.shape[1]-1.)/2.])
+    center[0] += model.geometries[obs.name].xshift.value
+    center[1] += model.geometries[obs.name].yshift.value
+
+    k = -1
+    for ii in range(n_rows):
+        for j in range(n_cols):
+            k += 1
+            v_slice_lims = v_slice_lims_arr[k:k+2]
+
+            ##
+            ax = axes[k]
+
+            flims = flux_lims
+            cmap_tmp = cmap
+            cube_dat = obs.data.data*obs.data.mask
+            cube_mod = obs.model_data.data*obs.model_data.mask
+            color_contours='red'
+
+            ax = plot_channel_slice_diff_contours(ax=ax,speccube=cube_dat,
+                        modcube=cube_mod, center=center,
+                        v_slice_lims=v_slice_lims, flux_lims=flims,
+                        cmap=cmap_tmp,  color_contours=color_contours)
+
+
+            # ###########################
+            # label_str = None
+            # if (k == 0):
+            #     label_str = "{}: {}".format(obs.name, typ.capitalize())
+            # if label_str is not None:
+            #     ax.set_title(label_str, fontsize=14)
+            ###########################
+
+    #############################################################
+    # Save to file:
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.draw()
+        plt.show()
+
+    return None
+
+def plot_channel_slice_diff_contours(ax=None, speccube=None, modcube=None,
+                      v_slice_lims=None, flux_lims=None,
+                      center=None, show_pix_coords=False, cmap=cm.Greys,
+                      color_contours='red', color_center='cyan'):
+
+    if ax is None:
+        ax = plt.gca()
+    if v_slice_lims is None:
+        v_slice_lims = [-50., 50.]
+
+    subcube = speccube.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+    modsubcube = modcube.spectral_slab(v_slice_lims[0]*u.km/u.s, v_slice_lims[1]*u.km/u.s)
+
+    im = subcube.moment0().value
+    immod = modsubcube.moment0().value
+
+    if center is None:
+        center = ((im.shape[1]-1.)/2., (im.shape[0]-1.)/2.)
+
+
+
+    int_mode = "nearest"
+    origin = 'lower'
+    if flux_lims is not None:
+        vmin = flux_lims[0]
+        vmax = flux_lims[1]
+    else:
+        vmin = None
+        vmax = None
+    imax = ax.imshow(im, cmap=cmap, interpolation=int_mode,
+                        vmin=vmin, vmax=vmax, origin=origin)
+
+
+
+    sigma_levels = [1.,2.,3.]
+    levels = 1.0 - np.exp(-0.5 * np.array(sigma_levels) ** 2)
+    lw_contour = 1.5
+    rgba_color = mplcolors.colorConverter.to_rgba(color_contours)
+    color_levels = [list(rgba_color) for l in levels]
+    lw_arr = []
+    for ii, l in enumerate(levels):
+        color_levels[ii][-1] *= float(ii+1) / (len(levels))
+        lw_arr.append(lw_contour * float(ii+1+len(levels)*0.5) / (len(levels)*1.5))
+    contour_kwargs = {'colors': color_levels, 'linewidths': lw_arr, 'linestyles': '-'}
+
+
+    #################################################
+    # Syntax taken from corner/core.py
+    imflat = immod.flatten()
+    imtmp = immod.copy()
+    inds = np.argsort(imflat)[::-1]
+    imflat = imflat[inds]
+    sm = np.cumsum(imflat)
+    sm /= sm[-1]
+    contour_levels = np.empty(len(levels))
+    for i, v0 in enumerate(levels):
+        try:
+            contour_levels[i] = imflat[sm<=v0][-1]
+        except:
+            contour_levels[i] = imflat[0]
+    contour_levels.sort()
+    m = np.diff(contour_levels) == 0
+    if np.any(m):
+        print("Too few points to create valid contours")
+    while np.any(m):
+        contour_levels[np.where(m)[0][0]] *= 1.0 - 1e-4
+        m = np.diff(contour_levels) == 0
+    contour_levels.sort()
+
+    ax.contour(imtmp, contour_levels, **contour_kwargs)
+
+    #################################################
+
+    ax.plot(center[0], center[1], '+', mew=1., ms=10., c=color_center)
+
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    ybase_offset = 0.035
+    x_base = xlim[0] + (xlim[1]-xlim[0])*0.075
+    y_base = ylim[0] + (ylim[1]-ylim[0])*(ybase_offset+0.075)
+    string = r'$[{:0.1f},{:0.1f}]$'.format(v_slice_lims[0], v_slice_lims[1])
+    ax.annotate(string, xy=(x_base, y_base),
+                xycoords="data",
+                xytext=(0,0),
+                color='black',
+                textcoords="offset points", ha="left", va="center",
+                fontsize=8)
+
+    if not show_pix_coords:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    return ax
 
 def plot_3D_data_automask_info(obs, mask_dict, axes=None):
     if axes is None:
@@ -4026,7 +4218,6 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
             if gauss_extract_with_c is not None and \
                 gauss_extract_with_c is not False:
 
-                print("Using gauss_extract_with_c !!!")
                 # we will use the C++ LeastChiSquares1D to run the 1d spectral fitting
                 # but note that if a spectrum has data all too close to zero, it will fail.
                 # try to prevent this by excluding too low data
@@ -4083,8 +4274,6 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
             alt_fit = True
 
         if alt_fit:
-            print("Using alt_fit: Apy mod fitter (w/ error) or scipy fitter (no error) !!!")
-
             # HAS ERROR:
             if err is not None:
                 # print("Doing alt fit: astropy model!")
