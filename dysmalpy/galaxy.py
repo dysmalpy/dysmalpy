@@ -127,7 +127,14 @@ class Galaxy:
                     inst.__dict__[key] = data.__dict__[key]
 
             if 'apertures' in data.__dict__.keys():
-                inst.moment = data.apertures.apertures[0].moment
+                if data.apertures is not None:
+                    inst.moment = data.apertures.apertures[0].moment
+                else:
+                    inst.apertures = None
+                    if 'moment' in data.__dict__.keys():
+                        inst.moment = data.moment
+                    else:
+                        inst.moment = False
             else:
                 inst.apertures = None
                 if 'moment' in data.__dict__.keys():
