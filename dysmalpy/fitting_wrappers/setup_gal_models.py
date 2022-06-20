@@ -1921,7 +1921,6 @@ def setup_instrument_params(obs_ind, inst=None, data=None, obs=None, params=None
     inst.ndim = ndim
 
     if obs_ind == 0:
-        inst = _setup_instrument_with_suffix("", data=data, inst=inst, obs=obs, params=params)
         try:
             inst = _setup_instrument_with_suffix("", data=data, inst=inst, obs=obs, params=params)
         except:

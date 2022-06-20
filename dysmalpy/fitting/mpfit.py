@@ -129,7 +129,7 @@ class MPFITFitter(base.Fitter):
 
         if ('halo' in gal.model.components.keys()):
             logger.info('    mvirial_tied: {}'.format(gal.model.components['halo'].mvirial.tied))
-            logger.info('    fdm_tied: {}'.format(gal.model.components['halo'].fdm.tied))
+            #logger.info('    fdm_tied: {}'.format(gal.model.components['halo'].fdm.tied))
         if 'disk+bulge' in gal.model.components.keys():
             if 'mhalo_relation' in gal.model.components['disk+bulge'].__dict__.keys():
                 logger.info('mhalo_relation: {}'.format(gal.model.components['disk+bulge'].mhalo_relation))

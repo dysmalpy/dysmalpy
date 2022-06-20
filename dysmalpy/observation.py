@@ -319,10 +319,10 @@ class Observation:
         if this_lensing_transformer is not None:
             logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
             if this_lensing_transformer.source_plane_data_cube is None:
-                this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=(logger.level in [logging.DEBUG]))
+                this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
             else:
-                this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=(logger.level in [logging.DEBUG]))
-            sim_cube = this_lensing_transformer.performLensingTransformation(verbose=(logger.level in [logging.DEBUG]))
+                this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
+            sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
             sim_cube[np.isnan(sim_cube)] = 0.0
             # mask by data mask if available
             if self.data is not None:
@@ -732,7 +732,7 @@ class ObsLensingOptions:
                 lensing_kwargs[keyname] = lensing_kwargs[keyname] / oversample
         lensing_kwargs['cache_lensing_transformer'] = True
         lensing_kwargs['reuse_cached_lensing_transformer'] = True
-        lensing_kwargs['verbose'] = (logger.level == logging.DEBUG)
+        lensing_kwargs['verbose'] = False # (logger.level == logging.DEBUG)
         return lensing_kwargs
 
 
