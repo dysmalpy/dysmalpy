@@ -14,15 +14,20 @@ import shutil
 import time
 from collections import OrderedDict
 
-import astropy.io as fits
+from astropy.io import fits
 import astropy.units as u
 from spectral_cube import SpectralCube
+
+import logging
+logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.DEBUG)
 
 from dysmalpy import fitting
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 from dysmalpy import lensing
 from dysmalpy.lensing import has_lensing_transform_keys_in_params
 from dysmalpy.lensing import setup_lensing_transformer_from_params
+from dysmalpy.lensing import get_cached_lensing_transformer
 from dysmalpy.lensing import LensingTransformer
 
 
@@ -105,7 +110,8 @@ class TestLensing():
         if self.params['datadir'] is None:
             self.params['datadir'] = _dir_tests_data
 
-        gal, fit_dict = fw_utils_io.setup_single_object_3D(params=self.params)
+        #gal, fit_dict = fw_utils_io.setup_single_object_3D(params=self.params)
+        gal, output_options = fw_utils_io.setup_single_galaxy(params=self.params)
 
         print('gal', gal)
         assert gal is not None
@@ -359,113 +365,41 @@ class TestLensing():
         self.test_read_params()
         self.test_read_data()
 
-        kwargs = self.params
-        nspec = kwargs['nspec']
-        nx_sky = kwargs['fov_npix']
-        ny_sky = kwargs['fov_npix']
-        rstep = kwargs['pixscale']
-        oversample = kwargs['oversample']
-        oversize = kwargs['oversize']
+        #obs = self.gal.observations.items()[0]
+        #obs.create_single_obs_model_data()
+        self.gal.create_model_data() # this calls obs.create_single_obs_model_data()
+        
+        # obs.create_single_obs_model_data() calls 
 
-        # below are from galaxy.py
-        this_lensing_transformer = None
-
-        if 'lensing_transformer' in kwargs:
-            if self.params['lensing_transformer'] is not None:
-                this_lensing_transformer = kwargs['lensing_transformer']['0']
-
-        this_lensing_transformer = setup_lensing_transformer_from_params(\
-                params = kwargs,
-                source_plane_nchan = nspec,
-                image_plane_sizex = nx_sky * oversample * oversize,
-                image_plane_sizey = ny_sky * oversample * oversize,
-                image_plane_pixsc = rstep / oversample,
-                reuse_lensing_transformer = this_lensing_transformer,
-                cache_lensing_transformer = True,
-                reuse_cached_lensing_transformer = True,
-                verbose = True,
-            )
-
-        assert this_lensing_transformer is not None
-
-        spec_type = kwargs['spec_type']
-        spec_step = kwargs['spec_step']
-        spec_start = kwargs['spec_start']
-        spec_unit = u.km/u.s
-        transform_method = 'direct'
-        zcalc_truncate = True
-        n_wholepix_z_min = 3
-
-        sim_cube, spec = self.gal.model.simulate_cube(nx_sky=this_lensing_transformer.source_plane_nx,
-                                                      ny_sky=this_lensing_transformer.source_plane_ny,
-                                                      dscale=self.gal.dscale,
-                                                      rstep=this_lensing_transformer.source_plane_pixsc,
-                                                      spec_type=spec_type,
-                                                      spec_step=spec_step,
-                                                      nspec=nspec,
-                                                      spec_start=spec_start,
-                                                      spec_unit=spec_unit,
-                                                      oversample=1,
-                                                      oversize=1,
-                                                      xcenter=None,
-                                                      ycenter=None,
-                                                      transform_method=transform_method,
-                                                      zcalc_truncate=zcalc_truncate,
-                                                      n_wholepix_z_min=n_wholepix_z_min)
-
-        print('Applying lensing transformation '+str(datetime.datetime.now()))
-        this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=True)
-        time.sleep(0.1)
-        this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=True)
-        sim_cube = this_lensing_transformer.performLensingTransformation(verbose=True)
-
-        assert this_lensing_transformer.source_plane_data_cube is not None
-        assert this_lensing_transformer.source_plane_data_info is not None
-        assert this_lensing_transformer.image_plane_data_cube is not None
-        assert this_lensing_transformer.image_plane_data_info is not None
-
-        sim_cube[np.isnan(sim_cube)] = 0.0
-
-        # store back
-        if 'lensing_transformer' in kwargs:
-            if kwargs['lensing_transformer'] is None:
-                kwargs['lensing_transformer'] = {'0': None}
-            kwargs['lensing_transformer']['0'] = this_lensing_transformer
-
-        # mask by data mask if available
-        if self.gal.data is not None:
-            if hasattr(self.gal.data, 'mask'):
-                if hasattr(self.gal.data.mask, 'shape'):
-                    this_lensing_mask = None
-                    if len(self.gal.data.mask.shape) == 2:
-                        this_lensing_mask = self.gal.data.mask.astype(bool)
-                        this_lensing_mask = np.repeat(this_lensing_mask[np.newaxis, :, :], nspec, axis=0)
-                    elif len(self.gal.data.mask.shape) == 3:
-                        this_lensing_mask = self.gal.data.mask.astype(bool)
-                    if this_lensing_mask is not None:
-                        if this_lensing_mask.shape == sim_cube.shape:
-                            sim_cube[~this_lensing_mask] = 0.0
-        # oversample oversize
-        print('Applied lensing transformation '+str(datetime.datetime.now()))
-
-        assert sim_cube is not None
+        logger.debug('self.gal.observations: {}'.format(self.gal.observations))
+        obs0key = list(self.gal.observations.keys())[0]
+        obs0 = self.gal.observations[obs0key]
+        logger.debug('obs0.name: {}'.format(obs0.name))
+        assert obs0.model_data is not None
+        
+        logger.debug('type(obs0.model_data): {}'.format(type(obs0.model_data)))
+        fits.PrimaryHDU(data=obs0.model_data.data).writeto('obs0.model_data.fits', overwrite=True)
+        
+        this_lensing_transformer = get_cached_lensing_transformer()
+        fits.PrimaryHDU(data=this_lensing_transformer.image_plane_data_cube).writeto('obs0.image_plane_data_cube.fits', overwrite=True)
+        fits.PrimaryHDU(data=this_lensing_transformer.source_plane_data_cube).writeto('obs0.source_plane_data_cube.fits', overwrite=True)
 
 
-    def test_lensing_transformation_in_a_wrong_way(self):
-        self.test_read_params()
-        self.test_read_data()
+    # def test_lensing_transformation_in_a_wrong_way(self):
+    #     self.test_read_params()
+    #     self.test_read_data()
 
-        kwargs = self.params
+    #     kwargs = self.params
 
-        this_lensing_transformer = setup_lensing_transformer_from_params(\
-                params = kwargs,
-            )
+    #     this_lensing_transformer = setup_lensing_transformer_from_params(\
+    #             params = kwargs,
+    #         )
 
-        assert this_lensing_transformer is not None
+    #     assert this_lensing_transformer is not None
 
-        this_lensing_transformer.image_plane_cenx = (kwargs['fov_npix'] + 1.0) / 2.0
-        this_lensing_transformer.image_plane_ceny = (kwargs['fov_npix'] + 1.0) / 2.0
-        this_lensing_transformer.performLensingTransformation()
+    #     this_lensing_transformer.image_plane_cenx = (kwargs['fov_npix'] + 1.0) / 2.0
+    #     this_lensing_transformer.image_plane_ceny = (kwargs['fov_npix'] + 1.0) / 2.0
+    #     this_lensing_transformer.performLensingTransformation()
 
 
 
@@ -475,6 +409,6 @@ if __name__ == '__main__':
 
     TestLensing().test_lensing_transformation()
 
-    TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
+    #TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
 
     print('All done!')
