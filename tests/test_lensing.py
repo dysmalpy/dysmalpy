@@ -16,7 +16,7 @@ from collections import OrderedDict
 
 from astropy.io import fits
 import astropy.units as u
-from spectral_cube import SpectralCube
+#from spectral_cube import SpectralCube
 
 import logging
 logger = logging.getLogger('DysmalPy')
@@ -99,8 +99,10 @@ class TestLensing():
         self.test_read_params()
 
         # load data cube
-        self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits.gz'))
-        self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits.gz'))
+        #self.data_cube = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_cube.fits.gz'))
+        #self.data_mask = SpectralCube.read(os.path.join(_dir_tests_data, 'fdata_mask3D.fits.gz'))
+        self.data_cube = fits.getdata(os.path.join(_dir_tests_data, 'fdata_cube.fits.gz'), header=False)
+        self.data_mask = fits.getdata(os.path.join(_dir_tests_data, 'fdata_mask3D.fits.gz'), header=False)
 
         print('self.data_cube', self.data_cube)
         print('self.data_mask', self.data_mask)
@@ -406,8 +408,10 @@ class TestLensing():
 # pragma: no cover
 
 if __name__ == '__main__':
+    
+    TestLensing().test_read_data()
 
-    TestLensing().test_lensing_transformation()
+    #TestLensing().test_lensing_transformation()
 
     #TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
 
