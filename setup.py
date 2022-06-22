@@ -63,6 +63,23 @@ setup_args = {'name': 'dysmalpy',
         'version': __version__ }
 
 
+# Add CONDA include and lib paths if necessary
+conda_include_path = "."
+conda_lib_path = "."
+if 'CONDA_PREFIX' in os.environ:
+    conda_include_path = os.path.join(os.getenv('CONDA_PREFIX'), 'include')
+    conda_lib_path = os.path.join(os.getenv('CONDA_PREFIX'), 'lib')
+    log.debug('conda_include_path: {!r}'.format(conda_include_path))
+    log.debug('conda_lib_path: {!r}'.format(conda_lib_path))
+
+
+# Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
+import distutils.sysconfig
+cfg_vars = distutils.sysconfig.get_config_vars()
+for key, value in cfg_vars.items():
+    if type(value) == str:
+        cfg_vars[key] = value.replace("-Wstrict-prototypes", "")
+
 
 ext_modules = cythonize(["dysmalpy/models/cutils.pyx"])
 ext_modules_optional = cythonize([
@@ -70,18 +87,18 @@ ext_modules_optional = cythonize([
                 Extension("dysmalpy.lensingTransformer",
                     sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                     language="c++",
-                    include_dirs=["lensing_transformer", "/usr/include", "/usr/local/include", "/opt/local/include"],
+                    include_dirs=[conda_include_path, "lensing_transformer", "/usr/include", "/usr/local/include", "/opt/local/include"],
                     libraries=['gsl', 'gslcblas', 'cfitsio'],
-                    library_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
                 ),
                 Extension("dysmalpy.leastChiSquares1D",
                     sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
                     language="c++",
-                    include_dirs=["utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include", "/opt/local/include"],
+                    include_dirs=[conda_include_path, "utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include", "/opt/local/include"],
                     libraries=['gsl', 'gslcblas', 'pthread'],
-                    library_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
                     depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
@@ -96,7 +113,7 @@ try:
     log.info("Installation with optional modules successful!")
 
 except:
-    log.warn("The optional modules could not be compiled")
+    log.warning("The optional modules could not be compiled")
 
     # If this new 'setup' call don't fail, the module
     # will be successfully installed, without the optional modules:

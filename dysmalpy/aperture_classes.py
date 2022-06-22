@@ -558,6 +558,8 @@ class SinglePixelPVApertures(Apertures):
         self.slit_PA = slit_PA
         self.pixscale = pixscale
         self.rarr = rarr
+        
+        super(SinglePixelPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
@@ -603,6 +605,8 @@ class CircularPVApertures(Apertures):
         self.rarr = rarr
         
         #<TODO><20220618># no self.apertures??
+        
+        super(CircularPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
