@@ -702,7 +702,7 @@ def _set_instrument_kernels(gal):
         obs = gal.observations[obs_name]
         if obs.instrument._beam_kernel is None:
             obs.instrument.set_beam_kernel()
-        if obs.instrument._lsf_kernel is None:
+        if obs.instrument._lsf_kernel is None and obs.instrument.lsf is not None:
             obs.instrument.set_lsf_kernel(spec_center=obs.instrument.line_center)
 
     return gal

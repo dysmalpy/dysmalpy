@@ -1203,8 +1203,10 @@ def plot_aperture_compare_3D_cubes(obs, model, datacube=None, errcube=None,
         center_pixel = (obs.mod_options.xcenter + model.geometries[obs.name].xshift.value,
                         obs.mod_options.ycenter + model.geometries[obs.name].yshift.value)
     except:
-        center_pixel = (int(nx / 2.) + model.geometries[obs.name].geometry.xshift,
-                        int(ny / 2.) + model.geometries[obs.name].yshift)
+        #center_pixel = (int(nx / 2.) + model.geometries[obs.name].geometry.xshift,
+        #                int(ny / 2.) + model.geometries[obs.name].yshift)
+        center_pixel = (int(nx / 2.) + model.geometries[obs.name].xshift.value,
+                        int(ny / 2.) + model.geometries[obs.name].yshift.value)
 
 
     aper_centers_arcsec = aper_centers_arcsec_from_cube(datacube, obs, model,

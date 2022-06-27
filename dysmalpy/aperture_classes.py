@@ -13,6 +13,7 @@ import logging
 # Third party imports
 import numpy as np
 import scipy.interpolate as scp_interp
+import scipy.ndimage as scp_ndi
 
 from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq, gaus_fit_apy_mod_fitter
 
@@ -536,7 +537,7 @@ class SquareApertures(RectApertures):
                 moment=moment)
 
 
-def SinglePixelPVApertures(Apertures):
+class SinglePixelPVApertures(Apertures):
     """
     Wrapper around the original IDL DYSMAL "single pixel PV" extraction
     calculations.
@@ -557,6 +558,8 @@ def SinglePixelPVApertures(Apertures):
         self.slit_PA = slit_PA
         self.pixscale = pixscale
         self.rarr = rarr
+        
+        super(SinglePixelPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
@@ -566,7 +569,7 @@ def SinglePixelPVApertures(Apertures):
         """
 
         r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube,
-                        self.slit_width,self.slit_pa-180.,
+                        self.slit_width,self.slit_PA-180.,
                         self.pixscale, spec_arr)
         vinterp = scp_interp.interp1d(r1d, vel1d, fill_value='extrapolate')
         disp_interp = scp_interp.interp1d(r1d, disp1d, fill_value='extrapolate')
@@ -575,9 +578,10 @@ def SinglePixelPVApertures(Apertures):
         flux_interp = scp_interp.interp1d(r1d, flux1d, fill_value='extrapolate')
         flux1d = flux_interp(self.rarr)
 
-        return self.aper_centers, flux1d, vel1d, disp1d
+        #return self.aper_centers, flux1d, vel1d, disp1d
+        return self.rarr, flux1d, vel1d, disp1d
 
-def CircularPVApertures(Apertures):
+class CircularPVApertures(Apertures):
     """
     Wrapper around the original IDL DYSMAL "circular aperture PV" extraction
     calculations.
@@ -599,6 +603,10 @@ def CircularPVApertures(Apertures):
         self.slit_PA = slit_PA
         self.pixscale = pixscale
         self.rarr = rarr
+        
+        #<TODO><20220618># no self.apertures??
+        
+        super(CircularPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
@@ -608,7 +616,7 @@ def CircularPVApertures(Apertures):
         """
 
         r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube,
-                        self.slit_width,self.slit_pa-180.,
+                        self.slit_width,self.slit_PA-180.,
                         self.pixscale, spec_arr)
         vinterp = scp_interp.interp1d(r1d, vel1d, fill_value='extrapolate')
         disp_interp = scp_interp.interp1d(r1d, disp1d, fill_value='extrapolate')
@@ -617,7 +625,8 @@ def CircularPVApertures(Apertures):
         flux_interp = scp_interp.interp1d(r1d, flux1d, fill_value='extrapolate')
         flux1d = flux_interp(self.rarr)
 
-        return self.aper_centers, flux1d, vel1d, disp1d
+        #return self.aper_centers, flux1d, vel1d, disp1d
+        return self.rarr, flux1d, vel1d, disp1d
 
 
 

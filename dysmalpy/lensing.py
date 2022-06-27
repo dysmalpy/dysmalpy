@@ -7,6 +7,7 @@
         2021-08-03, finished first version, Daizhong Liu, MPE.
         2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
         2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
+		2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 """
 
 import os, sys, datetime, timeit
@@ -17,6 +18,7 @@ if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
 import ctypes
 from ctypes import cdll, c_void_p, c_char_p, c_double, c_long, c_int, POINTER
 import numpy as np
+import multiprocessing, threading
 from distutils.sysconfig import get_config_var
 
 mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX')
@@ -158,6 +160,10 @@ class LensingTransformer(object):
         self.logMessage('mylibfile %r'%(mylibfile))
         self.logMessage('mylib %s'%(mylib))
 
+    def setDebugLevel(self, level=1):
+        if self.myobj is not None and self.mylib is not None:
+            self.mylib.setLensingTransformerDebugLevel(self.myobj, level)
+
     def setSourcePlaneDataCube(
             self,
             source_plane_data_cube,
@@ -207,7 +213,7 @@ class LensingTransformer(object):
         else:
             ceny = float(source_plane_ceny)
         self.source_plane_data_info = {'NAXIS':3, 'NAXIS1':nx, 'NAXIS2':ny, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0,
-                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'',
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT3':'',
                 'CRPIX1':cenx, 'CRPIX2':ceny, 'CRPIX3':1.0, 'CRVAL1':cenra, 'CRVAL2':cendec, 'CRVAL3':1.0,
                 'CDELT1':-pixsc/3600.0, 'CDELT2':pixsc/3600.0, 'CDELT3':1.0,
             }
@@ -341,6 +347,9 @@ class LensingTransformer(object):
         #                                              image_plane_ra, image_plane_dec, image_plane_pixelsize,
         #                                              image_plane_sizex, image_plane_sizey,
         #                                              image_plane_cenx=nan, image_plane_ceny=nan, verbose=1
+        if verbose and logger.level == logging.DEBUG:
+            self.setDebugLevel(2) #DBEUGGING# 20211221
+            mylib.setGlobalDebugLevel(2)
         mylib.performLensingTransformation.argtypes = [c_void_p,
                                                        c_double, c_double, c_double,
                                                        c_long, c_long,
@@ -356,7 +365,7 @@ class LensingTransformer(object):
 
         self.image_plane_data_cube = outdata
         self.image_plane_data_info = {'NAXIS':3, 'NAXIS1':imsizex, 'NAXIS2':imsizey, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0,
-                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'',
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT3':'',
                 'CRPIX1':imcenx, 'CRPIX2':imceny, 'CRPIX3':1.0, 'CRVAL1':imcenra, 'CRVAL2':imcendec, 'CRVAL3':1.0,
                 'CDELT1':-impixsc/3600.0, 'CDELT2':impixsc/3600.0, 'CDELT3':1.0,
             }
@@ -371,8 +380,21 @@ class LensingTransformer(object):
 
 
 
+def has_lensing_transform_keys_in_params(
+        params,
+    ):
+    """Check if the input dict has lensing* keys
+    """
+    for key in params:
+        if key.startswith('lensing'):
+            return True
+    return False # pragma: no cover
+
+
+
 def setup_lensing_transformer_from_params(
-        lensing_options = None,
+        params = None,
+		mesh_dir = None, 
         mesh_file = None,
         mesh_ra = None,
         mesh_dec = None,
@@ -391,11 +413,11 @@ def setup_lensing_transformer_from_params(
         cache_lensing_transformer = True,
         reuse_cached_lensing_transformer = True,
         verbose = True,
+        **kwargs,
     ):
-    """
-    A utility function to return a LensingTransformer instance from the input parameters.
+    """A utility function to return a LensingTransformer instance from the input parameters.
 
-    One can either provide an ObsLensingOptions instance with following attributes:
+    One can either provide a params dict with following madatory keys:
         - 'lensing_ra'
         - 'lensing_dec'
         - 'lensing_ssizex'
@@ -410,104 +432,132 @@ def setup_lensing_transformer_from_params(
         - 'nspec'
     or individual parameters as arguments.
 
-    Note that the individual parameter inputs overrides the use of the keys
-    in the ObsLensingOptions instance.
+    Note that the individual parameter inputs overrides the use of the keys in the params dict.
 
     If one inputs a `reuse_lensing_transformer`, then we will assume it is a LensingTransformer
     object and try to reuse it if all parameters are matched.
 
     """
 
-    if lensing_options is not None:
-        if mesh_file is None:
-            mesh_file = lensing_options.lensing_mesh
-        if mesh_ra is None:
-            mesh_ra = lensing_options.lensing_ra
-        if mesh_dec is None:
-            mesh_dec = lensing_options.lensing_dec
-        if source_plane_nx is None:
-            source_plane_nx = lensing_options.lensing_ssizex
-        if source_plane_ny is None:
-            source_plane_ny = lensing_options.lensing_ssizey
-        if source_plane_nchan is None:
-            source_plane_nchan = lensing_options.nspec
-        if source_plane_cenra is None:
-            source_plane_cenra = lensing_options.lensing_sra
-        if source_plane_cendec is None:
-            source_plane_cendec = lensing_options.lensing_sdec
-        if source_plane_pixsc is None:
-            source_plane_pixsc = lensing_options.lensing_spixsc
-        if image_plane_cenra is None:
-            image_plane_cenra = lensing_options.lensing_imra
-        if image_plane_cendec is None:
-            image_plane_cendec = lensing_options.lensing_imdec
-        if image_plane_pixsc is None:
-            image_plane_pixsc = lensing_options.image_plane_pixsc
-        if image_plane_sizex is None:
-            if 'nx_sky' in lensing_options.__dict__.keys():
-                image_plane_sizex = lensing_options.nx_sky
-            elif 'fov_npix' in lensing_options.__dict__.keys():
-                image_plane_sizex = lensing_options.fov_npix
-        if image_plane_sizey is None:
-            if 'ny_sky' in lensing_options.__dict__.keys():
-                image_plane_sizey = lensing_options.ny_sky
-            elif 'fov_npix' in lensing_options.__dict__.keys():
-                image_plane_sizey = lensing_options.fov_npix
-
+    if mesh_dir is None:
+        if params is not None:
+            if 'lensing_datadir' in params:
+                mesh_dir = params['lensing_datadir']
+            elif 'datadir' in params:
+                mesh_dir = params['datadir']
+    if mesh_file is None:
+        if params is not None:
+            if 'lensing_mesh' in params:
+                mesh_file = params['lensing_mesh']
+    if mesh_ra is None:
+        if params is not None:
+            if 'lensing_ra' in params:
+                mesh_ra = params['lensing_ra']
+    if mesh_dec is None:
+        if params is not None:
+            if 'lensing_dec' in params:
+                mesh_dec = params['lensing_dec']
+    if source_plane_nx is None:
+        if params is not None:
+            if 'lensing_ssizex' in params:
+                source_plane_nx = params['lensing_ssizex']
+    if source_plane_ny is None:
+        if params is not None:
+            if 'lensing_ssizey' in params:
+                source_plane_ny = params['lensing_ssizey']
+    if source_plane_nchan is None:
+        if params is not None:
+            if 'nspec' in params:
+                source_plane_nchan = params['nspec']
+    if source_plane_cenra is None:
+        if params is not None:
+            if 'lensing_sra' in params:
+                source_plane_cenra = params['lensing_sra']
+    if source_plane_cendec is None:
+        if params is not None:
+            if 'lensing_sdec' in params:
+                source_plane_cendec = params['lensing_sdec']
+    if source_plane_pixsc is None:
+        if params is not None:
+            if 'lensing_spixsc' in params:
+                source_plane_pixsc = params['lensing_spixsc']
+    if image_plane_cenra is None:
+        if params is not None:
+            if 'lensing_imra' in params:
+                image_plane_cenra = params['lensing_imra']
+    if image_plane_cendec is None:
+        if params is not None:
+            if 'lensing_imdec' in params:
+                image_plane_cendec = params['lensing_imdec']
+    if image_plane_pixsc is None:
+        if params is not None:
+            if 'pixscale' in params:
+                image_plane_pixsc = params['pixscale']
+    if image_plane_sizex is None:
+        if params is not None:
+            if 'nx_sky' in params:
+                image_plane_sizex = params['nx_sky']
+            elif 'fov_npix' in params:
+                image_plane_sizex = params['fov_npix']
+    if image_plane_sizey is None:
+        if params is not None:
+            if 'ny_sky' in params:
+                image_plane_sizey = params['ny_sky']
+            elif 'fov_npix' in params:
+                image_plane_sizey = params['fov_npix']
 
     # return None if everything is None
-    # this means that the input ObsLensingOptions instance does not contain a lensing model
-    if lensing_options is None and \
+    # this means that the input params dict does not contain a lensing model
+    if params is not None and \
         mesh_file is None and \
         mesh_ra is None and \
         mesh_dec is None: # pragma: no cover
         return None
 
-    # check error if the input ObsLensingOptions instance / kwargs
-    #     do not contain all mandatory lensing transformation keys
+    # check error if the input params dict does not contain all mandatory lensing transformation keys
     has_error = False
     if mesh_file is None:
         has_error = True
-        logger.error('Error! The input mesh_file is invalid or key \'lensing_mesh\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input mesh_file is invalid or key \'lensing_mesh\' is not in the input params dict!')
     if mesh_ra is None:
         has_error = True
-        logger.error('Error! The input mesh_ra is invalid or key \'lensing_ra\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input mesh_ra is invalid or key \'lensing_ra\' is not in the input params dict!')
     if mesh_dec is None:
         has_error = True
-        logger.error('Error! The input mesh_dec is invalid or key \'lensing_dec\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input mesh_dec is invalid or key \'lensing_dec\' is not in the input params dict!')
     if source_plane_nx is None:
         has_error = True
-        logger.error('Error! The input source_plane_nx is invalid or key \'lensing_ssizex\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_nx is invalid or key \'lensing_ssizex\' is not in the input params dict!')
     if source_plane_ny is None:
         has_error = True
-        logger.error('Error! The input source_plane_ny is invalid or key \'lensing_ssizey\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_ny is invalid or key \'lensing_ssizey\' is not in the input params dict!')
     if source_plane_nchan is None:
         has_error = True
-        logger.error('Error! The input source_plane_nchan is invalid or key \'nspec\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_nchan is invalid or key \'nspec\' is not in the input params dict!')
     if source_plane_cenra is None:
         has_error = True
-        logger.error('Error! The input source_plane_cenra is invalid or key \'lensing_sra\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_cenra is invalid or key \'lensing_sra\' is not in the input params dict!')
     if source_plane_cendec is None:
         has_error = True
-        logger.error('Error! The input source_plane_cendec is invalid or key \'lensing_sdec\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_cendec is invalid or key \'lensing_sdec\' is not in the input params dict!')
     if source_plane_pixsc is None:
         has_error = True
-        logger.error('Error! The input source_plane_pixsc is invalid or key \'lensing_spixsc\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input source_plane_pixsc is invalid or key \'lensing_spixsc\' is not in the input params dict!')
     if image_plane_cenra is None:
         has_error = True
-        logger.error('Error! The input image_plane_cenra is invalid or key \'lensing_imra\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input image_plane_cenra is invalid or key \'lensing_imra\' is not in the input params dict!')
     if image_plane_cendec is None:
         has_error = True
-        logger.error('Error! The input image_plane_cendec is invalid or key \'lensing_imdec\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input image_plane_cendec is invalid or key \'lensing_imdec\' is not in the input params dict!')
     if image_plane_pixsc is None:
         has_error = True
-        logger.error('Error! The input image_plane_pixsc is invalid or key \'pixscale\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input image_plane_pixsc is invalid or key \'pixscale\' is not in the input params dict!')
     if image_plane_sizex is None:
         has_error = True
-        logger.error('Error! The input image_plane_sizex is invalid or key \'fov_npix\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input image_plane_sizex is invalid or key \'fov_npix\' is not in the input params dict!')
     if image_plane_sizey is None:
         has_error = True
-        logger.error('Error! The input image_plane_sizey is invalid or key \'fov_npix\' is not in the input ObsLensingOptions instance!')
+        logger.error('Error! The input image_plane_sizey is invalid or key \'fov_npix\' is not in the input params dict!')
 
     # raise exception for the error
     if has_error:
@@ -515,9 +565,9 @@ def setup_lensing_transformer_from_params(
         # return None
 
     # prepend lensing_datadir path to the mesh file
-    if lensing_options.lensing_datadir is not None:
-        mesh_file = os.path.join(lensing_options.lensing_datadir, mesh_file)
-
+    if mesh_dir is not None and mesh_dir != '':
+        mesh_file = os.path.join(mesh_dir, mesh_file)
+	
     # unzip
     if mesh_file.endswith('.gz'):
         import gzip
@@ -592,7 +642,9 @@ def setup_lensing_transformer_from_params(
         #
         if reuse_check_ok:
             if verbose or (logger.level == logging.DEBUG):
-                logMessage('reusing lensing transformer '+str(hex(id(reuse_lensing_transformer))))
+                logMessage('reusing lensing transformer '+str(hex(id(reuse_lensing_transformer)))+
+                           ' in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                          )
             return reuse_lensing_transformer
         else:
             del reuse_lensing_transformer
@@ -606,23 +658,23 @@ def setup_lensing_transformer_from_params(
         #   this is the first time creating this object and the cache is empty
         #   debug mode
         #   or verbose
-        logMessage('creating lensing transformer with:\n'+\
-                '    mesh_file = %r, \n'%(mesh_file)+\
-                '    mesh_ra = %s, \n'%(mesh_ra)+\
-                '    mesh_dec = %s, \n'%(mesh_dec)+\
-                '    source_plane_nx = %s, \n'%(source_plane_nx)+\
-                '    source_plane_ny = %s, \n'%(source_plane_ny)+\
-                '    source_plane_nchan = %s, \n'%(source_plane_nchan)+\
-                '    source_plane_cenra = %s, \n'%(source_plane_cenra)+\
-                '    source_plane_cendec = %s, \n'%(source_plane_cendec)+\
-                '    source_plane_pixsc = %s, \n'%(source_plane_pixsc)+\
-                '    image_plane_cenra = %s, \n'%(image_plane_cenra)+\
-                '    image_plane_cendec = %s, \n'%(image_plane_cendec)+\
-                '    image_plane_pixsc = %s, \n'%(image_plane_pixsc)+\
-                '    image_plane_sizex = %s, \n'%(image_plane_sizex)+\
-                '    image_plane_sizey = %s'%(image_plane_sizey)+\
-                '\n'
-            )
+        logMessage('creating lensing transformer with:\n'+
+                   '    mesh_file = %r, \n'%(mesh_file)+
+                   '    mesh_ra = %s, \n'%(mesh_ra)+
+                   '    mesh_dec = %s, \n'%(mesh_dec)+
+                   '    source_plane_nx = %s, \n'%(source_plane_nx)+
+                   '    source_plane_ny = %s, \n'%(source_plane_ny)+
+                   '    source_plane_nchan = %s, \n'%(source_plane_nchan)+
+                   '    source_plane_cenra = %s, \n'%(source_plane_cenra)+
+                   '    source_plane_cendec = %s, \n'%(source_plane_cendec)+
+                   '    source_plane_pixsc = %s, \n'%(source_plane_pixsc)+
+                   '    image_plane_cenra = %s, \n'%(image_plane_cenra)+
+                   '    image_plane_cendec = %s, \n'%(image_plane_cendec)+
+                   '    image_plane_pixsc = %s, \n'%(image_plane_pixsc)+
+                   '    image_plane_sizex = %s, \n'%(image_plane_sizex)+
+                   '    image_plane_sizey = %s\n'%(image_plane_sizey)+
+                   '  in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                  )
     lensing_transformer = LensingTransformer(\
             mesh_file = mesh_file,
             mesh_ra = mesh_ra,
@@ -641,7 +693,9 @@ def setup_lensing_transformer_from_params(
             verbose = verbose,
         )
     if verbose:
-        logMessage('created lensing transformer '+str(hex(id(lensing_transformer))))
+        logMessage('created lensing transformer '+str(hex(id(lensing_transformer)))+
+                   ' in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                  )
 
     # global cached_lensing_transformer_dict
     if cache_lensing_transformer:
@@ -651,3 +705,11 @@ def setup_lensing_transformer_from_params(
 
     # return
     return lensing_transformer
+
+
+def get_cached_lensing_transformer():
+    global cached_lensing_transformer_dict
+    return cached_lensing_transformer_dict['0']
+
+
+

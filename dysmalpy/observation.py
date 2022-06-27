@@ -64,7 +64,7 @@ class Observation:
         self.model_data = None
         self.mod_options = ObsModOptions()
         self.fit_options = ObsFitOptions()
-        self.lensing_options = None
+        self.lensing_options = ObsLensingOptions()
 
 
         if instrument is not None:
@@ -273,40 +273,14 @@ class Observation:
         # Apply lensing transformation if necessary
         this_lensing_transformer = None
 
-        if _loaded_lensing:
-            # Only check to get lensing transformer if the lensing modules were successfully loaded.
-            if (self.lensing_options is not None):
-                if (self.lensing_options.lensing_transformer is not None):
-                    this_lensing_transformer = self.lensing_options.lensing_transformer['0']
-
-            this_lensing_transformer = setup_lensing_transformer_from_params(\
-                    lensing_options = self.lensing_options,
-                    source_plane_nchan = self.instrument.nspec,
-                    image_plane_sizex = nx_sky * oversample * oversize,
-                    image_plane_sizey = ny_sky * oversample * oversize,
-                    image_plane_pixsc = pixscale / oversample,
-                    reuse_lensing_transformer = this_lensing_transformer,
-                    cache_lensing_transformer = True,
-                    reuse_cached_lensing_transformer = True,
-                    verbose = (logger.level >= logging.DEBUG),
-                )
-
-            if (this_lensing_transformer is not None):
-                orig_inst = copy.deepcopy(self.instrument)
-                lens_inst = copy.deepcopy(self.instrument)
-
-                lens_inst.fov = (this_lensing_transformer.source_plane_nx,
-                                 this_lensing_transformer.source_plane_ny)
-                lens_inst.pixscale.value = this_lensing_transformer.source_plane_pixsc
-
-                self.instrument = lens_inst
-
-        else:
-            # Check if self.lensing_options IS set -- passed to the call to
-            #   `setup_lensing_transformer_from_params`.
-            #   In this case, if the lensing loading failed, issue & raise an error.
-
-            if (self.lensing_options is not None):
+        # Check if self.lensing_options IS set and valid -- passed to the call to
+        #   `setup_lensing_transformer_from_params`.
+        #   In this case, if the lensing loading failed, issue & raise an error.
+        
+        if self.lensing_options is not None and self.lensing_options.is_valid():
+            
+            # Make sure lensing modules were successfully loaded.
+            if not _loaded_lensing:
                 wmsg =  "dysmalpy.Galaxy.create_model_data:\n"
                 wmsg += "*******************************************\n"
                 wmsg += "*** ERROR ***\n"
@@ -314,14 +288,35 @@ class Observation:
                 wmsg += " Unable to perform lensing transformation.\n"
                 wmsg += "*******************************************\n"
                 logger.error(wmsg)
-                raise ValueError(wmsg)
+                raise Exception(wmsg)
+
+            # Call lensing.setup_lensing_transformer_from_params
+            this_lensing_transformer = setup_lensing_transformer_from_params(\
+                    **self.lensing_options.get_lensing_kwargs(oversample=oversample, oversize=oversize),
+                )
+
+            # Temporarily use a lens_inst
+            orig_inst = copy.deepcopy(self.instrument)
+            lens_inst = copy.deepcopy(self.instrument)
+            #orig_data = copy.deepcopy(self.data)
+            #lens_data = np.zeros((this_lensing_transformer.source_plane_nchan, 
+                                  #this_lensing_transformer.source_plane_ny, 
+                                  #this_lensing_transformer.source_plane_nx))
+
+            lens_inst.fov = (this_lensing_transformer.source_plane_nx,
+                             this_lensing_transformer.source_plane_ny)
+            lens_inst.pixscale = this_lensing_transformer.source_plane_pixsc * u.arcsec
+
+            self._instrument = lens_inst
+            #self._data = lens_data
 
 
         # Run simulation for the specific observatoin
         sim_cube, spec = model.simulate_cube(obs=self, dscale=dscale)
 
-        if this_lensing_transformer is not None:
 
+        # Apply lensing transformation if necessary
+        if this_lensing_transformer is not None:
             logger.debug('Applying lensing transformation '+str(datetime.datetime.now()))
             if this_lensing_transformer.source_plane_data_cube is None:
                 this_lensing_transformer.setSourcePlaneDataCube(sim_cube, verbose=False)
@@ -329,13 +324,6 @@ class Observation:
                 this_lensing_transformer.updateSourcePlaneDataCube(sim_cube, verbose=False)
             sim_cube = this_lensing_transformer.performLensingTransformation(verbose=False)
             sim_cube[np.isnan(sim_cube)] = 0.0
-
-            # store back
-            if (self.lensing_options is not None):
-                if (self.lensing_options.lensing_transformer is None):
-                    self.lensing_options.lensing_transformer = {'0': None}
-                self.lensing_options.lensing_transformer['0'] = this_lensing_transformer
-
             # mask by data mask if available
             if self.data is not None:
                 if hasattr(self.data, 'mask'):
@@ -349,12 +337,13 @@ class Observation:
                         if this_lensing_mask is not None:
                             if this_lensing_mask.shape == sim_cube.shape:
                                 sim_cube[~this_lensing_mask] = 0.0
-            # oversample oversize
             logger.debug('Applied lensing transformation '+str(datetime.datetime.now()))
 
             # Reset the observation instrument back to the original one
-            self.instrument = orig_inst
+            self._instrument = orig_inst
+            #self._data = orig_data
 
+        
         # Correct for any oversampling
         if (oversample > 1):
             sim_cube_nooversamp = rebin(sim_cube, (ny_sky*oversize,
@@ -648,25 +637,103 @@ class ObsLensingOptions:
     """
     Class to hold options for lensing the observed model from source to image plane
     """
-    def __init__(self, lensing_datadir = None, lensing_mesh = None,
-                 lensing_ra = None, lensing_dec = None,
-                 lensing_sra = None, lensing_sdec = None,
-                 lensing_ssizex = None, lensing_ssizey = None, lensing_spixsc = None,
-                 lensing_imra = None, lensing_imdec = None,
-                 lensing_transformer = None):
+    def __init__(self, **kwargs):
+        self._MandatoryKeys = [
+            (['lensing_datadir', 'datadir', None], 'mesh_dir'),             # datadir for the lensing model mesh.dat, fallback to datadir
+            ('lensing_mesh',                       'mesh_file'),            # lensing model mesh.dat
+            ('lensing_ra',                         'mesh_ra'),              # lensing model ref ra
+            ('lensing_dec',                        'mesh_dec'),             # lensing model ref dec
+            ('lensing_sra',                        'source_plane_cenra'),   # lensing source plane image center ra
+            ('lensing_sdec',                       'source_plane_cendec'),  # lensing source plane image center dec
+            ('lensing_ssizex',                     'source_plane_nx'),      # lensing source plane image size in x
+            ('lensing_ssizey',                     'source_plane_ny'),      # lensing source plane image size in y
+            ('lensing_spixsc',                     'source_plane_pixsc'),   # lensing source plane image pixel size in arcsec unit
+            ('nspec',                              'source_plane_nchan'),   # lensing source plane channel number
+            ('lensing_imra',                       'image_plane_cenra'),    # lensing image plane image center ra
+            ('lensing_imdec',                      'image_plane_cendec'),   # lensing image plane image center dec
+            (['nx_sky', 'fov_npix'],               'image_plane_sizex'),    # lensing image plane image size in x
+            (['ny_sky', 'fov_npix'],               'image_plane_sizey'),    # lensing image plane image size in y
+            ('pixscale',                           'image_plane_pixsc'),    # lensing image plane image pixel size in arcsec unit
+        ]
+        self._OptionalKeys = [
+        ]
+        self.valid = False
+        if len(kwargs) > 0:
+            self.load_keys(**kwargs)
 
-        self.lensing_datadir = lensing_datadir          # datadir for the lensing model mesh.dat
-        self.lensing_mesh = lensing_mesh                # lensing model mesh.dat
-        self.lensing_ra = lensing_ra                    # lensing model ref ra
-        self.lensing_dec = lensing_dec                  # lensing model ref dec
-        self.lensing_sra = lensing_sra                  # lensing source plane image center ra
-        self.lensing_sdec = lensing_sdec                # lensing source plane image center dec
-        self.lensing_ssizex = lensing_ssizex            # lensing source plane image size in x
-        self.lensing_ssizey = lensing_ssizey            # lensing source plane image size in y
-        self.lensing_spixsc = lensing_spixsc            # lensing source plane image pixel size in arcsec unit
-        self.lensing_imra = lensing_imra                # lensing image plane image center ra
-        self.lensing_imdec = lensing_imdec              # lensing image plane image center dec
-        self.lensing_transformer = lensing_transformer  # a placeholder for the object pointer
+    def load(self, extra = None, **kwargs):
+        """Load mandatory keys from the input kwargs. 
+        
+        If there is no lensing key at all, we will not raise an exception. 
+        Only if there are some lensing keys but are not complete, we will raise an exception.
+        """
+        if extra is None:
+            extra = ''
+        has_lensing_key = False
+        for keytuple in self._MandatoryKeys:
+            keyset, keyname = keytuple # key name in kwargs, and key name internally for lensing.py
+            if not isinstance(keyset, (list, tuple)):
+                keyset = [keyset]
+            for key in keyset:
+                if key is None:
+                    setattr(self, keyname, None)
+                    break
+                elif key+extra in kwargs:
+                    if kwargs[key+extra] is not None:
+                        setattr(self, keyname, kwargs[key+extra])
+                        if key.startswith('lensing_'):
+                            has_lensing_key = True
+                        break
+                elif key in kwargs:
+                    setattr(self, keyname, kwargs[key])
+                    if key.startswith('lensing_'):
+                        has_lensing_key = True
+                    break
+                #else: #missing mandatory key
+        for keyname in self._OptionalKeys:
+            if not hasattr(self, keyname):
+                setattr(self, keyname, None)
+        if has_lensing_key:
+            self.validate(raise_exception = True)
+    
+    # @classmethod
+    # def create_lensing_options(cls, **kwargs):
+    #     this_object = cls(**kwargs)
+    #     if not this_object.validate():
+    #         return None
+    #     return this_object
+    
+    def validate(self, raise_exception = False):
+        missing_mendatory_keys = []
+        for keytuple in self._MandatoryKeys:
+            keyset, keyname = keytuple # key name in kwargs, and key name internally for lensing.py
+            if not hasattr(self, keyname):
+                if not isinstance(keyset, (list, tuple)):
+                    keyset = [keyset]
+                missing_mendatory_keys.append(' or '.join(keyset))
+        if len(missing_mendatory_keys) > 0:
+            if raise_exception:
+                raise ValueError('Error! Missing keys to construct a ObsLensingOptions: {}'.format(', '.join(missing_mendatory_keys)))
+            self.valid = False
+        self.valid = True
+        return self.valid
+    
+    def is_valid(self):
+        return self.valid
+    
+    def get_lensing_kwargs(self, oversample = 1, oversize = 1):
+        lensing_kwargs = {}
+        for keytuple in self._MandatoryKeys:
+            keyset, keyname = keytuple # key name in kwargs, and key name internally for lensing.py
+            lensing_kwargs[keyname] = getattr(self, keyname)
+            if keyname in ['image_plane_sizex', 'image_plane_sizey']:
+                lensing_kwargs[keyname] = int(np.round(lensing_kwargs[keyname] * oversample * oversize))
+            elif keyname in ['image_plane_pixsc']:
+                lensing_kwargs[keyname] = lensing_kwargs[keyname] / oversample
+        lensing_kwargs['cache_lensing_transformer'] = True
+        lensing_kwargs['reuse_cached_lensing_transformer'] = True
+        lensing_kwargs['verbose'] = False # (logger.level == logging.DEBUG)
+        return lensing_kwargs
 
 
 

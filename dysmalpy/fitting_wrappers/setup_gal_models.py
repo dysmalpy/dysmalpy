@@ -278,16 +278,18 @@ def setup_observation_options(obs, params=None, extra=None):
 
 
     # lensing options:
-    keys_set = ['lensing_datadir', 'lensing_mesh', 'lensing_ra', 'lensing_dec',
-                'lensing_sra', 'lensing_sdec', 'lensing_ssizex', 'lensing_ssizey',
-                'lensing_spixsc', 'lensing_imra', 'lensing_imdec',
-                'lensing_transformer']
+    obs.lensing_options.load(**params, extra=extra)
+    
+    # keys_set = ['lensing_datadir', 'lensing_mesh', 'lensing_ra', 'lensing_dec',
+    #             'lensing_sra', 'lensing_sdec', 'lensing_ssizex', 'lensing_ssizey',
+    #             'lensing_spixsc', 'lensing_imra', 'lensing_imdec',
+    #             'lensing_transformer']
 
-    for key in keys_set:
-        if (key+extra in params.keys()):
-            obs.lensing_options.__dict__[key] = params[key+extra]
-        elif (key in params.keys()):
-            obs.lensing_options.__dict__[key] = params[key]
+    # for key in keys_set:
+    #     if (key+extra in params.keys()):
+    #         obs.lensing_options.__dict__[key] = params[key+extra]
+    #     elif (key in params.keys()):
+    #         obs.lensing_options.__dict__[key] = params[key]
 
 
     return obs
@@ -374,7 +376,8 @@ def _setup_mcmc_fitter(params=None):
                 elif lpost.strip().lower() == 'bt':
                     linked_post_arr.append(['disk+bulge', 'bt'])
                 elif lpost.strip().lower() == 'sigma0':
-                    linked_post_arr.append(['dispprof', 'sigma0'])
+                    #linked_post_arr.append(['dispprof', 'sigma0'])
+                    linked_post_arr.append(['dispprof_LINE', 'sigma0'])
                 elif lpost.strip().lower() == 'inc':
                     linked_post_arr.append(['geom', 'inc'])
                 elif lpost.strip().lower() == 'pa':
