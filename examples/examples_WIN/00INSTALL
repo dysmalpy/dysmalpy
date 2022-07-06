@@ -1,6 +1,10 @@
 ###### Steps for installation on Windows ######
 
 (1) Prepare release tar.gz, or an equivalent tarball
+    (A) A way of doing this is to created a release (or pre-release) from Github,
+        and then download the *.tar.gz source code "asset" for that release.
+        The benefit of this is that it excludes unnecessary files that might be
+        included if just directly tarring a directory.
 
 (2) Download to local machine
 
@@ -25,3 +29,9 @@
 
 (7) **IMPORTANT**: Test example(s) (see 00HOWTOUSE)
     -- at least one model creation cube and one fitting.
+
+
+Note: If debugging is needed to correct for Windows-specific problems,
+      the errors should show up during the testing of the examples (step 7).
+      Make changes as needed to the code to debug, and keep trying steps 1-7
+      until everything runs without issue.
