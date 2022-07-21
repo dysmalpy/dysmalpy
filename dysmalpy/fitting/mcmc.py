@@ -61,7 +61,7 @@ logger = logging.getLogger('DysmalPy')
 
 class MCMCFitter(base.Fitter):
     """
-    Class to hold the MPFIT fitter attributes + methods
+    Class to hold the MCMC fitter attributes + methods
     """
     def __init__(self, **kwargs):
 
