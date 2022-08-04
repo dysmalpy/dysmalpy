@@ -27,8 +27,7 @@ except:
 import numpy as np
 import astropy.constants as apy_con
 import astropy.units as u
-import pyximport; pyximport.install()
-from . import cutils
+#import pyximport; pyximport.install()
 
 
 __all__ = ['ModelSet']
@@ -1236,6 +1235,9 @@ class ModelSet:
             `spec_step`, `nspec`, and `spec_unit`
 
         """
+
+        from . import cutils
+
         if obs is None:
             raise ValueError("Must pass 'obs' instance!")
 

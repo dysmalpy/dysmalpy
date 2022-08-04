@@ -1,7 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
-import dysmalpy.galaxy
 import dysmalpy.models
+import dysmalpy.galaxy
 import dysmalpy.fitting
 import dysmalpy.instrument
 import dysmalpy.data_classes

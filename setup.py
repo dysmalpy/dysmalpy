@@ -59,7 +59,7 @@ setup_args = {'name': 'dysmalpy',
         'include_package_data': True,
         'packages': ['dysmalpy', 'dysmalpy.extern', 'dysmalpy.models',
                      'dysmalpy.fitting', 'dysmalpy.fitting_wrappers'],
-        'package_data': {'dysmalpy': ['data/noordermeer/*.save']},
+        'package_data': {'dysmalpy': ['data/noordermeer/*.save', 'data/deprojected_sersic_models_tables/*.fits']},
         'version': __version__ }
 
 
@@ -81,9 +81,17 @@ for key, value in cfg_vars.items():
         cfg_vars[key] = value.replace("-Wstrict-prototypes", "")
 
 
-ext_modules = cythonize(["dysmalpy/models/cutils.pyx"])
+ext_modules = cythonize([Extension("dysmalpy.models.cutils",
+                                   sources=["dysmalpy/models/cutils.pyx"],
+                                   include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
+                                   library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                        )])
 ext_modules_optional = cythonize([
-                "dysmalpy/models/cutils.pyx",
+                Extension("dysmalpy.models.cutils",
+                          sources=["dysmalpy/models/cutils.pyx"],
+                          include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
+                           library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                          ),
                 Extension("dysmalpy.lensingTransformer",
                     sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                     language="c++",
