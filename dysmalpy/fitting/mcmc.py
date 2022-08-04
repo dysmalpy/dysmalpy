@@ -13,7 +13,8 @@ from __future__ import (absolute_import, division, print_function,
 
 ## Standard library
 import logging
-from multiprocessing import cpu_count, Pool
+#from multiprocessing import cpu_count, Pool
+from multiprocess import cpu_count, Pool
 
 # DYSMALPY code
 from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
