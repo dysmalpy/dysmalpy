@@ -3171,7 +3171,7 @@ def plot_model_2D(gal,
     cntr = 0
     if fitflux:
         cntr += 1
-        grid_flux = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_flux = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,
@@ -3185,7 +3185,7 @@ def plot_model_2D(gal,
 
     if fitvelocity:
         cntr += 1
-        grid_vel = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_vel = ImageGrid(f, 100+ncols*10+cntr,
                              nrows_ncols=(1, 1),
                              direction="row",
                              axes_pad=0.5,
@@ -3198,7 +3198,7 @@ def plot_model_2D(gal,
                              )
     if fitdispersion:
         cntr += 1
-        grid_disp = ImageGrid(f, '{}'.format(100+ncols*10+cntr),
+        grid_disp = ImageGrid(f, 100+ncols*10+cntr,
                               nrows_ncols=(1, 1),
                               direction="row",
                               axes_pad=0.5,

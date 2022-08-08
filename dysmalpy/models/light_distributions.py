@@ -128,8 +128,7 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
         light : float or array
             Relative line flux as a function of radius
         """
-        #return truncate_sersic_mr(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
-        return self.evaluate(r, self.L_tot, self.n, self.r_eff, self.r_inner, self.r_outer)
+        return self.evaluate(r, self.L_tot, self.r_eff, self.n, self.r_inner, self.r_outer)
 
 
 class LightGaussianRing(LightModel, _DysmalFittable1DModel):
@@ -332,7 +331,7 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
 
     def sigma_R(self):
         return self.FWHM.value / (2.*np.sqrt(2.*np.log(2.)))
-        
+
     @staticmethod
     def evaluate(x, y, z, R_peak, FWHM, L_tot, phi, contrast, gamma):
         """
