@@ -271,7 +271,7 @@ class LightClump(LightModel, _DysmalFittable3DModel):
         Parameters
         ----------
         x, y, z : float or array
-            Positioin at which to calculate the light profile
+            Position at which to calculate the light profile
 
         Returns
         -------

@@ -5510,7 +5510,7 @@ def plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=0.5,
         else:
             intpart = str(len_arcsec).split('.')[0]
             decpart = str(len_arcsec).split('.')[1]
-            string = r'0."{}'.format()
+            string = r'{}."{}'.format(intpart, decpart)
     elif ruler_unit.lower() == 'kpc':
         if len_arcsec/dscale % 1. == 0.:
             string = r'{:0.0f} kpc'.format(int(len_arcsec/dscale))

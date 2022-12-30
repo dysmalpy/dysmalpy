@@ -26,7 +26,8 @@ from dysmalpy.utils import fit_uncertainty_ellipse
 from dysmalpy import utils_io as dpy_utils_io
 
 # Local imports:
-from .base import FitResults, make_arr_cmp_params, chisq_eval, chisq_red, chisq_red_per_type
+from .base import FitResults, Fitter, make_arr_cmp_params, \
+                  chisq_eval, chisq_red, chisq_red_per_type
 
 # Third party imports
 import os
@@ -47,18 +48,56 @@ from scipy.stats import gaussian_kde
 from scipy.optimize import fmin
 
 
-__all__ = ['fit_mcmc', 'MCMCResults']
+__all__ = ['fit_mcmc', 'MCMCResults', 'MCMCFitter']
 
 
-# ACOR SETTINGS
-acor_force_min = 49
-# Force it to run for at least 50 steps, otherwise acor times might be completely wrong.
+# # ACOR SETTINGS
+# acor_force_min = 49
+# # Force it to run for at least 50 steps, otherwise acor times might be completely wrong.
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
+
+# def fit_mcmc(gal, **kwargs):
+
+
+#     wrn_msg = "fitting.fit has been depreciated.\n"
+#     wrn_msg += "Instead call 'fitting.MCMCFitter.fit()' or 'fitting.MPFITFitter.fit()'"
+#     wrn_msg += "or 'fitting.NestedFitter.fit()'."
+
+#     raise ValueError(wrn_msg)
+
+#     return None
+
+
+
+
+# class MCMCFitter(Fitter):
+#     """
+#     Class to hold the MCMC sampling fitter attributes + methods
+#     Uses emcee
+#     """
+#     def __init__(self, **kwargs):
+#         self._set_defaults()
+#         super(MCMCFitter, self).__init__(fit_method='mcmc', **kwargs)
+
+#     def _set_defaults(self):
+#         self.maxiter=None
+        
+
+#         self.nCPUs = 1.0
+
+#         self.acor_force_min = 49
+
+
+#     def fit(gal, **kwargs):
+  
+#         res = dsampler.results
+
+#         return res
 
 def fit_mcmc(gal, **kwargs):
     """

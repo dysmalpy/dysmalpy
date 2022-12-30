@@ -24,13 +24,38 @@ from collections import OrderedDict
 import astropy.units as u
 import copy
 
-__all__ =  ['FitResults',
+__all__ =  ['FitResults', 'Fitter', 
             'chisq_red', 'chisq_eval', 'chisq_red_per_type']
 
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+
+
+
+class Fitter(object):
+    """
+    General class to hold the fitter attributes + methods
+    """
+
+    def __init__(self, **kwargs):
+        self._set_defaults_base()
+        self._fill_values(**kwargs)
+
+    def _set_defaults_base(self):
+        self.fit_method = None
+        self.blob_name = None
+
+    def _fill_values(self, **kwargs):
+        for key in self.__dict__.keys():
+            if key in kwargs.keys():
+                self.__dict__[key] = kwargs[key]
+
+    @abc.abstractmethod
+    def fit(self, *args, **kwargs):
+        """Fit a model"""
+        pass
 
 
 class FitResults(object):
