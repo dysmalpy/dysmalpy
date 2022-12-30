@@ -3,11 +3,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os
-import platform
-from contextlib import contextmanager
-import sys
-import shutil
+import os, sys
 
 try:
     import tkinter_io
@@ -46,6 +42,7 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
             overwrite = params['overwrite']
         else:
             overwrite = False
+    params['overwrite'] = overwrite
 
     # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
     if outdir is not None:
@@ -55,7 +52,6 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
 
     # Ensure output directory is specified: if relative file path,
     #   EXPLICITLY prepend paramfile path
-    outdir = params['outdir']
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
@@ -88,32 +84,24 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
 
         ############################################################################################
         # ------------------------------------------------------------
-        # Setup galaxy, instrument, model:
+        # Setup galaxy, model:
         gal = utils_io.setup_gal_model_base(params=params)
 
-        # Override FOV from the cube shape:
-        gal.instrument.fov = [params['fov_npix'], params['fov_npix']]
+        # Set up empty observation:
+        obs = utils_io.make_empty_observation(0, params=params, ndim=3)
+
+        # Add the observation to the Galaxy
+        gal.add_observation(obs)
 
         f_cube = outdir+'{}{}_model_cube.fits'.format(params['galID'], filename_extra)
 
         ############################################################################################
 
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        params['overwrite'] = overwrite
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
-
-
         # Make model
-        gal.create_model_data(**kwargs_galmodel)
+        gal.create_model_data()
 
         # Save cube
-        gal.model_cube.data.write(f_cube, overwrite=overwrite)
+        gal.observations[obs.name].model_cube.data.write(f_cube, overwrite=overwrite)
 
         print('------------------------------------------------------------------')
         print(' Dysmalpy model complete for: {}'.format(params['galID']))

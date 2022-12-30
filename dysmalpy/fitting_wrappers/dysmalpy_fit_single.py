@@ -3,19 +3,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os
-import platform
-from contextlib import contextmanager
-import sys
-import shutil
+import os, sys
 
 try:
     import tkinter_io
 except ImportError:
     from . import tkinter_io
 
-def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
-            outdir=None, plot_type='pdf', overwrite=None):
+def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
+                        data_loader=None, plot_type='pdf', overwrite=None):
     """
     Fit observed kinematics, based on settings / files specified in the parameter file.
 
@@ -23,8 +19,7 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
         param_filename:     Path to parameters file.
 
     Optional input:
-        data:               Galaxy data (`Data1D`/`Data2D`/`Data3D`/`Data0D` instance)
-                            Otherwise, loads data based on data filenames in parameters file.
+        data_loader:        Custom function to load data. Takes kwargs: params, datadir
 
         datadir:            Path to data directory. If set, overrides datadir set in the parameters file.
 
@@ -52,28 +47,28 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
         matplotlib.use('agg')
 
     from dysmalpy import fitting
-    from dysmalpy import config
 
-    import copy
-    import numpy as np
-
-    from dysmalpy.fitting_wrappers.plotting import plot_bundle_1D, plot_bundle_2D
+    from dysmalpy.fitting_wrappers.plotting import plot_1D_rotcurve_components
     from dysmalpy.fitting_wrappers import utils_io
-
-    # Get fitting dimension:
-    ndim = utils_io.get_ndim_fit_from_paramfile(param_filename=param_filename)
 
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
 
+    # ---------------------------------
+    # Check some value validity:
+    if params['fit_method'] not in ['mcmc', 'mpfit']:
+        raise ValueError(
+            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
+                params['fit_method']))
+    # ---------------------------------
+
+
     # Check if 'overwrite' is set in the params file.
     # But the direct input from calling the script overrides any setting in the params file.
-    if overwrite is None:
-        if 'overwrite' in params.keys():
-            overwrite = params['overwrite']
-        else:
-            overwrite = False
+    if overwrite is not None:
+        # Overwrite params setting:
+        params['overwrite'] = overwrite
 
     # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
     if datadir is not None:
@@ -85,116 +80,78 @@ def dysmalpy_fit_single(param_filename=None, data=None, datadir=None,
 
     # Ensure output directory is specified: if relative file path,
     #   EXPLICITLY prepend paramfile path
-    outdir = params['outdir']
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
+    params['outdir'] = outdir
 
 
-    if 'datadir' in params.keys():
-        if params['datadir'] is not None:
-            datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
-            params['datadir'] = datadir
+    if params['datadir'] is not None:
+        datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
+        params['datadir'] = datadir
 
     ####
     # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
     if plot_type is not None:
         params['plot_type'] = plot_type
-    else:
-        if 'plot_type' in params.keys():
-            plot_type = params['plot_type']
-        else:
-            params['plot_type'] = plot_type
+
 
     # Check if fitting already done:
-    if params['fit_method'] == 'mcmc':
-        fit_exists = os.path.isfile(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
-    elif params['fit_method'] == 'mpfit':
-        fit_exists = os.path.isfile(outdir + '{}_mpfit_results.pickle'.format(params['galID']))
-    else:
-        raise ValueError(
-            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
-                params['fit_method']))
+    fit_exists = os.path.isfile(params['outdir']+'{}_{}_results.pickle'.format(params['galID'],
+                                            params['fit_method']))
 
-    if fit_exists and not (overwrite):
+    if fit_exists and not (params['overwrite']):
         print('------------------------------------------------------------------')
         print(' Fitting already complete for: {}'.format(params['galID']))
         print('   make new output folder or remove previous fitting files')
         print('------------------------------------------------------------------')
         print(' ')
     else:
-        if 'datadir' in params.keys():
-            datadir = params['datadir']
+        # Get fitting dimension of at least 1 obs:
+        ndim = utils_io.get_ndim_fit_from_paramfile(0, param_filename=param_filename)
 
         # Check if you can find filename; if not open datadir interface:
-        datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=ndim,
+        datadir, params = utils_io.check_datadir_specified(params, params['datadir'], ndim=ndim,
                                                         param_filename=param_filename)
+        params['datadir'] = datadir
 
-        fitting.ensure_dir(outdir)
+        fitting.ensure_dir(params['outdir'])
 
         # Copy paramfile that is OS independent
         utils_io.preserve_param_file(param_filename, params=params,
-                                     datadir=datadir, outdir=outdir)
+                                     datadir=params['datadir'],
+                                     outdir=params['outdir'])
+
+
 
         # Cleanup if overwriting:
         if fit_exists:
-            if params['fit_method'] == 'mcmc':
-                os.remove(outdir+'{}_mcmc_results.pickle'.format(params['galID']))
-
-            elif params['fit_method'] == 'mpfit':
-                os.remove(outdir + '{}_mpfit_results.pickle'.format(params['galID']))
+            os.remove(params['outdir']+'{}_{}_results.pickle'.format(params['galID'],params['fit_method']))
 
         #######################
-        # Setup
-        if ndim == 1:
-            gal, fit_dict = utils_io.setup_single_object_1D(params=params, data=data)
-        elif ndim == 2:
-            gal, fit_dict = utils_io.setup_single_object_2D(params=params, data=data)
-        elif ndim == 3:
-            gal, fit_dict = utils_io.setup_single_object_3D(params=params, data=data)
-        else:
-            raise ValueError("ndim={} not recognized!".format(ndim))
-
-        config_c_m_data = config.Config_create_model_data(**fit_dict)
-        config_sim_cube = config.Config_simulate_cube(**fit_dict)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        fit_dict['overwrite'] = overwrite
-        fit_dict['plot_type'] = plot_type
-
-        kwargs_all = {**kwargs_galmodel, **fit_dict}
+        # Setup galaxy, output options
+        gal, output_options = utils_io.setup_single_galaxy(params=params, data_loader=data_loader)
 
         # Clean up existing log file:
-        if fit_dict['f_log'] is not None:
-            if os.path.isfile(fit_dict['f_log']):
-                os.remove(fit_dict['f_log'])
+        if output_options.f_log is not None:
+            if os.path.isfile(output_options.f_log):
+                os.remove(output_options.f_log)
+
+
+        # Setup fitter:
+        fitter = utils_io.setup_fitter(params=params)
 
         # Fit
-        if fit_dict['fit_method'] == 'mcmc':
-            results = fitting.fit_mcmc(gal, **kwargs_all)
-
-        elif fit_dict['fit_method'] == 'mpfit':
-            results = fitting.fit_mpfit(gal, **kwargs_all)
-
-        # Save results
-        utils_io.save_results_ascii_files(fit_results=results, gal=gal, params=params,
-                        overwrite=overwrite)
+        results = fitter.fit(gal, output_options)
 
         # Make component plot:
-        if fit_dict['do_plotting']:
-            if ndim == 1:
-                plot_bundle_1D(params=params, fit_dict=fit_dict, param_filename=param_filename,
-                        plot_type=plot_type,overwrite=overwrite,**kwargs_galmodel)
-            elif ndim == 2:
-                plot_bundle_2D(params=params, param_filename=param_filename, plot_type=plot_type,
-                            overwrite=overwrite)
-            elif ndim == 3:
-                pass
+        if output_options.do_plotting:
+            plot_1D_rotcurve_components(output_options=output_options)
 
 
         print('------------------------------------------------------------------')
-        print(' Dysmalpy MPFIT fitting complete for: {}'.format(params['galID']))
-        print('   output folder: {}'.format(outdir))
+        print(' Dysmalpy {} fitting complete for: {}'.format(fitter.fit_method, gal.name))
+        print('   output folder: {}'.format(params['outdir']))
         print('------------------------------------------------------------------')
         print(' ')
 

@@ -60,19 +60,20 @@ def check_bestfit_values(results, dict_bf_values, fit_method=None, ndim=None, ft
                 raise ValueError('{}, ndim={}, {}:{}'.format(fit_method,ndim,compn,paramn))
 
 
-def expected_output_files_base(galID, param_filename=None, fit_method=None):
+def expected_output_files_base(galID, param_filename=None, fit_method=None, ndim=None):
     fit_method = fit_method.lower().strip()
     list_files = ['{}_{}'.format(galID, param_filename),
-                  '{}_info.log'.format(galID),
-                  '{}_galaxy_model.pickle'.format(galID),
+                  '{}_{}.log'.format(galID, fit_method),
+                  '{}_model.pickle'.format(galID),
                   '{}_{}_results.pickle'.format(galID, fit_method),
-                  '{}_{}_best_fit.pdf'.format(galID, fit_method),
-                  '{}_{}_best_fit_results.dat'.format(galID, fit_method),
-                  '{}_{}_best_fit_results_report.info'.format(galID, fit_method),
-                  '{}_{}_bestfit_model_cube.fits'.format(galID, fit_method),
-                  '{}_galaxy_bestfit_menc.dat'.format(galID),
-                  '{}_galaxy_bestfit_vcirc.dat'.format(galID),
-                  '{}_galaxy_bestfit_vel_profile.dat'.format(galID)]
+                  '{}_{}_bestfit_results.dat'.format(galID, fit_method),
+                  '{}_{}_bestfit_results_report.info'.format(galID, fit_method),
+                  '{}_OBS_bestfit_cube.fits'.format(galID),
+                  '{}_bestfit_menc.dat'.format(galID),
+                  '{}_bestfit_vcirc.dat'.format(galID),
+                  '{}_LINE_bestfit_velprofile.dat'.format(galID)]
+    if ndim < 3:
+        list_files.append('{}_{}_bestfit_OBS.pdf'.format(galID, fit_method))
 
     if fit_method == 'mpfit':
         pass
@@ -87,29 +88,31 @@ def expected_output_files_base(galID, param_filename=None, fit_method=None):
     return list_files
 
 def expected_output_files_1D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=1)
 
-    list_files.append('{}_out-1dplots.txt'.format(galID))
-    list_files.append('{}_out-1dplots_finer_sampling.txt'.format(galID))
-    list_files.append('{}_rot_components.pdf'.format(galID))
+    list_files.append('{}_OBS_out-1dplots.txt'.format(galID))
+    list_files.append('{}_OBS_out-1dplots_finer_sampling.txt'.format(galID))
+    list_files.append('{}_OBS_rot_components.pdf'.format(galID))
     list_files.append('{}_menc_tot_bary_dm.dat'.format(galID))
     list_files.append('{}_vcirc_tot_bary_dm.dat'.format(galID))
 
     return list_files
 
 def expected_output_files_2D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=2)
 
-    list_files.append('{}_out-velmaps.fits'.format(galID))
+    list_files.append('{}_OBS_out-velmaps.fits'.format(galID))
     return list_files
 
 def expected_output_files_3D(galID, param_filename=None, fit_method=None):
-    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method)
+    list_files = expected_output_files_base(galID, param_filename=param_filename, fit_method=fit_method, ndim=3)
 
-    list_files.append('{}_out-cube.fits'.format(galID))
-    list_files.append('{}_apertures.pdf'.format(galID))
-    list_files.append('{}_channel.pdf'.format(galID))
-    list_files.append('{}_spaxels.pdf'.format(galID))
+    list_files.append('{}_OBS_out-cube.fits'.format(galID))
+    list_files.append('{}_{}_bestfit_OBS_apertures.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_channels.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_spaxels.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_extract_1D.pdf'.format(galID, fit_method))
+    list_files.append('{}_{}_bestfit_OBS_extract_2D.pdf'.format(galID, fit_method))
 
     return list_files
 
@@ -128,15 +131,15 @@ class TestFittingWrappers:
         check_output_files(outdir_full, list_files)
 
         # Load output, check results
-        f_ascii_machine = outdir_full+'{}_{}_best_fit_results.dat'.format(params['galID'],
+        f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
 
-        dict_bf_values = {'disk+bulge': {'total_mass': 10.9166,
-                                         'r_eff_disk': 3.3989,
-                                         'bt': 0.0115},
+        dict_bf_values = {'disk+bulge': {'total_mass': 10.9137,
+                                         'r_eff_disk': 3.4011,
+                                         'bt': 0.0102},
                           'halo': {'fdm': 0.1245},
-                          'dispprof': {'sigma0': 35.8920}}
+                          'dispprof_LINE': {'sigma0': 35.8929}}
 
         # Check that best-fit values are the same
         check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=1)
@@ -156,7 +159,7 @@ class TestFittingWrappers:
         check_output_files(outdir_full, list_files)
 
         # Load output, check results: DID WALKERS MOVE?
-        f_galmodel = outdir_full+'{}_galaxy_model.pickle'.format(params['galID'])
+        f_galmodel = outdir_full+'{}_model.pickle'.format(params['galID'])
         f_results = outdir_full+'{}_{}_results.pickle'.format(params['galID'],
                             params['fit_method'].strip().lower())
         f_sampler = outdir_full+'{}_{}_sampler.h5'.format(params['galID'],
@@ -188,16 +191,15 @@ class TestFittingWrappers:
         check_output_files(outdir_full, list_files)
 
         # Load output, check results
-        f_ascii_machine = outdir_full+'{}_{}_best_fit_results.dat'.format(params['galID'],
+        f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
 
-        dict_bf_values = {'disk+bulge': {'total_mass': 10.7113,
-                                         'r_eff_disk': 3.6320,
-                                         'bt': 0.6922},
-                          'halo': {'fdm': 0.2759},
-                          'dispprof': {'sigma0': 35.4517}}
-
+        dict_bf_values = {'disk+bulge': {'total_mass': 10.7086,
+                                         'r_eff_disk': 3.6318,
+                                         'bt': 0.6920},
+                          'halo': {'fdm': 0.2760},
+                          'dispprof_LINE': {'sigma0': 35.4497}}
 
         # Check that best-fit values are the same
         check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=2)
@@ -207,7 +209,7 @@ class TestFittingWrappers:
         param_filename = 'fitting_3D_mpfit.params'
         params = read_params(param_filename=param_filename)
         outdir_full = _dir_tests_data+params['outdir']
-
+        #print("gauss_extract_with_c = {}",format(params['gauss_extract_with_c']))
         run_fit(param_filename=param_filename)
 
         # Make sure all files exist:
@@ -216,15 +218,15 @@ class TestFittingWrappers:
         check_output_files(outdir_full, list_files)
 
         # Load output, check results
-        f_ascii_machine = outdir_full+'{}_{}_best_fit_results.dat'.format(params['galID'],
+        f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
                                     params['fit_method'].strip().lower())
         results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
 
-        dict_bf_values = {'disk+bulge': {'total_mass': 10.7769,
-                                         'r_eff_disk': 2.7732,
-                                         'bt': 0.1194},
-                          'halo': {'fdm': 0.2340},
-                          'dispprof': {'sigma0': 67.7131}}
+        dict_bf_values = {'disk+bulge': {'total_mass': 10.7764,
+                                         'r_eff_disk': 2.7922,
+                                         'bt': 0.1196},
+                          'halo': {'fdm': 0.2338},
+                          'dispprof_LINE': {'sigma0': 67.7606}}
 
         # Check that best-fit values are the same
         check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3)

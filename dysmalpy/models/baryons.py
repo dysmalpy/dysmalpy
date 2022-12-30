@@ -17,7 +17,6 @@ import scipy.special as scp_spec
 import scipy.io as scp_io
 import scipy.interpolate as scp_interp
 import astropy.constants as apy_con
-import astropy.units as u
 
 
 from astropy.table import Table
@@ -33,28 +32,29 @@ __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'mass_comp_conditional_ring',
            'NoordFlat', 'InfThinMassiveGaussianRing']
 
-# NOORDERMEER DIRECTORY
+# # NOORDERMEER DIRECTORY
+# path = os.path.abspath(__file__)
+# dir_path = os.path.dirname(path)
+# # located one up:
+# dir_path = os.sep.join(dir_path.split(os.sep)[:-1])
+# # _dir_noordermeer = dir_path+"/data/noordermeer/"
+# _dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
+
+
+# # ALT NOORDERMEER DIRECTORY:
+# # BACKWARDS COMPATIBILITY
+# _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
+#                                  os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
+
+# NEW, RECALCULATED NOORDERMEER DIRECTORY: INCLUDES dlnrho/dlnr; MASS PROFILES
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 # located one up:
 dir_path = os.sep.join(dir_path.split(os.sep)[:-1])
-# _dir_noordermeer = dir_path+"/data/noordermeer/"
-_dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
+_dir_deprojected_sersic_models = os.sep.join([dir_path, "data",
+                                "deprojected_sersic_models_tables", ""])
 
 
-# ALT NOORDERMEER DIRECTORY:
-# _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR', None)
-# BACKWARDS COMPATIBILITY
-_dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
-                                 os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
-
-
-
-# try:
-#     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
-#     _sersic_profile_mass_VC_loaded = True
-# except:
-#     _sersic_profile_mass_VC_loaded = False
 
 # MASSIVE RING DIRECTORIES:
 # _dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",
@@ -302,43 +302,84 @@ class NoordFlat(object):
             self._set_dlnrhodlnr_interp(interp_type=self._dlnrhodlnr_interp_type)
 
 
-    ##### NOTE: CONSIDER CHANGING FROM USING .SAV FILES TO NEW FITS TABLES?
-    def read_noord_flat_SAV(self):
-        """
-        Load table with circular velocity for a thick Sersic component
-        """
-        noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
-        noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
-                                     100])  # 1:1, 1:2, 1:3, ...flattening
+    # ##### NOTE: CONSIDER CHANGING FROM USING .SAV FILES TO NEW FITS TABLES?
+    # def read_noord_flat_SAV(self):
+    #     """
+    #     Load table with circular velocity for a thick Sersic component
+    #     """
+    #     noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
+    #     noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
+    #                                  100])  # 1:1, 1:2, 1:3, ...flattening
+    #
+    #     nearest_n = noordermeer_n[np.argmin(np.abs(noordermeer_n - self.n))]
+    #     nearest_q = noordermeer_invq[np.argmin(np.abs(noordermeer_invq - self.invq))]
+    #
+    #     # Need to do this internally instead of relying on IDL save files!!
+    #     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
+    #         nearest_n, nearest_q)
+    #
+    #     restNVC = scp_io.readsav(file_noord)
+    #
+    #     return restNVC
+    #
+    # def _set_vcirc_interp_SWcalcs(self):
+    #     # STIJN'S CALCULATED NOORDERMEER SAV FILES
+    #     # Only set if n, invq has changed:
+    #     if ((self._n != self._n_current) | (self._invq != self._invq_current)):
+    #         self._n_current = self._n
+    #         self._invq_current = self._invq
+    #
+    #         restNVC = self.read_noord_flat_SAV()
+    #
+    #         N2008_vcirc = restNVC.N2008_vcirc
+    #         N2008_rad = restNVC.N2008_rad
+    #
+    #         self.N2008_Re = restNVC.N2008_Re
+    #         self.N2008_mass = restNVC.N2008_mass
+    #
+    #         self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+    #                                        fill_value="extrapolate")
 
-        nearest_n = noordermeer_n[np.argmin(np.abs(noordermeer_n - self.n))]
-        nearest_q = noordermeer_invq[np.argmin(np.abs(noordermeer_invq - self.invq))]
+    def read_deprojected_sersic_table(self):
+        # Use the "typical" collection of table values:
+        table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
+        table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
+                        1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
 
-        # Need to do this internally instead of relying on IDL save files!!
-        file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
-            nearest_n, nearest_q)
+        nearest_n = table_n[ np.argmin( np.abs(table_n - self.n) ) ]
+        nearest_invq = table_invq[ np.argmin( np.abs( table_invq - self.invq) ) ]
 
-        restNVC = scp_io.readsav(file_noord)
+        file_sersic = _dir_deprojected_sersic_models + 'deproj_sersic_model_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
 
-        return restNVC
+        try:
+            t = Table.read(file_sersic)
+        except:
+            # Backwards compatibility:
+            try:
+                file_sersic = _dir_deprojected_sersic_models + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
+                t = Table.read(file_sersic)
+            except:
+                # raise ValueError("File {} not found. _dir_deprojected_sersic_models={}. Check that system var ${} is set correctly.".format(file_sersic,
+                #         _dir_deprojected_sersic_models, 'DEPROJECTED_SERSIC_MODELS_DATADIR'))
+                raise ValueError("File {} not found. _dir_deprojected_sersic_models={}.".format(file_sersic))
+        return t[0]
+
 
     def _set_vcirc_interp(self):
-        # Only set if n, invq has changed:
-        if ((self._n != self._n_current) | (self._invq != self._invq_current)):
-            self._n_current = self._n
-            self._invq_current = self._invq
+        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
+        table = self.read_deprojected_sersic_table()
 
-            restNVC = self.read_noord_flat_SAV()
+        N2008_vcirc =        table['vcirc']
+        N2008_rad =          table['R']
+        self.N2008_Re =      table['Reff']
+        self.N2008_mass =    table['total_mass']
 
-            N2008_vcirc = restNVC.N2008_vcirc
-            N2008_rad = restNVC.N2008_rad
+        self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
+                                       fill_value="extrapolate")
+        # vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
+        #          mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
 
-            self.N2008_Re = restNVC.N2008_Re
-            self.N2008_mass = restNVC.N2008_mass
-
-            self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-                                           fill_value="extrapolate")
-
+        # return vcirc
 
 
     def apply_noord_flat(self, r, r_eff, mass):
@@ -379,46 +420,7 @@ class NoordFlat(object):
         return vcirc
 
 
-    def read_deprojected_sersic_table(self):
-        # Use the "typical" collection of table values:
-        table_n = np.arange(0.5, 8.1, 0.1)   # Sersic indices
-        table_invq = np.array([1., 2., 3., 4., 5., 6., 7., 8., 10., 20., 100.,
-                        1.11, 1.43, 1.67, 3.33, 0.5, 0.67])  # 1:1, 1:2, 1:3, ... flattening  [also prolate 2:1, 1.5:1]
 
-        nearest_n = table_n[ np.argmin( np.abs(table_n - self.n) ) ]
-        nearest_invq = table_invq[ np.argmin( np.abs( table_invq - self.invq) ) ]
-
-        file_sersic = _dir_deprojected_sersic_models + 'deproj_sersic_model_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
-
-        try:
-            t = Table.read(file_sersic)
-        except:
-            # Backwards compatibility:
-            try:
-                file_sersic = _dir_deprojected_sersic_models + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
-                t = Table.read(file_sersic)
-            except:
-                raise ValueError("File {} not found. _dir_deprojected_sersic_models={}. Check that system var ${} is set correctly.".format(file_sersic,
-                        _dir_deprojected_sersic_models, 'DEPROJECTED_SERSIC_MODELS_DATADIR'))
-
-        return t[0]
-
-
-    def _set_vcirc_interp_new(self):
-        # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
-        table = self.read_deprojected_sersic_table()
-
-        N2008_vcirc =   table['vcirc']
-        N2008_rad =     table['R']
-        self.N2008_Re =      table['Reff']
-        self.N2008_mass =    table['total_mass']
-
-        self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-                                       fill_value="extrapolate")
-        # vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
-        #          mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
-
-        # return vcirc
 
 
     def rho(self, r, Reff, total_mass, interp_type='linear'):
@@ -1146,6 +1148,7 @@ class ExpDisk(MassModel, _LightMassModel):
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     mass_to_light = DysmalParameter(default=1, fixed=True)
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type
@@ -1333,6 +1336,7 @@ class Sersic(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq=1.0, noord_flat=False, baryon_type='gas+stars', **kwargs):
 
@@ -1583,6 +1587,7 @@ class DiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', gas_component='disk', baryon_type='gas+stars',
@@ -2203,6 +2208,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', baryon_type='gas+stars', **kwargs):
@@ -2637,6 +2643,7 @@ class GaussianRing(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type

@@ -15,7 +15,7 @@ import astropy.units as u
 from dysmalpy.fitting_wrappers import dysmalpy_make_model
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
-from dysmalpy import galaxy, models, parameters, instrument, config
+from dysmalpy import galaxy, models, parameters, instrument, config, observation
 
 
 # TESTING DIRECTORY
@@ -23,6 +23,9 @@ path = os.path.abspath(__file__)
 _dir_tests = os.path.dirname(path) + os.sep
 _dir_tests_data = _dir_tests+'test_data' + os.sep
 
+
+# MASSIVE RING DIRECTORIES:
+_dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', None)
 
 
 class HelperSetups(object):
@@ -155,7 +158,8 @@ class HelperSetups(object):
         disp_bounds = {'sigma0': (10, 200)}
 
         disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
-                                                  bounds=disp_bounds, name='dispprof')
+                                                  bounds=disp_bounds, name='dispprof',
+                                                  tracer='halpha')
 
         return disp_prof
 
@@ -187,7 +191,8 @@ class HelperSetups(object):
                        'yshift': (-10, -4)}
 
         geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
-                               fixed=geom_fixed, bounds=geom_bounds, name='geom')
+                               fixed=geom_fixed, bounds=geom_bounds, name='geom',
+                               obs_name='halpha_1D')
 
         return geom
 
@@ -195,8 +200,9 @@ class HelperSetups(object):
         bicone = models.BiconicalOutflow(n=0.5, vmax=300., rturn=0.5, thetain=30, dtheta=20.,
                                          rend=1., norm_flux=11., tau_flux=5., name='bicone')
         # To fully match old tests, set norm_flux = 0.
-        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom')
-        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof')
+        bicone_geom = models.Geometry(inc=10., pa=30., xshift=0., yshift=0., name='outflow_geom',
+                                      obs_name='halpha_1d')
+        bicone_disp = models.DispersionConst(sigma0=250., name='outflow_dispprof', tracer='halpha')
         return bicone, bicone_geom, bicone_disp
 
     def setup_uniform_inflow(self):
@@ -251,8 +257,12 @@ class HelperSetups(object):
 
     def setup_fullmodel(self, adiabatic_contract=False,
                 pressure_support=True, pressure_support_type=1, instrument=True):
-        # Initialize the Galaxy, Instrument, and Model Set
+        # Initialize the Galaxy, Observation, Instrument, and Model Set
         gal = galaxy.Galaxy(z=self.z, name=self.name)
+        obs = observation.Observation(name='halpha_1D', tracer='halpha')
+        obs.mod_options.oversample = 3
+        obs.mod_options.zcalc_truncate = True
+
         mod_set = models.ModelSet()
 
         bary = self.setup_diskbulge()
@@ -284,7 +294,10 @@ class HelperSetups(object):
 
         if instrument:
             inst = self.setup_instrument()
-            gal.instrument = inst
+            obs.instrument = inst
+
+        # Add the observation to the Galaxy
+        gal.add_observation(obs)
 
         return gal
 
@@ -314,26 +327,16 @@ class HelperSetups(object):
         inst.spec_start = spec_start
         inst.nspec = nspec
 
+        # Extraction information
+        inst.ndim = 3                            # Dimensionality of data
+        inst.moment = False                      # For 1D/2D data, if True then velocities and dispersion calculated from moments
+                                                 # Default is False, meaning Gaussian extraction used
+
         # Set the beam kernel so it doesn't have to be calculated every step
         inst.set_beam_kernel()
         inst.set_lsf_kernel()
 
         return inst
-
-    def setup_3Dcube_kwargs(self):
-        param_filename = 'make_model_3Dcube.params'
-        param_filename_full=_dir_tests_data+param_filename
-        params = fw_utils_io.read_fitting_params(fname=param_filename_full)
-
-        config_c_m_data = config.Config_create_model_data(**params)
-        config_sim_cube = config.Config_simulate_cube(**params)
-        kwargs_galmodel = {**config_c_m_data.dict, **config_sim_cube.dict}
-
-        # Additional settings:
-        kwargs_galmodel['from_data'] = False
-        kwargs_galmodel['ndim_final'] = 3
-
-        return kwargs_galmodel
 
 
 class TestModels:
@@ -345,8 +348,10 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vcirc = np.array([0., 233.84762112, 231.63051349, 222.14143224, 207.24934609]) #km/s
-        menc = np.array([0., 3.17866553e+10, 6.23735490e+10, 8.60516713e+10, 9.98677462e+10]) # Msun
+        vcirc = np.array([0., 234.5537625461696, 232.5422746300449,
+                          222.81686610765897, 207.87067673318512]) #km/s
+        menc = np.array([0., 31978915235.040573, 62865554130.57165,
+                         86575757050.57617, 100467448064.04488]) # Msun
 
         dlnrho_dlnr = np.array([-0.748634562849152, -1.4711285560530236, -2.179833936965688,
                                 -3.000041227680322, -3.8337218490100025])
@@ -359,8 +364,6 @@ class TestModels:
             assert math.isclose(bary.enclosed_mass(r), menc[i], rel_tol=ftol)
             assert math.isclose(bary.rhogas(r), rho[i], rel_tol=ftol)
             assert math.isclose(bary.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
-
-
 
 
     def test_sersic(self):
@@ -393,12 +396,12 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vcirc = np.array([0.0, 168.75231977473914, 213.96601851622563,
-                            219.70437621918154, 209.92527768889798]) #km/s
-        menc = np.array([0.0, 16553065102.83822, 53222898982.82668,
-                            84173927151.13939, 102463310604.53976]) # Msun
+        vcirc = np.array([0.0, 169.35690975584475, 214.89133818431344,
+                          220.37288364585189, 210.5840270430537]) #km/s
+        menc = np.array([0., 16671887112.23886, 53684230975.9837,
+                         84686948383.185, 103107383056.67412]) # Msun
 
-        dlnrho_dlnr = np.array([0.0, -1.2608181791170565, -2.1284950291483833,
+        dlnrho_dlnr = np.array([0., -1.2608181791170565, -2.1284950291483833,
                                 -2.9805332449789246, -3.827214472961034])
         rho = np.array([35133994466.11217, 511500615.0259837, 162957719.186185,
                         59053333.61277823, 22454637.866798732])  # msun/kpc^3 ??
@@ -449,45 +452,46 @@ class TestModels:
             assert math.isclose(halo.enclosed_mass(r), menc[i], rel_tol=ftol)
 
     def test_massive_gaussian_ring(self):
-        gausring = self.helper.setup_massive_gaussian_ring()
+        if _dir_gaussian_ring_tables is not None:
+            gausring = self.helper.setup_massive_gaussian_ring()
 
-        ftol = 1.e-9
-        rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
-        vcirc = np.array([0., np.NaN, np.NaN, 55.28490315178013,
-                          115.61430265260948, 116.36168966861332,
-                          97.409470113934, 83.55004344269108, 75.312359412538]) #km/s
-        menc = np.array([0.0, 39716658.10417131, 1187568328.9910522,
-                         4152924363.1541986, 7725273046.944063, 9558434405.20822,
-                         9960786376.52532, 9998475800.392485, 9999974666.918144]) # Msun
+            ftol = 1.e-9
+            rarr = np.array([0.,2.5,4., 5., 6., 7., 8., 9.,10.])   # kpc
+            vcirc = np.array([0., np.NaN, np.NaN, 55.28490315178013,
+                              115.61430265260948, 116.36168966861332,
+                              97.409470113934, 83.55004344269108, 75.312359412538]) #km/s
+            menc = np.array([0.0, 39716658.10417131, 1187568328.9910522,
+                             4152924363.1541986, 7725273046.944063, 9558434405.20822,
+                             9960786376.52532, 9998475800.392485, 9999974666.918144]) # Msun
 
-        dlnrho_dlnr = np.array([0.0, 5.545177444479562, 3.5489135644669196,
-                                -0.0, -5.323370346700379, -12.42119747563422,
-                                -21.293481386801517, -31.940222080202275, -44.3614195558365])
-        rho = np.array([1825.1474473944347, 7475803.944527601, 76757123.1000771,
-                        119612863.11244161, 76757123.1000771, 20283415.964593038,
-                        2207217.3991932594, 98907.84290890688, 1825.1474473944347])  # msun/kpc^3 ??
+            dlnrho_dlnr = np.array([0.0, 5.545177444479562, 3.5489135644669196,
+                                    -0.0, -5.323370346700379, -12.42119747563422,
+                                    -21.293481386801517, -31.940222080202275, -44.3614195558365])
+            rho = np.array([1825.1474473944347, 7475803.944527601, 76757123.1000771,
+                            119612863.11244161, 76757123.1000771, 20283415.964593038,
+                            2207217.3991932594, 98907.84290890688, 1825.1474473944347])  # msun/kpc^3 ??
 
-        for i, r in enumerate(rarr):
-            # Assert vcirc, menc, density, dlnrho_dlnr values are the same
-            if np.isfinite(vcirc[i]):
-                assert math.isclose(gausring.circular_velocity(r), vcirc[i], rel_tol=ftol)
-            else:
-                assert ~np.isfinite(gausring.circular_velocity(r))
-            assert math.isclose(gausring.enclosed_mass(r), menc[i], rel_tol=ftol)
-            assert math.isclose(gausring.rhogas(r), rho[i], rel_tol=ftol)
-            assert math.isclose(gausring.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
+            for i, r in enumerate(rarr):
+                # Assert vcirc, menc, density, dlnrho_dlnr values are the same
+                if np.isfinite(vcirc[i]):
+                    assert math.isclose(gausring.circular_velocity(r), vcirc[i], rel_tol=ftol)
+                else:
+                    assert ~np.isfinite(gausring.circular_velocity(r))
+                assert math.isclose(gausring.enclosed_mass(r), menc[i], rel_tol=ftol)
+                assert math.isclose(gausring.rhogas(r), rho[i], rel_tol=ftol)
+                assert math.isclose(gausring.dlnrhogas_dlnr(r), dlnrho_dlnr[i], rel_tol=ftol)
 
     def test_asymm_drift_pressuregradient(self):
         gal = self.helper.setup_fullmodel(pressure_support_type=3)
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.91717537419922, 258.9907912770804,
-                         259.0402880219702, 252.58915056627905]) # km/s
+        vrot = np.array([0.0, 249.58068398249594, 259.8065524159829,
+                         259.6197425533726, 253.09920145099804]) # km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_asymm_drift_exactsersic(self):
@@ -496,12 +500,12 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 232.03861252444398, 253.47823945210072,
-                        261.186198203435, 242.75798891697548]) #km/s
+        vrot = np.array([0.0, 232.88505971810986, 254.77986217020114,
+                         262.0585360537673, 243.36586952376553]) #km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_asymm_drift_selfgrav(self):
@@ -509,12 +513,12 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.])   # kpc
-        vrot = np.array([0.0, 248.27820429923966, 255.50185397469704,
-                252.9804212303498, 243.74423052912974]) #km/s
+        vrot = np.array([0.0, 248.94341596219644, 256.3287188287798,
+                         253.57372385714814, 244.27275064459627]) #km/s
 
         for i, r in enumerate(rarr):
             # Assert vrot values are the same
-            assert math.isclose(gal.model.velocity_profile(r), vrot[i], rel_tol=ftol)
+            assert math.isclose(gal.model.velocity_profile(r, tracer='halpha'), vrot[i], rel_tol=ftol)
 
 
     def test_composite_model(self):
@@ -522,10 +526,10 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
-        vcirc_noAC = np.array([0.0, 253.37195332170248, 265.3144500107512,
-                        267.70306969828573, 263.8794609594266, 226.93164583634422]) #km/s
-        menc_noAC = np.array([0.0, 37316078582.12215, 81833424086.48811,
-                        124970318584.0155, 161901207448.951, 598685915680.8903]) # Msun
+        vcirc_noAC = np.array([0.0, 254.02382634494577, 266.1108267177487,
+                               268.26381312204825, 264.3677300796697, 227.0647554258678]) #km/s
+        menc_noAC = np.array([0.0, 37508338512.160484, 82325429263.37936,
+                              125494404296.29707, 162500909269.72787, 599388455060.5905]) # Msun
 
         for i, r in enumerate(rarr):
             # Assert vcirc, menc values are the same
@@ -538,45 +542,44 @@ class TestModels:
 
         ftol = 1.e-9
         rarr = np.array([0.,2.5,5.,7.5,10.,50.])   # kpc
-        vcirc_AC = np.array([45.52585221837478, 270.5127652416235, 283.47161746884086,
-                        284.6186917220378, 278.84200286773034, 226.8176250265685]) #km/s
-        menc_AC = np.array([0.0, 42535784556.8831, 93417465234.21672,
-                        141262539926.01163, 180782046435.46255, 598084452596.9691]) # Msun
+        vcirc_AC = np.array([45.59127186551518, 271.17987202928936, 284.2764274637112,
+                             285.19266202687686, 279.3433093489505, 226.9501065655811]) #km/s
+        menc_AC = np.array([0.0, 42745836746.356125, 93948665060.98706,
+                            141832862679.0065, 181432656288.60907, 598783325000.973]) # Msun
 
         for i, r in enumerate(rarr):
             # Assert vcirc, menc values are the same
             assert math.isclose(gal_AC.model.circular_velocity(r), vcirc_AC[i], rel_tol=ftol)
             assert math.isclose(gal_AC.model.enclosed_mass(r), menc_AC[i], rel_tol=ftol)
 
-    
+
     def test_simulate_cube(self):
         gal = self.helper.setup_fullmodel(instrument=True)
 
         ##################
         # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
 
         # Make model
-        gal.create_model_data(**kwargs_galmodel)
+        gal.create_model_data()
 
         # Get cube:
-        cube = gal.model_cube.data.unmasked_data[:].value
+        cube = gal.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.025494307261611702],
-                            [0,0,0, 6.776263578034403e-22],
-                            [100,18,0, 2.188781420324916e-06],
-                            [50,18,18, 1.7084951645559194e-08],
-                            [95,10,10, 0.0017579017423842986],
-                            [100,5,5, 2.6361844098134272e-05],
-                            [150,18,18, 3.939701551269881e-07],
-                            [100,15,15, 0.04874255392712087],
-                            [100,15,21, 0.015755174103735517],
-                            [90,15,15, 0.07140853705302519],
-                            [90,15,21, 0.003903714258814497]]
+        arr_pix_values =   [[100,18,18, 0.025385795785447536],
+                            [0,0,0, -4.291633599421788e-21],
+                            [100,18,0, 2.1864570449974476e-06],
+                            [50,18,18, 1.8379212571075407e-08],
+                            [95,10,10, 0.0017331850380921273],
+                            [100,5,5, 2.59806284303019e-05],
+                            [150,18,18, 4.196387384525213e-07],
+                            [100,15,15, 0.048575246695046544],
+                            [100,15,21, 0.01571651134386143],
+                            [90,15,15, 0.07109102928581162],
+                            [90,15,21, 0.0038996448540969905]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -589,32 +592,28 @@ class TestModels:
         inflow = self.helper.setup_uniform_inflow()
         gal_inflow.model.add_component(inflow)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_inflow.create_model_data(**kwargs_galmodel)
+        gal_inflow.create_model_data()
 
         # Get cube:
-        cube = gal_inflow.model_cube.data.unmasked_data[:].value
+        cube = gal_inflow.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values =   [[100,18,18, 0.024201244000354585],
-                            [0,0,0, -2.0328790734103207e-21],
-                            [100,18,0, 2.842332467196115e-07],
-                            [50,18,18, 1.2200523993773544e-07],
-                            [95,10,10, 0.0015049702372115622],
-                            [100,5,5, 1.3623785523327364e-05],
-                            [150,18,18, 1.6933163357361428e-06],
-                            [100,15,15, 0.042615056815275054],
-                            [100,15,21, 0.0060938800208993026],
-                            [90,15,15, 0.06229601362739992],
-                            [90,15,21, 0.0013108842080778876]]
+        arr_pix_values =   [[100,18,18, 0.024107090069722958],
+                            [0,0,0, 2.2587545260114675e-22],
+                            [100,18,0, 2.836532901062861e-07],
+                            [50,18,18, 1.296264105031993e-07],
+                            [95,10,10, 0.0014847101563940928],
+                            [100,5,5, 1.3391806466223583e-05],
+                            [150,18,18, 1.7878573518278115e-06],
+                            [100,15,15, 0.04249165716318261],
+                            [100,15,21, 0.00608171807364393],
+                            [90,15,15, 0.062040129665900806],
+                            [90,15,21, 0.0013105590579818582]]
 
 
         for arr in arr_pix_values:
@@ -626,32 +625,28 @@ class TestModels:
         bar = self.helper.setup_bar_inflow()
         gal_bar.model.add_component(bar)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_bar.create_model_data(**kwargs_galmodel)
+        gal_bar.create_model_data()
 
         # Get cube:
-        cube = gal_bar.model_cube.data.unmasked_data[:].value
+        cube = gal_bar.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values =   [[100,18,18, 0.02064790492316384],
-                            [0,0,0, -6.776263578034403e-22],
-                            [100,18,0, 2.1885040552975126e-06],
-                            [50,18,18, 1.3853082438536335e-06],
-                            [95,10,10, 0.0017564723153457415],
-                            [100,5,5, 2.6361844097914003e-05],
-                            [150,18,18, 4.082901162771879e-06],
-                            [100,15,15, 0.038049267735887],
-                            [100,15,21, 0.01174313004385695],
-                            [90,15,15, 0.07175454405079977],
-                            [90,15,21, 0.0022651705774065253]]
+        arr_pix_values =   [[100,18,18, 0.020557222934201248],
+                            [0,0,0, 1.807003620809174e-21],
+                            [100,18,0, 2.1861796543816574e-06],
+                            [50,18,18, 1.460015377540332e-06],
+                            [95,10,10, 0.0017317593164739437],
+                            [100,5,5, 2.5980628430081473e-05],
+                            [150,18,18, 4.3054634022043904e-06],
+                            [100,15,15, 0.03792157115110738],
+                            [100,15,21, 0.011708927308800302],
+                            [90,15,15, 0.07144121102983325],
+                            [90,15,21, 0.002261938326454337]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -662,32 +657,28 @@ class TestModels:
         wedge = self.helper.setup_wedge_inflow()
         gal_wedge.model.add_component(wedge)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_wedge.create_model_data(**kwargs_galmodel)
+        gal_wedge.create_model_data()
 
         # Get cube:
-        cube = gal_wedge.model_cube.data.unmasked_data[:].value
+        cube = gal_wedge.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values =   [[100,18,18, 0.019586006862063132],
-                            [0,0,0, 1.1293772630057337e-21],
-                            [100,18,0, 4.4833603035803543e-07],
-                            [50,18,18, 1.7163234226902357e-08],
-                            [95,10,10, 0.0016784517511998372],
-                            [100,5,5, 2.636047616113313e-05],
-                            [150,18,18, 3.9468783100682355e-07],
-                            [100,15,15, 0.03645396056094084],
-                            [100,15,21, 0.006016831537326521],
-                            [90,15,15, 0.06634179926804772],
-                            [90,15,21, 0.001189154821866105]]
+        arr_pix_values =   [[100,18,18, 0.01952842802384748],
+                            [0,0,0, -1.5811281682080273e-21],
+                            [100,18,0, 4.475289469761097e-07],
+                            [50,18,18, 1.846058642502683e-08],
+                            [95,10,10, 0.0016539411986031265],
+                            [100,5,5, 2.5979264215177718e-05],
+                            [150,18,18, 4.2038218150593684e-07],
+                            [100,15,15, 0.03638019111119462],
+                            [100,15,21, 0.006001767379924278],
+                            [90,15,15, 0.06596075151464298],
+                            [90,15,21, 0.0011865074902281455]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -699,32 +690,28 @@ class TestModels:
         spiral = self.helper.setup_spiral_density_waves_flatVrot()
         gal_spiral.model.add_component(spiral)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_spiral.create_model_data(**kwargs_galmodel)
+        gal_spiral.create_model_data()
 
         # Get cube:
-        cube = gal_spiral.model_cube.data.unmasked_data[:].value
+        cube = gal_spiral.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
 
-        arr_pix_values =   [[100,18,18, 0.0240910407123745],
-                            [0,0,0, -1.807003620809174e-21],
-                            [100,18,0, 2.274254720591604e-06],
-                            [50,18,18, 6.869583540925853e-08],
-                            [95,10,10, 0.002387161656309826],
-                            [100,5,5, 0.00011124286936046525],
-                            [150,18,18, 2.4073925094865906e-06],
-                            [100,15,15, 0.04656194667451479],
-                            [100,15,21, 0.015767707488431298],
-                            [90,15,15, 0.06939214762985071],
-                            [90,15,21, 0.006395139680842508]]
+        arr_pix_values =   [[100,18,18, 0.023993424077871684],
+                            [0,0,0, 6.324512672832109e-21],
+                            [100,18,0, 2.2714689873138346e-06],
+                            [50,18,18, 7.315591860369378e-08],
+                            [95,10,10, 0.0023635192298107136],
+                            [100,5,5, 0.00010984016795835791],
+                            [150,18,18, 2.5374320642886547e-06],
+                            [100,15,15, 0.04640212010747527],
+                            [100,15,21, 0.015740611383889422],
+                            [90,15,15, 0.0690862364702349],
+                            [90,15,21, 0.006386863833688872]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -739,31 +726,27 @@ class TestModels:
         gal_bicone.model.add_component(bicone_geom, geom_type=bicone.name)
         gal_bicone.model.add_component(bicone_disp, disp_type=bicone.name)
 
-        ##################
-        # Create cube:
-        kwargs_galmodel = self.helper.setup_3Dcube_kwargs()
-
         # Make model
-        gal_bicone.create_model_data(**kwargs_galmodel)
+        gal_bicone.create_model_data()
 
         # Get cube:
-        cube = gal_bicone.model_cube.data.unmasked_data[:].value
+        cube = gal_bicone.get_observation('halpha_1D').model_cube.data.unmasked_data[:].value
 
         ##################
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.027185579072496628],
-                            [0,0,0, 2.7105054312137612e-21],
-                            [100,18,0, 2.1887814203259354e-06],
-                            [50,18,18, 0.0005320325936246136],
-                            [95,10,10, 0.001758091539590106],
-                            [100,5,5, 2.6361844098141783e-05],
-                            [150,18,18, 0.0005310729496857921],
-                            [100,15,15, 0.052710956556674675],
-                            [100,15,21, 0.01588655546256837],
-                            [90,15,15, 0.07522552630778426],
-                            [90,15,21, 0.004030068174217149]]
+        arr_pix_values =   [[100,18,18, 0.027077067596332466],
+                            [0,0,0, -3.3881317890172014e-21],
+                            [100,18,0, 2.1864570449973455e-06],
+                            [50,18,18, 0.0005320338878855436],
+                            [95,10,10, 0.001733374835297935],
+                            [100,5,5, 2.5980628430308753e-05],
+                            [150,18,18, 0.000531098618269112],
+                            [100,15,15, 0.05254364932460036],
+                            [100,15,21, 0.015847892702694284],
+                            [90,15,15, 0.07490801854057066],
+                            [90,15,21, 0.004025998769499641]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -791,17 +774,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.062306424425167345],
-                            [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 2.5143654319214826e-06],
-                            [50,18,18, 5.345480239025723e-07],
-                            [95,10,10, 0.0016590598295565717],
-                            [100,5,5, 0.0001009414287366288],
-                            [150,18,18, 5.345480239012016e-07],
-                            [100,15,15, 0.011018604410484396],
-                            [100,15,21, 0.027103610119410277],
-                            [90,15,15, 0.045620894103943446],
-                            [90,15,21, 0.02057779281245439]]
+        arr_pix_values =   [[100,18,18, 0.062096325861100865],
+                            [0,0,0, 1.3385212005993883e-21],
+                            [100,18,0, 2.5253432241441e-06],
+                            [50,18,18, 5.698384148161866e-07],
+                            [95,10,10, 0.0016377058627328684],
+                            [100,5,5, 0.00010039456527216781],
+                            [150,18,18, 5.698384148120747e-07],
+                            [100,15,15, 0.010942160099466264],
+                            [100,15,21, 0.02704783322800287],
+                            [90,15,15, 0.04528310698904516],
+                            [90,15,21, 0.020552348141567225]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -828,17 +811,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.05289229590921311],
-                            [0,0,0, 0.0],
-                            [100,18,0, 6.08081831144031e-07],
-                            [50,18,18, 2.5394868500877555e-06],
-                            [95,10,10, 0.0012018147554400322],
-                            [100,5,5, 6.240538925948083e-05],
-                            [150,18,18, 2.5394868500927814e-06],
-                            [100,15,15, 0.011393115571699731],
-                            [100,15,21, 0.02203820364233378],
-                            [90,15,15, 0.03784075512013737],
-                            [90,15,21, 0.010338744289985281]]
+        arr_pix_values =   [[100,18,18, 0.05274746107036724],
+                            [0,0,0, 2.6770424011987766e-21],
+                            [100,18,0, 6.149085755387803e-07],
+                            [50,18,18, 2.6768273685509387e-06],
+                            [95,10,10, 0.0011851378117069761],
+                            [100,5,5, 6.198276696294433e-05],
+                            [150,18,18, 2.676827368554137e-06],
+                            [100,15,15, 0.011320861657201713],
+                            [100,15,21, 0.022009103331619515],
+                            [90,15,15, 0.03757150698720647],
+                            [90,15,21, 0.010338830606177003]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -865,17 +848,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.05279108769198229],
-                            [0,0,0, -8.923474670662589e-22],
-                            [100,18,0, 5.829535971686665e-07],
-                            [50,18,18, 1.6023518969472919e-06],
-                            [95,10,10, 0.001182408713692744],
-                            [100,5,5, 6.172078700674826e-05],
-                            [150,18,18, 1.6023518969472919e-06],
-                            [100,15,15, 0.011200194989420681],
-                            [100,15,21, 0.021796598886909838],
-                            [90,15,15, 0.037539158849834955],
-                            [90,15,21, 0.010076756380715115]]
+        arr_pix_values =   [[100,18,18, 0.052652695795088286],
+                            [0,0,0, 3.5693898682650355e-21],
+                            [100,18,0, 5.896054073241489e-07],
+                            [50,18,18, 1.6954768341167763e-06],
+                            [95,10,10, 0.0011658817894668796],
+                            [100,5,5, 6.13056469185842e-05],
+                            [150,18,18, 1.6954768341291121e-06],
+                            [100,15,15, 0.01112988318401541],
+                            [100,15,21, 0.02176983522399486],
+                            [90,15,15, 0.03726923786824762],
+                            [90,15,21, 0.010078226699562426]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -902,17 +885,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.049436951836480725],
-                            [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 2.514365215564211e-06],
-                            [50,18,18, 1.3672043804203988e-05],
-                            [95,10,10, 0.001659058962060482],
-                            [100,5,5, 0.00010094142873662862],
-                            [150,18,18, 1.3672043804205359e-05],
-                            [100,15,15, 0.009804466102837077],
-                            [100,15,21, 0.020668291051880523],
-                            [90,15,15, 0.045366403861279395],
-                            [90,15,21, 0.015600750987785348]]
+        arr_pix_values =   [[100,18,18, 0.04927368010973892],
+                            [0,0,0, 1.3385212005993883e-21],
+                            [100,18,0, 2.5253430077721125e-06],
+                            [50,18,18, 1.4329957667203139e-05],
+                            [95,10,10, 0.0016377049977153518],
+                            [100,5,5, 0.00010039456527216798],
+                            [150,18,18, 1.4329957667196742e-05],
+                            [100,15,15, 0.009732331095492985],
+                            [100,15,21, 0.020623913146535198],
+                            [90,15,15, 0.04503083931308861],
+                            [90,15,21, 0.015578674251922076]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -940,17 +923,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.046355793187690814],
-                            [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 1.2981907321834523e-06],
-                            [50,18,18, 5.379775661284546e-07],
-                            [95,10,10, 0.0016570420573892048],
-                            [100,5,5, 0.00010094141728171345],
-                            [150,18,18, 5.379775661279977e-07],
-                            [100,15,15, 0.008759122487890474],
-                            [100,15,21, 0.020035373406315067],
-                            [90,15,15, 0.04308626032574506],
-                            [90,15,21, 0.009778660629345865]]
+        arr_pix_values =   [[100,18,18, 0.04625110437599818],
+                            [0,0,0, 2.2308686676656474e-21],
+                            [100,18,0, 1.3070541911134733e-06],
+                            [50,18,18, 5.733893197456777e-07],
+                            [95,10,10, 0.001635687883516719],
+                            [100,5,5, 0.00010039455380341816],
+                            [150,18,18, 5.733893197461346e-07],
+                            [100,15,15, 0.008701545542027213],
+                            [100,15,21, 0.02001730309988766],
+                            [90,15,15, 0.04273073210594165],
+                            [90,15,21, 0.009754801538534088]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -978,17 +961,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.14992331513995502],
-                            [0,0,0, 8.120361950302955e-20],
-                            [100,18,0, 2.51436543192309e-06],
-                            [50,18,18, 0.0442424643698038],
-                            [95,10,10, 0.0016590607812486358],
-                            [100,5,5, 0.00010094142873662856],
-                            [150,18,18, 0.04424246436980381],
-                            [100,15,15, 0.017672175408640557],
-                            [100,15,21, 0.033757181117566454],
-                            [90,15,15, 0.052095072283084846],
-                            [90,15,21, 0.027051970991595804]]
+        arr_pix_values =   [[100,18,18, 0.14971321657588857],
+                            [0,0,0, 7.852657710183078e-20],
+                            [100,18,0, 2.525343224145588e-06],
+                            [50,18,18, 0.04424249966019471],
+                            [95,10,10, 0.0016377068144249323],
+                            [100,5,5, 0.00010039456527216733],
+                            [150,18,18, 0.044242499660194716],
+                            [100,15,15, 0.01759573109762244],
+                            [100,15,21, 0.033701404226159054],
+                            [90,15,15, 0.05175728516818657],
+                            [90,15,21, 0.027026526320708646]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -1015,17 +998,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.06644021853315027],
-                            [0,0,0, 8.923474670662589e-22],
-                            [100,18,0, 2.533418537505829e-06],
-                            [50,18,18, 0.002507881854599829],
-                            [95,10,10, 0.0016699828684078382],
-                            [100,5,5, 0.00010094142970317003],
-                            [150,18,18, 0.002507881854599829],
-                            [100,15,15, 0.012829616313384517],
-                            [100,15,21, 0.03606346296698132],
-                            [90,15,15, 0.048294386479868084],
-                            [90,15,21, 0.028127203803675047]]
+        arr_pix_values =   [[100,18,18, 0.06623011996908379],
+                            [0,0,0, 2.2308686676656474e-21],
+                            [100,18,0, 2.544396329727811e-06],
+                            [50,18,18, 0.0025079171449907366],
+                            [95,10,10, 0.0016486289015841358],
+                            [100,5,5, 0.0001003945662387093],
+                            [150,18,18, 0.0025079171449907374],
+                            [100,15,15, 0.012753172002366388],
+                            [100,15,21, 0.03600768607557391],
+                            [90,15,15, 0.0479565993649698],
+                            [90,15,21, 0.028101759132787885]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -1052,17 +1035,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.05901650542176798],
-                            [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 2.5143654309156026e-06],
-                            [50,18,18, 1.205654170222069e-05],
-                            [95,10,10, 0.0016590596033040968],
-                            [100,5,5, 0.00010094142873662871],
-                            [150,18,18, 1.2056541702219777e-05],
-                            [100,15,15, 0.01070841016380301],
-                            [100,15,21, 0.02620604457113305],
-                            [90,15,15, 0.04547514330653823],
-                            [90,15,21, 0.017880950006750315]]
+        arr_pix_values =   [[100,18,18, 0.058823972468395366],
+                            [0,0,0, 8.923474670662589e-22],
+                            [100,18,0, 2.525343223136356e-06],
+                            [50,18,18, 1.2647106027087264e-05],
+                            [95,10,10, 0.001637705637702002],
+                            [100,5,5, 0.0001003945652721678],
+                            [150,18,18, 1.2647106027088177e-05],
+                            [100,15,15, 0.010633342579011853],
+                            [100,15,21, 0.0261541595394654],
+                            [90,15,15, 0.04514075021269858],
+                            [90,15,21, 0.01786060517580677]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -1089,17 +1072,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.056778986180900354],
-                            [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 2.5270060135964004e-06],
-                            [50,18,18, 6.962378894060093e-07],
-                            [95,10,10, 0.001629922739873721],
-                            [100,5,5, 0.00010017612936480282],
-                            [150,18,18, 6.962378894046386e-07],
-                            [100,15,15, 0.011069858082284945],
-                            [100,15,21, 0.025089408659842063],
-                            [90,15,15, 0.04487368036335876],
-                            [90,15,21, 0.02469265352009432]]
+        arr_pix_values =   [[100,18,18, 0.0565965229237657],
+                            [0,0,0, 4.461737335331294e-22],
+                            [100,18,0, 2.537954068057636e-06],
+                            [50,18,18, 7.419933553374344e-07],
+                            [95,10,10, 0.0016088622346838795],
+                            [100,5,5, 9.963441075490312e-05],
+                            [150,18,18, 7.419933553296674e-07],
+                            [100,15,15, 0.010995456056668813],
+                            [100,15,21, 0.025039792811775576],
+                            [90,15,15, 0.04454043313102052],
+                            [90,15,21, 0.02465183936170711]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same
@@ -1125,17 +1108,17 @@ class TestModelsFittingWrappers:
         # Check some pix points:
         atol = 1.e-9
         # array: ind0,ind1,ind2, value
-        arr_pix_values =   [[100,18,18, 0.06214084407576038],
+        arr_pix_values =   [[100,18,18, 0.061932705904893304],
                             [0,0,0, 1.7846949341325177e-21],
-                            [100,18,0, 2.413427431561494e-06],
-                            [50,18,18, 5.649122109342417e-07],
-                            [95,10,10, 0.0016684203374615159],
-                            [100,5,5, 0.00010265137792981161],
-                            [150,18,18, 5.649122109383537e-07],
-                            [100,15,15, 0.011069093580124412],
-                            [100,15,21, 0.026981243904103936],
-                            [90,15,15, 0.04555353748217607],
-                            [90,15,21, 0.02057394395279147]]
+                            [100,18,0, 2.4244854910987994e-06],
+                            [50,18,18, 6.021356235187983e-07],
+                            [95,10,10, 0.0016470620217776321],
+                            [100,5,5, 0.00010209511831378836],
+                            [150,18,18, 6.021356235128589e-07],
+                            [100,15,15, 0.010992460769702379],
+                            [100,15,21, 0.026926089713230416],
+                            [90,15,15, 0.04521738711777384],
+                            [90,15,21, 0.0205481672058022]]
 
         for arr in arr_pix_values:
             # Assert pixel values are the same

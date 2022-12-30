@@ -3,11 +3,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os
-import platform
-from contextlib import contextmanager
-import sys
-import shutil
+import os, sys
 
 import matplotlib
 # Check if there is a display for plotting, or if there is an SSH/TMUX session.
@@ -20,16 +16,6 @@ if havedisplay:
 if not havedisplay:
     matplotlib.use('agg')
 
-from dysmalpy import galaxy
-from dysmalpy import models
-from dysmalpy import fitting
-from dysmalpy import instrument
-from dysmalpy import parameters
-from dysmalpy import plotting
-from dysmalpy import config
-
-import copy
-import numpy as np
 import astropy.units as u
 
 try:
@@ -40,17 +26,18 @@ except ImportError:
     from .dysmalpy_fit_single import dysmalpy_fit_single
 
 # Backwards compatibility
-def dysmalpy_fit_single_3D(param_filename=None, data=None, datadir=None,
+def dysmalpy_fit_single_3D(param_filename=None, data_loader=None, datadir=None,
         outdir=None, plot_type='pdf', overwrite=False):
-    return dysmalpy_fit_single(param_filename=param_filename, data=data, datadir=datadir,
+    return dysmalpy_fit_single(param_filename=param_filename,
+                data_loader=data_loader, datadir=datadir,
                 outdir=outdir, plot_type=plot_type, overwrite=overwrite)
 
 
 
-def user_specific_load_3D_data(param_filename=None, datadir=None):
+def user_specific_load_3D_data(params=None, datadir=None):
     # EDIT THIS FILE TO HAVE SPECIFIC LOADING OF DATA!
 
-    params = utils_io.read_fitting_params(fname=param_filename)
+    # params = utils_io.read_fitting_params(fname=param_filename)
 
     # Recommended to trim cube to around the relevant line only,
     # both for speed of computation and to avoid noisy spectral resolution elements.
@@ -95,15 +82,16 @@ def user_specific_load_3D_data(param_filename=None, datadir=None):
 
     return data3d
 
-def dysmalpy_fit_single_3D_wrapper(param_filename=None, datadir=None, default_load_data=True, overwrite=False):
+def dysmalpy_fit_single_3D_wrapper(param_filename=None, datadir=None,
+                                   default_load_data=True, overwrite=False):
 
     if default_load_data:
-        params = utils_io.read_fitting_params(fname=param_filename)
-        data3d = utils_io.load_single_object_3D_data(params=params, datadir=datadir)
+        data_loader=None
     else:
-        data3d = user_specific_load_3D_data(param_filename=param_filename, datadir=datadir)
+        data_loader=user_specific_load_3D_data
 
-    dysmalpy_fit_single_3D(param_filename=param_filename, data=data3d, overwrite=overwrite)
+    dysmalpy_fit_single_3D(param_filename=param_filename, data_loader=data_loader,
+                           overwrite=overwrite)
 
     return None
 

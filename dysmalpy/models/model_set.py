@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import logging
 import warnings
-import six
 from collections import OrderedDict
 
 # Local imports
@@ -24,19 +23,14 @@ except:
    from . import utils as model_utils
 
 
-from dysmalpy import config
-
 # Third party imports
 import numpy as np
-import scipy.ndimage as scp_ndi
 import astropy.constants as apy_con
 import astropy.units as u
-import pyximport; pyximport.install()
-from . import cutils
+#import pyximport; pyximport.install()
 
 
-__all__ = ['ModelSet',
-           'calc_1dprofile', 'calc_1dprofile_circap_pv']
+__all__ = ['ModelSet']
 
 
 # LOGGER SETTINGS
@@ -47,7 +41,7 @@ np.warnings.filterwarnings('ignore')
 
 
 def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
-            rstep=None, oversample=None, dscale=None,
+            pixscale=None, oversample=None, dscale=None,
             maxr=None, maxr_y=None):
 
     oversize = 1.5  # Padding factor for x trimming
@@ -62,7 +56,7 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
 
     # Sample += 2 * scale length thickness
     # Modify: make sure there are at least 3 *whole* pixels sampled:
-    zsize = np.max([ n_wholepix_z_min*oversample, int(np.floor(4.*thick/rstep*dscale + 0.5 )) ])
+    zsize = np.max([ n_wholepix_z_min*oversample, int(np.floor(4.*thick/pixscale*dscale + 0.5 )) ])
 
     if ( (xsize%2) < 0.5 ): xsize += 1
     if ( (ysize%2) < 0.5 ): ysize += 1
@@ -85,228 +79,6 @@ def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
 
     return ai
 
-def area_segm(rr, dd):
-
-    return (rr**2 * np.arccos(dd/rr) -
-            dd * np.sqrt(2. * rr * (rr-dd) - (rr-dd)**2))
-
-
-
-def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
-    """
-    Measure the 1D rotation curve from a cube using a pseudoslit.
-
-    This function measures the 1D rotation curve by first creating a PV diagram based on the
-    input slit properties. Fluxes, velocities, and dispersions are then measured from the spectra
-    at each single position in the PV diagram by calculating the 0th, 1st, and 2nd moments
-    of each spectrum.
-
-    Parameters
-    ----------
-    cube : 3D array
-        Data cube from which to measure the rotation curve. First dimension is assumed to
-        be spectral direction.
-
-    slit_width : float
-        Slit width of the pseudoslit in arcseconds
-
-    slit_angle : float
-        Position angle of the pseudoslit
-
-    pxs : float
-        Pixelscale of the data cube in arcseconds/pixel
-
-    vx : 1D array
-        Values of the spectral axis. This array must have the same length as the
-        first dimension of `cube`.
-
-    soff : float, optional
-        Offset of the slit from center in arcseconds. Default is 0.
-
-    Returns
-    -------
-    xvec : 1D array
-        Position along slit in arcseconds
-
-    flux : 1D array
-        Relative flux of the line at each position. Calculated as the sum of the spectrum.
-
-    vel : 1D array
-        Velocity at each position in same units as given by `vx`. Calculated as the first moment
-        of the spectrum.
-
-    disp : 1D array
-        Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
-        second moment of the spectrum.
-
-    """
-    cube_shape = cube.shape
-    psize = cube_shape[1]
-    vsize = cube_shape[0]
-    lin = np.arange(psize) - np.fix(psize/2.)
-    veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
-                                           reshape=False)
-    tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
-            ((lin*pxs) >= (soff-slit_width/2.)))
-    data = np.zeros((psize, vsize))
-
-    flux = np.zeros(psize)
-
-    yvec = vx
-    xvec = lin*pxs
-
-    for i in range(psize):
-        for j in range(vsize):
-            data[i, j] = np.mean(veldata[j, i, tmpn])
-        flux[i] = np.sum(data[i,:])
-
-    flux = flux / np.max(flux) * 10.
-    pvec = (flux < 0.)
-
-    vel = np.zeros(psize)
-    disp = np.zeros(psize)
-    for i in range(psize):
-        vel[i] = np.sum(data[i,:]*yvec)/np.sum(data[i,:])
-        disp[i] = np.sqrt( np.sum( ((yvec-vel[i])**2) * data[i,:]) / np.sum(data[i,:]) )
-
-    if np.sum(pvec) > 0.:
-        vel[pvec] = -1.e3
-        disp[pvec] = 0.
-
-    return xvec, flux, vel, disp
-
-
-def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
-    """
-    Measure the 1D rotation curve from a cube using a pseudoslit
-
-    This function measures the 1D rotation curve by first creating a PV diagram based on the
-    input slit properties. Fluxes, velocities, and dispersions are then measured from spectra
-    produced by integrating over circular apertures placed on the PV diagram with radii equal
-    to 0.5*`slit_width`. The 0th, 1st, and 2nd moments of the integrated spectra are then calculated
-    to determine the flux, velocity, and dispersion.
-
-    Parameters
-    ----------
-    cube : 3D array
-        Data cube from which to measure the rotation curve. First dimension is assumed to
-        be spectral direction.
-
-    slit_width : float
-        Slit width of the pseudoslit in arcseconds
-
-    slit_angle : float
-        Position angle of the pseudoslit
-
-    pxs : float
-        Pixelscale of the data cube in arcseconds/pixel
-
-    vx : 1D array
-        Values of the spectral axis. This array must have the same length as the
-        first dimension of `cube`.
-
-    soff : float, optional
-        Offset of the slit from center in arcseconds. Default is 0.
-
-    Returns
-    -------
-    xvec : 1D array
-        Position along slit in arcseconds
-
-    flux : 1D array
-        Relative flux of the line at each position. Calculated as the sum of the spectrum.
-
-    vel : 1D array
-        Velocity at each position in same units as given by `vx`. Calculated as the first moment
-        of the spectrum.
-
-    disp : 1D array
-        Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
-        second moment of the spectrum.
-
-    """
-    cube_shape = cube.shape
-    psize = cube_shape[1]
-    vsize = cube_shape[0]
-    lin = np.arange(psize) - np.fix(psize/2.)
-    veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
-                                           reshape=False)
-    tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
-            ((lin*pxs) >= (soff-slit_width/2.)))
-    data = np.zeros((psize, vsize))
-    flux = np.zeros(psize)
-
-    yvec = vx
-    xvec = lin*pxs
-
-    for i in range(psize):
-        for j in range(vsize):
-            data[i, j] = np.mean(veldata[j, i, tmpn])
-        tmp = data[i]
-        flux[i] = np.sum(tmp)
-
-    flux = flux / np.max(flux) * 10.
-    pvec = (flux < 0.)
-
-    # Calculate circular segments
-    rr = 0.5 * slit_width
-    pp = pxs
-
-    nslice = int(1 + 2 * np.ceil((rr - 0.5 * pp) / pp))
-
-    circaper_idx = np.arange(nslice) - 0.5 * (nslice - 1)
-    circaper_sc = np.zeros(nslice)
-
-    circaper_sc[int(0.5*nslice - 0.5)] = (np.pi*rr**2 -
-                                          2.*area_segm(rr, 0.5*pp))
-
-    if nslice > 1:
-        circaper_sc[0] = area_segm(rr, (0.5*nslice - 1)*pp)
-        circaper_sc[nslice-1] = circaper_sc[0]
-
-    if nslice > 3:
-        for cnt in range(1, int(0.5*(nslice-3))+1):
-            circaper_sc[cnt] = (area_segm(rr, (0.5*nslice - 1. - cnt)*pp) -
-                                area_segm(rr, (0.5*nslice - cnt)*pp))
-            circaper_sc[nslice-1-cnt] = circaper_sc[cnt]
-
-    circaper_vel = np.zeros(psize)
-    circaper_disp = np.zeros(psize)
-    circaper_flux = np.zeros(psize)
-
-    nidx = len(circaper_idx)
-    for i in range(psize):
-        tot_vnum = 0.
-        tot_denom = 0.
-        cnt_idx = 0
-        cnt_start = int(i + circaper_idx[0]) if (i + circaper_idx[0]) > 0 else 0
-        cnt_end = (int(i + circaper_idx[nidx-1]) if (i + circaper_idx[nidx-1]) <
-                                                    (psize-1) else (psize-1))
-        for cnt in range(cnt_start, cnt_end+1):
-            tmp = data[cnt]
-            tot_vnum += circaper_sc[cnt_idx] * np.sum(tmp*yvec)
-            tot_denom += circaper_sc[cnt_idx] * np.sum(tmp)
-            cnt_idx = cnt_idx + 1
-
-        circaper_vel[i] = tot_vnum / tot_denom
-        circaper_flux[i] = tot_denom
-
-        tot_dnum = 0.
-        cnt_idx = 0
-        for cnt in range(cnt_start, cnt_end+1):
-            tmp = data[cnt]
-            tot_dnum = (tot_dnum + circaper_sc[cnt_idx] *
-                        np.sum(tmp*(yvec-circaper_vel[i])**2))
-            cnt_idx = cnt_idx + 1
-
-        circaper_disp[i] = np.sqrt(tot_dnum / tot_denom)
-
-    if np.sum(pvec) > 0.:
-        circaper_vel[pvec] = -1.e3
-        circaper_disp[pvec] = 0.
-        circaper_flux[pvec] = 0.
-
-    return xvec, circaper_flux, circaper_vel, circaper_disp
 
 def _get_xyz_sky_gal(geom, sh, xc_samp, yc_samp, zc_samp):
     """ Get grids in xyz sky, galaxy frames, assuming regularly gridded in sky frame """
@@ -375,8 +147,8 @@ class ModelSet:
         self.mass_components = OrderedDict()
         self.components = OrderedDict()
         self.light_components = OrderedDict()
-        self.geometry = None
-        self.dispersion_profile = None
+        self.geometries = OrderedDict()
+        self.dispersions = OrderedDict()
         self.zprofile = None
 
         # Keep higher-order kinematic components, and their geom/disp/fluxes in OrderedDicts:
@@ -402,6 +174,25 @@ class ModelSet:
 
         # Option for dealing with 3D data:
         self.per_spaxel_norm_3D = False
+
+        # Options for defining fDM apertures:
+        # self.model_key_re = ['disk+bulge','r_eff_disk']
+        self.model_key_halo=['halo']
+
+
+    def _model_aperture_r(self, model_key_re = ['disk+bulge','r_eff_disk']):
+        """
+        Default radius aperture function: returns Reff of the disk
+        Change to a function that returns a different radius (including const)
+        to get other aperture values
+        """
+        # Default: use old behavior of model_key_re = ['disk+bulge','r_eff_disk']:
+
+        comp = self.components.__getitem__(model_key_re[0])
+        param_i = comp.param_names.index(model_key_re[1])
+        r_eff = comp.parameters[param_i]
+
+        return r_eff
 
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
@@ -450,6 +241,17 @@ class ModelSet:
             for dkey in del_keys:
                 if dkey in self.__dict__.keys():
                     del self.__dict__[dkey]
+
+
+        # Migrate to new-multi-obs/multi-tracer framework:
+        if 'dispersion_profile' in state.keys():
+            self.dispersions  = OrderedDict()
+            self.dispersions['LINE'] = state['dispersion_profile']
+            del self.__dict__['dispersion_profile']
+        if 'geometry' in state.keys():
+            self.geometries  = OrderedDict()
+            self.geometries['OBS'] = state['geometry']
+            del self.__dict__['geometry']
 
 
     def add_component(self, model, name=None, light=False,
@@ -503,11 +305,12 @@ class ModelSet:
             elif model._type == 'geometry':
 
                 if geom_type == 'galaxy':
-                    if (self.geometry is not None):
-                        logger.warning('Current Geometry model is being '
-                                    'overwritten!')
-                    self.geometry = model
-
+                    if model.obs_name in self.geometries.keys():
+                        if (self.geometries[model.obs_name] is not None):
+                            wrn = "Current Geometry model '{}' is being ".format(model.obs_name)
+                            wrn += "overwritten!"
+                            logger.warning(wrn)
+                    self.geometries[model.obs_name] = model
                 else:
                     self.higher_order_geometries[geom_type] = model
 
@@ -515,11 +318,12 @@ class ModelSet:
 
             elif model._type == 'dispersion':
                 if disp_type == 'galaxy':
-                    if self.dispersion_profile is not None:
-                        logger.warning('Current Dispersion model is being '
-                                       'overwritten!')
-                    self.dispersion_profile = model
-
+                    if model.tracer in self.dispersions.keys():
+                        if (self.dispersions[model.tracer] is not None):
+                            wrn = "Current Dispersion model '{}' is being ".format(model.tracer)
+                            wrn += "overwritten!"
+                            logger.warning(wrn)
+                    self.dispersions[model.tracer] = model
                 else:
                     self.higher_order_dispersions[disp_type] = model
                 self.mass_components[model.name] = False
@@ -819,7 +623,7 @@ class ModelSet:
                     log_prior_model += comp.__getattribute__(paramn).prior.log_prior(comp.__getattribute__(paramn), modelset=self)
         return log_prior_model
 
-    def get_dm_aper(self, r, model_aperture_r=config._model_aperture_r):
+    def get_dm_aper(self, r):
         """
         Calculate the enclosed dark matter fraction
 
@@ -837,48 +641,19 @@ class ModelSet:
         # vc, vdm = self.circular_velocity(r, compute_dm=True)
         # dm_frac = vdm**2/vc**2
 
-        vcsq, vdmsq = self.vcirc_sq(r, compute_dm=True, model_aperture_r=model_aperture_r)
+        vcsq, vdmsq = self.vcirc_sq(r, compute_dm=True)
         dm_frac = vdmsq/vcsq
 
         return dm_frac
 
-    def get_dm_frac_effrad(self, model_key_re=['disk+bulge','r_eff_disk']):
+
+    def get_dm_frac_r_ap(self):
         """
-        Calculate the dark matter fraction within the effective radius
+        Calculate the dark matter fraction within an aperture radius
 
-        Parameters
-        ----------
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
-
-        Returns
-        -------
-        dm_frac : float
-            Dark matter fraction within the specified effective radius
-        """
-        warnings.warn("Depreciated: now use ModelSet.get_dm_frac_r_ap() with a "
-                      "model_aperture_r() function that returns the appropriate radius",
-                      DeprecationWarning)
-
-        # r_eff needs to be in kpc
-        r_eff = config._model_aperture_r(self, model_key_re=model_key_re)
-        dm_frac = self.get_dm_aper(r_eff, model_aperture_r=config._model_aperture_r)
-
-        return dm_frac
-
-
-    def get_dm_frac_r_ap(self, model_aperture_r=config._model_aperture_r):
-        """
-        Calculate the dark matter fraction within the effective radius
-
-        Parameters
-        ----------
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
+        Uses the method self._model_aperture_r to get the defined apeture radius.
+        By default this function seturns the disk effective radius
+        (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         Returns
         -------
@@ -886,27 +661,22 @@ class ModelSet:
             Dark matter fraction within the specified effective radius
         """
         # r_ap needs to be in kpc
-        r_ap = model_aperture_r(self)
-        dm_frac = self.get_dm_aper(r_ap, model_aperture_r=model_aperture_r)
+        r_ap = self._model_aperture_r()
+        dm_frac = self.get_dm_aper(r_ap)
 
         return dm_frac
 
 
-    def get_mvirial(self, model_key_halo=['halo']):
+    def get_mvirial(self):
         """
         Return the virial mass of the dark matter halo component
-
-        Parameters
-        ----------
-        model_key_halo : list
-            One element list with the name of the halo model component
 
         Returns
         -------
         mvir : float
             Virial mass of the dark matter halo in log(Msun)
         """
-        comp = self.components.__getitem__(model_key_halo[0])
+        comp = self.components.__getitem__(self.model_key_halo[0])
         try:
             mvir = comp.mvirial.value
         except:
@@ -914,14 +684,9 @@ class ModelSet:
 
         return mvir
 
-    def get_halo_alpha(self, model_key_halo=['halo']):
+    def get_halo_alpha(self):
         """
         Return the alpha parameter value for a `TwoPowerHalo`
-
-        Parameters
-        ----------
-        model_key_halo : list
-            One element list with the name of the `TwoPowerHalo` model component
 
         Returns
         -------
@@ -929,13 +694,13 @@ class ModelSet:
             Value of the alpha parameter. Returns None if the correct component
             does not exist.
         """
-        comp = self.components.__getitem__(model_key_halo[0])
+        comp = self.components.__getitem__(self.model_key_halo[0])
         try:
             return comp.alpha.value
         except:
             return None
 
-    def get_halo_rb(self, model_key_halo=['halo']):
+    def get_halo_rb(self):
         """
         Return the Burkert radius parameter value for a `Burkert` dark matter halo
 
@@ -950,7 +715,7 @@ class ModelSet:
             Value of the Burkert radius. Returns None if the correct component
             does not exist.
         """
-        comp = self.components.__getitem__(model_key_halo[0])
+        comp = self.components.__getitem__(self.model_key_halo[0])
         try:
             return comp.rB.value
         except:
@@ -1006,16 +771,14 @@ class ModelSet:
 
         return dlnrhogas_dlnr
 
-    def get_encl_mass_effrad(self, model_key_re=['disk+bulge', 'r_eff_disk']):
-        """
-        Calculate the total enclosed mass within the effective radius
 
-        Parameters
-        ----------
-        model_key_re : list
-            Two element list which contains the name of the model component
-            and parameter to use for the effective radius.
-            Default is ['disk+bulge', 'r_eff_disk'].
+    def get_encl_mass_r_ap(self):
+        """
+        Calculate the total enclosed mass within an aperture radius
+
+        Uses the method self._model_aperture_r to get the defined apeture radius.
+        By default this function seturns the disk effective radius
+        (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         Returns
         -------
@@ -1027,53 +790,20 @@ class ModelSet:
         This method uses the total circular velocity to determine the enclosed mass
         based on v^2 = GM/r.
         """
+        logger.warning("Using spherical approximation to get menc from vcirc!")
 
-        warnings.warn("Depreciated: now use ModelSet.get_dm_frac_r_ap() with a "
-                      "model_aperture_r() function that returns the appropriate radius",
-                      DeprecationWarning)
-
-        # r_eff needs to be in kpc
-        r_eff = config._model_aperture_r(self, model_key_re=model_key_re)
-
-        vc = self.circular_velocity(r_eff)
-        menc = menc_from_vcirc(vc, r_eff)
-
-        return menc
-
-
-    def get_encl_mass_r_ap(self, model_aperture_r=config._model_aperture_r):
-        """
-        Calculate the total enclosed mass within the effective radius
-
-        Parameters
-        ----------
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
-
-        Returns
-        -------
-        menc : float
-            Total enclosed mass within the specified effective radius
-
-        Notes
-        -----
-        This method uses the total circular velocity to determine the enclosed mass
-        based on v^2 = GM/r.
-        """
         # r_ap needs to be in kpc
-        r_ap = model_aperture_r(self)
+        r_ap = self._model_aperture_r()
 
         vc = self.circular_velocity(r_ap)
         menc = menc_from_vcirc(vc, r_ap)
 
+
         return menc
 
 
 
-    def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False,
-                      model_aperture_r=config._model_aperture_r, step1d=0.2):
+    def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False, step1d=0.2):
         """
         Calculate the total enclosed mass
 
@@ -1087,11 +817,6 @@ class ModelSet:
 
         compute_dm : bool
             If True, also return the enclosed mass of the halo
-
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1107,6 +832,8 @@ class ModelSet:
         enc_dm : float or array, only if `compute_dm` = True
             Enclosed mass of the halo, in Msun
         """
+
+        logger.warning("Using spherical approximation to get menc from vcirc!")
 
         # First check to make sure there is at least one mass component in the model set.
         if len(self.mass_components) == 0:
@@ -1130,8 +857,7 @@ class ModelSet:
                         enc_bary += enc_mass_cmp
 
             if (np.sum(enc_dm) > 0) & self.kinematic_options.adiabatic_contract:
-                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True,
-                                    model_aperture_r=model_aperture_r, step1d=step1d)
+                vcirc, vhalo_adi = self.circular_velocity(r, compute_dm=True, step1d=step1d)
                 enc_dm_adi = menc_from_vcirc(vhalo_adi, r)
                 enc_mass = enc_mass - enc_dm + enc_dm_adi
                 enc_dm = enc_dm_adi
@@ -1147,8 +873,7 @@ class ModelSet:
             return enc_mass
 
 
-    def circular_velocity(self, r, compute_baryon=False, compute_dm=False,
-                          model_aperture_r=config._model_aperture_r, step1d=0.2):
+    def circular_velocity(self, r, compute_baryon=False, compute_dm=False, step1d=0.2):
         """
         Calculate the total circular velocity as a function of radius
 
@@ -1162,11 +887,6 @@ class ModelSet:
 
         compute_dm : bool
             If True, also return the circular velocity due to the halo
-
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1183,8 +903,8 @@ class ModelSet:
             Circular velocity due to the halo
         """
 
-        vels_sq = self.vcirc_sq(r, compute_baryon=compute_baryon, compute_dm=compute_dm,
-                                model_aperture_r=model_aperture_r, step1d=step1d)
+        vels_sq = self.vcirc_sq(r, compute_baryon=compute_baryon,
+                                compute_dm=compute_dm, step1d=step1d)
 
         if (compute_baryon and compute_dm):
             vel = np.sqrt(vels_sq[0])
@@ -1204,8 +924,7 @@ class ModelSet:
             return vel
 
 
-    def vcirc_sq(self, r, compute_baryon=False, compute_dm=False,
-                 model_aperture_r=config._model_aperture_r, step1d=0.2):
+    def vcirc_sq(self, r, compute_baryon=False, compute_dm=False, step1d=0.2):
         """
         Calculate the square of the total circular velocity as a function of radius
 
@@ -1219,11 +938,6 @@ class ModelSet:
 
         compute_dm : bool
             If True, also return the circular velocity due to the halo
-
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float, optional
             Step size in kpc to use during adiabatic contraction calculation
@@ -1271,7 +985,6 @@ class ModelSet:
             vels_sq = self.kinematic_options.apply_adiabatic_contract(self, r, vbaryon_sq, vdm_sq,
                                                                    compute_dm=compute_dm,
                                                                    return_vsq=True,
-                                                                   model_aperture_r=model_aperture_r,
                                                                    step1d=step1d)
 
             if compute_dm:
@@ -1289,7 +1002,7 @@ class ModelSet:
             else:
                 return vel_sq
 
-    def velocity_profile(self, r, compute_dm=False):
+    def velocity_profile(self, r, tracer=None, compute_dm=False):
         """
         Calculate the rotational velocity as a function of radius
 
@@ -1297,6 +1010,9 @@ class ModelSet:
         ----------
         r : float or array
             Radius or radii at which to calculate the velocity in kpc
+
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
 
         compute_dm : bool
             If True also return the circular velocity due to the dark matter halo
@@ -1309,7 +1025,10 @@ class ModelSet:
         vdm : float or array
             Circular velocity due to the dark matter halo in km/s
             Only returned if `compute_dm` = True
-       """
+        """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to calculate velocity profile!")
+
         vels_sq = self.vcirc_sq(r, compute_dm=compute_dm)
         if compute_dm:
             vcirc_sq = vels_sq[0]
@@ -1319,7 +1038,7 @@ class ModelSet:
         else:
             vcirc_sq = vels_sq
 
-        vel_sq = self.kinematic_options.apply_pressure_support(r, self, vcirc_sq)
+        vel_sq = self.kinematic_options.apply_pressure_support(r, self, vcirc_sq, tracer=tracer)
         vel = np.sqrt(vel_sq)
 
         if compute_dm:
@@ -1329,7 +1048,7 @@ class ModelSet:
 
 
 
-    def get_vmax(self, r=None):
+    def get_vmax(self, r=None, tracer=None):
         """
         Calculate the peak velocity of the rotation curve
 
@@ -1338,6 +1057,9 @@ class ModelSet:
         r : array, optional
             Radii to sample to find the peak. If None, then a linearly
             spaced array from 0 to 25 kpc with 251 points will be used
+
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
 
         Returns
         -------
@@ -1350,15 +1072,18 @@ class ModelSet:
         radii, `r`.
 
         """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to calculate velocity profile!")
+
         if r is None:
             r = np.linspace(0., 25., num=251, endpoint=True)
 
-        vel = self.velocity_profile(r, compute_dm=False)
+        vel = self.velocity_profile(r, compute_dm=False, tracer=tracer)
 
         vmax = vel.max()
         return vmax
 
-    def write_vrot_vcirc_file(self, r=None, filename=None, overwrite=False):
+    def write_vrot_vcirc_file(self, r=None, filename=None, tracer=None, overwrite=False):
         """
         Output the rotational and circular velocities to a file
 
@@ -1370,7 +1095,14 @@ class ModelSet:
 
         filename : str, optional
             Name of file to output velocities to. Default is 'vout.txt'
+
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to calculate velocity profile!")
+
         # Check for existing file:
         if (not overwrite) and (filename is not None):
             if os.path.isfile(filename):
@@ -1395,13 +1127,14 @@ class ModelSet:
                 pass
 
         if len(cols) >= 1:
-
             self.write_profile_file(r=r, filename=filename,
-                cols=cols, prettycolnames=colnames, colunits=colunits, overwrite=overwrite)
+                cols=cols, prettycolnames=colnames, colunits=colunits,
+                tracer=tracer, overwrite=overwrite)
 
 
     def write_profile_file(self, r=None, filename=None,
-            cols=None, prettycolnames=None, colunits=None, overwrite=False):
+            cols=None, prettycolnames=None, colunits=None,
+            tracer=None, overwrite=False):
         """
         Output various radial profiles of the `ModelSet`
 
@@ -1426,7 +1159,13 @@ class ModelSet:
 
         colunits: list, optional
             Units of each column. r is added by hand, and will always be in kpc.
+
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
         """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to calculate velocity profile!")
+
         # Check for existing file:
         if (not overwrite) and (filename is not None):
             if os.path.isfile(filename):
@@ -1439,13 +1178,21 @@ class ModelSet:
 
         profiles = np.zeros((len(r), len(cols)+1))
         profiles[:,0] = r
-        for j in six.moves.xrange(len(cols)):
-            try:
-                fnc = getattr(self, cols[j])
-                arr = fnc(r)
-                arr[~np.isfinite(arr)] = 0.
-            except:
-                arr = np.ones(len(r))*-99.
+        for j in range(len(cols)):
+            if cols[j] != 'velocity_profile':
+                try:
+                    fnc = getattr(self, cols[j])
+                    arr = fnc(r)
+                    arr[~np.isfinite(arr)] = 0.
+                except:
+                    arr = np.ones(len(r))*-99.
+            else:
+                try:
+                    fnc = getattr(self, cols[j])
+                    arr = fnc(r, tracer=tracer)
+                    arr[~np.isfinite(arr)] = 0.
+                except:
+                    arr = np.ones(len(r))*-99.
             profiles[:, j+1] = arr
 
         colsout = ['r']
@@ -1460,85 +1207,22 @@ class ModelSet:
             if colunits is not None:
                 unitstr = '#   ' + '   '.join(unitsout)
                 f.write(unitstr+'\n')
-            for i in six.moves.xrange(len(r)):
+            for i in range(len(r)):
                 datstr = '    '.join(["{0:0.3f}".format(p) for p in profiles[i,:]])
                 f.write(datstr+'\n')
 
 
-    def simulate_cube(self, nx_sky, ny_sky, dscale, rstep,
-                      spec_type, spec_step, spec_start, nspec,
-                      spec_unit=u.km/u.s, oversample=1, oversize=1,
-                      xcenter=None, ycenter=None,
-                      transform_method='direct',
-                      zcalc_truncate=True,
-                      n_wholepix_z_min=3):
+    def simulate_cube(self, obs=None, dscale=None):
         r"""
         Simulate a line emission cube of this model set
 
         Parameters
         ----------
-        nx_sky : int
-            Number of pixels in the output cube in the x-direction
-
-        ny_sky : int
-            Number of pixels in the output cube in the y-direction
+        obs : Observation class
+            Instance holding the observation information
 
         dscale : float
             Conversion from sky to physical coordinates in arcsec/kpc
-
-        rstep : float
-            Pixel scale in arsec/pixel
-
-        spec_type : {'velocity', 'wavelength'}
-            Spectral axis type.
-
-        spec_step : float
-            Step size of the spectral axis
-
-        spec_start : float
-            Value of the first element of the spectral axis
-
-        nspec : int
-            Number of spectral channels
-
-        spec_unit : `~astropy.units.Unit`
-            Unit of the spectral axis
-
-        oversample : int, optional
-            Oversampling factor for creating the model cube. If `oversample` > 1, then
-            the model cube will be generated at `rstep`/`oversample` pixel scale.
-
-        oversize : int, optional
-            Oversize factor for creating the model cube. If `oversize` > 1, then the model
-            cube will be generated with `oversize`*`nx_sky` and `oversize`*`ny_sky`
-            number of pixels in the x and y direction respectively.
-
-        xcenter : float, optional
-            The x-coordinate of the center of the galaxy. If None then the x-coordinate of the
-            center of the cube will be used.
-
-        ycenter : float, optional
-            The y-coordinate of the center of the galaxy. If None then the x-coordinate of the
-            center of the cube will be used.
-
-        transform_method: str
-            Method for transforming from galaxy to sky coordinates.
-            Options are:
-                'direct' (calculate (xyz)sky before evaluating) or
-                'rotate' (calculate in (xyz)gal, then rotate when creating final cube).
-            Default: 'direct'.
-
-        zcalc_truncate: bool
-            Setting the default behavior of filling the model cube. If True,
-            then the cube is only filled with flux
-            to within +- 2 * scale length thickness above and below
-            the galaxy midplane (minimum: n_wholepix_z_min [3] whole pixels; to speed up the calculation).
-            If False, then no truncation is applied and the cube is filled over the full range of zgal.
-            Default: True
-
-        n_wholepix_z_min: int
-            Minimum number of whole pixels to include in the z direction when trunctating.
-            Default: 3
 
         Returns
         -------
@@ -1552,9 +1236,38 @@ class ModelSet:
 
         """
 
-        if transform_method.lower().strip() not in ['direct', 'rotate']:
+        from . import cutils
+
+        if obs is None:
+            raise ValueError("Must pass 'obs' instance!")
+
+        if obs.mod_options.transform_method.lower().strip() not in ['direct', 'rotate']:
             raise ValueError("Transform method {} unknown! "
                     "Must be 'direct' or 'rotate'!".format(transform_method))
+
+        # ----------------------------------------------
+        # Get key settings / variables out of obs:
+        nx_sky = obs.instrument.fov[0]
+        ny_sky = obs.instrument.fov[1]
+        pixscale = obs.instrument.pixscale.to(u.arcsec).value
+        spec_type = obs.instrument.spec_type
+        nspec = obs.instrument.nspec
+        spec_step = obs.instrument.spec_step.value
+        spec_start = obs.instrument.spec_start.to(obs.instrument.spec_step.unit).value
+        spec_unit = obs.instrument.spec_step.unit
+
+        oversample = obs.mod_options.oversample
+        oversize = obs.mod_options.oversize
+        xcenter = obs.mod_options.xcenter
+        ycenter = obs.mod_options.ycenter
+        transform_method = obs.mod_options.transform_method
+        zcalc_truncate = obs.mod_options.zcalc_truncate
+        n_wholepix_z_min = obs.mod_options.n_wholepix_z_min
+        # ----------------------------------------------
+
+
+        # Get the galaxy geometry corresponding to the observation:
+        geom = self.geometries[obs.name]
 
 
         # Start with a 3D array in the sky coordinate system
@@ -1564,8 +1277,8 @@ class ModelSet:
 
         nx_sky_samp = nx_sky*oversample*oversize
         ny_sky_samp = ny_sky*oversample*oversize
-        rstep_samp = rstep/oversample
-        to_kpc = rstep_samp / dscale
+        pixscale_samp = pixscale/oversample
+        to_kpc = pixscale_samp / dscale
 
         if (np.mod(nx_sky, 2) == 1) & (np.mod(oversize, 2) == 0) & (oversize > 1):
             nx_sky_samp = nx_sky_samp + 1
@@ -1602,35 +1315,35 @@ class ModelSet:
         if sum(self.mass_components.values()) > 0:
 
             # Create 3D arrays of the sky / galaxy pixel coordinates
-            nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(self.geometry,
+            nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(geom,
                     nx_sky_samp, ny_sky_samp, transform_method)
 
             # Apply the geometric transformation to get galactic coordinates
             # Need to account for oversampling in the x and y shift parameters
-            self.geometry.xshift = self.geometry.xshift.value * oversample
-            self.geometry.yshift = self.geometry.yshift.value * oversample
+            geom.xshift = geom.xshift.value * oversample
+            geom.yshift = geom.yshift.value * oversample
             sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
 
             # Regularly gridded in galaxy space
             #   -- just use the number values from sky space for simplicity
             if transform_method.lower().strip() == 'direct':
-                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal(self.geometry, sh,
+                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
                         xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
             # Regularly gridded in sky space, will be rotated later
             elif transform_method.lower().strip() == 'rotate':
-                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal_inverse(self.geometry, sh,
+                xgal, ygal, zgal, xsky, ysky, zsky = _get_xyz_sky_gal_inverse(geom, sh,
                         xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
 
             # The circular velocity at each position only depends on the radius
             rgal = np.sqrt(xgal ** 2 + ygal ** 2)
 
-            vrot = self.velocity_profile(rgal*to_kpc)
+            vrot = self.velocity_profile(rgal*to_kpc, tracer=obs.tracer)
             # L.O.S. velocity is then just vrot*sin(i)*cos(theta) where theta
             # is the position angle in the plane of the disk
             # cos(theta) is just xgal/rgal
-            v_sys = self.geometry.vel_shift.value  # systemic velocity
+            v_sys = geom.vel_shift.value  # systemic velocity
             if transform_method.lower().strip() == 'direct':
 
                 # #########################
@@ -1640,14 +1353,14 @@ class ModelSet:
                 #         mcomp = self.components[cmp]
                 #         break
                 #
-                # vrot_LOS = self.geometry.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
+                # vrot_LOS = geom.project_velocity_along_LOS(mcomp, vrot, xgal, ygal, zgal)
                 # vobs_mass = v_sys + vrot_LOS
                 # #########################
 
                 #########################
                 # Avoid extra calculations to save memory:
                 # Use direct calculation for mass components: simple cylindrical LOS projection
-                LOS_hat = self.geometry.LOS_direction_emitframe()
+                LOS_hat = geom.LOS_direction_emitframe()
                 vobs_mass = v_sys + vrot * xgal/rgal * LOS_hat[1]
                 # Excise rgal=0 values
                 vobs_mass = model_utils.replace_values_by_refarr(vobs_mass, rgal, 0., v_sys)
@@ -1666,23 +1379,23 @@ class ModelSet:
                             ## Use general geometry:
                             v_hiord = comp.velocity(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc, self)
                             if comp._spatial_type != 'unresolved':
-                                v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
                                                                                    xgal, ygal, zgal)
                             else:
                                 v_hiord_LOS = v_hiord
                         else:
                             ## Own geometry:
-                            geom = self.higher_order_geometries[comp.name]
+                            hiord_geom = self.higher_order_geometries[comp.name]
 
-                            nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                            nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(hiord_geom,
                                         nx_sky_samp, ny_sky_samp, transform_method, angle='sin')
                             sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
 
                             # Apply the geometric transformation to get higher order coordinates
                             # Account for oversampling
-                            geom.xshift = geom.xshift.value * oversample
-                            geom.yshift = geom.yshift.value * oversample
-                            xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                            hiord_geom.xshift = hiord_geom.xshift.value * oversample
+                            hiord_geom.yshift = hiord_geom.yshift.value * oversample
+                            xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(hiord_geom, sh_hi,
                                             xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
 
                             # Profiles need positions in kpc
@@ -1690,14 +1403,14 @@ class ModelSet:
 
                             # LOS projection
                             if comp._spatial_type != 'unresolved':
-                                v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                v_hiord_LOS = hiord_geom.project_velocity_along_LOS(comp, v_hiord,
                                                 xhiord, yhiord, zhiord)
                             else:
                                 v_hiord_LOS = v_hiord
 
                             # Remove the oversample from the geometry xyshift
-                            geom.xshift = geom.xshift.value / oversample
-                            geom.yshift = geom.yshift.value / oversample
+                            hiord_geom.xshift = hiord_geom.xshift.value / oversample
+                            hiord_geom.yshift = hiord_geom.yshift.value / oversample
 
                             sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
@@ -1719,8 +1432,10 @@ class ModelSet:
 
             # self.light_components SHOULD NOT include
             #    higher-order kin comps with own light profiles.
-            for cmp in self.light_components:
-                if self.light_components[cmp]:
+
+            tracer_lcomps = model_utils.get_light_components_by_tracer(self, obs.tracer)
+            for cmp in tracer_lcomps:
+                if (self.light_components[cmp]):
                     lcomp = self.components[cmp]
                     zscale = self.zprofile(zgal*to_kpc)
                     # Differentiate between axisymmetric and non-axisymmetric light components:
@@ -1732,9 +1447,6 @@ class ModelSet:
                         ## ASSUME IT'S ALL IN THE MIDPLANE, so also apply zscale
                         flux_mass +=  lcomp.light_profile(xgal*to_kpc, ygal*to_kpc, zgal*to_kpc) * zscale
 
-                        ## Later option: directly 3D calculate ????
-                        #flux_mass +=  flux_3D
-
 
             # Apply extinction if a component exists
             if self.extinction is not None:
@@ -1745,7 +1457,7 @@ class ModelSet:
                 flux_mass *= self.dimming(xsky, ysky, zsky)
 
             if transform_method.lower().strip() == 'direct':
-                sigmar = self.dispersion_profile(rgal*to_kpc)
+                sigmar = self.dispersions[obs.tracer](rgal*to_kpc)
 
                 # The final spectrum will be a flux weighted sum of Gaussians at each
                 # velocity along the line of sight.
@@ -1753,7 +1465,7 @@ class ModelSet:
                 if zcalc_truncate:
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai = _make_cube_ai(self, xgal, ygal, zgal, n_wholepix_z_min=n_wholepix_z_min,
-                        rstep=rstep_samp, oversample=oversample,
+                        pixscale=pixscale_samp, oversample=oversample,
                         dscale=dscale, maxr=maxr/2., maxr_y=maxr_y/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass, vobs_mass, sigmar, vx, ai)
                 else:
@@ -1764,12 +1476,12 @@ class ModelSet:
             elif transform_method.lower().strip() == 'rotate':
                 ###################################
                 xgal_final, ygal_final, zgal_final, xsky_final, ysky_final, zsky_final = \
-                    _get_xyz_sky_gal_inverse(self.geometry, sh, xcenter_samp, ycenter_samp,
+                    _get_xyz_sky_gal_inverse(geom, sh, xcenter_samp, ycenter_samp,
                                              (nz_sky_samp - 1) / 2.)
 
-                #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * rstep_samp / dscale
+                #rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2) * pixscale_samp / dscale
                 rgal_final = np.sqrt(xgal_final ** 2 + ygal_final ** 2)
-                #rgal_final_kpc = rgal_final * rstep_samp / dscale
+                #rgal_final_kpc = rgal_final * pixscale_samp / dscale
 
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # Simpler to just directly sample sigmar -- not as prone to sampling problems / often constant.
@@ -1777,12 +1489,12 @@ class ModelSet:
 
 
                 if zcalc_truncate:
-                    # cos_inc = np.cos(self.geometry.inc*np.pi/180.)
+                    # cos_inc = np.cos(geom.inc*np.pi/180.)
                     # maxr_y_final = np.max(np.array([maxr*1.5, np.min(
                     #     np.hstack([maxr*1.5/ cos_inc, maxr * 5.]))]))
 
                     # Use the cos term, and the normal 'direct' maxr_y calculation
-                    _, _, maxr_y_final = _calculate_max_skyframe_extents(self.geometry,
+                    _, _, maxr_y_final = _calculate_max_skyframe_extents(geom,
                             nx_sky_samp, ny_sky_samp, 'direct', angle='cos')
 
                     # ---------------------
@@ -1792,7 +1504,7 @@ class ModelSet:
                         thick = 0.
                     # Sample += 2 * scale length thickness
                     # Modify: make sure there are at least 3 *whole* pixels sampled:
-                    zsize = np.max([  3.*oversample, int(np.floor( 4.*thick/rstep_samp*dscale + 0.5 )) ])
+                    zsize = np.max([  3.*oversample, int(np.floor( 4.*thick/pixscale_samp*dscale + 0.5 )) ])
                     if ( (zsize%2) < 0.5 ): zsize += 1
                     zarr = np.arange(nz_sky_samp) - (nz_sky_samp - 1) / 2.
                     origpos_z = zarr - np.mean(zarr) + zsize/2.
@@ -1802,13 +1514,13 @@ class ModelSet:
                     # Rotate + transform cube from inclined to sky coordinates
                     outsh = flux_mass.shape
                     # Cube: z, y, x -- this is in GALAXY coords, so z trim is just in z coord.
-                    flux_mass_transf  = self.geometry.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
-                    vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass[validz,:,:], output_shape=outsh)
+                    flux_mass_transf  = geom.transform_cube_affine(flux_mass[validz,:,:], output_shape=outsh)
+                    vcirc_mass_transf = geom.transform_cube_affine(vcirc_mass[validz,:,:], output_shape=outsh)
 
                     # -----------------------
                     # Perform LOS projection
                     # #########################
-                    # vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                    # vobs_mass_transf_LOS = geom.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                     #                         xgal_final, ygal_final, zgal_final)
                     # vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     # #########################
@@ -1816,7 +1528,7 @@ class ModelSet:
                     #########################
                     # Avoid extra calculations to save memory:
                     # Use direct calculation for mass components: simple cylindrical LOS projection
-                    LOS_hat = self.geometry.LOS_direction_emitframe()
+                    LOS_hat = geom.LOS_direction_emitframe()
                     vobs_mass_transf = v_sys + vcirc_mass_transf * xgal_final/rgal_final * LOS_hat[1]
                     # Excise rgal=0 values
                     vobs_mass_transf = model_utils.replace_values_by_refarr(vobs_mass_transf, rgal_final, 0., v_sys)
@@ -1837,23 +1549,23 @@ class ModelSet:
                                 v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
                                                     zgal_final*to_kpc, self)
                                 if comp._spatial_type != 'unresolved':
-                                    v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                                 else:
                                     v_hiord_LOS = v_hiord
                             else:
                                 ## Own geometry, not perturbation:
-                                geom = self.higher_order_geometries[comp.name]
+                                hiord_geom = self.higher_order_geometries[comp.name]
 
-                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(hiord_geom,
                                             nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
                                 sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
 
                                 # Apply the geometric transformation to get higher order coordinates
                                 # Account for oversampling
-                                geom.xshift = geom.xshift.value * oversample
-                                geom.yshift = geom.yshift.value * oversample
-                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                                hiord_geom.xshift = hiord_geom.xshift.value * oversample
+                                hiord_geom.yshift = hiord_geom.yshift.value * oversample
+                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(hiord_geom, sh_hi,
                                                 xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
 
                                 # Profiles need positions in kpc
@@ -1861,14 +1573,14 @@ class ModelSet:
 
                                 # LOS projection
                                 if comp._spatial_type != 'unresolved':
-                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                    v_hiord_LOS = hiord_geom.project_velocity_along_LOS(comp, v_hiord,
                                                     xhiord, yhiord, zhiord)
                                 else:
                                     v_hiord_LOS = v_hiord
 
                                 # Remove the oversample from the geometry xyshift
-                                geom.xshift = geom.xshift.value / oversample
-                                geom.yshift = geom.yshift.value / oversample
+                                hiord_geom.xshift = hiord_geom.xshift.value / oversample
+                                hiord_geom.yshift = hiord_geom.yshift.value / oversample
 
                                 sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
@@ -1881,20 +1593,20 @@ class ModelSet:
                     # Truncate in the z direction by flagging what pixels to include in propogation
                     ai_sky = _make_cube_ai(self, xgal_final, ygal_final, zgal_final,
                             n_wholepix_z_min=n_wholepix_z_min,
-                            rstep=rstep_samp, oversample=oversample,
+                            pixscale=pixscale_samp, oversample=oversample,
                             dscale=dscale, maxr=maxr/2., maxr_y=maxr_y_final/2.)
                     cube_final += cutils.populate_cube_ais(flux_mass_transf, vobs_mass_transf,
                                 sigmar_transf, vx, ai_sky)
 
                 else:
                     # Rotate + transform cube from inclined to sky coordinates
-                    flux_mass_transf =  self.geometry.transform_cube_affine(flux_mass)
-                    vcirc_mass_transf = self.geometry.transform_cube_affine(vcirc_mass)
+                    flux_mass_transf =  geom.transform_cube_affine(flux_mass)
+                    vcirc_mass_transf = geom.transform_cube_affine(vcirc_mass)
 
                     # -----------------------
                     # Perform LOS projection
                     # #########################
-                    # vobs_mass_transf_LOS = self.geometry.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
+                    # vobs_mass_transf_LOS = geom.project_velocity_along_LOS(mcomp, vcirc_mass_transf,
                     #                         xgal_final, ygal_final, zgal_final)
                     # vobs_mass_transf = v_sys + vobs_mass_transf_LOS
                     # #########################
@@ -1902,7 +1614,7 @@ class ModelSet:
                     #########################
                     # Avoid extra calculations to save memory:
                     # Use direct calculation for mass components: simple cylindrical LOS projection
-                    LOS_hat = self.geometry.LOS_direction_emitframe()
+                    LOS_hat = geom.LOS_direction_emitframe()
                     vobs_mass_transf = v_sys + vcirc_mass_transf * xgal_final/rgal_final * LOS_hat[1]
                     # Excise rgal=0 values
                     vobs_mass_transf = model_utils.replace_values_by_refarr(vobs_mass_transf, rgal_final, 0., v_sys)
@@ -1923,23 +1635,23 @@ class ModelSet:
                                 v_hiord = comp.velocity(xgal_final*to_kpc, ygal_final*to_kpc,
                                                     zgal_final*to_kpc, self)
                                 if comp._spatial_type != 'unresolved':
-                                    v_hiord_LOS = self.geometry.project_velocity_along_LOS(comp, v_hiord,
+                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
                                                                 xgal_final, ygal_final, zgal_final)
                                 else:
                                     v_hiord_LOS = v_hiord
                             else:
                                 ## Own geometry, not perturbation:
-                                geom = self.higher_order_geometries[comp.name]
+                                hiord_geom = self.higher_order_geometries[comp.name]
 
-                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(geom,
+                                nz_sky_samp_hi, _, _ = _calculate_max_skyframe_extents(hiord_geom,
                                             nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
                                 sh_hi = (nz_sky_samp_hi, ny_sky_samp, nx_sky_samp)
 
                                 # Apply the geometric transformation to get higher order coordinates
                                 # Account for oversampling
-                                geom.xshift = geom.xshift.value * oversample
-                                geom.yshift = geom.yshift.value * oversample
-                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh_hi,
+                                hiord_geom.xshift = hiord_geom.xshift.value * oversample
+                                hiord_geom.yshift = hiord_geom.yshift.value * oversample
+                                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(hiord_geom, sh_hi,
                                                 xcenter_samp, ycenter_samp, (nz_sky_samp_hi - 1) / 2.)
 
                                 # Profiles need positions in kpc
@@ -1947,14 +1659,14 @@ class ModelSet:
 
                                 # LOS projection
                                 if comp._spatial_type != 'unresolved':
-                                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord,
+                                    v_hiord_LOS = hiord_geom.project_velocity_along_LOS(comp, v_hiord,
                                                     xhiord, yhiord, zhiord)
                                 else:
                                     v_hiord_LOS = v_hiord
 
                                 # Remove the oversample from the geometry xyshift
-                                geom.xshift = geom.xshift.value / oversample
-                                geom.yshift = geom.yshift.value / oversample
+                                hiord_geom.xshift = hiord_geom.xshift.value / oversample
+                                hiord_geom.yshift = hiord_geom.yshift.value / oversample
 
                                 sh_hi = nz_sky_samp_hi = xhiord = yhiord = zhiord = None
 
@@ -1968,8 +1680,8 @@ class ModelSet:
                 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             # Remove the oversample from the geometry xyshift
-            self.geometry.xshift = self.geometry.xshift.value / oversample
-            self.geometry.yshift = self.geometry.yshift.value / oversample
+            geom.xshift = geom.xshift.value / oversample
+            geom.yshift = geom.yshift.value / oversample
 
 
         #######
@@ -1984,11 +1696,11 @@ class ModelSet:
                 if (comp.name in cmps_hiord_geoms):
                     # Own geometry + light distribution
                     _do_comp = True
-                    geom = self.higher_order_geometries[comp.name]
+                    hiord_geom = self.higher_order_geometries[comp.name]
                 elif (comp.name not in cmps_hiord_geoms):
                     # Own light distribution, uses galaxy geometry
                     _do_comp = True
-                    geom = self.geometry
+                    hiord_geom = geom
                     logger.warning("The case of higher order component using galaxy geometry "
                                    "but own light profile has not been tested")
 
@@ -2006,16 +1718,16 @@ class ModelSet:
                 #######
                 # Just create extra cube using the DIRECT calculation method
 
-                nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(geom,
+                nz_sky_samp, maxr, maxr_y = _calculate_max_skyframe_extents(hiord_geom,
                             nx_sky_samp, ny_sky_samp, 'direct', angle='sin')
 
                 sh = (nz_sky_samp, ny_sky_samp, nx_sky_samp)
 
                 # Apply the geometric transformation to get higher order coordinates
                 # Account for oversampling
-                geom.xshift = geom.xshift.value * oversample
-                geom.yshift = geom.yshift.value * oversample
-                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(geom, sh,
+                hiord_geom.xshift = hiord_geom.xshift.value * oversample
+                hiord_geom.yshift = hiord_geom.yshift.value * oversample
+                xhiord, yhiord, zhiord, xsky, ysky, zsky = _get_xyz_sky_gal(hiord_geom, sh,
                                 xcenter_samp, ycenter_samp, (nz_sky_samp - 1) / 2.)
 
                 # Profiles need positions in kpc
@@ -2032,11 +1744,11 @@ class ModelSet:
 
                 # LOS projection
                 if comp._spatial_type != 'unresolved':
-                    v_hiord_LOS = geom.project_velocity_along_LOS(comp, v_hiord, xhiord, yhiord, zhiord)
+                    v_hiord_LOS = hiord_geom.project_velocity_along_LOS(comp, v_hiord, xhiord, yhiord, zhiord)
                 else:
                     v_hiord_LOS = v_hiord
 
-                v_hiord_LOS += geom.vel_shift.value  # galaxy systemic velocity
+                v_hiord_LOS += hiord_geom.vel_shift.value  # galaxy systemic velocity
 
                 if (comp.name in cmps_hiord_disps):
                     sigma_hiord = self.higher_order_dispersions[comp.name](np.sqrt(xhiord**2 + yhiord**2 + zhiord**2)) # r_hiord
@@ -2047,8 +1759,8 @@ class ModelSet:
                 cube_final += cutils.populate_cube(f_hiord, v_hiord_LOS, sigma_hiord, vx)
 
                 # Remove the oversample from the geometry xyshift
-                geom.xshift = geom.xshift.value / oversample
-                geom.yshift = geom.yshift.value / oversample
+                hiord_geom.xshift = hiord_geom.xshift.value / oversample
+                hiord_geom.yshift = hiord_geom.yshift.value / oversample
 
 
         return cube_final, spec
