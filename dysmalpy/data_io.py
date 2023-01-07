@@ -11,12 +11,14 @@ import logging
 
 # Third party imports
 import os
-import dill as _pickle
 import copy
+
+# Pickling: 
+import dill as pickle_module
 
 # dill py<=3.7 -> py>=3.8 + higher hack:
 # See https://github.com/uqfoundation/dill/pull/406
-_pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
+pickle_module._dill._reverse_typemap['CodeType'] = pickle_module._dill._create_code
 
 
 __all__ = ['ensure_dir', 'load_pickle', 'dump_pickle']
@@ -38,7 +40,7 @@ def ensure_dir(dir):
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
     with open(filename, 'rb') as f:
-        data = copy.deepcopy(_pickle.load(f))
+        data = copy.deepcopy(pickle_module.load(f))
     return data
 
 
@@ -51,5 +53,5 @@ def dump_pickle(data, filename=None, overwrite=False):
             return None
 
     with open(filename, 'wb') as f:
-        _pickle.dump(data, f )
+        pickle_module.dump(data, f )
     return None

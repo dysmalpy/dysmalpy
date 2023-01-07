@@ -127,7 +127,44 @@ def plot_bestfit(mcmcResults, gal,
     return None
 
 
-def plot_trace(mcmcResults, fileout=None, overwrite=False):
+def plot_trace(bayesianResults, fileout=None, overwrite=False):
+    """
+    Plot trace of Bayesian samples
+    """
+    if bayesianResults.fit_method.lower() == 'mcmc':
+        plot_trace_mcmc(bayesianResults, fileout=fileout, overwrite=overwrite)
+    elif bayesianResults.fit_method.lower() == 'nested':
+        plot_trace_nested(bayesianResults, fileout=fileout, overwrite=overwrite)
+    else:
+        raise ValueError("plot_trace() not supported for fit method: {}".format(bayesianResults.fit_method))
+
+def plot_run(bayesianResults, fileout=None, overwrite=False):
+
+    if bayesianResults.fit_method.lower() == 'nested':
+        plot_run_nested(bayesianResults, fileout=fileout, overwrite=overwrite)
+    else:
+        raise ValueError("plot_run() not supported for fit method: {}".format(bayesianResults.fit_method))
+
+
+def plot_corner(bayesianResults, gal=None, fileout=None, 
+                step_slice=None, blob_name=None, overwrite=False):
+    """
+    Plot corner plot of Bayesian result posterior distributions.
+    Optional:
+            step slice: 2 element tuple/array with beginning and end step number to use
+    """
+
+    if bayesianResults.fit_method.lower() == 'mcmc':
+        plot_corner_mcmc(bayesianResults, gal=gal, fileout=fileout, 
+                         step_slice=step_slice, blob_name=blob_name, 
+                         overwrite=overwrite)
+    elif bayesianResults.fit_method.lower() == 'nested':
+        plot_corner_nested(bayesianResults, fileout=fileout, overwrite=overwrite)
+    else:
+        raise ValueError("plot_corner() not supported for fit method: {}".format(bayesianResults.fit_method))
+
+
+def plot_trace_mcmc(mcmcResults, fileout=None, overwrite=False):
     """
     Plot trace of MCMC walkers
     """
@@ -137,14 +174,14 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    names = make_clean_mcmc_plot_names(mcmcResults)
+    names = make_clean_bayesian_plot_names(mcmcResults)
 
     ######################################
     # Setup plot:
     f = plt.figure()
     scale = 1.75
     nRows = len(names)
-    nWalkers = mcmcResults.sampler['nWalkers']
+    nWalkers = mcmcResults.sampler_results['nWalkers']
 
     f.set_size_inches(4.*scale, nRows*scale)
     gs = gridspec.GridSpec(nRows, 1, hspace=0.2)
@@ -168,10 +205,10 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
     for k in range(nRows):
         axes.append(plt.subplot(gs[k,0]))
 
-        axes[k].plot(mcmcResults.sampler['chain'][norm_inds,:,k].T, '-', color='black', alpha=alpha)
+        axes[k].plot(mcmcResults.sampler_results['chain'][norm_inds,:,k].T, '-', color='black', alpha=alpha)
 
         for j in range(nTraceWalkers):
-            axes[k].plot(mcmcResults.sampler['chain'][trace_inds[j],:,k].T, '-',
+            axes[k].plot(mcmcResults.sampler_results['chain'][trace_inds[j],:,k].T, '-',
                     color=trace_colors[j], lw=lwTrace, alpha=alphaTrace)
 
 
@@ -194,7 +231,74 @@ def plot_trace(mcmcResults, fileout=None, overwrite=False):
     return None
 
 
-def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=None, overwrite=False):
+
+def plot_trace_nested(bayesianResults, fileout=None, overwrite=False):
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    from dynesty import plotting as dyplot
+
+    names = make_clean_bayesian_plot_names(bayesianResults)
+
+    scale = 1.5
+    ndim = bayesianResults.nparams_free
+    figsize = (4*scale, ndim*scale)
+
+    # Plot dynesty trace plot:
+    f, axes = dyplot.traceplot(bayesianResults.sampler_results, 
+                               truths=bayesianResults.bestfit_parameters,
+                               labels=names, show_titles=True, 
+                               trace_cmap='viridis',
+                               title_kwargs={'fontsize': 28, 'y': 1.05}, 
+                               quantiles=None,
+                               fig=plt.subplots(ndim, 2, figsize=figsize))
+    f.tight_layout()
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+    return None
+
+
+def plot_run_nested(bayesianResults, fileout=None, overwrite=False):
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    from dynesty import plotting as dyplot
+
+    f, axes = dyplot.runplot(bayesianResults.sampler_results)
+    
+    scale = 1.5
+    nRows = bayesianResults.nparams_free
+    f.set_size_inches(4*scale, nRows*scale)
+    f.tight_layout()
+
+    #############################################################
+    # Save to file:
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+    return None
+
+
+def plot_corner_mcmc(mcmcResults, gal=None, fileout=None, step_slice=None, 
+                     blob_name=None, overwrite=False):
     """
     Plot corner plot of MCMC result posterior distributions.
     Optional:
@@ -206,12 +310,12 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
             return None
 
-    names = make_clean_mcmc_plot_names(mcmcResults)
+    names = make_clean_bayesian_plot_names(mcmcResults)
 
     if step_slice is None:
-        sampler_chain = mcmcResults.sampler['flatchain']
+        sampler_chain = mcmcResults.sampler_results['flatchain']
     else:
-        sampler_chain = mcmcResults.sampler['chain'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler['nParam']))
+        sampler_chain = mcmcResults.sampler_results['chain'][:,step_slice[0]:step_slice[1],:].reshape((-1, mcmcResults.sampler_results['nParam']))
 
     truths = mcmcResults.bestfit_parameters
 
@@ -278,15 +382,15 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
 
             if isinstance(blob_name, str):
                 if step_slice is None:
-                    blobs = mcmcResults.sampler['flatblobs']
+                    blobs = mcmcResults.sampler_results['flatblobs']
                 else:
-                    blobs = mcmcResults.sampler['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, 1))
+                    blobs = mcmcResults.sampler_results['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, 1))
             else:
                 indv = blob_names.index(blobn)
                 if step_slice is None:
-                    blobs = mcmcResults.sampler['flatblobs'][:,indv]
+                    blobs = mcmcResults.sampler_results['flatblobs'][:,indv]
                 else:
-                    blobs = mcmcResults.sampler['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, mcmcResults.sampler['blobs'].shape[2]))[:,indv]
+                    blobs = mcmcResults.sampler_results['blobs'][step_slice[0]:step_slice[1],:,:].reshape((-1, mcmcResults.sampler_results['blobs'].shape[2]))[:,indv]
 
             sampler_chain = np.concatenate( (sampler_chain, np.array([blobs]).T ), axis=1)
 
@@ -376,6 +480,62 @@ def plot_corner(mcmcResults, gal=None, fileout=None, step_slice=None, blob_name=
 
     return None
 
+
+
+def plot_corner_nested(bayesianResults, fileout=None, overwrite=False):
+
+    from dynesty import plotting as dyplot
+
+    # Check for existing file:
+    if (not overwrite) and (fileout is not None):
+        if os.path.isfile(fileout):
+            logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fileout))
+            return None
+
+    MAP_vals = bayesianResults.bestfit_parameters
+
+    ndim = bayesianResults.nparams_free
+    names = make_clean_bayesian_plot_names(bayesianResults)
+
+    # Plot dynesty corner plot:
+    # initialize figure
+    f, axes = plt.subplots(ndim, ndim, figsize=(5,5))
+    axes = axes.reshape((ndim, ndim))
+
+    fg, ax = dyplot.cornerplot(bayesianResults.sampler_results, color='blue',
+                               truths=MAP_vals,
+                               #span=[(0,1), (0,1), (0,1), (0,1)],
+                               labels=names,
+                               show_titles=True, title_kwargs={'y': 1.05},
+                               quantiles=None, fig=(f, axes[:, :]))
+
+    title_fmt = '.2f'
+    for i in range(ndim):
+        axi = ax[i,i]
+        qm = MAP_vals[i]
+
+        ql = bayesianResults.bestfit_parameters_l68[i]
+        qh = bayesianResults.bestfit_parameters_h68[i]
+
+        q_minus, q_plus = qm - ql, qh - qm
+        fmt = "{{0:{0}}}".format(title_fmt).format
+        title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+        title = title.format(fmt(qm), fmt(q_minus), fmt(q_plus))
+        title = "{0} = {1}".format(names[i], title)
+        axi.set_title(title)
+
+    #############################################################
+    # Save to file:
+
+    if fileout is not None:
+        plt.savefig(fileout, bbox_inches='tight', dpi=300)
+        plt.close()
+
+    return None
+
+
+
+# -------------------------------------------------------------
 
 def plot_data_model_comparison(gal,theta=None,
                                fileout=None,
@@ -3836,11 +3996,11 @@ def plot_single_obs_rotcurve_components(obs, model,
 
     return None
 
-def make_clean_mcmc_plot_names(mcmcResults):
+def make_clean_bayesian_plot_names(bayesianResults):
     names = []
-    for key in mcmcResults.free_param_names.keys():
-        for i in range(len(mcmcResults.free_param_names[key])):
-            param = mcmcResults.free_param_names[key][i]
+    for key in bayesianResults.free_param_names.keys():
+        for i in range(len(bayesianResults.free_param_names[key])):
+            param = bayesianResults.free_param_names[key][i]
             key_nice = " ".join(key.split("_"))
             param_nice = " ".join(param.split("_"))
             names.append(key_nice+': '+param_nice)

@@ -85,6 +85,10 @@ def expected_output_files_base(galID, param_filename=None, fit_method=None, ndim
         list_files.append('{}_{}_sampler.h5'.format(galID, fit_method))
         list_files.append('{}_{}_chain_blobs.dat'.format(galID, fit_method))
 
+    elif fit_method == 'nested':
+
+        raise NotImplementedError
+
     return list_files
 
 def expected_output_files_1D(galID, param_filename=None, fit_method=None):
@@ -159,6 +163,38 @@ class TestFittingWrappers:
         check_output_files(outdir_full, list_files)
 
         # Load output, check results: DID WALKERS MOVE?
+        f_galmodel = outdir_full+'{}_model.pickle'.format(params['galID'])
+        f_results = outdir_full+'{}_{}_results.pickle'.format(params['galID'],
+                            params['fit_method'].strip().lower())
+        f_sampler = outdir_full+'{}_{}_sampler.h5'.format(params['galID'],
+                            params['fit_method'].strip().lower())
+        gal, results = fitting.reload_all_fitting(filename_galmodel=f_galmodel,
+                            filename_results=f_results, fit_method=params['fit_method'])
+        results.reload_sampler(filename=f_sampler)
+
+        # Assert lnprob values are all finite:
+        assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
+
+        for i in range(results.sampler['nParam']):
+            # Assert at least one walker moved at least once for parameter i
+            assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
+            # Assert all values of parameter i are finite:
+            assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+
+
+    def test_1D_nested(self):
+        param_filename = 'fitting_1D_nested.params'
+        params = read_params(param_filename=param_filename)
+        outdir_full = _dir_tests_data+params['outdir']
+
+        run_fit(param_filename=param_filename)
+
+        # Make sure all files exist:
+        list_files = expected_output_files_1D(params['galID'], param_filename=param_filename,
+                            fit_method=params['fit_method'])
+        check_output_files(outdir_full, list_files)
+
+        # Load output, check results: DOES THE SAMPLER MOVE?
         f_galmodel = outdir_full+'{}_model.pickle'.format(params['galID'])
         f_results = outdir_full+'{}_{}_results.pickle'.format(params['galID'],
                             params['fit_method'].strip().lower())

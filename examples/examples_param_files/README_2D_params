@@ -361,7 +361,7 @@ vel_shift_stddev,    10.
 
 fit_method: Can be mcmc to use MCMC to perform the fitting or mpfit to use
             MPFIT to perform the fitting and determine the best fit
-            parameters
+            parameters or nested to use Dynesty
 do_plotting: True/False for whether to produce all of the output plots
 fitdispersion: True/False for whether to simultaneously fit the
                dispersion profile along with the velocity.

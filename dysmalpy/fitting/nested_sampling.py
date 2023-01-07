@@ -2,52 +2,43 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 #
 # Classes and functions for fitting DYSMALPY kinematic models
-#   to the observed data using Nested sampling, with Dynesty
-#    (REF TO SPEAGLE, ET AL XXXX)
+#   to the observed data using Nested sampling, with Dynesty:
+#   Speagle 2020, https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S/abstract
+#   dynesty.readthedocs.io
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 ## Standard library
 import logging
-from multiprocessing import cpu_count, Pool
+from multiprocess import cpu_count, Pool
 
 # DYSMALPY code
-from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
+from dysmalpy.data_io import load_pickle, dump_pickle, pickle_module
 from dysmalpy import plotting
 from dysmalpy import galaxy
-from dysmalpy.parameters import UniformLinearPrior
-from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
-from dysmalpy import config
-from dysmalpy.utils import fit_uncertainty_ellipse
-from dysmalpy import utils_io as dpy_utils_io
-
-# Local imports:
-from .base import FitResults, Fitter, make_arr_cmp_params, \
-                  chisq_eval, chisq_red, chisq_red_per_type
-from .mcmc import shortest_span_bounds
+# from dysmalpy.utils import fit_uncertainty_ellipse
+# from dysmalpy import utils_io as dpy_utils_io
+from dysmalpy import utils as dpy_utils
+from dysmalpy.fitting import base
+from dysmalpy.fitting import utils as fit_utils
 
 # Third party imports
 import os
 import numpy as np
 from collections import OrderedDict
-import six
 import astropy.units as u
 import copy
-import h5py
+
+import dynesty
+import dynesty.utils
+dynesty.utils.pickle_module = pickle_module
+
 
 import time, datetime
 
-from scipy.stats import gaussian_kde
-from scipy.optimize import fmin
 
-
-import dynesty
-from dynesty import plotting as dyplot
-
-
-
-__all__ = ['fit_nested', 'NestedFitter', 'NestedResults']
+__all__ = ['NestedFitter', 'NestedResults']
 
 
 # LOGGER SETTINGS
@@ -56,16 +47,17 @@ logger = logging.getLogger('DysmalPy')
 
 
 
-class NestedFitter(Fitter):
+class NestedFitter(base.Fitter):
     """
     Class to hold the Nested sampling fitter attributes + methods
-    Uses Dynesty
     """
     def __init__(self, **kwargs):
+
         self._set_defaults()
-        super(NestedFitter, self).__init__(fit_method='nested', **kwargs)
+        super(NestedFitter, self).__init__(fit_method='Nested', **kwargs)
 
     def _set_defaults(self):
+        # Nested sampling specific defaults
         self.maxiter=None
 
         self.bound = 'multi'
@@ -77,14 +69,158 @@ class NestedFitter(Fitter):
         self.pfrac = 1.0
 
         self.nCPUs = 1.0
+        self.cpuFrac = None
+
+        self.oversampled_chisq = True
+
+        self.nPostBins = 50
+        self.linked_posterior_names = None
 
 
-    def fit():
-  
-        res = dsampler.results
+
+    def fit(self, gal, output_options):
+        """
+        Fit observed kinematics using nested sampling and a DYSMALPY model set.
+
+        Parameters
+        ----------
+            gal : `Galaxy` instance
+                observed galaxy, including kinematics.
+                also contains instrument the galaxy was observed with (gal.instrument)
+                and the DYSMALPY model set, with the parameters to be fit (gal.model)
+
+            output_options : `config.OutputOptions` instance
+                instance holding ouptut options for nested sampling fitting.
+
+        Returns
+        -------
+            nestedResults : `NestedResults` instance
+                NestedResults class instance containing the bestfit parameters, sampler_results information, etc.
+        """
+
+        # --------------------------------
+        # Check option validity:
+
+        # # Temporary: testing:
+        # if self.red_chisq:
+        #     raise ValueError("red_chisq=True is currently *DISABLED* to test lnlike impact vs lnprior")
+
+        # Check the FOV is large enough to cover the data output:
+        dpy_utils._check_data_inst_FOV_compatibility(gal)
+
+        # Pre-calculate instrument kernels:
+        gal = dpy_utils._set_instrument_kernels(gal)
+
+        # --------------------------------
+        # Basic setup:
+
+        # For compatibility with Python 2.7:
+        mod_in = copy.deepcopy(gal.model)
+        gal.model = mod_in
+
+        #if nCPUs is None:
+        if self.cpuFrac is not None:
+            self.nCPUs = int(np.floor(cpu_count()*self.cpuFrac))
+
+        # +++++++++++++++++++++++
+        # Setup for oversampled_chisq:
+        if self.oversampled_chisq:
+            gal = fit_utils.setup_oversampled_chisq(gal)
+        # +++++++++++++++++++++++
+
+        # Set output options: filenames / which to save, etc
+        output_options.set_output_options(gal, self)
+
+        # MUST INCLUDE NESTED-SPECIFICS NOW!
+        fit_utils._check_existing_files_overwrite(output_options, 
+                                                  fit_type='nested', 
+                                                  fitter=self)
+
+        # --------------------------------
+        # Setup file redirect logging:
+        if output_options.f_log is not None:
+            loggerfile = logging.FileHandler(output_options.f_log)
+            loggerfile.setLevel(logging.INFO)
+            logger.addHandler(loggerfile)
+
+        # ++++++++++++++++++++++++++++++++
+        # Run Dynesty:
+
+        # Keywords for log likelihood:
+        logl_kwargs = {'gal': gal, 
+                       'fitter': self} 
+
+        # Keywords for prior transform:
+        # This needs to include the gal object, 
+        #   so we can get the appropriate per-free-param priors
+        ptform_kwargs = {'gal': gal}
+
+        ndim = gal.model.nparams_free
+
+        # Set blob switch for Dynesty:
+        if self.blob_name is not None:
+            _calc_blob = True
+        else:
+            _calc_blob = False
+
+        # --------------------------------
+        # Start pool
+        if (self.nCPUs > 1):
+            pool = Pool(self.nCPUs)
+            queue_size = self.nCPUs
+        else:
+            pool = queue_size = None
 
         
-        nestedResults = NestedResults(model=gal.model, res=res, **kwargs_fit)
+
+        dsampler_results = dynesty.DynamicNestedSampler(log_like_dynesty,
+                                                prior_transform_dynsety,
+                                                ndim,
+                                                bound=self.bound,
+                                                sample=self.sample,
+                                                logl_kwargs=logl_kwargs,
+                                                ptform_kwargs=ptform_kwargs, 
+                                                blob=_calc_blob, 
+                                                pool=pool,
+                                                queue_size=queue_size)
+
+        dsampler_results.run_nested(nlive_init=self.nlive_init,
+                            nlive_batch=self.nlive_batch,
+                            maxiter=self.maxiter,
+                            use_stop=self.use_stop,
+                            checkpoint_file=output_options.f_checkpoint, 
+                            wt_kwargs={'pfrac': self.pfrac})
+
+        res = dsampler_results.results
+
+        if output_options.f_sampler_results is not None:
+            # Save stuff to file, for future use:
+            dump_pickle(res, filename=output_options.f_sampler_results, 
+                        overwrite=output_options.overwrite)
+
+
+
+
+        # --------------------------------
+        # Bundle the results up into a results class:
+        nestedResults = NestedResults(model=gal.model, sampler_results=res,
+                    linked_posterior_names=self.linked_posterior_names,
+                    blob_name=self.blob_name,
+                    nPostBins=self.nPostBins)
+
+        if self.oversampled_chisq:
+            nestedResults.oversample_factor_chisq = OrderedDict()
+            for obs_name in gal.observations:
+                obs = gal.observations[obs_name]
+                nestedResults.oversample_factor_chisq[obs_name] = obs.data.oversample_factor_chisq
+
+        # Do all analysis, plotting, saving:
+        nestedResults.analyze_plot_save_results(gal, output_options=output_options)
+
+        # --------------------------------
+        # Clean up logger:
+        if output_options.f_log is not None:
+            logger.removeHandler(loggerfile)
 
         return nestedResults
 
@@ -92,192 +228,19 @@ class NestedFitter(Fitter):
 
 
 
-class NestedResults(FitResults):
+class NestedResults(base.BayesianFitResults, base.FitResults):
     """
-    Class to hold results of Nested sampling fitting to DYSMALPY models.
+    Class to hold results of nested sampling fitting to DYSMALPY models.
+
+    Note: the dynesty *Results* object (containing the results of the run) 
+          is stored in nestedResults.sampler_results
 
         The name of the free parameters in the chain are accessed through:
-            mcmcResults.chain_param_names,
+            nestedResults.chain_param_names,
                 or more generally (separate model + parameter names) through
-                mcmcResults.free_param_names
-    """
-    def __init__(self, model=None,
-                 res=None,
-                 f_plot_trace_burnin=None,
-                 f_plot_trace=None,
-                 f_burn_sampler=None,
-                 f_sampler=None,
-                 f_plot_param_corner=None,
-                 f_plot_bestfit=None,
-                 f_plot_spaxel=None,
-                 f_plot_aperture=None,
-                 f_plot_channel=None,
-                 f_results=None,
-                 f_chain_ascii=None,
-                 linked_posterior_names=None,
-                 blob_name=None,
-                 **kwargs):
+                nestedResults.free_param_names
 
-        self.res = res
-        self.linked_posterior_names = linked_posterior_names
-
-        self.bestfit_parameters_l68_err = None
-        self.bestfit_parameters_u68_err = None
-        self.bestfit_parameters_l68 = None
-        self.bestfit_parameters_u68 = None
-
-        # Filenames that are specific to MCMC fitting
-        self.f_plot_trace_burnin = f_plot_trace_burnin
-        self.f_plot_trace = f_plot_trace
-        self.f_burn_sampler = f_burn_sampler
-        self.f_sampler = f_sampler
-        self.f_plot_param_corner = f_plot_param_corner
-        self.f_chain_ascii = f_chain_ascii
-
-        self.blob_name = blob_name
-
-        super(MCMCResults, self).__init__(model=model, f_plot_bestfit=f_plot_bestfit,
-                    f_plot_spaxel=f_plot_spaxel, f_plot_aperture=f_plot_aperture, f_plot_channel=f_plot_channel,
-                    f_results=f_results, fit_method='MCMC')
-
-
-    def analyze_plot_save_results(self, gal,
-                linked_posterior_names=None,
-                nPostBins=50,
-                model_aperture_r=None,
-                model_key_halo=None,
-                fitvelocity=True,
-                fitdispersion=True,
-                fitflux=False,
-                save_data=True,
-                save_bestfit_cube=False,
-                f_cube=None,
-                f_model=None,
-                f_model_bestfit = None,
-                f_vel_ascii = None,
-                f_vcirc_ascii = None,
-                f_mass_ascii = None,
-                do_plotting = True,
-                overwrite=False,
-                **kwargs_galmodel):
-        """
-        Wrapper for post-sample analysis + plotting -- in case code broke and only have sampler saved.
-
-        """
-
-        if self.f_chain_ascii is not None:
-            self.save_chain_ascii(filename=self.f_chain_ascii, overwrite=overwrite)
-
-        # Get the best-fit values, uncertainty bounds from marginalized posteriors
-        self.analyze_posterior_dist(gal=gal, linked_posterior_names=linked_posterior_names,
-                    nPostBins=nPostBins)
-
-        # Update theta to best-fit:
-        gal.model.update_parameters(self.bestfit_parameters)
-
-        if self.blob_name is not None:
-            if isinstance(self.blob_name, str):
-                blob_names = [self.blob_name]
-            else:
-                blob_names = self.blob_name[:]
-
-            for blobn in blob_names:
-                if blobn.lower() == 'fdm':
-                    self.analyze_dm_posterior_dist(gal=gal, model_aperture_r=model_aperture_r, blob_name=self.blob_name)  # here blob_name should be the *full* list
-                elif blobn.lower() == 'mvirial':
-                    self.analyze_mvirial_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
-                elif blobn.lower() == 'alpha':
-                    self.analyze_alpha_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
-                elif blobn.lower() == 'rb':
-                    self.analyze_rb_posterior_dist(gal=gal, model_key_halo=model_key_halo, blob_name=self.blob_name)
-
-
-        gal.create_model_data(**kwargs_galmodel)
-
-        self.bestfit_redchisq = chisq_red(gal, fitvelocity=fitvelocity,
-                        fitdispersion=fitdispersion, fitflux=fitflux)
-        self.bestfit_chisq = chisq_eval(gal, fitvelocity=fitvelocity,
-                                fitdispersion=fitdispersion, fitflux=fitflux)
-
-        if ((gal.data.ndim == 1) or (gal.data.ndim ==2)):
-            kwargs_fit = {'fitvelocity': fitvelocity,
-                          'fitdispersion': fitdispersion,
-                          'fitflux': fitflux}
-            for k in ['velocity', 'dispersion', 'flux']:
-                if kwargs_fit['fit{}'.format(k)]:
-                    self.__dict__['bestfit_redchisq_{}'.format(k)] = chisq_red_per_type(gal, type=k)
-
-
-
-        self.vmax_bestfit = gal.model.get_vmax()
-
-        if self.f_results is not None:
-            self.save_results(filename=self.f_results, overwrite=overwrite)
-
-        if f_model is not None:
-            # Save model w/ updated theta equal to best-fit:
-            gal.preserve_self(filename=f_model, save_data=save_data, overwrite=overwrite)
-
-
-        if f_model_bestfit is not None:
-            gal.save_model_data(filename=f_model_bestfit, overwrite=overwrite)
-
-        if save_bestfit_cube:
-            gal.model_cube.data.write(f_cube, overwrite=overwrite)
-
-        # --------------------------------
-        # Plot trace, if output file set
-        if (do_plotting) & (self.f_plot_trace is not None) :
-            plotting.plot_trace(self, fileout=self.f_plot_trace, overwrite=overwrite)
-
-        # --------------------------------
-        # Plot results: corner plot, best-fit
-        if (do_plotting) & (self.f_plot_param_corner is not None):
-            plotting.plot_corner(self, gal=gal, fileout=self.f_plot_param_corner, blob_name=self.blob_name, overwrite=overwrite)
-
-        if (do_plotting) & (self.f_plot_bestfit is not None):
-            plotting.plot_bestfit(self, gal, fitvelocity=fitvelocity,
-                                  fitdispersion=fitdispersion, fitflux=fitflux,
-                                  fileout=self.f_plot_bestfit, overwrite=overwrite, **kwargs_galmodel)
-
-        # --------------------------------
-        # Save velocity / other profiles to ascii file:
-        if f_vel_ascii is not None:
-            self.save_bestfit_vel_ascii(gal, filename=f_vel_ascii,
-                                        model_aperture_r=model_aperture_r, overwrite=overwrite)
-
-        if (f_vcirc_ascii is not None) or (f_mass_ascii is not None):
-            self.save_bestfit_vcirc_mass_profiles(gal, fname_intrinsic=f_vcirc_ascii,
-                fname_intrinsic_m=f_mass_ascii, overwrite=overwrite)
-
-
-    def mod_linear_param_posterior(self, gal=None):
-        linear_posterior = []
-        j = -1
-        for cmp in gal.model.fixed:
-            # pkeys[cmp] = OrderedDict()
-            for pm in gal.model.fixed[cmp]:
-                if gal.model.fixed[cmp][pm] | bool(gal.model.tied[cmp][pm]):
-                    pass
-                else:
-                    j += 1
-                    if isinstance(gal.model.components[cmp].__getattribute__(pm).prior, UniformLinearPrior):
-                        self.sampler['flatchain'][:,j] = np.power(10.,self.sampler['flatchain'][:,j])
-                        linear_posterior.append(True)
-                    else:
-                        linear_posterior.append(False)
-
-        self.linear_posterior = linear_posterior
-
-
-    def analyze_posterior_dist(self, gal=None, linked_posterior_names=None, nPostBins=50):
-        """
-        Default analysis of posterior distributions from MCMC fitting:
-            look at marginalized posterior distributions, and
-            extract the best-fit value (peak of KDE), and extract the +- 1 sigma uncertainty bounds
-            (eg, the 16%/84% distribution of posteriors)
-
-        Optional input:
+        Optional attribute:
         linked_posterior_names: indicate if best-fit of parameters
                                 should be measured in multi-D histogram space
                                 format: set of linked parameter sets, with each linked parameter set
@@ -310,163 +273,115 @@ class NestedResults(FitResults):
                     linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
                     or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
 
-        """
-
-        if self.sampler is None:
-            raise ValueError("MCMC.sampler must be set to analyze the posterior distribution.")
-
-        self.mod_linear_param_posterior(gal=gal)
-
-        # Unpack MCMC samples: lower, upper 1, 2 sigma
-        mcmc_limits_percentile = np.percentile(self.sampler['flatchain'], [15.865, 84.135], axis=0)
-
-        mcmc_limits = shortest_span_bounds(self.sampler['flatchain'], percentile=0.6827)
 
 
-        ## location of peaks of *marginalized histograms* for each parameter
-        mcmc_peak_hist = np.zeros(self.sampler['flatchain'].shape[1])
-        for i in six.moves.xrange(self.sampler['flatchain'].shape[1]):
-            yb, xb = np.histogram(self.sampler['flatchain'][:,i], bins=nPostBins)
-            wh_pk = np.where(yb == yb.max())[0][0]
-            mcmc_peak_hist[i] = np.average([xb[wh_pk], xb[wh_pk+1]])
+    """
+    def __init__(self, model=None, sampler_results=None,
+                 linked_posterior_names=None,
+                 blob_name=None, nPostBins=50):
 
-        ## Use max prob as guess to get peak value of the gaussian KDE, to find 'best-fit' of the posterior:
-        mcmc_param_bestfit = find_peak_gaussian_KDE(self.sampler['flatchain'], mcmc_peak_hist)
+        # self.sampler_results = sampler_results
 
-        # --------------------------------------------
-        if linked_posterior_names is not None:
-            # Make sure the param of self is updated
-            #   (for ref. when reloading saved mcmcResult objects)
+        # # Set up samples, and blobs if blob_name != None
+        # self._setup_samples_blobs()
 
-            self.linked_posterior_names = linked_posterior_names
-            linked_posterior_ind_arr = get_linked_posterior_indices(self,
-                            linked_posterior_names=linked_posterior_names)
+        # self.linked_posterior_names = linked_posterior_names
+        # self.nPostBins = nPostBins
 
-            guess = mcmc_param_bestfit.copy()
+        super(NestedResults, self).__init__(model=model, blob_name=blob_name,
+                                            fit_method='Nested', 
+                                            linked_posterior_names=linked_posterior_names, 
+                                            sampler_results=sampler_results, nPostBins=nPostBins)
 
-            bestfit_theta_linked = get_linked_posterior_peak_values(self.sampler['flatchain'],
-                            guess=guess,
-                            linked_posterior_ind_arr=linked_posterior_ind_arr,
-                            nPostBins=nPostBins)
+    def __setstate__(self, state):
+        # Compatibility hacks
+        super(NestedResults, self).__setstate__(state)
 
-            for k in six.moves.xrange(len(linked_posterior_ind_arr)):
-                for j in six.moves.xrange(len(linked_posterior_ind_arr[k])):
-                    mcmc_param_bestfit[linked_posterior_ind_arr[k][j]] = bestfit_theta_linked[k][j]
+        # ---------
+        if 'sampler' in state.keys():
+            self._setup_samples_blobs()
 
 
+    def _setup_samples_blobs(self):
 
-        # --------------------------------------------
-        # Uncertainty bounds are currently determined from marginalized posteriors
-        #   (even if the best-fit is found from linked posterior).
+        # Extract weighted samples, as in 
+        # https://dynesty.readthedocs.io/en/v1.2.3/quickstart.html?highlight=resample_equal#basic-post-processing
+        
+        samples_unweighted = self.sampler_results.samples 
+        blobs_unweighted = self.sampler_results.blob
+        
+        # weights = np.exp(self.sampler.logwt - self.sampler.logz[-1])
 
-        # --------------------------------------------
-        # Save best-fit results in the MCMCResults instance
+        # Updated, see https://dynesty.readthedocs.io/en/v2.0.3/quickstart.html#basic-post-processing
+        weights = self.sampler_results.importance_weights()
 
-        self.bestfit_parameters = mcmc_param_bestfit
-        self.bestfit_redchisq = None
+        samples = dynesty.utils.resample_equal(samples_unweighted, weights)
 
-        # ++++++++++++++++++++++++=
-        # Original 68% percentile interval:
-        mcmc_stack_percentile = np.concatenate(([mcmc_param_bestfit], mcmc_limits_percentile), axis=0)
-        # Order: best fit value, lower 1sig bound, upper 1sig bound
+        # Check if blobs_unweighted is None?
+        blobs = dynesty.utils.resample_equal(blobs_unweighted, weights)
 
-        mcmc_uncertainties_1sig_percentile = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
-                            list(zip(*mcmc_stack_percentile)))))
+        self.sampler = base.BayesianSampler(samples=samples, blobs=blobs, 
+                                            weights=weights, 
+                                            samples_unweighted=samples_unweighted, 
+                                            blobs_unweighted=blobs_unweighted)
 
-        # 1sig lower, upper uncertainty
-        self.bestfit_parameters_err_percentile = mcmc_uncertainties_1sig_percentile
+    def plot_run(self, fileout=None, overwrite=False):
+        """Plot/replot the trace for the Bayesian fitting"""
+        plotting.plot_run(self, fileout=fileout, overwrite=overwrite)
 
-        # Bound limits (in case it's useful)
-        self.bestfit_parameters_l68_percentile = mcmc_limits_percentile[0]
-        self.bestfit_parameters_u68_percentile = mcmc_limits_percentile[1]
-
-        # Separate 1sig l, u uncertainty, for utility:
-        self.bestfit_parameters_l68_err_percentile = mcmc_param_bestfit - mcmc_limits_percentile[0]
-        self.bestfit_parameters_u68_err_percentile = mcmc_limits_percentile[1] - mcmc_param_bestfit
-
-
-        # ++++++++++++++++++++++++=
-        # From new shortest credible interval:
-        mcmc_stack = np.concatenate(([mcmc_param_bestfit], mcmc_limits), axis=0)
-        # Order: best fit value, lower 1sig bound, upper 1sig bound
-
-        mcmc_uncertainties_1sig = np.array(list(map(lambda v: (v[0]-v[1], v[2]-v[0]),
-                            list(zip(*mcmc_stack)))))
-
-        # 1sig lower, upper uncertainty
-        self.bestfit_parameters_err = mcmc_uncertainties_1sig
-
-        # Bound limits (in case it's useful)
-        self.bestfit_parameters_l68 = mcmc_limits[0]
-        self.bestfit_parameters_u68 = mcmc_limits[1]
-
-        # Separate 1sig l, u uncertainty, for utility:
-        self.bestfit_parameters_l68_err = mcmc_param_bestfit - mcmc_limits[0]
-        self.bestfit_parameters_u68_err = mcmc_limits[1] - mcmc_param_bestfit
-
-
-    def get_uncertainty_ellipse(self, namex=None, namey=None, bins=50):
-        r"""
-        Using component name, get sampler chain for param x and y, and estimate joint uncertainty ellipse
-
-        Input:
-            name[x,y]:      List: ['flatchain', ind] or ['flatblobs', ind]
-
-        """
-        try:
-            chain_x = self.sampler[namex[0]][:,namex[1]]
-        except:
-            # eg, Single blob value flatblobs
-            chain_x = self.sampler[namex[0]]
-        try:
-            chain_y = self.sampler[namey[0]][:,namey[1]]
-        except:
-            # eg, Single blob value flatblobs
-            chain_y = self.sampler[namey[0]]
-
-        PA, stddev_x, stddev_y  = fit_uncertainty_ellipse(chain_x, chain_y, bins=bins)
-        return PA, stddev_x, stddev_y
-
-
-
-
-    def reload_sampler(self, filename=None):
-        """Reload the MCMC sampler saved earlier"""
+    def reload_sampler_results(self, filename=None):
+        """Reload the Nested sampling results saved earlier"""
         if filename is None:
-            filename = self.f_sampler
+            filename = self.f_sampler_results
 
-        hdf5_aliases = ['h5', 'hdf5']
+        #hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']
-        if (filename.split('.')[-1].lower() in hdf5_aliases):
-            self.sampler = _reload_sampler_hdf5(filename=filename)
+        # if (filename.split('.')[-1].lower() in hdf5_aliases):
+        #     self.sampler_results = _reload_sampler_results_hdf5(filename=filename)
 
-        elif (filename.split('.')[-1].lower() in pickle_aliases):
-            self.sampler = _reload_sampler_pickle(filename=filename)
-
-
-
-    def plot_results(self, gal, fitvelocity=True, fitdispersion=True, fitflux=False,
-                     f_plot_param_corner=None, f_plot_bestfit=None,
-                     f_plot_spaxel=None, f_plot_aperture=None, f_plot_channel=None,
-                     f_plot_trace=None,
-                     overwrite=False, **kwargs_galmodel):
-        """Plot/replot the corner plot and bestfit for the MCMC fitting"""
-        # Specific to 3D: 'f_plot_spaxel', 'f_plot_aperture', 'f_plot_channel'
-        self.plot_corner(gal=gal, fileout=f_plot_param_corner, overwrite=overwrite)
-        self.plot_bestfit(gal, fitvelocity=fitvelocity,
-                fitdispersion=fitdispersion, fitflux=fitflux,
-                fileout=f_plot_bestfit, fileout_aperture=f_plot_aperture,
-                fileout_spaxel=f_plot_spaxel, fileout_channel=f_plot_channel,
-                overwrite=overwrite, **kwargs_galmodel)
-        self.plot_trace(fileout=f_plot_trace, overwrite=overwrite)
+        # elif (filename.split('.')[-1].lower() in pickle_aliases):
+        if (filename.split('.')[-1].lower() in pickle_aliases):
+            self.sampler_results = _reload_sampler_results_pickle(filename=filename)
 
 
-    def plot_corner(self, gal=None, fileout=None, overwrite=False):
-        """Plot/replot the corner plot for the MCMC fitting"""
-        plotting.plot_corner(self, gal=gal, fileout=fileout, blob_name=self.blob_name, overwrite=overwrite)
+
+def log_like_dynesty(theta, gal=None, fitter=None):
+
+    # Update the parameters
+    gal.model.update_parameters(theta)
+
+    # Update the model data
+    gal.create_model_data()
+
+    # Evaluate likelihood prob of theta
+    llike = base.log_like(gal, fitter=fitter)
+
+    return llike
 
 
-    def plot_trace(self, fileout=None, overwrite=False):
-        """Plot/replot the trace for the MCMC fitting"""
-        plotting.plot_trace(self, fileout=fileout, overwrite=overwrite)
+def prior_transform_dynsety(u, gal=None):
+    """
+    From Dynesty documentation: 
+    Transforms the uniform random variables `u ~ Unif[0., 1.)`
+    to the parameters of interest.
+    """
+    # NEEDS TO BE IN ORDER OF THE VARIABLES 
+    # -- which means we need to construct this from the gal.model method
+
+    v = gal.model.get_prior_transform(u)
+
+    return v
+
+
+
+def _reload_sampler_results_pickle(filename=None):
+    return load_pickle(filename)
+
+
+
+def _reload_all_fitting_nested(filename_galmodel=None, filename_results=None):
+    gal = galaxy.load_galaxy_object(filename=filename_galmodel)
+    results = NestedResults()
+    results.reload_results(filename=filename_results)
+    return gal, results
 

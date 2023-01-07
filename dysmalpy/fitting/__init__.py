@@ -12,15 +12,17 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
+# from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
 
 # Local imports:
 from .base import chisq_red, chisq_eval, chisq_red_per_type
-from .mcmc import MCMCFitter, MCMCResults, _reload_all_fitting_mcmc, setup_oversampled_chisq
+from .utils import setup_oversampled_chisq
+from .mcmc import MCMCFitter, MCMCResults, _reload_all_fitting_mcmc
+from .nested_sampling import NestedFitter, NestedResults, _reload_all_fitting_nested
 from .mpfit import MPFITFitter, MPFITResults, _reload_all_fitting_mpfit
 
-__all__ = ['MCMCFitter', 'MPFITFitter',
-           'MCMCResults', 'MPFITResults',
+__all__ = ['MCMCFitter', 'NestedFitter', 'MPFITFitter',
+           'MCMCResults', 'NestedResults', 'MPFITResults',
            'reload_all_fitting',
            'chisq_red', 'chisq_eval', 'chisq_red_per_type',
            'setup_oversampled_chisq']

@@ -12,12 +12,13 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-from dysmalpy.data_io import ensure_dir, load_pickle, dump_pickle
-from dysmalpy import plotting
+# from dysmalpy.data_io import load_pickle, dump_pickle
+# from dysmalpy import plotting
 from dysmalpy import galaxy
 # from dysmalpy import utils_io as dpy_utils_io
 from dysmalpy import utils as dpy_utils
 from dysmalpy.fitting import base
+from dysmalpy.fitting import utils as fit_utils
 
 # Third party imports
 import os
@@ -79,7 +80,7 @@ class MPFITFitter(base.Fitter):
         # Set output options: filenames / which to save, etc
         output_options.set_output_options(gal, self)
 
-        base._check_existing_files_overwrite(output_options, fit_type='mpfit')
+        fit_utils._check_existing_files_overwrite(output_options, fit_type='mpfit')
 
 
         # Setup file redirect logging:

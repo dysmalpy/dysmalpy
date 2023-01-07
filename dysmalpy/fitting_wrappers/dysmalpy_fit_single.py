@@ -45,8 +45,8 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
         havedisplay = not skipconds
     if not havedisplay:
         matplotlib.use('agg')
-
-    from dysmalpy import fitting
+        
+    from dysmalpy import data_io
 
     from dysmalpy.fitting_wrappers.plotting import plot_1D_rotcurve_components
     from dysmalpy.fitting_wrappers import utils_io
@@ -57,9 +57,9 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
 
     # ---------------------------------
     # Check some value validity:
-    if params['fit_method'] not in ['mcmc', 'mpfit']:
+    if params['fit_method'] not in ['mcmc', 'mpfit', 'nested']:
         raise ValueError(
-            '{} not accepted as a fitting method. Please only use "mcmc" or "mpfit"'.format(
+            '{} not accepted as a fitting method. Please only use "mcmc", "nested", or "mpfit"'.format(
                 params['fit_method']))
     # ---------------------------------
 
@@ -115,7 +115,7 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
                                                         param_filename=param_filename)
         params['datadir'] = datadir
 
-        fitting.ensure_dir(params['outdir'])
+        data_io.ensure_dir(params['outdir'])
 
         # Copy paramfile that is OS independent
         utils_io.preserve_param_file(param_filename, params=params,

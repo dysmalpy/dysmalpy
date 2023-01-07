@@ -7,13 +7,12 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
-import warnings
 import copy
 from collections import OrderedDict
 
 # Local imports
 from dysmalpy.data_io import ensure_dir
-from dysmalpy.fitting import MCMCFitter, MPFITFitter
+from dysmalpy.fitting import MCMCFitter, MPFITFitter, NestedFitter
 
 # Third party import
 
@@ -67,14 +66,15 @@ class OutputOptions:
         self.f_bestfit_cube = None
         self.f_vel_ascii = None
 
-        # MCMC fitting specific filenames
-        self.f_sampler_continue = None
-        self.f_sampler = None
-        self.f_sampler_tmp = None
+        # Bayesian fitting specific filenames
+        self.f_sampler_results_continue = None
+        self.f_sampler_results = None
+        self.f_sampler_results_tmp = None
         self.f_burn_sampler = None
         self.f_plot_trace_burnin = None
         self.f_plot_trace = None
         self.f_plot_param_corner = None
+        self.f_plot_run = None
         self.f_chain_ascii = None
 
 
@@ -110,6 +110,9 @@ class OutputOptions:
         self2.__dict__.update(self.__dict__)
         return self2
 
+    def as_dict(self):
+        return self.__dict__
+
     def copy(self):
         return copy.deepcopy(self)
 
@@ -126,6 +129,8 @@ class OutputOptions:
             fit_type = 'mcmc'
         elif isinstance(fitter, MPFITFitter):
             fit_type = 'mpfit'
+        elif isinstance(fitter, NestedFitter):
+            fit_type = 'nested'
         else:
             raise ValueError("Unrecognized Fitter!")
 
@@ -182,11 +187,14 @@ class OutputOptions:
             self.f_plot_bestfit = "{}{}_{}_bestfit.{}".format(self.outdir, self.file_base, fit_type, self.plot_type)
 
         if fit_type == 'mcmc':
-
             if fitter._emcee_version < 3:
                 self._set_mcmc_filenames_221()
             else:
                 self._set_mcmc_filenames_3()
+
+        elif fit_type == 'nested':
+            self._set_nested_filenames()
+
 
 
     def clear_filenames(self):
@@ -201,8 +209,8 @@ class OutputOptions:
     def _set_mcmc_filenames_221(self):
 
         self.f_sampler_continue = self.outdir+self.file_base+'_mcmc_sampler_continue.pickle'
-        self.f_sampler = self.outdir+self.file_base+'_mcmc_sampler.pickle'
-        self.f_sampler_tmp = self.outdir+self.file_base+'_mcmc_sampler_INPROGRESS.pickle'
+        self.f_sampler_results = self.outdir+self.file_base+'_mcmc_sampler.pickle'
+        self.f_sampler_results_tmp = self.outdir+self.file_base+'_mcmc_sampler_INPROGRESS.pickle'
         self.f_burn_sampler = self.outdir+self.file_base+'_mcmc_burn_sampler.pickle'
         self.f_plot_trace_burnin = self.outdir+self.file_base+'_mcmc_burnin_trace.{}'.format(self.plot_type)
         self.f_plot_trace = self.outdir+self.file_base+'_mcmc_trace.{}'.format(self.plot_type)
@@ -212,8 +220,20 @@ class OutputOptions:
     def _set_mcmc_filenames_3(self):
 
         ftype_sampler = 'h5'
-        self.f_sampler = self.outdir+self.file_base+'_mcmc_sampler.{}'.format(ftype_sampler)
+        self.f_sampler_results = self.outdir+self.file_base+'_mcmc_sampler.{}'.format(ftype_sampler)
         self.f_plot_trace_burnin = self.outdir+self.file_base+'_mcmc_burnin_trace.{}'.format(self.plot_type)
         self.f_plot_trace = self.outdir+self.file_base+'_mcmc_trace.{}'.format(self.plot_type)
         self.f_plot_param_corner = self.outdir+self.file_base+'_mcmc_param_corner.{}'.format(self.plot_type)
+        self.f_chain_ascii = self.outdir+self.file_base+'_mcmc_chain_blobs.dat'
+
+
+
+    def _set_nested_filenames(self):
+
+        ftype_results = 'pickle'
+        self.f_checkpoint = self.outdir+self.file_base+'_nested_checkpoints.{}'.format(ftype_results)
+        self.f_sampler_results = self.outdir+self.file_base+'_nested_sampler_results.{}'.format(ftype_results)
+        self.f_plot_trace = self.outdir+self.file_base+'_nested_trace.{}'.format(self.plot_type)
+        self.f_plot_run = self.outdir+self.file_base+'_nested_run.{}'.format(self.plot_type)
+        self.f_plot_param_corner = self.outdir+self.file_base+'_nested_param_corner.{}'.format(self.plot_type)
         self.f_chain_ascii = self.outdir+self.file_base+'_mcmc_chain_blobs.dat'

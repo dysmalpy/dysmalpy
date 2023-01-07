@@ -586,7 +586,7 @@ vel_shift_bounds,    -100.  100.        # km/s
 
 # **************************** Fitting Settings ********************************
 
-fit_method,      mpfit     # mcmc or mpfit
+fit_method,      mpfit     # mcmc, nested, or mpfit
 do_plotting,     True      # Produce all output plots?
 
 # *** Note ***: fitflux and fitdispersion are not supported for 3D,

@@ -560,7 +560,7 @@ inc_bounds,          0.0 90.0
 
 # **************************** Fitting Settings ********************************
 
-fit_method,      mpfit     # mcmc or mpfit
+fit_method,      mpfit     # mcmc, nested, or mpfit
 
 do_plotting,     True      # Produce all output plots?
 

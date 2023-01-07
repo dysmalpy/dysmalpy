@@ -27,7 +27,8 @@ except:
 import numpy as np
 import astropy.constants as apy_con
 import astropy.units as u
-#import pyximport; pyximport.install()
+import pyximport; pyximport.install()
+from . import cutils
 
 
 __all__ = ['ModelSet']
@@ -190,9 +191,9 @@ class ModelSet:
 
         comp = self.components.__getitem__(model_key_re[0])
         param_i = comp.param_names.index(model_key_re[1])
-        r_eff = comp.parameters[param_i]
+        r_ap = comp.parameters[param_i]
 
-        return r_eff
+        return r_ap
 
     def __setstate__(self, state):
         # Compatibility hack, to handle the change to generalized
@@ -622,6 +623,26 @@ class ModelSet:
                     # Free parameter: add to total prior
                     log_prior_model += comp.__getattribute__(paramn).prior.log_prior(comp.__getattribute__(paramn), modelset=self)
         return log_prior_model
+
+
+    def get_prior_transform(self, u):
+
+        v = np.zeros(len(u))
+        ind = -1
+
+        pfree_dict = self.get_free_parameter_keys()
+        comps_names = pfree_dict.keys()
+        for compn in comps_names:
+            comp = self.components.__getitem__(compn)
+            params_names = pfree_dict[compn].keys()
+            for paramn in params_names:
+                if pfree_dict[compn][paramn] >= 0:
+                    # Free parameter: get unit prior transform
+                    ind += 1
+                    v[ind] = comp.__getattribute__(paramn).prior.prior_unit_transform(comp.__getattribute__(paramn), 
+                                u[ind], modelset=self)
+                                
+        return v
 
     def get_dm_aper(self, r):
         """
@@ -1236,7 +1257,7 @@ class ModelSet:
 
         """
 
-        from . import cutils
+        # from . import cutils
 
         if obs is None:
             raise ValueError("Must pass 'obs' instance!")

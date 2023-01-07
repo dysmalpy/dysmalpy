@@ -12,7 +12,9 @@ Dependencies
 * astropy (version >= 2.0.0)
 * radio-beam
 * spectral-cube
+* multiprocess
 * emcee
+* dynesty (version >= 2.0.0)
 * acor
 * corner
 * dill

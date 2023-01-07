@@ -19,10 +19,8 @@ if not havedisplay:
 import astropy.units as u
 
 try:
-    import utils_io
     from dysmalpy_fit_single import dysmalpy_fit_single
 except ImportError:
-    from . import utils_io
     from .dysmalpy_fit_single import dysmalpy_fit_single
 
 # Backwards compatibility
@@ -36,8 +34,6 @@ def dysmalpy_fit_single_3D(param_filename=None, data_loader=None, datadir=None,
 
 def user_specific_load_3D_data(params=None, datadir=None):
     # EDIT THIS FILE TO HAVE SPECIFIC LOADING OF DATA!
-
-    # params = utils_io.read_fitting_params(fname=param_filename)
 
     # Recommended to trim cube to around the relevant line only,
     # both for speed of computation and to avoid noisy spectral resolution elements.
