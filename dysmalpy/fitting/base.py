@@ -242,9 +242,6 @@ class BayesianFitResults(FitResults):
         if (sampler_results is None) & (sampler is not None):
             self.sampler_results = sampler
 
-        # Set up samples, and blobs if blob_name != None
-        self._setup_samples_blobs()
-
         self.linked_posterior_names = linked_posterior_names
         self.nPostBins = nPostBins
 
@@ -260,23 +257,30 @@ class BayesianFitResults(FitResults):
         state_new = copy.deepcopy(state)
 
         # ---------
-        if 'sampler' in state.keys():
+        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
             state_new.pop('sampler', None)
             state_new['sampler_results'] = state['sampler']
 
         self.__dict__ = state_new
 
 
+    @property
+    def sampler_results(self):
+        return self._sampler_results
+
+    @sampler_results.setter
+    def sampler_results(self, value):
+        self._sampler_results = value
+
+        # Set up samples, and blobs if blob_name != None
+        if self._sampler_results is not None:
+            self._setup_samples_blobs()
+
     @abc.abstractmethod
     def _setup_samples_blobs(self, *args, **kwargs):
         """
         Method to set up the posterior samples + blob samples
         """
-
-    # # Backwards compatibility:
-    # @property
-    # def sampler(self):
-    #     return self.sampler_results
 
 
     def analyze_plot_save_results(self, gal, output_options=None):
@@ -345,6 +349,7 @@ class BayesianFitResults(FitResults):
         self.plot_results(gal, f_plot_param_corner=output_options.f_plot_param_corner, 
                           f_plot_bestfit=output_options.f_plot_bestfit,
                           f_plot_trace=output_options.f_plot_trace, 
+                          f_plot_run=output_options.f_plot_run, 
                           overwrite=output_options.overwrite, 
                           only_if_fname_set=True)
 
@@ -412,6 +417,9 @@ class BayesianFitResults(FitResults):
 
     # Backwards compatibility:
     def reload_sampler(self, *args, **kwargs):
+        msg = "FitResults.reload_sampler() is now depreciated in favor of \n"
+        msg += "FitResults.reload_sampler_results()"
+        logger.warning(msg)
         return self.reload_sampler_results(*args, **kwargs)
     
 

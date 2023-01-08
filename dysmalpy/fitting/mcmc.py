@@ -199,7 +199,7 @@ class MCMCFitter(base.Fitter):
 
         if (not self.continue_steps) & ((not self.save_intermediate_sampler_results_chain) \
             | (not os.path.isfile(output_options.f_sampler_results_tmp))):
-            sampler_results = emcee.Ensemblesampler_results(self.nWalkers, nDim, base.log_prob,
+            sampler_results = emcee.EnsembleSampler(self.nWalkers, nDim, base.log_prob,
                         args=[gal], kwargs=kwargs_dict,
                         a = self.scale_param_a, threads = self.nCPUs)
 
@@ -605,7 +605,7 @@ class MCMCFitter(base.Fitter):
         if output_options.overwrite:
             backend_burn.reset(self.nWalkers, nDim)
 
-        sampler_results_burn = emcee.Ensemblesampler_results(self.nWalkers, nDim, base.log_prob,
+        sampler_results_burn = emcee.EnsembleSampler(self.nWalkers, nDim, base.log_prob,
                     backend=backend_burn, pool=pool, moves=moves,
                     args=[gal], kwargs=kwargs_dict)
 
@@ -745,7 +745,7 @@ class MCMCFitter(base.Fitter):
         if output_options.overwrite:
             backend.reset(self.nWalkers, nDim)
 
-        sampler_results = emcee.Ensemblesampler_results(self.nWalkers, nDim, base.log_prob,
+        sampler_results = emcee.EnsembleSampler(self.nWalkers, nDim, base.log_prob,
                     backend=backend, pool=pool, moves=moves,
                     args=[gal], kwargs=kwargs_dict)
 
@@ -922,22 +922,6 @@ class MCMCResults(base.BayesianFitResults, base.FitResults):
     def __init__(self, model=None, sampler_results=None,
                  linked_posterior_names=None,
                  blob_name=None, nPostBins=50):
-
-        # self.sampler_results = sampler_results
-
-        # # Set up samples, and blobs if blob_name != None
-        # self._setup_samples_blobs()
-
-        # self.linked_posterior_names = linked_posterior_names
-        # self.nPostBins = nPostBins
-
-        # self.bestfit_parameters_l68_err = None
-        # self.bestfit_parameters_u68_err = None
-        # self.bestfit_parameters_l68 = None
-        # self.bestfit_parameters_u68 = None
-
-        # super(MCMCResults, self).__init__(model=model, blob_name=blob_name,
-        #                                   fit_method='MCMC')
         
         super(MCMCResults, self).__init__(model=model, blob_name=blob_name,
                                           fit_method='MCMC', 
@@ -950,7 +934,7 @@ class MCMCResults(base.BayesianFitResults, base.FitResults):
         super(MCMCResults, self).__setstate__(state)
 
         # ---------
-        if 'sampler' in state.keys():
+        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
             self._setup_samples_blobs()
 
 
@@ -1185,7 +1169,7 @@ def reinitialize_emcee_sampler_results(sampler_results_dict, gal=None, fitter=No
     # works for emcee v2.2.1
     if emcee.__version__ == '2.2.1':
 
-        sampler_results = emcee.Ensemblesampler_results(fitter.nWalkers, fitter.nParam,
+        sampler_results = emcee.EnsembleSampler(fitter.nWalkers, fitter.nParam,
                     base.log_prob, args=[gal], kwargs=kwargs_dict, a=fitter.scale_param_a,
                     threads=sampler_results_dict['nCPU'])
 
@@ -1215,7 +1199,7 @@ def reinitialize_emcee_sampler_results(sampler_results_dict, gal=None, fitter=No
             backend.initialized = True
 
 
-            sampler_results = emcee.Ensemblesampler_results(sampler_results_dict['nWalkers'],
+            sampler_results = emcee.EnsembleSampler(sampler_results_dict['nWalkers'],
                         sampler_results_dict['nParam'],
                         base.log_prob,
                         args=[gal], kwargs=kwargs_dict,

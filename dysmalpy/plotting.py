@@ -253,7 +253,7 @@ def plot_trace_nested(bayesianResults, fileout=None, overwrite=False):
                                truths=bayesianResults.bestfit_parameters,
                                labels=names, show_titles=True, 
                                trace_cmap='viridis',
-                               title_kwargs={'fontsize': 28, 'y': 1.05}, 
+                               title_kwargs={'fontsize': 15, 'y': 1.05}, 
                                quantiles=None,
                                fig=plt.subplots(ndim, 2, figsize=figsize))
     f.tight_layout()
@@ -499,7 +499,8 @@ def plot_corner_nested(bayesianResults, fileout=None, overwrite=False):
 
     # Plot dynesty corner plot:
     # initialize figure
-    f, axes = plt.subplots(ndim, ndim, figsize=(5,5))
+    scale = 1.5
+    f, axes = plt.subplots(ndim, ndim, figsize=(scale*ndim,scale*ndim))
     axes = axes.reshape((ndim, ndim))
 
     fg, ax = dyplot.cornerplot(bayesianResults.sampler_results, color='blue',
@@ -515,7 +516,7 @@ def plot_corner_nested(bayesianResults, fileout=None, overwrite=False):
         qm = MAP_vals[i]
 
         ql = bayesianResults.bestfit_parameters_l68[i]
-        qh = bayesianResults.bestfit_parameters_h68[i]
+        qh = bayesianResults.bestfit_parameters_u68[i]
 
         q_minus, q_plus = qm - ql, qh - qm
         fmt = "{{0:{0}}}".format(title_fmt).format

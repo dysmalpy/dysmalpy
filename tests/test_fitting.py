@@ -86,8 +86,12 @@ def expected_output_files_base(galID, param_filename=None, fit_method=None, ndim
         list_files.append('{}_{}_chain_blobs.dat'.format(galID, fit_method))
 
     elif fit_method == 'nested':
+        list_files.append('{}_{}_trace.pdf'.format(galID, fit_method))
+        list_files.append('{}_{}_run.pdf'.format(galID, fit_method))
+        list_files.append('{}_{}_param_corner.pdf'.format(galID, fit_method))
+        list_files.append('{}_{}_sampler_results.pickle'.format(galID, fit_method))
+        list_files.append('{}_{}_chain_blobs.dat'.format(galID, fit_method))
 
-        raise NotImplementedError
 
     return list_files
 
@@ -170,16 +174,16 @@ class TestFittingWrappers:
                             params['fit_method'].strip().lower())
         gal, results = fitting.reload_all_fitting(filename_galmodel=f_galmodel,
                             filename_results=f_results, fit_method=params['fit_method'])
-        results.reload_sampler(filename=f_sampler)
+        results.reload_sampler_results(filename=f_sampler)
 
         # Assert lnprob values are all finite:
-        assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
+        assert np.sum(np.isfinite(results.sampler_results['flatlnprobability'])) == results.sampler_results['flatchain'].shape[0]
 
-        for i in range(results.sampler['nParam']):
+        for i in range(results.sampler_results['nParam']):
             # Assert at least one walker moved at least once for parameter i
-            assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
+            assert len(np.unique(results.sampler_results['flatchain'][:,i])) > results.sampler_results['nWalkers']
             # Assert all values of parameter i are finite:
-            assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+            assert np.sum(np.isfinite(results.sampler_results['flatchain'][:,i])) == results.sampler_results['flatchain'].shape[0]
 
 
     def test_1D_nested(self):
@@ -198,20 +202,22 @@ class TestFittingWrappers:
         f_galmodel = outdir_full+'{}_model.pickle'.format(params['galID'])
         f_results = outdir_full+'{}_{}_results.pickle'.format(params['galID'],
                             params['fit_method'].strip().lower())
-        f_sampler = outdir_full+'{}_{}_sampler.h5'.format(params['galID'],
+        f_sampler = outdir_full+'{}_{}_sampler_results.pickle'.format(params['galID'],
                             params['fit_method'].strip().lower())
         gal, results = fitting.reload_all_fitting(filename_galmodel=f_galmodel,
                             filename_results=f_results, fit_method=params['fit_method'])
-        results.reload_sampler(filename=f_sampler)
+        results.reload_sampler_results(filename=f_sampler)
 
-        # Assert lnprob values are all finite:
-        assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
+        # Assert log likelihood values are all finite:
+        assert np.sum(np.isfinite(results.sampler_results['logl'])) == results.sampler.samples.shape[0]
 
-        for i in range(results.sampler['nParam']):
-            # Assert at least one walker moved at least once for parameter i
-            assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
+        # Assert evidence values are all finite:
+        assert np.sum(np.isfinite(results.sampler_results['logz'])) == results.sampler.samples.shape[0]
+
+        # Loop over parameters:
+        for i in range(results.sampler.samples.shape[1]):
             # Assert all values of parameter i are finite:
-            assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+            assert np.sum(np.isfinite(results.sampler.samples[:,i])) == results.sampler.samples.shape[0]
 
 
     def test_2D_mpfit(self):

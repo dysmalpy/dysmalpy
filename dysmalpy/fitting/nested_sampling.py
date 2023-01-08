@@ -280,14 +280,6 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
                  linked_posterior_names=None,
                  blob_name=None, nPostBins=50):
 
-        # self.sampler_results = sampler_results
-
-        # # Set up samples, and blobs if blob_name != None
-        # self._setup_samples_blobs()
-
-        # self.linked_posterior_names = linked_posterior_names
-        # self.nPostBins = nPostBins
-
         super(NestedResults, self).__init__(model=model, blob_name=blob_name,
                                             fit_method='Nested', 
                                             linked_posterior_names=linked_posterior_names, 
@@ -298,7 +290,7 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
         super(NestedResults, self).__setstate__(state)
 
         # ---------
-        if 'sampler' in state.keys():
+        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
             self._setup_samples_blobs()
 
 

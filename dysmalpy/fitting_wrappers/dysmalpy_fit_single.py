@@ -123,7 +123,6 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
                                      outdir=params['outdir'])
 
 
-
         # Cleanup if overwriting:
         if fit_exists:
             os.remove(params['outdir']+'{}_{}_results.pickle'.format(params['galID'],params['fit_method']))

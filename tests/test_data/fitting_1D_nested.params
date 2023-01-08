@@ -233,7 +233,7 @@ fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 # Nested Settings
 #---------------
 # SHORT test values:
-maxiter,         100 #200
+maxiter,         150 #200
 nlive_init,      25
 nlive_batch,     25
 nCPUs,           4

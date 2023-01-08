@@ -236,4 +236,4 @@ class OutputOptions:
         self.f_plot_trace = self.outdir+self.file_base+'_nested_trace.{}'.format(self.plot_type)
         self.f_plot_run = self.outdir+self.file_base+'_nested_run.{}'.format(self.plot_type)
         self.f_plot_param_corner = self.outdir+self.file_base+'_nested_param_corner.{}'.format(self.plot_type)
-        self.f_chain_ascii = self.outdir+self.file_base+'_mcmc_chain_blobs.dat'
+        self.f_chain_ascii = self.outdir+self.file_base+'_nested_chain_blobs.dat'
