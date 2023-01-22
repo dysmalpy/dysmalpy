@@ -26,6 +26,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
+_bayesian_fitting_methods = ['mcmc', 'nested']
+
 def _chisq_generalized(gal, red_chisq=None):
 
     if red_chisq is None:
@@ -530,13 +532,25 @@ def _check_existing_files_overwrite(output_options, fit_type=None, fitter=None):
         fnames = []
         fnames_opt = [ output_options.f_model, output_options.f_vcirc_ascii,
                        output_options.f_mass_ascii, output_options.f_results,
+                       output_options.f_sampler_results, 
                        output_options.f_plot_bestfit ]
 
+        if (fit_type.lower() in _bayesian_fitting_methods):
+            fnames_ext = [output_options.f_plot_trace, 
+                          output_options.f_plot_param_corner, 
+                          output_options.f_chain_ascii]
+            for fn in fnames_ext:
+                fnames_opt.append(fn)
+
         if (fit_type.lower() == 'mcmc'):
-            fnames_opt.append(output_options.f_plot_trace_burnin)
-            fnames_opt.append(output_options.f_plot_trace)
-            fnames_opt.append(output_options.f_plot_param_corner)
-            fnames_opt.append(output_options.f_chain_ascii)
+            fnames_ext = [output_options.f_plot_trace_burnin]
+            for fn in fnames_ext:
+                fnames_opt.append(fn)
+        elif (fit_type.lower() == 'nested'):
+            fnames_ext = [output_options.f_checkpoint,
+                          output_options.f_plot_run]
+            for fn in fnames_ext:
+                fnames_opt.append(fn)
 
         for fname in fnames_opt:
             if fname is not None:
@@ -565,9 +579,25 @@ def _check_existing_files_overwrite(output_options, fit_type=None, fitter=None):
 
     else:
         # Overwrite=True: remove old file versions
-        if (fit_type.upper() == 'mcmc'):
-            if os.path.isfile(output_options.f_sampler): os.remove(output_options.f_sampler)
-            if os.path.isfile(output_options.f_plot_param_corner): os.remove(output_options.f_plot_param_corner)
+
+        if (fit_type.lower() in _bayesian_fitting_methods):
+            fnames_ext = [output_options.f_plot_trace, 
+                          output_options.f_plot_param_corner, 
+                          output_options.f_chain_ascii]
+            for fn in fnames_ext:
+                if os.path.isfile(fn): os.remove(fn)
+                
+        if (fit_type.lower() == 'mcmc'):
+            fnames_ext = [output_options.f_plot_trace_burnin]
+            for fn in fnames_ext:
+                if os.path.isfile(fn): os.remove(fn)
+                
+        elif (fit_type.lower() == 'nested'):
+            fnames_ext = [output_options.f_checkpoint,
+                          output_options.f_plot_run]
+            for fn in fnames_ext:
+                if os.path.isfile(fn): os.remove(fn)
+                
 
     # ---------------------------------------------------
 

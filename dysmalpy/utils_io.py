@@ -29,6 +29,8 @@ except:
     from . import data_classes
 
 
+_bayesian_fitting_methods = ['mcmc', 'nested']
+
 #--------------------------------------------------------------
 # Get DysmalPy version:
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -390,7 +392,8 @@ class Report(object):
             results_status = results.status
         else:
             results_status = -99
-        if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
+        # if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
+        if True:
             self.add_line( '' )
             self.add_line( '###############################' )
             self.add_line( ' Fitting results' )
@@ -408,8 +411,8 @@ class Report(object):
                         whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
                         best = results.bestfit_parameters[whparam]
 
-                        # MCMC
-                        if self.fit_method.upper() == 'MCMC':
+                        # Bayesian:
+                        if self.fit_method.lower() in _bayesian_fitting_methods:
                             l68 = results.bestfit_parameters_l68_err[whparam]
                             u68 = results.bestfit_parameters_u68_err[whparam]
                             datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
@@ -453,7 +456,7 @@ class Report(object):
             ####
             if blob_names is not None:
                 # MCMC
-                if self.fit_method.upper() == 'MCMC':
+                if self.fit_method.lower() in _bayesian_fitting_methods:
                     self.add_line( '' )
                     self.add_line( '-----------' )
                     for blobn in blob_names:

@@ -105,7 +105,8 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
         print(' Fitting already complete for: {}'.format(params['galID']))
         print('   make new output folder or remove previous fitting files')
         print('------------------------------------------------------------------')
-        print(' ')
+        print(' ') 
+        
     else:
         # Get fitting dimension of at least 1 obs:
         ndim = utils_io.get_ndim_fit_from_paramfile(0, param_filename=param_filename)
@@ -129,7 +130,8 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
 
         #######################
         # Setup galaxy, output options
-        gal, output_options = utils_io.setup_single_galaxy(params=params, data_loader=data_loader)
+        gal, output_options = utils_io.setup_single_galaxy(params=params, 
+                        data_loader=data_loader)
 
         # Clean up existing log file:
         if output_options.f_log is not None:

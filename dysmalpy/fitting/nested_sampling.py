@@ -58,14 +58,14 @@ class NestedFitter(base.Fitter):
 
     def _set_defaults(self):
         # Nested sampling specific defaults
-        self.maxiter=None
+        self.maxiter = None     # No limit to iterations
 
         self.bound = 'multi'
         self.sample = 'unif'
 
-        self.nlive_init = 100
-        self.nlive_batch = 100
-        self.use_stop = False
+        self.nlive_init = 1000
+        self.nlive_batch = 1000
+        self.use_stop = True
         self.pfrac = 1.0
 
         self.nCPUs = 1.0
@@ -173,7 +173,7 @@ class NestedFitter(base.Fitter):
 
         
 
-        dsampler_results = dynesty.DynamicNestedSampler(log_like_dynesty,
+        dsampler = dynesty.DynamicNestedSampler(log_like_dynesty,
                                                 prior_transform_dynsety,
                                                 ndim,
                                                 bound=self.bound,
@@ -184,14 +184,30 @@ class NestedFitter(base.Fitter):
                                                 pool=pool,
                                                 queue_size=queue_size)
 
-        dsampler_results.run_nested(nlive_init=self.nlive_init,
+
+        resume = False
+
+        # If not overwriting, check to see if there is a file to restore:
+        if not output_options.overwrite:
+            if output_options.f_checkpoint is not None:
+                if os.path.isfile(output_options.f_checkpoint):
+                    logger.info("Reloading checkpoint file: {}".format(output_options.f_checkpoint))
+                    
+                    # Resume the checkpointed sampler from file:
+                    resume = True
+                    dsampler = dynesty.DynamicNestedSampler.restore(output_options.f_checkpoint, 
+                                                pool=pool)
+                                                
+
+        dsampler.run_nested(nlive_init=self.nlive_init,
                             nlive_batch=self.nlive_batch,
                             maxiter=self.maxiter,
                             use_stop=self.use_stop,
+                            resume=resume, 
                             checkpoint_file=output_options.f_checkpoint, 
                             wt_kwargs={'pfrac': self.pfrac})
 
-        res = dsampler_results.results
+        res = dsampler.results
 
         if output_options.f_sampler_results is not None:
             # Save stuff to file, for future use:
@@ -324,7 +340,8 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
     def reload_sampler_results(self, filename=None):
         """Reload the Nested sampling results saved earlier"""
         if filename is None:
-            filename = self.f_sampler_results
+            #filename = self.f_sampler_results
+            raise ValueError
 
         #hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']

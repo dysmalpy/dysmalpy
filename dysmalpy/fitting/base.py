@@ -185,7 +185,8 @@ class FitResults(object):
     def reload_results(self, filename=None):
         """Reload results saved earlier: the whole object"""
         if filename is None:
-            filename = self.f_results
+            #filename = self.f_results
+            raise ValueError
         resultsSaved = load_pickle(filename)
         for key in resultsSaved.__dict__.keys():
             try:

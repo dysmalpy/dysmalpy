@@ -22,7 +22,7 @@ aperture_radius,  0.275                      # Circular aperture radius, in ARCS
                                              # -- Eg, aperture diam = slit width
 
 moment_calc,      False
-overwrite, True
+overwrite, False
 
 #linked_posteriors,         total_mass   r_eff_disk   bt   mvirial
 linked_posteriors,         total_mass   r_eff_disk   bt   fdm
@@ -233,9 +233,10 @@ fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 # Nested Settings
 #---------------
 # SHORT test values:
-maxiter,         150 #200
-nlive_init,      25
-nlive_batch,     25
+sample,          rwalk  # unif
+maxiter,         None #150 #200
+nlive_init,      50 #1000 #25
+nlive_batch,     50 #1000 #25
 nCPUs,           4
 
 blob_name, mvirial

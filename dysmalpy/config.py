@@ -231,7 +231,9 @@ class OutputOptions:
     def _set_nested_filenames(self):
 
         ftype_results = 'pickle'
-        self.f_checkpoint = self.outdir+self.file_base+'_nested_checkpoints.{}'.format(ftype_results)
+        # ftype_checkpoint = ftype_results
+        ftype_checkpoint = 'save'
+        self.f_checkpoint = self.outdir+self.file_base+'_nested_checkpoints.{}'.format(ftype_checkpoint)
         self.f_sampler_results = self.outdir+self.file_base+'_nested_sampler_results.{}'.format(ftype_results)
         self.f_plot_trace = self.outdir+self.file_base+'_nested_trace.{}'.format(self.plot_type)
         self.f_plot_run = self.outdir+self.file_base+'_nested_run.{}'.format(self.plot_type)

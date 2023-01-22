@@ -495,7 +495,7 @@ def plot_corner_nested(bayesianResults, fileout=None, overwrite=False):
     MAP_vals = bayesianResults.bestfit_parameters
 
     ndim = bayesianResults.nparams_free
-    names = make_clean_bayesian_plot_names(bayesianResults)
+    names = make_clean_bayesian_plot_names(bayesianResults, short=True)
 
     # Plot dynesty corner plot:
     # initialize figure
@@ -3997,14 +3997,17 @@ def plot_single_obs_rotcurve_components(obs, model,
 
     return None
 
-def make_clean_bayesian_plot_names(bayesianResults):
+def make_clean_bayesian_plot_names(bayesianResults, short=False):
     names = []
     for key in bayesianResults.free_param_names.keys():
         for i in range(len(bayesianResults.free_param_names[key])):
             param = bayesianResults.free_param_names[key][i]
             key_nice = " ".join(key.split("_"))
             param_nice = " ".join(param.split("_"))
-            names.append(key_nice+': '+param_nice)
+            if short:
+                names.append(param_nice)
+            else:
+                names.append(key_nice+': '+param_nice)
 
     return names
 

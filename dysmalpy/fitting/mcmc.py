@@ -969,7 +969,8 @@ class MCMCResults(base.BayesianFitResults, base.FitResults):
     def reload_sampler_results(self, filename=None):
         """Reload the MCMC sampler_results saved earlier"""
         if filename is None:
-            filename = self.f_sampler_results
+            #filename = self.f_sampler_results
+            raise ValueError
 
         hdf5_aliases = ['h5', 'hdf5']
         pickle_aliases = ['pickle', 'pkl', 'pcl']
