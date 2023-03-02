@@ -481,7 +481,7 @@ class Report(object):
             results_status = results.status
         else:
             results_status = -99
-        if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
+        if ((self.fit_method.upper() == 'MPFIT') | (self.fit_method.upper() == 'MCMC')):
             self.add_line( '' )
             self.add_line( '###############################' )
             self.add_line( ' Fitting results' )

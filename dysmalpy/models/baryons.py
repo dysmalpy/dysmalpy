@@ -16,6 +16,8 @@ import numpy as np
 import scipy.special as scp_spec
 import scipy.io as scp_io
 import scipy.interpolate as scp_interp
+import scipy.optimize as scp_opt
+import scipy.integrate as scp_int
 import astropy.constants as apy_con
 import astropy.units as u
 
@@ -2671,6 +2673,17 @@ class GaussianRing(MassModel, _LightMassModel):
 
     def ring_invh(self):
         return self.R_peak.value / self.FWHM.value
+
+    def ring_reff(self):
+        try:
+            exp = lambda x: np.exp(- 4*np.log(2) * self.ring_invh()**2 * (x - 1)**2)
+            func = lambda xe: 2 * scp_int.quad(lambda x: x * exp(x), a=0, b=xe)[0] - \
+                                  scp_int.quad(lambda x: x * exp(x), a=0, b=np.inf)[0]
+            xeff = scp_opt.brentq(lambda x: func(x), a=0, b=150)
+            return xeff * self.R_peak.value
+        except:
+            logger.warning("Could not solve for ring_reff. Assuming reff=Rpeak instead...")
+            return self.R_peak
 
     @staticmethod
     def evaluate(r, total_mass, R_peak, FWHM, mass_to_light):
