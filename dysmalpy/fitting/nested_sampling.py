@@ -11,7 +11,11 @@ from __future__ import (absolute_import, division, print_function,
 
 ## Standard library
 import logging
-from multiprocess import cpu_count, Pool
+try:
+    from multiprocess import cpu_count, Pool
+except:
+    # Old python versions:
+    from multiprocessing import cpu_count, Pool
 
 # DYSMALPY code
 from dysmalpy.data_io import load_pickle, dump_pickle, pickle_module
@@ -30,11 +34,6 @@ from collections import OrderedDict
 import astropy.units as u
 import copy
 
-import dynesty
-import dynesty.utils
-dynesty.utils.pickle_module = pickle_module
-
-
 import time, datetime
 
 
@@ -45,6 +44,14 @@ __all__ = ['NestedFitter', 'NestedResults']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+try:
+    import dynesty
+    import dynesty.utils
+    dynesty.utils.pickle_module = pickle_module
+    _dynesty_loaded = True
+except:
+    _dynesty_loaded = False
+    logger.warn("dynesty installation not found!")
 
 
 class NestedFitter(base.Fitter):
@@ -52,6 +59,8 @@ class NestedFitter(base.Fitter):
     Class to hold the Nested sampling fitter attributes + methods
     """
     def __init__(self, **kwargs):
+        if not _dynesty_loaded:
+            raise ValueError("dynesty was not loaded!")
 
         self._set_defaults()
         super(NestedFitter, self).__init__(fit_method='Nested', **kwargs)

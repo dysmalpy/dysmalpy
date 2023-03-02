@@ -388,84 +388,85 @@ class Report(object):
 
 
         # --------------------------------------
-        if 'status' in results.__dict__.keys():
-            results_status = results.status
-        else:
-            results_status = -99
-        # if (((self.fit_method.upper() == 'MPFIT') & results_status) | (self.fit_method.upper() == 'MCMC')):
-        if True:
-            self.add_line( '' )
-            self.add_line( '###############################' )
-            self.add_line( ' Fitting results' )
+        # if 'status' in results.__dict__.keys():
+        #     results_status = results.status
+        # else:
+        #     results_status = -99
+        # if (((self.fit_method.upper() == 'MPFIT') & (results_status >= 0) | (self.fit_method.upper() == 'MCMC')):
+        #if True:
+        self.add_line( '' )
+        self.add_line( '###############################' )
+        self.add_line( ' Fitting results' )
 
-            for cmp_n in gal.model.param_names.keys():
-                self.add_line( '-----------' )
-                self.add_line( ' {}'.format(cmp_n) )
+        for cmp_n in gal.model.param_names.keys():
+            self.add_line( '-----------' )
+            self.add_line( ' {}'.format(cmp_n) )
 
-                nfixedtied = 0
-                nfree = 0
+            nfixedtied = 0
+            nfree = 0
 
-                for param_n in gal.model.param_names[cmp_n]:
-                    if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
-                        nfree += 1
-                        whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
-                        best = results.bestfit_parameters[whparam]
+            for param_n in gal.model.param_names[cmp_n]:
+                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
+                    nfree += 1
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
+                    best = results.bestfit_parameters[whparam]
 
-                        # Bayesian:
-                        if self.fit_method.lower() in _bayesian_fitting_methods:
-                            l68 = results.bestfit_parameters_l68_err[whparam]
-                            u68 = results.bestfit_parameters_u68_err[whparam]
-                            datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
+                    # Bayesian:
+                    if self.fit_method.lower() in _bayesian_fitting_methods:
+                        l68 = results.bestfit_parameters_l68_err[whparam]
+                        u68 = results.bestfit_parameters_u68_err[whparam]
+                        datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(param_n, best, l68, u68)
 
-                        # MPFIT
-                        elif self.fit_method.upper() == 'MPFIT':
-                            if results.bestfit_parameters_err is not None:
-                                err = results.bestfit_parameters_err[whparam]
-                                datstr = '    {: <13}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
-                            else:
-                                datstr = '    {: <13}    FITTING ERROR'.format(param_n,)
-
-                        self.add_line( datstr )
-                    else:
-                        nfixedtied += 1
-                #
-                if (nfree > 0) & (nfixedtied > 0):
-                    self.add_line( '' )
-
-                for param_n in gal.model.param_names[cmp_n]:
-                    if '{}:{}'.format(cmp_n.lower(),param_n.lower()) not in results.chain_param_names:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-
-                        if not getattr(gal.model.components[cmp_n], param_n).tied:
-                            if getattr(gal.model.components[cmp_n], param_n).fixed:
-                                fix_tie = '[FIXED]'
-                            else:
-                                fix_tie = '[UNKNOWN]'
+                    # MPFIT
+                    elif self.fit_method.upper() == 'MPFIT':
+                        if results.bestfit_parameters_err is not None:
+                            err = results.bestfit_parameters_err[whparam]
+                            datstr = '    {: <13}    {:9.4f}  +/-{:9.4f}'.format(param_n, best, err)
                         else:
-                            fix_tie = '[TIED]'
+                            datstr = '    {: <13}    FITTING ERROR'.format(param_n,)
 
-                        datstr = '    {: <13}    {:9.4f}  {}'.format(param_n, best, fix_tie)
+                    self.add_line( datstr )
+                else:
+                    nfixedtied += 1
+            #
+            if (nfree > 0) & (nfixedtied > 0):
+                self.add_line( '' )
 
-                        self.add_line( datstr )
+            for param_n in gal.model.param_names[cmp_n]:
+                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) not in results.chain_param_names:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
 
-                if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
-                    self.add_line( '' )
-                    datstr = '    {: <13}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
+                    if not getattr(gal.model.components[cmp_n], param_n).tied:
+                        if getattr(gal.model.components[cmp_n], param_n).fixed:
+                            fix_tie = '[FIXED]'
+                        else:
+                            fix_tie = '[UNKNOWN]'
+                    else:
+                        fix_tie = '[TIED]'
+
+                    datstr = '    {: <13}    {:9.4f}  {}'.format(param_n, best, fix_tie)
+
                     self.add_line( datstr )
 
-            ####
-            if blob_names is not None:
-                # MCMC
-                if self.fit_method.lower() in _bayesian_fitting_methods:
-                    self.add_line( '' )
-                    self.add_line( '-----------' )
-                    for blobn in blob_names:
-                        blob_best = results.__dict__['bestfit_{}'.format(blobn)]
-                        l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                        u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
-                        datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
-                        self.add_line( datstr )
+            if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
+                self.add_line( '' )
+                datstr = '    {: <13}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
+                self.add_line( datstr )
 
+        ####
+        if blob_names is not None:
+            # MCMC
+            if self.fit_method.lower() in _bayesian_fitting_methods:
+                self.add_line( '' )
+                self.add_line( '-----------' )
+                for blobn in blob_names:
+                    blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                    l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                    u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                    datstr = '    {: <13}    {:9.4f}  -{:9.4f} +{:9.4f}'.format(blobn, blob_best, l68_blob, u68_blob)
+                    self.add_line( datstr )
+
+        # End "if true"
 
         ####
         self.add_line( '' )
@@ -519,60 +520,61 @@ class Report(object):
         self.add_line( namestr )
 
 
-        if 'status' in results.__dict__.keys():
-            results_status = results.status
-        else:
-            results_status = -99
-        if (((self.fit_method.upper() == 'MPFIT') & results_status>=0) | (self.fit_method.upper() == 'MCMC')):
-            for cmp_n in gal.model.param_names.keys():
-                for param_n in gal.model.param_names[cmp_n]:
+        # if 'status' in results.__dict__.keys():
+        #     results_status = results.status
+        # else:
+        #     results_status = -99
+        #if (((self.fit_method.upper() == 'MPFIT') & results_status>=0) | (self.fit_method.upper() == 'MCMC')):
+        # if True:
+        for cmp_n in gal.model.param_names.keys():
+            for param_n in gal.model.param_names[cmp_n]:
 
-                    if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
-                        whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
-                        best = results.bestfit_parameters[whparam]
-                        try:
-                            l68 = results.bestfit_parameters_l68_err[whparam]
-                            u68 = results.bestfit_parameters_u68_err[whparam]
-                        except:
-                            if results.bestfit_parameters_err is not None:
-                                l68 = u68 = results.bestfit_parameters_err[whparam]
-                            else:
-                                # Fitting failed
-                                best = l68 = u68 = np.NaN
-                    else:
-                        best = getattr(gal.model.components[cmp_n], param_n).value
-                        l68 = -99.
-                        u68 = -99.
-
-                    #######
-                    if not getattr(gal.model.components[cmp_n], param_n).tied:
-                        if getattr(gal.model.components[cmp_n], param_n).fixed:
-                            fix_tie = 'True'
-                        else:
-                            fix_tie = 'False'
-                    else:
-                        fix_tie = 'TIED'
-
-
-                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
-                                fix_tie, best, l68, u68)
-                    self.add_line( datstr )
-
-            ###
-
-            if blob_names is not None:
-                for blobn in blob_names:
-                    blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    best = results.bestfit_parameters[whparam]
                     try:
-                        l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
-                        u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                        l68 = results.bestfit_parameters_l68_err[whparam]
+                        u68 = results.bestfit_parameters_u68_err[whparam]
                     except:
-                        l68_blob = u68_blob = results.__dict__['bestfit_{}_err'.format(blobn)]
+                        if results.bestfit_parameters_err is not None:
+                            l68 = u68 = results.bestfit_parameters_err[whparam]
+                        else:
+                            # Fitting failed
+                            best = l68 = u68 = np.NaN
+                else:
+                    best = getattr(gal.model.components[cmp_n], param_n).value
+                    l68 = -99.
+                    u68 = -99.
 
-                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
-                                '-----', blob_best, l68_blob, u68_blob)
-                    self.add_line( datstr )
+                #######
+                if not getattr(gal.model.components[cmp_n], param_n).tied:
+                    if getattr(gal.model.components[cmp_n], param_n).fixed:
+                        fix_tie = 'True'
+                    else:
+                        fix_tie = 'False'
+                else:
+                    fix_tie = 'TIED'
 
+
+                datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(cmp_n, param_n,
+                            fix_tie, best, l68, u68)
+                self.add_line( datstr )
+
+        ###
+
+        if blob_names is not None:
+            for blobn in blob_names:
+                blob_best = results.__dict__['bestfit_{}'.format(blobn)]
+                try:
+                    l68_blob = results.__dict__['bestfit_{}_l68_err'.format(blobn)]
+                    u68_blob = results.__dict__['bestfit_{}_u68_err'.format(blobn)]
+                except:
+                    l68_blob = u68_blob = results.__dict__['bestfit_{}_err'.format(blobn)]
+
+                datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(blobn, '-----',
+                            '-----', blob_best, l68_blob, u68_blob)
+                self.add_line( datstr )
+        # end "if True"
 
         ###
         if 'status' in results.__dict__.keys():

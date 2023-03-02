@@ -4885,7 +4885,7 @@ def show_1d_apers_plot(ax, obs, data1d, data2d, model=None, obsorig=None, alpha_
     slit_pa = data1d.slit_pa
     rstep = obs.instrument.pixscale.value
     try:
-        rstep1d = gal.instrument1d.pixscale.value
+        rstep1d = obs.instrument1d.pixscale.value
     except:
         rstep1d = rstep
     rpix = slit_width/rstep/2.

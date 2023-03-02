@@ -12,10 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 # DYSMALPY code
-# from dysmalpy.data_io import load_pickle, dump_pickle
-# from dysmalpy import plotting
 from dysmalpy import galaxy
-# from dysmalpy import utils_io as dpy_utils_io
 from dysmalpy import utils as dpy_utils
 from dysmalpy.fitting import base
 from dysmalpy.fitting import utils as fit_utils

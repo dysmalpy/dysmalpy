@@ -14,7 +14,7 @@ def tied_geom_lambda(main_geom_name, param_name):
     return lambda mod_set: mod_set.components[main_geom_name].__dict__[param_name].value
 
 def tie_sigz_reff(model_set):
-    #'sersic', 'disk+bulge', 'lsersic'
+    #'sersic', 'disk+bulge', 'lsersic', 'ring'
     reff = None
     if 'disk+bulge' in model_set.light_components.keys():
         if model_set.light_components['disk+bulge']:
@@ -25,6 +25,9 @@ def tie_sigz_reff(model_set):
     elif 'lsersic' in model_set.light_components.keys():
         if model_set.light_components['lsersic']:
             reff = model_set.components['lsersic'].r_eff.value
+    elif 'ring' in model_set.light_components.keys():
+        if model_set.light_components['ring']:
+            reff = model_set.components['ring'].ring_reff()
 
     if 'disk+bulge' in model_set.components.keys():
         invq = model_set.components['disk+bulge'].invq_disk
@@ -254,7 +257,17 @@ def tie_lmvirial_to_fdm(model_set):
     bar_dict = {'components': comps_bar,
                 'light': light_bar}
 
-    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # Generalize r_fdm component (as in changes from AN):
+    if 'disk+bulge' in model_set.mass_components:
+        if model_set.mass_components['disk+bulge']:
+            r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    elif 'disk' in model_set.mass_components:
+        if model_set.mass_components['disk']:
+            r_fdm = model_set.components['disk'].r_eff.value
+    elif 'ring' in model_set.mass_components:
+        if model_set.mass_components['ring']:
+            r_fdm = model_set.components['ring'].R_peak.value
 
     mvirial = comp_halo.calc_mvirial_from_fdm(bar_dict, r_fdm,
                     adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
@@ -354,7 +367,17 @@ def tie_DZ_c2_MstarMhalo(model_set):
 
 
 def tie_fdm(model_set):
-    r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # Generalize r_fdm component (as in changes from AN):
+    if 'disk+bulge' in model_set.mass_components:
+        if model_set.mass_components['disk+bulge']:
+            r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    elif 'disk' in model_set.mass_components:
+        if model_set.mass_components['disk']:
+            r_fdm = model_set.components['disk'].r_eff.value
+    elif 'ring' in model_set.mass_components:
+        if model_set.mass_components['ring']:
+            r_fdm = model_set.components['ring'].ring_reff()
     fdm = model_set.get_dm_aper(r_fdm)
     return fdm
 

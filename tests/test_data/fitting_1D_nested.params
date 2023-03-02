@@ -234,7 +234,7 @@ fitdispersion,   True      # Simultaneously fit the velocity and dispersion?
 #---------------
 # SHORT test values:
 sample,          rwalk  # unif
-maxiter,         None #150 #200
+maxiter,         200 # None
 nlive_init,      50 #1000 #25
 nlive_batch,     50 #1000 #25
 nCPUs,           4

@@ -13,15 +13,16 @@ from __future__ import (absolute_import, division, print_function,
 
 ## Standard library
 import logging
-#from multiprocessing import cpu_count, Pool
-from multiprocess import cpu_count, Pool
+try:
+    from multiprocess import cpu_count, Pool
+except:
+    # Old python versions:
+    from multiprocessing import cpu_count, Pool
 
 # DYSMALPY code
 from dysmalpy.data_io import load_pickle, dump_pickle
 from dysmalpy import plotting
 from dysmalpy import galaxy
-# from dysmalpy.utils import fit_uncertainty_ellipse
-# from dysmalpy import utils_io as dpy_utils_io
 from dysmalpy import utils as dpy_utils
 from dysmalpy.fitting import base
 from dysmalpy.fitting import utils as fit_utils
@@ -33,9 +34,6 @@ import numpy as np
 from collections import OrderedDict
 import astropy.units as u
 import copy
-import emcee
-
-_emcee_version = int(emcee.__version__[0])
 
 import time, datetime
 
@@ -47,6 +45,14 @@ __all__ = ['MCMCFitter', 'MCMCResults']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
+try:
+    import emcee
+    _emcee_loaded = True
+    _emcee_version = int(emcee.__version__[0])
+except:
+    _emcee_loaded = False
+    logger.warn("emcee installation not found!")
+
 
 
 class MCMCFitter(base.Fitter):
@@ -54,6 +60,8 @@ class MCMCFitter(base.Fitter):
     Class to hold the MCMC fitter attributes + methods
     """
     def __init__(self, **kwargs):
+        if not _emcee_loaded:
+            raise ValueError("emcee was not loaded!")
 
         self._emcee_version = _emcee_version
 

@@ -258,12 +258,12 @@ class Observation:
         """
 
         ndim_final = self.instrument.ndim
-        line_center = self.instrument.line_center
+        # line_center = self.instrument.line_center
         nx_sky = self.instrument.fov[0]
         ny_sky = self.instrument.fov[1]
         spec_type = self.instrument.spec_type
-        spec_start = self.instrument.spec_start.value
-        spec_step = self.instrument.spec_step.value
+        # spec_start = self.instrument.spec_start.value
+        # spec_step = self.instrument.spec_step.value
         spec_unit = self.instrument.spec_step.unit
         nspec = self.instrument.nspec
         pixscale = self.instrument.pixscale.value
@@ -311,7 +311,7 @@ class Observation:
             #self._data = lens_data
 
 
-        # Run simulation for the specific observatoin
+        # Run simulation for the specific observation
         sim_cube, spec = model.simulate_cube(obs=self, dscale=dscale)
 
 
@@ -341,7 +341,6 @@ class Observation:
 
             # Reset the observation instrument back to the original one
             self._instrument = orig_inst
-            #self._data = orig_data
 
         
         # Correct for any oversampling
@@ -361,8 +360,8 @@ class Observation:
 
         # Re-size the cube back down
         if oversize > 1:
-            nx_oversize = sim_cube_self.shape[2]
-            ny_oversize = sim_cube_self.shape[1]
+            nx_oversize = sim_cube_obs.shape[2]
+            ny_oversize = sim_cube_obs.shape[1]
             sim_cube_final = sim_cube_obs[:,
                 np.int(ny_oversize/2 - ny_sky/2):np.int(ny_oversize/2+ny_sky/2),
                 np.int(nx_oversize/2 - nx_sky/2):np.int(nx_oversize/2+nx_sky/2)]

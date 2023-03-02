@@ -808,23 +808,24 @@ class ModelSet:
 
         Notes
         -----
-        This method uses the total circular velocity to determine the enclosed mass
-        based on v^2 = GM/r.
+        (OLD: This method uses the total circular velocity to determine the enclosed mass
+        based on v^2 = GM/r.)
         """
         logger.warning("Using spherical approximation to get menc from vcirc!")
 
         # r_ap needs to be in kpc
         r_ap = self._model_aperture_r()
 
-        vc = self.circular_velocity(r_ap)
-        menc = menc_from_vcirc(vc, r_ap)
+        # vc = self.circular_velocity(r_ap)
+        # menc = menc_from_vcirc(vc, r_ap)
 
+        menc = self.enclosed_mass(r_ap)
 
         return menc
 
 
 
-    def enclosed_mass(self, r,  compute_baryon=False, compute_dm=False, step1d=0.2):
+    def enclosed_mass(self, r, compute_baryon=False, compute_dm=False, step1d=0.2):
         """
         Calculate the total enclosed mass
 
@@ -854,7 +855,7 @@ class ModelSet:
             Enclosed mass of the halo, in Msun
         """
 
-        logger.warning("Using spherical approximation to get menc from vcirc!")
+        # logger.warning("Using spherical approximation to get menc from vcirc!")
 
         # First check to make sure there is at least one mass component in the model set.
         if len(self.mass_components) == 0:

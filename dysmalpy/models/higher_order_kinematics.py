@@ -19,10 +19,11 @@ from .base import _DysmalFittable3DModel, HigherOrderKinematicsSeparate, \
                   HigherOrderKinematicsPerturbation
 from dysmalpy.parameters import DysmalParameter
 
-try:
-    import utils
-except:
-    from . import utils
+# try:
+#     import utils
+# except:
+#     from . import utils
+from . import utils
 
 __all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',

@@ -12,7 +12,9 @@ import logging
 
 # Third party imports
 import numpy as np
-import astropy.convolution as apy_conv
+# import astropy.convolution as apy_conv
+from astropy.convolution.utils import discretize_model as _discretize_model
+from astropy.modeling import models as apy_models
 from scipy.signal import fftconvolve
 import astropy.units as u
 import astropy.constants as c
@@ -26,6 +28,16 @@ sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+
+
+def _normalized_gaussian1D_kern(sigma_pixel):
+    x_size = int(np.ceil(8*sigma_pixel))
+    if x_size % 2 == 0:
+        x_size += 1
+    x_range = (-(int(x_size) - 1) // 2, (int(x_size) - 1) // 2 + 1)
+    
+    return _discretize_model(apy_models.Gaussian1D(1.0 / (np.sqrt(2 * np.pi) * sigma_pixel), 
+                0, sigma_pixel), x_range)
 
 
 class Instrument:
@@ -290,7 +302,8 @@ class Instrument:
             else:
                 kernel = self.lsf.as_wave_kernel(self.spec_step, self.line_center)
 
-        kern1D = kernel.array
+        #kern1D = kernel.array
+        kern1D = kernel
         kern3D = np.zeros(shape=(kern1D.shape[0], 1, 1,))
         kern3D[:, 0, 0] = kern1D
 
@@ -698,7 +711,11 @@ class LSF(u.Quantity):
         sigma_pixel = (self.dispersion.value /
                        velstep.to(self.dispersion.unit).value)
 
-        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+        #return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+        # Astropy kernel DOES NOT TRUNCATE AS DESIRED:
+        # Instead, use similar size span, but keep as a normalized Gaussian:
+        return _normalized_gaussian1D_kern(sigma_pixel)
 
     def as_wave_kernel(self, wavestep, wavecenter, **kwargs):
         """
@@ -719,7 +736,11 @@ class LSF(u.Quantity):
 
         sigma_pixel = self.vel_to_lambda(wavecenter).value/wavestep.value
 
-        return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+        #return apy_conv.Gaussian1DKernel(sigma_pixel, **kwargs)
+
+        # Astropy kernel DOES NOT TRUNCATE AS DESIRED:
+        # Instead, use similar size span, but keep as a normalized Gaussian:
+        return _normalized_gaussian1D_kern(sigma_pixel)
 
     def __deepcopy__(self, memo):
         self2 = type(self)(dispersion=self._dispersion, default_unit=self.default_unit,

@@ -376,7 +376,9 @@ class KinematicOptions:
             # Set to default if missing:
             self.pressure_support_n = None
 
-        pre = self.get_pressure_support_param(model, param='re')
+        if (self.pressure_support_type == 1) | \
+           (self.pressure_support_type == 2):
+            pre = self.get_pressure_support_param(model, param='re')
 
         if tracer not in model.dispersions.keys():
             raise AttributeError("The dispersion profile for tracer={} not found!".format(tracer))

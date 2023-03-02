@@ -4,11 +4,12 @@
 
 from dysmalpy.models.base import MassModel, LightModel, \
                                  HigherOrderKinematicsSeparate, HigherOrderKinematicsPerturbation, \
-                                 v_circular, sersic_mr, truncate_sersic_mr
+                                 v_circular, sersic_mr, truncate_sersic_mr, \
+                                menc_from_vcirc
 from dysmalpy.models.baryons import Sersic, DiskBulge, LinearDiskBulge, \
                                     ExpDisk, BlackHole, GaussianRing, \
                                     surf_dens_exp_disk, menc_exp_disk, vcirc_exp_disk, \
-                                    sersic_menc_2D_proj, menc_from_vcirc, \
+                                    sersic_menc_2D_proj, \
                                     mass_comp_conditional_ring, \
                                     NoordFlat, InfThinMassiveGaussianRing
 from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \

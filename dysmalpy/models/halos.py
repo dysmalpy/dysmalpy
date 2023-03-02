@@ -245,10 +245,11 @@ class DarkMatterHalo(MassModel):
         else:
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
-                bar_mtot = 0
+                bar_mtot_linear = 0
                 for bcmp in baryons['components']:
                     vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
-                    bar_mtot += bcmp.total_mass.value
+                    bar_mtot_linear += 10**bcmp.total_mass.value
+                bar_mtot = np.log10(bar_mtot_linear)
             else:
                 vsqr_bar_re = baryons.vcirc_sq(r_fdm)
                 bar_mtot = baryons.total_mass.value
@@ -333,8 +334,8 @@ class DarkMatterHalo(MassModel):
 
         if adiabatic_contract:
             modtmp = ModelSet()
-            if isinstance(baryons, dict):
-                for bcmp,b_light in zip(baryons['components'], baryons['light']):
+            if isinstance(bary, dict):
+                for bcmp,b_light in zip(bary['components'], bary['light']):
                     modtmp.add_component(bcmp, light=b_light)
             else:
                 modtmp.add_component(bary, light=True)
@@ -1244,8 +1245,8 @@ class DekelZhao(DarkMatterHalo):
         halotmp.__setattr__('mvirial', mvirial)
 
         modtmp = ModelSet()
-        if isinstance(baryons, dict):
-            for bcmp,b_light in zip(baryons['components'], baryons['light']):
+        if isinstance(bary, dict):
+            for bcmp,b_light in zip(bary['components'], bary['light']):
                 modtmp.add_component(bcmp, light=b_light)
         else:
             modtmp.add_component(bary, light=True)
