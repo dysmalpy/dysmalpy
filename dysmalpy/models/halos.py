@@ -51,9 +51,6 @@ logger = logging.getLogger('DysmalPy')
 
 np.warnings.filterwarnings('ignore')
 
-# _dict_lmvir_fac_test_z = {'zarr':   np.array([0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5]),
-#                           'facarr': np.array([1.8, 1.72, 1.65, 1.58, 1.52, 1.46, 1.40, 1.35, 1.3])}
-
 _dict_lmvir_fac_test_z = {'zarr':    np.arange(0.5, 2.75, 0.25),
                           'fdmarr': np.array([1.e-3, 1.e-2, 0.1, 0.25, 0.5, 0.75, 0.9, 1-1.e-2, 1-1.e-3]),
                           'facarr': np.array([[ 1.87027726e-01,  6.83525784e-01,  1.70740388e+00,

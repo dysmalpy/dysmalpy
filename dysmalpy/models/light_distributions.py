@@ -18,10 +18,9 @@ from .base import LightModel, _DysmalFittable1DModel, _DysmalFittable3DModel, \
 from dysmalpy.parameters import DysmalParameter
 
 try:
-    import utils
+   import dysmalpy.models.utils as utils
 except:
-    from . import utils
-
+   from . import utils
 
 __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
            'LightGaussianRingAzimuthal']

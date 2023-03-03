@@ -19,11 +19,10 @@ import scipy.special as scp_spec
 # Local imports
 from dysmalpy.parameters import DysmalParameter, UniformPrior
 
-# try:
-#     import utils
-# except:
-#     from . import utils
-from . import utils
+try:
+   import dysmalpy.models.utils as utils
+except:
+   from . import utils
 
 __all__ = ['MassModel', 'LightModel',
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
