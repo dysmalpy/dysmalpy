@@ -20,7 +20,7 @@ from .base import _DysmalFittable3DModel, HigherOrderKinematicsSeparate, \
 from dysmalpy.parameters import DysmalParameter
 
 try:
-    import utils
+    from dysmalpy.models import utils
 except:
     from . import utils
 

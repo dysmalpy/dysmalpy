@@ -20,7 +20,7 @@ import scipy.special as scp_spec
 from dysmalpy.parameters import DysmalParameter, UniformPrior
 
 try:
-    import utils
+    from dysmalpy.models import utils
 except:
     from . import utils
 
