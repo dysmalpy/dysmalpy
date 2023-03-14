@@ -248,7 +248,8 @@ class DarkMatterHalo(MassModel):
                 bar_mtot = 0
                 for bcmp in baryons['components']:
                     vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
-                    bar_mtot += bcmp.total_mass.value
+                    bar_mtot += 10**bcmp.total_mass.value
+                bar_mtot = np.log10(bar_mtot)
             else:
                 vsqr_bar_re = baryons.vcirc_sq(r_fdm)
                 bar_mtot = baryons.total_mass.value
