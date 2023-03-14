@@ -32,6 +32,8 @@ def tie_sigz_reff(model_set):
 
     if 'disk+bulge' in model_set.components.keys():
         invq = model_set.components['disk+bulge'].invq_disk
+    elif 'sersic' in model_set.components.keys():
+        invq = model_set.components['sersic'].invq
     else:
         invq = 5.  # USE A DEFAULT of q=0.2
 

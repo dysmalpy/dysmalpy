@@ -243,9 +243,9 @@ class DarkMatterHalo(MassModel):
         elif (r_fdm < 0.):
             mvirial = np.NaN
         else:
-            bar_mtot = 0
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
+                bar_mtot = 0
                 for bcmp in baryons['components']:
                     vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
                     bar_mtot += 10**bcmp.total_mass.value
