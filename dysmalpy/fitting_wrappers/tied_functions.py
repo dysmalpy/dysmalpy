@@ -28,7 +28,7 @@ def tie_sigz_reff(model_set):
             reff = model_set.components['lsersic'].r_eff.value
     elif 'ring' in model_set.light_components.keys():
         if model_set.light_components['ring']:
-            reff = model_set.components['ring'].r_eff.value
+            reff = model_set.components['ring'].ring_reff()
 
     if 'disk+bulge' in model_set.components.keys():
         invq = model_set.components['disk+bulge'].invq_disk
