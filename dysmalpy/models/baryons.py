@@ -2690,6 +2690,9 @@ class GaussianRing(MassModel, _LightMassModel):
             logger.warning("Could not find ring_reff. Assuming reff=Rpeak instead...")
             return self.R_peak
 
+    def r_eff(self):
+        return self.ring_reff()
+
     @staticmethod
     def evaluate(r, total_mass, R_peak, FWHM, mass_to_light):
         """ Gaussian ring mass surface density """
