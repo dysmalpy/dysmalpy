@@ -639,8 +639,7 @@ class ModelSet:
                 if pfree_dict[compn][paramn] >= 0:
                     # Free parameter: get unit prior transform
                     ind += 1
-                    v[ind] = comp.__getattribute__(paramn).prior.prior_unit_transform(comp.__getattribute__(paramn), 
-                                u[ind], modelset=self)
+                    v[ind] = comp.__getattribute__(paramn).prior.prior_unit_transform(comp.__getattribute__(paramn), u[ind], modelset=self)
                                 
         return v
 

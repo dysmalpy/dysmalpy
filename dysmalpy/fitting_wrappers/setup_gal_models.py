@@ -1582,6 +1582,7 @@ def add_light_gaussian_ring_comp(gal=None, mod_set=None, params=None, light_comp
     L_tot =        params['L_tot_gaus_ring']        # Arbitrary
     R_peak =       params['R_peak_gaus_ring']       # kpc
     FWHM =      params['FWHM_gaus_ring']      # kpc
+    sigma_r = FWHM/(2.*np.sqrt(2.*np.log(2.)))
 
     # Fix components
     GR_fixed = {'L_tot': params['L_tot_gaus_ring_fixed'],
@@ -2299,9 +2300,9 @@ def set_comp_param_prior(comp=None, param_name=None, params=None, param_name_ali
             elif params['{}_prior'.format(param_name_alias)].lower() == 'gaussian_linear':
                 comp.__getattribute__(param_name).prior = parameters.BoundedGaussianLinearPrior(center=center, stddev=stddev)
             elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_flat_lowtrunc':
-                comp.__getattribute__(param_name).prior = TiedUniformPriorLowerTrunc(compn='disk+bulge', paramn='total_mass')
+                comp.__getattribute__(param_name).prior = tied_functions.TiedUniformPriorLowerTrunc(compn='disk+bulge', paramn='total_mass')
             elif params['{}_prior'.format(param_name_alias)].lower() == 'tied_gaussian_lowtrunc':
-                comp.__getattribute__(param_name).prior = TiedBoundedGaussianPriorLowerTrunc(center=center, stddev=stddev,
+                comp.__getattribute__(param_name).prior = tied_functions.TiedBoundedGaussianPriorLowerTrunc(center=center, stddev=stddev,
                                                             compn='disk+bulge', paramn='total_mass')
             else:
                 print(" CAUTION: {}: {} prior is not currently supported. Defaulting to 'flat'".format(param_name,

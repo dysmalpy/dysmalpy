@@ -941,14 +941,14 @@ class MCMCResults(base.BayesianFitResults, base.FitResults):
         # Compatibility hacks
         super(MCMCResults, self).__setstate__(state)
 
-        # ---------
-        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
-            self._setup_samples_blobs()
+        # # ---------
+        # if ('sampler' not in state.keys()) & ('sampler_results' in state.keys()):
+        #     self._setup_samples_blobs()
 
 
     def _setup_samples_blobs(self):
         # Note: 
-        # self.sampler.samples replaces self.sampler.samples, and
+        # self.sampler.samples replaces self.sampler_results['flatchain'], and
         # self.sampler.blobs   replaces self.sampler_results['flatblobs']
 
         if 'blobs' in self.sampler_results.keys():

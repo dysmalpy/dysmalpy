@@ -37,7 +37,7 @@ setup_requirements = ['Cython', 'numpy']
 
 
 setup_args = {'name': 'dysmalpy',
-        'author': "Taro Shimizu & Sedona Price",
+        'author': "MPE IR/Sub-mm Group",
         'author_email': 'shimizu@mpe.mpg.de',
         'python_requires': '>=3.7',
         'classifiers': [

@@ -132,7 +132,7 @@ class OutputOptions:
         elif isinstance(fitter, NestedFitter):
             fit_type = 'nested'
         else:
-            raise ValueError("Unrecognized Fitter!")
+            raise ValueError("Unrecognized Fitter: {}!".format(type(fitter)))
 
         if self.file_base is None:
             self.file_base = gal.name

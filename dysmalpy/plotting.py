@@ -151,7 +151,7 @@ def plot_corner(bayesianResults, gal=None, fileout=None,
     """
     Plot corner plot of Bayesian result posterior distributions.
     Optional:
-            step slice: 2 element tuple/array with beginning and end step number to use
+    step slice: 2 element tuple/array with beginning and end step number to use
     """
 
     if bayesianResults.fit_method.lower() == 'mcmc':

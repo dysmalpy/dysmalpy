@@ -15,7 +15,7 @@ import copy
 import numpy as np
 import astropy.units as u
 from astropy.wcs import WCS
-from spectral_cube import SpectralCube, BooleanArrayMask
+from spectral_cube import SpectralCube #, BooleanArrayMask
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)

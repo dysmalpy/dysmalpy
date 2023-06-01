@@ -11,7 +11,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import copy
 
-import os
 import datetime
 
 # Third party imports
@@ -19,7 +18,6 @@ import numpy as np
 import astropy.units as u
 
 # Package imports
-from dysmalpy.models import ModelSet
 from dysmalpy.data_classes import Data0D, Data1D, Data2D, Data3D
 from dysmalpy.instrument import Instrument
 from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
@@ -373,7 +371,7 @@ class Observation:
                                  spec_arr=spec, spec_type=spec_type,
                                  spec_unit=spec_unit)
 
-        if ndim_final == 3:
+        if (ndim_final == 3):
 
             if self.instrument.smoothing_type is not None:
                 self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
@@ -413,7 +411,7 @@ class Observation:
                                      mask_cube=mask_cube, spec_arr=spec,
                                      spec_type=spec_type, spec_unit=spec_unit)
 
-        elif ndim_final == 2:
+        elif (ndim_final == 2):
             if self.instrument.smoothing_type is not None:
                 self.model_cube.data = apply_smoothing_3D(self.model_cube.data,
                             smoothing_type=self.instrument.smoothing_type,
@@ -536,7 +534,7 @@ class Observation:
             self.model_data = Data2D(pixscale=pixscale, velocity=vel,
                                      vel_disp=disp, flux=flux, mask=mask)
 
-        elif ndim_final == 1:
+        elif (ndim_final == 1):
             if spec_type == 'wavelength':
 
                 cube_with_vel = self.model_cube.data.with_spectral_unit(
@@ -592,7 +590,7 @@ class Observation:
             self.model_data = Data1D(r=aper_centers, velocity=vel1d,
                                      vel_disp=disp1d, flux=flux1d, mask=mask1d)
 
-        elif ndim_final == 0:
+        elif (ndim_final == 0):
             if self.instrument.integrate_cube:
 
                 # Integrate over the spatial dimensions of the cube

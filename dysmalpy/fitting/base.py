@@ -70,8 +70,7 @@ class FitResults(object):
     General class to hold the results of any fitting
     """
 
-    def __init__(self, model=None,
-                 fit_method=None, blob_name=None):
+    def __init__(self, model=None, fit_method=None, blob_name=None):
 
         self.bestfit_parameters = None
         self.bestfit_parameters_err = None
@@ -237,7 +236,8 @@ class BayesianFitResults(FitResults):
                                                  fit_method=fit_method, 
                                                  blob_name=blob_name)
 
-        # Initialize some Bayesian result-specific attributes:
+        # Initialize some Bayesian result-specific attributes, 
+        # including the BayesianSampler class instance 'sampler'
         self.sampler_results = sampler_results
 
         if (sampler_results is None) & (sampler is not None):
@@ -258,11 +258,19 @@ class BayesianFitResults(FitResults):
         state_new = copy.deepcopy(state)
 
         # ---------
-        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
+        # CHANGED THE NAMING SCHEME: Sampler is now a separate class 
+        # to unify handling of emcee and dynesty specific outputs 
+        if ('sampler' in state.keys()) & ('_sampler_results' not in state.keys()):
             state_new.pop('sampler', None)
-            state_new['sampler_results'] = state['sampler']
+            state_new['_sampler_results'] = state['sampler']
 
         self.__dict__ = state_new
+
+
+        # ---------
+        # If the old style: setup the samples and blobs:
+        if ('sampler' in state.keys()) & ('_sampler_results' not in state.keys()):
+            self._setup_samples_blobs()
 
 
     @property
@@ -680,6 +688,8 @@ class BayesianFitResults(FitResults):
 class BayesianSampler(object):
     """
     Class to hold the basic attributes of a Bayesian sample.
+    Uses a unified syntax, allowing results from eg, emcee and dynesty, 
+    to be moved to a single structure.
     """
     def __init__(self, samples=None, blobs=None, weights=None,
                  samples_unweighted=None, blobs_unweighted=None):

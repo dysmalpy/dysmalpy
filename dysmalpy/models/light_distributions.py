@@ -63,10 +63,10 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
 
     .. math::
 
-        I(r) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
+        I(R) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{R}{R_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
 
-    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
-    light, and can be solved for numerically.
+    The constant :math:`b_n` is defined such that :math:`R_{\mathrm{eff}}` contains half the total
+    light, and can be solved for numerically as: 
 
     .. math::
 
@@ -83,7 +83,7 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
 
         plt.figure()
         plt.subplot(111, xscale='log', yscale='log')
-        ls1 = LightTruncateSersic(r_eff=5, n=1, r_inner=1, r_outer=20, L_tot=1.e11)
+        ls1 = LightTruncateSersic(r_eff=5, n=1, r_inner=1, r_outer=20, L_tot=1.e11, tracer='halpha')
         r=np.arange(0, 100, .01)
 
         for n in range(1, 10):

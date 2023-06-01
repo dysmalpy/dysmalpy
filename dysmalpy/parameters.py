@@ -148,6 +148,8 @@ class UniformPrior(Prior):
     """
     Object for flat priors
     """
+    def __init__(self):
+        pass
 
     @staticmethod
     def log_prior(param, **kwargs):
@@ -249,6 +251,10 @@ class UniformPrior(Prior):
 # CAN THIS? BC NEED TO USE LinearDiskBulge / etc, bc of walker jumps ?????
 class UniformLinearPrior(Prior):
     # Note: must bounds input as LINEAR BOUNDS
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def log_prior(param, **kwargs):
 
@@ -938,7 +944,7 @@ class DysmalParameter(Parameter):
                  max=None, bounds=None, prior=None):
 
         if prior is None:
-            prior = UniformPrior
+            prior = UniformPrior()
 
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,

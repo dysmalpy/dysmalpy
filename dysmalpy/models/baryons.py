@@ -219,7 +219,7 @@ class NoordFlat(object):
     Class to handle circular velocities / enclosed mass profiles for a thick Sersic component.
 
     Lookup tables are numerically calculated from the derivations provided in
-    Noordermeer 2008 [1]_ which properly accounted for the thickness of the mass component.
+    `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ which properly accounted for the thickness of the mass component.
 
     The lookup table provides rotation curves for Sersic components with
     `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
@@ -228,7 +228,7 @@ class NoordFlat(object):
 
     References
     ----------
-    .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+    `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
 
     Parameters
     ----------
@@ -363,12 +363,12 @@ class NoordFlat(object):
         This function determines the circular velocity as a function of radius for
         a Sersic component with a total mass, `mass`, Sersic index, `n`, and
         an effective radius to scale height ratio, `invq`. This uses lookup tables
-        numerically calculated from the derivations provided in Noordermeer 2008 [1]_ 
+        numerically calculated from the derivations provided in `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ 
         which properly account for the thickness of the mass component.
 
         References
         ----------
-        .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
         """
         vcirc = (self.vcirc_interp(r / r_eff * self.N2008_Re) * np.sqrt(
                  mass / self.N2008_mass) * np.sqrt(self.N2008_Re / r_eff))
@@ -401,12 +401,14 @@ class NoordFlat(object):
         This function determines the spherical enclosed mass as a function of radius for
         a Sersic component with a total mass, `mass`, Sersic index, `n`, and
         an effective radius to scale height ratio, `invq`. This uses lookup tables
-        numerically calculated from the derivations provided in Noordermeer 2008 [1]_ 
+        numerically calculated from the derivations provided in `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ 
+        (as extended in `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_)
         which properly account for the thickness of the mass component.
 
         References
         ----------
-        .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
+        `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_
         """
 
         menc = self.menc_interp(r / r_eff * self.N2008_Re) * (mass / self.N2008_mass)
@@ -454,9 +456,20 @@ class NoordFlat(object):
                 # Length 1 array input
                 return rho_interp
 
-        return rho_interp
 
     def dlnrho_dlnr(self, r, Reff, interp_type='linear'):
+
+        """
+        Calculate log mass density gradient for a thick Sersic component, by interpolating. 
+
+        Can be used to determine an alternative pressure support correction. 
+
+        References
+        ----------
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
+        `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_
+
+        """
         if (self._dlnrhodlnr_interp_type != interp_type) | (self.dlnrhodlnr_interp_func is None):
             # Update rho funcs:
             self._set_dlnrhodlnr_interp(interp_type=interp_type)
@@ -2379,10 +2392,10 @@ class GaussianRing(MassModel, _LightMassModel):
     Model formula:
 
     .. math::
-
         M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
         sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
 
+    
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))

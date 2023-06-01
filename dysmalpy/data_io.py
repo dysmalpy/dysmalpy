@@ -41,7 +41,8 @@ def ensure_dir(dir):
 def load_pickle(filename):
     """ Small wrapper function to load a pickled structure """
     with open(filename, 'rb') as f:
-        data = copy.deepcopy(pickle_module.load(f))
+        # data = copy.deepcopy(pickle_module.load(f))
+        data = copy.deepcopy(_rename_unpickler(f).load())
     return data
 
 
@@ -56,3 +57,16 @@ def dump_pickle(data, filename=None, overwrite=False):
     with open(filename, 'wb') as f:
         pickle_module.dump(data, f )
     return None
+
+_rename_modules = {'astropy.cosmology.scalar_inv_efuncs': 'astropy.cosmology.flrw.scalar_inv_efuncs'}
+
+# From stack overflow: https://stackoverflow.com/questions/2121874/python-pickling-after-changing-a-modules-directory
+class _rename_unpickler(pickle_module.Unpickler):
+
+    def find_class(self, module, name):
+        if module in _rename_modules.keys():
+            renamed_module = _rename_modules[module]
+        else:
+            renamed_module = module
+
+        return super(_rename_unpickler, self).find_class(renamed_module, name)

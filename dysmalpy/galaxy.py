@@ -16,17 +16,12 @@ import os
 
 # Third party imports
 import astropy.cosmology as apy_cosmo
-import dill as _pickle
 
-# dill py<=3.7 -> py>=3.8 + higher hack:
-# See https://github.com/uqfoundation/dill/pull/406
-_pickle._dill._reverse_typemap['CodeType'] = _pickle._dill._create_code
-
-# Local imports
 # Package imports
 from dysmalpy.observation import Observation
 from dysmalpy.models import ModelSet
 from dysmalpy.utils_io import write_model_obs_file
+from dysmalpy.data_io import load_pickle, dump_pickle
 
 
 __all__ = ['Galaxy']
@@ -39,6 +34,8 @@ logger = logging.getLogger('DysmalPy')
 
 # Default cosmology
 _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
+
+
 
 
 class Galaxy:
@@ -81,8 +78,7 @@ class Galaxy:
         else:
             self.model = model
 
-        self._cosmo = cosmo
-        self._dscale = self._cosmo.arcsec_per_kpc_proper(self._z).value
+        self.cosmo = cosmo
 
         # v2.0: everything lives inside Observation instances, inside
         #       OrderedDict self.observations
@@ -165,6 +161,17 @@ class Galaxy:
                            'filename_velocity', 'filename_dispersion']
             for dkey in delete_keys:
                 del self.__dict__[dkey]
+
+        # Astropy migration: need to make new cosmo instance:
+        if 'name' in self._cosmo.__dict__.keys():
+            kw_cosmo_new = {}
+            keys_params = ['H0', 'Om0', 'Tcmb0', 'Neff', 'm_nu', 'Ob0', 'name', 'meta']
+            for key in keys_params:
+                if '_{}'.format(key) in self._cosmo.__dict__.keys():
+                    kw_cosmo_new[key] = self._cosmo.__dict__['_{}'.format(key)]
+            cosmo_new = apy_cosmo.FlatLambdaCDM(**kw_cosmo_new)
+            self.cosmo = cosmo_new
+
 
         # --------------------------------
 
@@ -273,7 +280,8 @@ class Galaxy:
                     galtmp.observations[obs_name].model_data = None
                     galtmp.observations[obs_name].model_cube = None
 
-            _pickle.dump(galtmp, open(filename, "wb") )
+            # _pickle.dump(galtmp, open(filename, "wb") )
+            dump_pickle(galtmp, filename=filename, overwrite=overwrite)
 
     def load_self(self, filename=None):
         """
@@ -289,8 +297,11 @@ class Galaxy:
 
         """
         if filename is not None:
-            galtmp = _pickle.load(open(filename, "rb"))
+            #galtmp = _pickle.load(open(filename, "rb"))
+            # galtmp = _rename_unpickler(open(filename, "rb")).load()
+            galtmp = load_pickle(filename)
             return galtmp
+
 
 
     def save_model_data(self, filenames=None, overwrite=False):
@@ -329,3 +340,4 @@ def load_galaxy_object(filename=None):
     gal = Galaxy()
     gal = gal.load_self(filename=filename)
     return gal
+

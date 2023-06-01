@@ -69,7 +69,7 @@ class KinematicOptions:
 
     By default (`pressure_support_type=1`), the asymmetric drift derivation from
     Burkert et al. (2010) [1]_, Equation (11) is applied
-    (assuming an exponential disk, with :math:`R_e=1.678R_e`):
+    (assuming an exponential disk, with :math:`R_e=1.678r_d`):
 
     .. math::
 

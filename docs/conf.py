@@ -33,8 +33,8 @@ import dysmalpy
 # -- Project information -----------------------------------------------------
 
 project = 'dysmalpy'
-copyright = '2017-{}, MPE/IR Group'.format(date.today().year)
-author = 'Sedona Price and Taro Shimizu'
+copyright = '2017-{}, MPE/IR-Submm Group.'.format(date.today().year)
+author = 'MPE/IR-Submm Group'
 
 # The full version, including alpha/beta/rc tags
 version = dysmalpy.__version__

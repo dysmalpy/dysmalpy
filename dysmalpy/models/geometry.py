@@ -224,7 +224,7 @@ class Geometry(_DysmalFittable3DModel):
         vel : float or array or tuple of arrays
             Amplitude of the velocity.
             If model._multicoord_velocity is True, must pass a tuple of velocity components
-                for each coordinate in the model's native geometry.
+            for each coordinate in the model's native geometry.
 
         x, y, z : float or array
             xyz position in the radial flow reference frame.

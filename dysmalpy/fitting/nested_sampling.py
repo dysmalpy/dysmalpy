@@ -140,11 +140,13 @@ class NestedFitter(base.Fitter):
         # Set output options: filenames / which to save, etc
         output_options.set_output_options(gal, self)
 
+        
         # MUST INCLUDE NESTED-SPECIFICS NOW!
         fit_utils._check_existing_files_overwrite(output_options, 
                                                   fit_type='nested', 
                                                   fitter=self)
 
+    
         # --------------------------------
         # Setup file redirect logging:
         if output_options.f_log is not None:
@@ -224,8 +226,6 @@ class NestedFitter(base.Fitter):
                         overwrite=output_options.overwrite)
 
 
-
-
         # --------------------------------
         # Bundle the results up into a results class:
         nestedResults = NestedResults(model=gal.model, sampler_results=res,
@@ -272,7 +272,6 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
                                         consisting of len-2 tuples/lists of the
                                         component+parameter names.
 
-
         Structure explanation:
         (1) Want to analyze component+param 1 and 2 together, and then
             3 and 4 together.
@@ -314,9 +313,9 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
         # Compatibility hacks
         super(NestedResults, self).__setstate__(state)
 
-        # ---------
-        if ('sampler' in state.keys()) & ('sampler_results' not in state.keys()):
-            self._setup_samples_blobs()
+        # # ---------
+        # if ('sampler' not in state.keys()) & ('sampler_results' in state.keys()):
+        #     self._setup_samples_blobs()
 
 
     def _setup_samples_blobs(self):
