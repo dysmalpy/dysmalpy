@@ -449,7 +449,7 @@ def load_single_obs_2D_data(params=None, adjust_error=False,
                 gal_disp[bool_mask] = gal_disp_flat[bool_mask_flat]
                 err_disp[bool_mask] = err_disp_flat[bool_mask_flat]
             if params['fitflux'+extra]:
-                gal_flus_flat_in = gal_flux.flatten()
+                gal_flux_flat_in = gal_flux.flatten()
                 err_flux_flat_in = err_flux.flatten()
                 gal_flux_flat_in[~bool_mask_flat] = np.NaN
                 err_flux_flat_in[~bool_mask_flat] = np.NaN
