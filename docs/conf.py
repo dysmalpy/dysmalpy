@@ -25,7 +25,7 @@ from os import path
 import sphinx
 from distutils.version import LooseVersion
 
-from pkg_resources import DistributionNotFound, get_distribution
+# from pkg_resources import DistributionNotFound, get_distribution
 
 import dysmalpy
 
