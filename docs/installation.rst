@@ -112,7 +112,7 @@ then install the package and build the extensions by running:
 
     $ tar zxvf dysmalpy-N.N.N.tar.gz
     $ cd dysmalpy-N.N.N
-    $ python setup.py build_ext --include-dirs=INCLUDEDIR --lib-dirs=LIBDIR install
+    $ python setup.py build_ext --include-dirs=INCLUDEDIR --library_dirs=LIBDIR install
 
 
 
