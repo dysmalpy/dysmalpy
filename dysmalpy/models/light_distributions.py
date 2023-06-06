@@ -18,7 +18,7 @@ from .base import LightModel, _DysmalFittable1DModel, _DysmalFittable3DModel, \
 from dysmalpy.parameters import DysmalParameter
 
 try:
-   import dysmalpy.models.utils as utils
+    from dysmalpy.models import utils
 except:
    from . import utils
 

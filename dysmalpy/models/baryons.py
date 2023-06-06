@@ -17,6 +17,8 @@ import scipy.special as scp_spec
 import scipy.integrate as scp_int
 import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
+import scipy.optimize as scp_opt
+import scipy.integrate as scp_int
 import astropy.constants as apy_con
 
 
@@ -2443,17 +2445,24 @@ class GaussianRing(MassModel, _LightMassModel):
         return self.R_peak.value / self.FWHM.value
 
     def ring_reff(self):
+        # Find the effective radius explicitly by definition, using erf function
+        # and in the dimensionless parameter x = r/Rpeak; with subbing u = 4*ln(2) h^2 (x-1)^2
+        # Solving for:
+        #     int_0^xeff t * exp{-4*ln(2)*invh**2*(t-1)**2) = 0.5 * int_0^inf t * exp{-4*ln(2)*invh**2*(t-1)**2)
         try:
-            hbar = self.ring_invh() * 2 * np.sqrt(np.log(2))
-            exp = lambda x: np.exp(- hbar ** 2 * (x - 1) ** 2)
-            func = lambda xe: 2 * scp_int.quad(lambda x: x * exp(x), a=0, b=xe)[0] - scp_int.quad(lambda x: x * exp(x), a=0, b=np.inf)[0]
-            xeff = scp_opt.brentq(lambda x: func(x), a=0, b=150*self.R_peak.value/self.ring_invh())
-            ring_reff = xeff * self.R_peak.value
+            A = 4*np.log(2)
+            func = lambda ueff: scp_spec.erf(np.sqrt(ueff)) - (np.pi * A * self.ring_invh() ** 2) ** -0.5 * np.exp(-ueff) - \
+                                   0.5 * (1 - scp_spec.erf(np.sqrt(A * self.ring_invh() ** 2)) - (np.pi * A * self.ring_invh() ** 2) ** -0.5 * np.exp(-A * self.ring_invh() ** 2))
+            u_eff = scp_opt.brentq(lambda t: func(t), a=0., b=1.)
+            x_eff = 1 + np.sqrt(u_eff / (A * self.ring_invh() ** 2))
+            return x_eff * self.R_peak.value
         except:
-            logger.warning("Could not solve for ring_reff. Assuming reff=Rpeak instead...")
-            ring_reff = self.Rpeak.value
+            logger.warning("Could not find ring_reff. Assuming reff=Rpeak instead...")
+            return self.R_peak.value
 
-        return ring_reff
+    def r_eff(self):
+        return self.ring_reff()
+
     @staticmethod
     def evaluate(r, total_mass, R_peak, FWHM, mass_to_light):
         """ Gaussian ring mass surface density """

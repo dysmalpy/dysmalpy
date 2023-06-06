@@ -14,7 +14,7 @@ def tied_geom_lambda(main_geom_name, param_name):
     return lambda mod_set: mod_set.components[main_geom_name].__dict__[param_name].value
 
 def tie_sigz_reff(model_set):
-    #'sersic', 'disk+bulge', 'lsersic', 'ring'
+    #'sersic', 'disk+bulge', 'lsersic', 'GaussianRing'
     reff = None
     if 'disk+bulge' in model_set.light_components.keys():
         if model_set.light_components['disk+bulge']:
@@ -31,6 +31,8 @@ def tie_sigz_reff(model_set):
 
     if 'disk+bulge' in model_set.components.keys():
         invq = model_set.components['disk+bulge'].invq_disk
+    elif 'sersic' in model_set.components.keys():
+        invq = model_set.components['sersic'].invq
     else:
         invq = 5.  # USE A DEFAULT of q=0.2
 
@@ -267,7 +269,9 @@ def tie_lmvirial_to_fdm(model_set):
             r_fdm = model_set.components['disk'].r_eff.value
     elif 'ring' in model_set.mass_components:
         if model_set.mass_components['ring']:
-            r_fdm = model_set.components['ring'].R_peak.value
+            r_fdm = model_set.components['ring'].ring_reff()
+    else:
+        r_fdm = 1.
 
     mvirial = comp_halo.calc_mvirial_from_fdm(bar_dict, r_fdm,
                     adiabatic_contract=model_set.kinematic_options.adiabatic_contract)
@@ -378,6 +382,9 @@ def tie_fdm(model_set):
     elif 'ring' in model_set.mass_components:
         if model_set.mass_components['ring']:
             r_fdm = model_set.components['ring'].ring_reff()
+    else:
+        r_fdm = 1.
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
     fdm = model_set.get_dm_aper(r_fdm)
     return fdm
 
