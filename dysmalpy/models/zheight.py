@@ -24,7 +24,8 @@ __all__ = ['ZHeightGauss', 'ZHeightExp']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # ******* Z-Height Profiles ***************

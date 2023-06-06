@@ -35,8 +35,8 @@ __all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     r"""
@@ -704,7 +704,7 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
     -----
     The following function must also be passed when setting up the model,
     which takes the bar coordinate xbar as an input:
-    
+
     vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate abs(xbar).  vbar > 0 for outflow, vbar < 0 for inflow.]
 
     """

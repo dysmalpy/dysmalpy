@@ -30,7 +30,8 @@ __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class LightTruncateSersic(LightModel, _DysmalFittable1DModel):

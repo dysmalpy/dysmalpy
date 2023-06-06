@@ -22,8 +22,8 @@ from dysmalpy.parameters import DysmalParameter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def get_light_components_by_tracer(model_set, tracer):

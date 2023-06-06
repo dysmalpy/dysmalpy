@@ -30,8 +30,8 @@ __all__ = ['Geometry']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class Geometry(_DysmalFittable3DModel):

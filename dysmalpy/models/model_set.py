@@ -38,8 +38,8 @@ __all__ = ['ModelSet']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def _make_cube_ai(model, xgal, ygal, zgal, n_wholepix_z_min = 3,
             pixscale=None, oversample=None, dscale=None,

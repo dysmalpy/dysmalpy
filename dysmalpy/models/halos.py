@@ -49,7 +49,8 @@ g_pc_per_Msun_kmssq = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 _dict_lmvir_fac_test_z = {'zarr':    np.arange(0.5, 2.75, 0.25),
                           'fdmarr': np.array([1.e-3, 1.e-2, 0.1, 0.25, 0.5, 0.75, 0.9, 1-1.e-2, 1-1.e-3]),
