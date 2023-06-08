@@ -13,8 +13,8 @@ datadir,          None                                   # Optional: Full path t
 
 fdata_cube,           gs4-43501_h250_21h30.fits.gz   # Full path to vel map. Alternatively, just the filename if 'datadir' is set.
 fdata_err,            noise_gs4-43501_h250_21h30.fits.gz    # Full path to vel. err map. Alternatively, just the filename if 'datadir' is set.
-#fdata_mask,           GS4_43501_mask.fits   # Full path to mask
-#                                                          #   -- strongly recommended to have a mask
+# fdata_mask,           MASK.fits   # Full path to mask, if a separate mask is to be used.
+#                                                          #   -- strongly recommended to create a mask, or else use 'auto_gen_3D_mask, True' below
                                                            # Alternatively, just the filename if 'datadir' is set.
 
 
@@ -99,9 +99,9 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 total_mass_fixed,     False
-bt_fixed,             False
 r_eff_disk_fixed,     False
 
+bt_fixed,             True
 n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True

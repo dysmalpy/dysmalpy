@@ -8,10 +8,11 @@ Dynamical Simulation and Modeling Algorithm
 
 Dependencies
 ------------
+* python (version >= 3.7)
 * numpy/scipy/matplotlib
 * astropy (version >= 2.0.0)
 * radio-beam
-* spectral-cube
+* spectral-cube (version >= 0.6.0)
 * multiprocess
 * emcee
 * dynesty (version >= 2.0.0)

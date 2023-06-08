@@ -209,7 +209,7 @@ class Observation:
                 nspec = self.data.shape[0]
                 if spec_ctype == 'WAVE':
                     spec_type = 'wavelength'
-                elif spec_ctype == 'VOPT':
+                elif (spec_ctype == 'VOPT'):
                     spec_type = 'velocity'
                 spec_start = self.data.data.spectral_axis[0]
                 spec_step = (self.data.data.spectral_axis[1]-

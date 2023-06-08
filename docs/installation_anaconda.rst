@@ -70,11 +70,10 @@ or, if you want to select a specific version of python, use for example:
 
 .. code-block:: console
 
-    $ conda create --name my-env python=3.9
+    $ conda create --name my-env python=3.10
 
 .. warning::
-    We do not recommend using a version of python below ``3.6``, as we haven't checked
-    whether DysmalPy and its dependencies works properly with these previous versions.
+    DysmalPy requires python version ``>=3.7``.
 
 
 Then follow the prompts to finish creating the new environment ``my-env``.
@@ -217,9 +216,10 @@ will be installed using ``pip`` at the end.
 
     .. code-block:: console
 
-        $ conda install astropy ipython numpy scipy matplotlib cython dill photutils
+        $ conda install astropy ipython numpy scipy matplotlib cython dill 
         $ conda install -c astropy -c defaults h5py pandas
-        $ conda install -c conda-forge -c astropy emcee shapely corner
+        $ conda install -c conda-forge -c astropy photutils emcee shapely corner  
+        $ conda install -c conda-forge dynesty
 
 
 #. Install remaining dependencies with ``pip``:

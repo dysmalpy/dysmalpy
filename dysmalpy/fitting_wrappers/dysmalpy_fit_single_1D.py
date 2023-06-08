@@ -38,6 +38,7 @@ def dysmalpy_fit_single_1D(param_filename=None, datadir=None,
 def dysmalpy_reanalyze_single_1D(param_filename=None,
             datadir=None, outdir=None, plot_type='pdf', overwrite=True):
 
+
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
 
@@ -105,23 +106,32 @@ if __name__ == "__main__":
 
     param_filename = sys.argv[1]
 
+    # try:
+    #     if sys.argv[2].strip().lower() != 'reanalyze':
+    #         datadir = sys.argv[2]
+    #     else:
+    #         datadir = None
+    # except:
+    #     datadir = None
+
+    # try:
+    #     if sys.argv[2].strip().lower() == 'reanalyze':
+    #         reanalyze = True
+    #     else:
+    #         reanalyze = False
+    # except:
+    #     reanalyze = False
+
+    # if reanalyze:
+    #     dysmalpy_reanalyze_single_1D(param_filename=param_filename, datadir=datadir)
+    # else:
+    #     dysmalpy_fit_single_1D(param_filename=param_filename, datadir=datadir)
+
+
+
     try:
-        if sys.argv[2].strip().lower() != 'reanalyze':
-            datadir = sys.argv[2]
-        else:
-            datadir = None
+        datadir = sys.argv[2]
     except:
         datadir = None
 
-    try:
-        if sys.argv[2].strip().lower() == 'reanalyze':
-            reanalyze = True
-        else:
-            reanalyze = False
-    except:
-        reanalyze = False
-
-    if reanalyze:
-        dysmalpy_reanalyze_single_1D(param_filename=param_filename, datadir=datadir)
-    else:
-        dysmalpy_fit_single_1D(param_filename=param_filename, datadir=datadir)
+    dysmalpy_fit_single_1D(param_filename=param_filename, datadir=datadir)

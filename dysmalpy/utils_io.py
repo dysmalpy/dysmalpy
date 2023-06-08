@@ -448,7 +448,7 @@ class Report(object):
 
                     self.add_line( datstr )
 
-            if 'noord_flat' in gal.model.components[cmp_n].__dict__.keys():
+            if '_noord_flat' in gal.model.components[cmp_n].__dict__.keys():
                 self.add_line( '' )
                 datstr = '    {: <13}       {}'.format('noord_flat', gal.model.components[cmp_n].noord_flat)
                 self.add_line( datstr )
@@ -560,6 +560,14 @@ class Report(object):
                             fix_tie, best, l68, u68)
                 self.add_line( datstr )
 
+
+                # INFO on Noordermeer flattening:
+                if '_noord_flat' in gal.model.components[cmp_n].__dict__.keys():
+                    datstr_noord = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('noord_flat', '-----',
+                            '-----', str(gal.model.components[cmp_n].noord_flat), -99, -99)
+            
+            
+
         ###
 
         if blob_names is not None:
@@ -594,6 +602,10 @@ class Report(object):
                     '-----', results.bestfit_redchisq, -99, -99)
         self.add_line( datstr )
 
+        
+        # INFO on Noordermeer flattening:
+        self.add_line( datstr_noord )
+
 
         # INFO on pressure support type:
         datstr = '{: <21}   {: <13}   {: <5}   {: >12}   {:9.4f}   {:9.4f}'.format('pressure_support', '-----',
@@ -604,7 +616,8 @@ class Report(object):
                         '-----', str(gal.model.kinematic_options.pressure_support_type), -99, -99)
             self.add_line( datstr )
 
-
+        # If 2D data: Rmaxout2D:
+        ncount_2d = 0
 
         for obs_name in gal.observations:
             obs = gal.observations[obs_name]
@@ -642,16 +655,13 @@ class Report(object):
 
 
             # If 2D data: Rmaxout2D:
-            ncount_2d = 0
-            if obs.instrument.ndim == 2:
-                if ncount_2d == 0:
-                    self.add_line( '-----------' )
-                ncount_2d += 1
-                Routmax2D = _calc_Rout_max_2D(model=gal.model, obs=obs, results=results, dscale=gal.dscale)
-                lblstr = 'obs:{}:Routmax2D'.format(''.join(obs_name.split(' ')))
-                datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
-                            '-----', Routmax2D, -99, -99)
-                self.add_line( datstr )
+                if obs.instrument.ndim == 2:
+                    ncount_2d += 1
+                    Routmax2D = _calc_Rout_max_2D(model=gal.model, obs=obs, results=results, dscale=gal.dscale)
+                    lblstr = 'obs:{}:Routmax2D'.format(''.join(obs_name.split(' ')))
+                    datstr = '{: <21}   {: <13}   {: <5}   {:12.4f}   {:9.4f}   {:9.4f}'.format(lblstr, '-----',
+                                '-----', Routmax2D, -99, -99)
+                    self.add_line( datstr )
 
 
         ########

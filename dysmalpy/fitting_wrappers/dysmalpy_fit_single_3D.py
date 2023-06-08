@@ -32,60 +32,64 @@ def dysmalpy_fit_single_3D(param_filename=None, data_loader=None, datadir=None,
 
 
 
-def user_specific_load_3D_data(params=None, datadir=None):
-    # EDIT THIS FILE TO HAVE SPECIFIC LOADING OF DATA!
+# def user_specific_load_3D_data(params=None, datadir=None):
 
-    # Recommended to trim cube to around the relevant line only,
-    # both for speed of computation and to avoid noisy spectral resolution elements.
+#     # CRUDE, INCOMPLETE EXAMPLE OF HOW TO MAKE A CUSTOM LOADER. 
+#     # WRITE OWN FUNCTION LIKE THIS TO HAVE SPECIFIC LOADING OF DATA!
 
-    FNAME_CUBE = None
-    FNAME_ERR = None
-    FNAME_MASK = None
-    FNAME_MASK_SKY = None       # sky plane mask -- eg, mask areas away from galaxy.
-    FNAME_MASK_SPEC = None      # spectral dim masking -- eg, mask a skyline.
-                                #  ** When trimming cube mind that masks need to be appropriately trimmed too.
+#     # Recommended to trim cube to around the relevant line only,
+#     # both for speed of computation and to avoid noisy spectral resolution elements.
 
-    # Optional: set RA/Dec of reference pixel in the cube: mind trimming....
-    ref_pixel = None
-    ra = None
-    dec = None
+#     FNAME_CUBE = None
+#     FNAME_ERR = None
+#     FNAME_MASK = None
+#     FNAME_MASK_SKY = None       # sky plane mask -- eg, mask areas away from galaxy.
+#     FNAME_MASK_SPEC = None      # spectral dim masking -- eg, mask a skyline.
+#                                 #  ** When trimming cube mind that masks need to be appropriately trimmed too.
 
-    pixscale=params['pixscale']
+#     # Optional: set RA/Dec of reference pixel in the cube: mind trimming....
+#     ref_pixel = None
+#     ra = None
+#     dec = None
 
-    # +++++++++++++++++++++++++++++++++++++++++++
-    # Upload the data set to be fit
-    cube = fits.getdata(FNAME_CUBE)
-    err_cube = fits.getdata(FNAME_ERR)
-    mask_sky = fits.getdata(FNAME_MASK_SKY)
-    mask_spec = fits.getdata(FNAME_MASK_SPEC)
+#     pixscale=params['pixscale']
 
-    spec_type = 'velocity'    # either 'velocity' or 'wavelength'
-    spec_arr = None           # Needs to be array of vel / wavelength for the spectral dim of cube.
-                              #  1D arr. Length must be length of spectral dim of cube.
-    spec_unit = u.km/u.s      # EXAMPLE! set as needed.
+#     # +++++++++++++++++++++++++++++++++++++++++++
+#     # Upload the data set to be fit
+#     cube = fits.getdata(FNAME_CUBE)
+#     err_cube = fits.getdata(FNAME_ERR)
+#     mask_cube = fits.getdata(FNAME_MASK)
+#     mask_sky = fits.getdata(FNAME_MASK_SKY)
+#     mask_spec = fits.getdata(FNAME_MASK_SPEC)
 
-    # Auto mask some bad data
-    if automask:
-        # Add settings here: S/N ??
+#     spec_type = 'velocity'    # either 'velocity' or 'wavelength'
+#     spec_arr = None           # Needs to be array of vel / wavelength for the spectral dim of cube.
+#                               #  1D arr. Length must be length of spectral dim of cube.
+#     spec_unit = u.km/u.s      # EXAMPLE! set as needed.
 
-        pass
+#     # Auto mask some bad data
+#     if automask:
+#         # Add settings here: S/N ??
 
-    data3d = data_classes.Data3D(cube, pixscale, spec_type, spec_arr,
-                            err_cube = err_cube, mask_cube=mask_cube,
-                            mask_sky=mask_sky, mask_spec=mask_spec,
-                            ra=ra, dec=dec,
-                             ref_pixel=ref_pixel, spec_unit=spec_unit)
+#         pass
 
-    return data3d
+#     data3d = data_classes.Data3D(cube, pixscale, spec_type, spec_arr,
+#                             err_cube = err_cube, mask_cube=mask_cube,
+#                             mask_sky=mask_sky, mask_spec=mask_spec,
+#                             ra=ra, dec=dec,
+#                              ref_pixel=ref_pixel, spec_unit=spec_unit)
+
+#     return data3d
 
 def dysmalpy_fit_single_3D_wrapper(param_filename=None, datadir=None,
                                    default_load_data=True, overwrite=False):
 
-    if default_load_data:
-        data_loader=None
-    else:
-        data_loader=user_specific_load_3D_data
+    # if default_load_data:
+    #     data_loader=None
+    # else:
+    #     data_loader=user_specific_load_3D_data
 
+    data_loader=None
     dysmalpy_fit_single_3D(param_filename=param_filename, data_loader=data_loader,
                            overwrite=overwrite)
 
@@ -97,11 +101,20 @@ if __name__ == "__main__":
 
     param_filename = sys.argv[1]
 
+    # try:
+    #     if sys.argv[2].strip().lower() != 'reanalyze':
+    #         datadir = sys.argv[2]
+    #     else:
+    #         datadir = None
+    # except:
+    #     datadir = None
+
+
+    # dysmalpy_fit_single_3D_wrapper(param_filename=param_filename, datadir=datadir)
+
+
     try:
-        if sys.argv[2].strip().lower() != 'reanalyze':
-            datadir = sys.argv[2]
-        else:
-            datadir = None
+        datadir = sys.argv[2]
     except:
         datadir = None
 

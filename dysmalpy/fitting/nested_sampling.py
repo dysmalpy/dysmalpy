@@ -140,7 +140,7 @@ class NestedFitter(base.Fitter):
         # Set output options: filenames / which to save, etc
         output_options.set_output_options(gal, self)
 
-        
+
         # MUST INCLUDE NESTED-SPECIFICS NOW!
         fit_utils._check_existing_files_overwrite(output_options, 
                                                   fit_type='nested', 
@@ -181,7 +181,6 @@ class NestedFitter(base.Fitter):
             queue_size = self.nCPUs
         else:
             pool = queue_size = None
-
         
 
         dsampler = dynesty.DynamicNestedSampler(log_like_dynesty,

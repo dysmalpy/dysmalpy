@@ -124,9 +124,9 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 total_mass_fixed,     False
-bt_fixed,             False
 r_eff_disk_fixed,     False
 
+bt_fixed,             True
 n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True

@@ -65,9 +65,10 @@ follow the instructions in :ref:`Python Environment Setup <install-conda>` .
 
 
 After this is completed, you can download the latest DysmalPy package `here`_
-(current version: 1.8.2).
+(current version: 2.0.0).
 
-.. _here: releases/dysmalpy-1.8.2.tar.gz
+.. _here: LINK_TO_GITHUB_REPO_TARBALL
+
 
 
 Basic Installation
@@ -102,7 +103,7 @@ then `LIBDIR` and `INCLUDEDIR` are `BASEDIR/lib` and `BASEDIR/include`, respecti
 
 (If they are installed in so the headers are in `/usr/include` or `/usr/local/include`
 and the libraries are in `/usr/lib` or `/usr/local/lib`,
-the `--include-dirs` and `--lib-dirs` flags can be omitted.)
+the `--include-dirs` and `--library_dirs` flags can be omitted.)
 
 
 From a terminal, change directories to where the package was downloaded,
@@ -113,6 +114,36 @@ then install the package and build the extensions by running:
     $ tar zxvf dysmalpy-N.N.N.tar.gz
     $ cd dysmalpy-N.N.N
     $ python setup.py build_ext --include-dirs=INCLUDEDIR --library_dirs=LIBDIR install
+
+
+
+
+
+.. _install_clone:
+
+Cloning the repository
+----------------------
+
+[NEEDS EXPANSION]
+
+Within your desired parent directory, clone the repository from GitHub:
+
+.. code-block:: console
+    $ git clone https://github.com/ttshimiz/dysmalpy.git 
+
+
+Then add the path to this repository to your python path (eg, 
+`PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
+.bashrc or .bash_profile for bash, or the equivalent for your shell). 
+
+
+For examples on using `git fetch` or `git pull` to get updates, 
+or how to check out other branches, please see eg the tutorial here: 
+`https://git-scm.com/docs/gittutorial`_
+
+.. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
+
+
 
 
 

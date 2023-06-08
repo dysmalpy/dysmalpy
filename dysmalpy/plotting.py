@@ -37,7 +37,6 @@ from astropy.wcs import WCS
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import matplotlib.cm as cm
 from matplotlib.ticker import MultipleLocator
 
 import matplotlib.colors as mplcolors
@@ -70,6 +69,26 @@ except:
 new_diverging_cmap('RdBu_r', diverge = 0.5,
             gamma_lower=1.5, gamma_upper=1.5,
             name_new='RdBu_r_stretch')
+
+
+# Base colormaps:
+try:
+    cmap_viridis = mpl.colormap['viridis']
+    cmap_spectral_r = mpl.colormap['Spectral_r']
+    cmap_greys = mpl.colormaps['Greys']
+    cmap_plasma = mpl.colormaps['plasma']
+    cmap_rdbu_r = mpl.colormaps["RdBu_r_stretch"]
+    cmap_seismic = mpl.colormaps['seismic']
+except:
+    import matplotlib.cm as cm
+    cmap_viridis = cm.viridis
+    cmap_spectral_r = cm.get_cmap("Spectral_r")
+    cmap_greys = cm.Greys
+    cmap_plasma = cm.plasma
+    cmap_rdbu_r = cm.get_cmap("RdBu_r_stretch")
+    cmap_seismic = cm.seismic
+
+    
 
 # Default settings for contours on 2D maps:
 _kwargs_contour_defaults = { 'colors_cont': 'black',
@@ -191,7 +210,7 @@ def plot_trace_mcmc(mcmcResults, fileout=None, overwrite=False):
 
     # Define random color inds for tracking some walkers:
     nTraceWalkers = 5
-    cmap = cm.viridis
+    cmap = cmap_viridis
     alphaTrace = 0.8
     lwTrace = 1.5
     trace_inds = np.random.randint(0,nWalkers, size=nTraceWalkers)
@@ -410,7 +429,8 @@ def plot_corner_mcmc(mcmcResults, gal=None, fileout=None, step_slice=None,
     title_kwargs = {'horizontalalignment': 'left', 'x': 0.}
     fig = corner.corner(sampler_chain,
                             labels=names,
-                            quantiles= [.02275, 0.15865, 0.84135, .97725],
+                            title_quantiles=[0.16,0.5,0.84], # Required by corner, will be overwritten later with self-calculated truth/l/u68
+                            quantiles= [.02275, 0.15865, 0.84135, .97725], # Plot raw upper, lower 1 and 2 sigma quantiles
                             truths=truths,
                             plot_datapoints=False,
                             show_titles=True,
@@ -1046,7 +1066,7 @@ def plot_data_model_comparison_2D(obs, model,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = copy.copy(cm.get_cmap("Spectral_r"))
+    cmap = copy.copy(cmap_spectral_r)
 
     # color_bad = 'black'
     # color_annotate = 'white'
@@ -1055,7 +1075,7 @@ def plot_data_model_comparison_2D(obs, model,
 
     cmap.set_bad(color=color_bad)
 
-    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
+    cmap_resid = copy.copy(cmap_rdbu_r)
     cmap_resid.set_bad(color=color_bad)
 
 
@@ -1230,7 +1250,7 @@ def plot_data_model_comparison_3D(obs, model,
     plot_channel_maps_3D_cube(obs, model, show_data=True, show_model=True,
                               show_residual=True, fileout=fileout_channel,
                               vbounds = [-450., 450.], delv = 100.,
-                              vbounds_shift=True, cmap=cm.Greys,
+                              vbounds_shift=True, cmap=cmap_greys,
                               overwrite=overwrite)
 
 
@@ -1731,7 +1751,7 @@ def plot_channel_maps_3D_cube(obs, model, show_data=True,
                               show_model=True, show_residual=True,
                               vbounds = [-450., 450.], delv = 100.,
                               vbounds_shift=True,
-                              cmap=cm.Greys, cmap_resid=cm.seismic,
+                              cmap=cmap_greys, cmap_resid=cmap_seismic, 
                               fileout=None, overwrite=False):
 
     # Check for existing file:
@@ -2213,8 +2233,7 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
             fname=None,
             vbounds = [-450., 450.],
             delv = 100.,
-            cmap=cm.Greys,
-            cmap_resid=cm.seismic,
+            cmap=cmap_greys, 
             fileout=None,
             overwrite=False):
 
@@ -2313,7 +2332,8 @@ def plot_channel_maps_cube(cube=None, hdr=None, mask=None,
 
 
 def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None,
-                      center=None, show_pix_coords=False, cmap=cm.Greys,
+                      center=None, show_pix_coords=False, 
+                      cmap=cmap_greys,  
                       color_contours='red', color_center='cyan',
                       residual=False):
 
@@ -2414,7 +2434,7 @@ def plot_channel_slice(ax=None, speccube=None, v_slice_lims=None, flux_lims=None
 def plot_channel_maps_cube_overlay(obs, model,
                               vbounds = [-450., 450.], delv = 100.,
                               vbounds_shift=True,
-                              cmap=cm.Greys, cmap_resid=cm.seismic,
+                              cmap=cmap_greys, cmap_resid=cmap_seismic, 
                               fileout=None, overwrite=False):
 
     # Check for existing file:
@@ -2511,7 +2531,8 @@ def plot_channel_maps_cube_overlay(obs, model,
 
 def plot_channel_slice_diff_contours(ax=None, speccube=None, modcube=None,
                       v_slice_lims=None, flux_lims=None,
-                      center=None, show_pix_coords=False, cmap=cm.Greys,
+                      center=None, show_pix_coords=False, 
+                      cmap=cmap_greys,  
                       color_contours='red', color_center='cyan'):
 
     if ax is None:
@@ -2628,7 +2649,7 @@ def plot_3D_data_automask_info(obs, mask_dict, axes=None):
     else:
         return_axes = True
 
-    int_mode = "nearest"; origin = 'lower'; cmap=cm.viridis
+    int_mode = "nearest"; origin = 'lower'; cmap=cmap_viridis
 
     xcenter = obs.mod_options.xcenter
     ycenter = obs.mod_options.ycenter
@@ -2937,7 +2958,7 @@ def plot_single_obs_model_2D(obs, model,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = copy.copy(cm.get_cmap("Spectral_r"))
+    cmap = copy.copy(cmap_spectral_r)
 
     cmap.set_bad(color=color_bad)
 
@@ -3026,341 +3047,6 @@ def plot_single_obs_model_2D(obs, model,
 
 
 
-# def plot_model_2D_residual(obs, model,
-#             theta=None, dscale=None,
-#             symmetric_residuals=True,
-#             max_residual=100.,
-#             xshift = None,
-#             yshift = None,
-#             fileout=None,
-#             vcrop = False,
-#             vcrop_value = 800.,
-#             show_1d_apers=False,
-#             remove_shift = False,
-#             inst_corr=None,
-#             show_contours=False,
-#             show_ruler=True,
-#             ruler_loc='lowerleft',
-#             **plot_kwargs):
-#
-#     if show_contours:
-#         # Set contour defaults, if not specifed:
-#         for key in _kwargs_contour_defaults.keys():
-#             if key not in plot_kwargs.keys():
-#                 plot_kwargs[key] = _kwargs_contour_defaults[key]
-#
-#     ######################################
-#     # Setup plot:
-#
-#     ncols = 0
-#     for cond in [obs.fit_options.fit_flux, obs.fit_options.fit_velocity,
-#                  obs.fit_options.fit_dispersion]:
-#         if cond:
-#             ncols += 1
-#
-#     nrows = 1
-#
-#
-#     padx = 0.25
-#     pady = 0.25
-#
-#     xextra = 0.15
-#     yextra = 0.
-#
-#     scale = 2.5
-#
-#     f = plt.figure()
-#     f.set_size_inches((ncols+(ncols-1)*padx+xextra)*scale, (nrows+pady+yextra)*scale)
-#
-#
-#     suptitle = '{}: Fitting dim: n={}'.format(obs.name, obs.data.ndim)
-#
-#
-#     padx = 0.2
-#     pady = 0.1
-#     gs02 = gridspec.GridSpec(nrows, ncols, wspace=padx, hspace=pady)
-#     grid_2D = []
-#     for jj in range(nrows):
-#         for mm in range(ncols):
-#             grid_2D.append(plt.subplot(gs02[jj,mm]))
-#
-#
-#
-#     if theta is not None:
-#         model.update_parameters(theta)     # Update the parameters
-#
-#
-#     inst_corr_2d = None
-#     if inst_corr is None:
-#         if 'inst_corr' in data2d.data.keys():
-#             inst_corr_2d = data2d.data['inst_corr']
-#     else:
-#         inst_corr_2d = inst_corr
-#
-#
-#     if inst_corr_2d:
-#         inst_corr_sigma = gal.instrument.lsf.dispersion.to(u.km/u.s).value
-#     else:
-#         inst_corr_sigma = 0.
-#
-#     galorig = copy.deepcopy(gal)
-#     instorig = copy.deepcopy(gal.instrument)
-#     try:
-#         instorig2d = copy.deepcopy(gal.instrument2d)
-#     except:
-#         instorig2d = copy.deepcopy(gal.instrument)
-#
-#
-#     # In case missing / set to None:
-#     if instorig2d is None:
-#         instorig2d = copy.deepcopy(gal.instrument)
-#     # ----------------------------------------------------------------------
-#     # 2D plotting
-#
-#     if data2d is None:
-#         for ax in grid_2D:
-#             ax.set_axis_off()
-#
-#     else:
-#         gal = copy.deepcopy(galorig)
-#         if gal.data.ndim == 1:
-#             apply_shift = True
-#         else:
-#             apply_shift = False
-#
-#
-#         gal.data = copy.deepcopy(data2d)
-#         gal.instrument = copy.deepcopy(instorig2d)
-#         pixscale = gal.instrument.pixscale.value
-#
-#         gal.model.update_parameters(theta)
-#
-#         if apply_shift:
-#             if xshift is not None:
-#                 gal.model.geometry.xshift = xshift
-#             if yshift is not None:
-#                 gal.model.geometry.yshift = yshift
-#
-#         #
-#         kwargs_galmodel_2d = kwargs_galmodel.copy()
-#         kwargs_galmodel_2d['ndim_final'] = 2
-#         kwargs_galmodel_2d['from_data'] = True
-#         gal.create_model_data(**kwargs_galmodel_2d)
-#
-#
-#         keyyarr = ['residual']
-#         keyytitlearr = ['Residual']
-#
-#
-#         keyxarr, keyxtitlearr = ([] for _ in range(2))
-#         if fitflux:
-#             keyxarr.append('flux')
-#             keyxtitlearr.append(r'Flux')
-#         if fitvelocity:
-#             keyxarr.append('velocity')
-#             keyxtitlearr.append(r'$V$')
-#         if fitdispersion:
-#             keyxarr.append('dispersion')
-#             keyxtitlearr.append(r'$\sigma$')
-#
-#         int_mode = "nearest"
-#         origin = 'lower'
-#         cmap = copy.copy(cm.get_cmap("Spectral_r"))
-#         cmap.set_bad(color='k')
-#
-#
-#         cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
-#         cmap_resid.set_bad(color='k')
-#
-#         color_annotate = 'white'
-#
-#
-#         # -----------------------
-#         vel_vmin = gal.data.data['velocity'][gal.data.mask].min()
-#         vel_vmax = gal.data.data['velocity'][gal.data.mask].max()
-#
-#
-#         # Check for not too crazy:
-#         if vcrop:
-#             if vel_vmin < -vcrop_value:
-#                 vel_vmin = -vcrop_value
-#             if vel_vmax > vcrop_value:
-#                 vel_vmax = vcrop_value
-#
-#
-#         vel_shift = gal.model.geometry.vel_shift.value
-#
-#         #
-#         vel_vmin -= vel_shift
-#         vel_vmax -= vel_shift
-#
-#         disp_vmin = gal.data.data['dispersion'][gal.data.mask].min()
-#         disp_vmax = gal.data.data['dispersion'][gal.data.mask].max()
-#
-#         # Check for not too crazy:
-#         if vcrop:
-#             if disp_vmin < 0:
-#                 disp_vmin = 0
-#             if disp_vmax > vcrop_value:
-#                 disp_vmax = vcrop_value
-#
-#         flux_vmin = gal.data.data['flux'][gal.data.mask].min()
-#         flux_vmax = gal.data.data['flux'][gal.data.mask].max()
-#
-#         alpha_unmasked = 1.
-#         alpha_masked = 0.5
-#         alpha_bkgd = 1.
-#         alpha_aper = 0.8
-#
-#         vmin_2d = []
-#         vmax_2d = []
-#         vmin_2d_resid = []
-#         vmax_2d_resid = []
-#
-#         for j in range(len(keyxarr)):
-#             for mm in range(len(keyyarr)):
-#                 kk = j*len(keyyarr) + mm
-#
-#                 k = keyyarr[mm]
-#
-#                 ax = grid_2D[kk]
-#
-#                 xt = keyxtitlearr[j]
-#                 yt = keyytitlearr[mm]
-#
-#                 print("plot_model_2D_residual: doing j={}: {} // mm={}: {}".format(j, keyxarr[j], mm, k))
-#                 # -----------------------------------
-#
-#                 if k == 'residual':
-#                     if keyxarr[j] == 'velocity':
-#                         im = gal.data.data['velocity'] - gal.model_data.data['velocity']
-#                         im[~gal.data.mask] = np.nan
-#                         if symmetric_residuals:
-#                             vmin = -max_residual
-#                             vmax = max_residual
-#                     elif keyxarr[j] == 'dispersion':
-#                         im_model = gal.model_data.data['dispersion'].copy()
-#                         im_model = np.sqrt(im_model ** 2 - inst_corr_sigma ** 2)
-#
-#                         im = gal.data.data['dispersion'] - im_model
-#                         im[~gal.data.mask] = np.nan
-#
-#                         if symmetric_residuals:
-#                             vmin = -max_residual
-#                             vmax = max_residual
-#                     elif keyxarr[j] == 'flux':
-#                         im = gal.data.data['flux'].copy() - gal.model_data.data['flux'].copy()
-#                         im[~gal.data.mask] = np.nan
-#
-#                         if symmetric_residuals:
-#                             fabsmax = np.max(np.abs([flux_vmin, flux_vmax]))
-#                             vmin = -fabsmax
-#                             vmax = fabsmax
-#
-#                     cmaptmp = cmap_resid
-#                     vmin_2d_resid.append(vmin)
-#                     vmax_2d_resid.append(vmax)
-#
-#                 else:
-#                     raise ValueError("key not supported.")
-#
-#
-#                 imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
-#                                  vmin=vmin, vmax=vmax, origin=origin)
-#
-#                 # ++++++++++++++++++++++++++
-#                 imtmp = im.copy()
-#                 imtmp[gal.data.mask] = vel_vmax
-#                 imtmp[~gal.data.mask] = np.nan
-#
-#                 # Create an alpha channel of linearly increasing values moving to the right.
-#                 alphas = np.ones(im.shape)
-#                 alphas[~gal.data.mask] = alpha_masked
-#                 alphas[gal.data.mask] = 1.-alpha_unmasked
-#                 # Normalize the colors b/w 0 and 1, we'll then pass an MxNx4 array to imshow
-#                 imtmpalph = mplcolors.Normalize(vmin, vmax, clip=True)(imtmp)
-#                 imtmpalph = cm.Greys_r(imtmpalph)
-#                 # Now set the alpha channel to the one we created above
-#                 imtmpalph[..., -1] = alphas
-#
-#                 immask = ax.imshow(imtmpalph, interpolation=int_mode, origin=origin)
-#                 # ++++++++++++++++++++++++++
-#
-#                 if show_contours:
-#                     ax = plot_contours_2D_multitype(im, ax=ax, mapname=keyxarr[j], plottype=k,
-#                                 vmin=vmin, vmax=vmax, kwargs=plot_kwargs)
-#
-#
-#                 if (show_1d_apers) & (data1d is not None):
-#
-#                     ax = show_1d_apers_plot(ax, gal, data1d, data2d, model=gal.model,
-#                                     obsorig=galorig, alpha_aper=alpha_aper,
-#                                     remove_shift=remove_shift)
-#
-#
-#                 ####################################
-#                 # Show a 1arcsec line:
-#                 if show_ruler:
-#                     ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,
-#                                             ruler_loc=ruler_loc, color=color_annotate)
-#                 ####################################
-#
-#                 ax = plot_major_minor_axes_2D(ax, gal, im, gal.data.mask)
-#
-#                 if j == 0:
-#                     ax.set_ylabel(yt)
-#
-#                 for pos in ['top', 'bottom', 'left', 'right']:
-#                     ax.spines[pos].set_visible(False)
-#                 ax.set_xticks([])
-#                 ax.set_yticks([])
-#                 print("ytitle={}".format(yt))
-#
-#                 if mm == 0:
-#                     ax.set_title(xt)
-#
-#                 #########
-#                 cax, kw = colorbar.make_axes_gridspec(ax, pad=0.01,
-#                         fraction=5./101., aspect=20.)
-#                 cbar = plt.colorbar(imax, cax=cax, **kw)
-#                 cbar.ax.tick_params(labelsize=8)
-#
-#
-#                 if k == 'residual':
-#                     med = np.median(im[gal.data.mask])
-#                     rms = np.std(im[gal.data.mask])
-#                     if keyxarr[j] == 'velocity':
-#                         median_str = r"$V_{med}="+r"{:0.1f}".format(med)+r"$"
-#                         scatter_str = r"$V_{rms}="+r"{:0.1f}".format(rms)+r"$"
-#                     elif keyxarr[j] == 'dispersion':
-#                         median_str = r"$\sigma_{med}="+r"{:0.1f}".format(med)+r"$"
-#                         scatter_str = r"$\sigma_{rms}="+r"{:0.1f}".format(rms)+r"$"
-#                     elif keyxarr[j] == 'flux':
-#                         median_str = r"$f_{med}="+r"{:0.1f}".format(med)+r"$"
-#                         scatter_str = r"$f_{rms}="+r"{:0.1f}".format(rms)+r"$"
-#                     ax.annotate(median_str,
-#                         (0.01,-0.05), xycoords='axes fraction',
-#                         ha='left', va='top', fontsize=8)
-#                     ax.annotate(scatter_str,
-#                         (0.99,-0.05), xycoords='axes fraction',
-#                         ha='right', va='top', fontsize=8)
-#
-#
-#     ################
-#
-#     f.suptitle(suptitle, fontsize=16, y=0.95)
-#
-#     #############################################################
-#     # Save to file:
-#     if fileout is not None:
-#         plt.savefig(fileout, bbox_inches='tight', dpi=300)
-#         plt.close()
-#     else:
-#         plt.draw()
-#         plt.show()
-#
-#     return None
-
 
 #############################################################
 
@@ -3444,7 +3130,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None,
 
     int_mode = "nearest"
     origin = 'lower'
-    cmap = copy.copy(cm.get_cmap("Spectral_r"))
+    cmap = copy.copy(cmap_spectral_r)
     bad_color = 'white'
     color_annotate = 'black'
     # bad_color = 'black'
@@ -3452,7 +3138,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None,
     cmap.set_bad(color=bad_color)
 
 
-    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
+    cmap_resid = copy.copy(cmap_rdbu_r)
     cmap_resid.set_bad(color=bad_color)
     cmap_resid.set_over(color='magenta')
     cmap_resid.set_under(color='blueviolet')
@@ -4613,7 +4299,7 @@ def plot_axes_flux_vel_disp(flux, vel, disp, axes=None,
     bad_color = 'white'
     color_annotate = 'black'
     if cmap is None:
-        cmap = copy.copy(cm.get_cmap("Spectral_r"))
+        cmap = copy.copy(cmap_spectral_r)
         cmap.set_bad(color=bad_color)
 
 
@@ -4715,11 +4401,11 @@ def plot_2D_from_cube_files(fileout=None,
         if key not in kwargs.keys():
             kwargs[key] = _kwargs_contour_defaults[key]
 
-    cmap = copy.copy(cm.get_cmap("Spectral_r"))
+    cmap = copy.copy(cmap_spectral_r)
     bad_color = 'white'
     cmap.set_bad(color=bad_color)
 
-    cmap_resid = copy.copy(cm.get_cmap("RdBu_r_stretch"))
+    cmap_resid = copy.copy(cmap_rdbu_r)
     cmap_resid.set_bad(color=bad_color)
     cmap_resid.set_over(color='magenta')
     cmap_resid.set_under(color='blueviolet')
@@ -4943,9 +4629,9 @@ def show_1d_apers_plot(ax, obs, data1d, data2d, model=None, obsorig=None, alpha_
     xaps, yaps = calc_pix_position(aper_centers_pix, pa, center_pixel[0], center_pixel[1])
 
 
-    cmstar = cm.plasma
+    cmstar = cmap_plasma
     cNorm = mplcolors.Normalize(vmin=0, vmax=len(xaps)-1)
-    cmapscale = cm.ScalarMappable(norm=cNorm, cmap=cmstar)
+    cmapscale = mpl.cm.ScalarMappable(norm=cNorm, cmap=cmstar)
 
     for mm, (rap, xap, yap) in enumerate(zip(aper_centers, xaps, yaps)):
         circle = plt.Circle((xap+pyoff, yap+pyoff), rpix, color=cmapscale.to_rgba(mm, alpha=alpha_aper), fill=False)

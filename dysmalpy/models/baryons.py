@@ -7,7 +7,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
-import os
+import os, copy
 import logging
 import glob
 
@@ -1406,19 +1406,21 @@ class DiskBulge(MassModel, _LightMassModel):
         self._initialize_noord_flatteners()
 
     def __setstate__(self, state):
-        super(DiskBulge, self).__setstate__(state)
+        state_mod = copy.deepcopy(state)
+        if 'noord_flat' in state.keys():
+            del state_mod['noord_flat']
+            state_mod['_noord_flat'] = state['noord_flat']
 
-        if 'baryon_type' in state.keys():
+        super(DiskBulge, self).__setstate__(state_mod)
+
+        if 'baryon_type' in state_mod.keys():
             pass
         else:
             self.baryon_type = 'gas+stars'
             self.gas_component = 'disk'
 
-        if '_noord_flat' in state.keys():
-            pass
-        else:
-            self._noord_flat = state['noord_flat']
-            self._initialize_noord_flatteners()
+        if 'noord_flat' in state.keys():
+            self._initialize_noord_flatteners()    
 
     @property
     def noord_flat(self):

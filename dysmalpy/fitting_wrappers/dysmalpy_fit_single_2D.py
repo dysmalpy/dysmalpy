@@ -25,6 +25,7 @@ except ImportError:
     from . import utils_io
     from .dysmalpy_fit_single import dysmalpy_fit_single
 
+
 # Backwards compatibility
 def dysmalpy_fit_single_2D(param_filename=None, datadir=None,
              outdir=None, plot_type='pdf', overwrite=None):
@@ -114,22 +115,30 @@ if __name__ == "__main__":
     param_filename = sys.argv[1]
 
     try:
-        if sys.argv[2].strip().lower() != 'reanalyze':
-            datadir = sys.argv[2]
-        else:
-            datadir = None
+        datadir = sys.argv[2]
     except:
         datadir = None
 
-    try:
-        if sys.argv[2].strip().lower() == 'reanalyze':
-            reanalyze = True
-        else:
-            reanalyze = False
-    except:
-        reanalyze = False
+    # try:
+    #     if sys.argv[2].strip().lower() != 'reanalyze':
+    #         datadir = sys.argv[2]
+    #     else:
+    #         datadir = None
+    # except:
+    #     datadir = None
 
-    if reanalyze:
-        dysmalpy_reanalyze_single_2D(param_filename=param_filename, datadir=datadir)
-    else:
-        dysmalpy_fit_single_2D(param_filename=param_filename, datadir=datadir)
+    # try:
+    #     if sys.argv[2].strip().lower() == 'reanalyze':
+    #         reanalyze = True
+    #     else:
+    #         reanalyze = False
+    # except:
+    #     reanalyze = False
+
+    # if reanalyze:
+    #     dysmalpy_reanalyze_single_2D(param_filename=param_filename, datadir=datadir)
+    # else:
+    #     dysmalpy_fit_single_2D(param_filename=param_filename, datadir=datadir)
+
+
+    dysmalpy_fit_single_2D(param_filename=param_filename, datadir=datadir)

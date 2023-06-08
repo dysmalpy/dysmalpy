@@ -8,8 +8,13 @@ import numpy as np
 import astropy.units as u
 
 try:
-    import photutils
-    from astropy.convolution import Gaussian2DKernel
+    # import photutils
+    try:
+        from photutils.background import Background2D
+        from photutils.segmentation import detect_sources
+    except:
+        from photutils import Background2D, detect_sources
+    from astropy.convolution import Gaussian2DKernel, convolve
     _loaded_photutils = True
 except:
     _loaded_photutils = False
@@ -124,7 +129,7 @@ def auto_gen_3D_mask(cube=None, err=None,
             while ((bkg is None) & (exclude_percentile < 100.)):
                 exclude_percentile += ex_perctl_increment
                 try:
-                    bkg = photutils.Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3),
+                    bkg = Background2D(fmap_cube_sn, fmap_cube_sn.shape, filter_size=(3,3),
                                     exclude_percentile=exclude_percentile)
                 except:
                     pass
@@ -137,15 +142,14 @@ def auto_gen_3D_mask(cube=None, err=None,
             thresh = sig_segmap_thresh * bkg.background_rms
 
             kernel = Gaussian2DKernel(3. /(2. *np.sqrt(2.*np.log(2.))), x_size=5, y_size=5)   # Gaussian of FWHM 3 pix
-            segm = photutils.detect_sources(fmap_cube_sn, thresh, npixels=npix_segmap_min, kernel=kernel)
-
+            fmap_cube_sn_filtered = convolve(fmap_cube_sn.copy(), kernel)
+            segm = detect_sources(fmap_cube_sn_filtered, thresh, npixels=npix_segmap_min)
 
             mask_dict['exclude_percentile'] = exclude_percentile
             mask_dict['thresh'] = thresh
             mask_dict['segm'] = segm
 
             # Find the max flux seg region:
-            segmap_ind = None
             segfluxmax = 0.
             for seg in segm.segments:
                 mseg = seg._segment_data.copy()
@@ -229,6 +233,7 @@ def _auto_truncate_crop_cube(cube, params=None,
     cube_orig = cube.copy()
 
     # First truncate by spec:
+    wh_spec_keep = None
     if 'spec_vel_trim' in params.keys():
         wh_spec_keep = np.where((spec_arr >= params['spec_vel_trim'][0]) & (spec_arr <= params['spec_vel_trim'][1]))[0]
         spec_arr = spec_arr[wh_spec_keep]
