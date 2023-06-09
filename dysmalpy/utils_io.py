@@ -850,9 +850,9 @@ def write_1d_obs_finer_scale(obs=None, model=None, dscale=None, fname=None,
 
     do_extract = True
     if profile1d_type == 'rect_ap_cube':
-        f_par = interpolate.interp1d(obs.data.rarr, obs.instrument.apertures.pix_parallel,
+        f_par = interpolate.interp1d(obs.instrument.apertures.rarr, obs.instrument.apertures.pix_parallel,
                         kind='slinear', fill_value='extrapolate')
-        f_perp = interpolate.interp1d(obs.data.rarr, obs.instrument.apertures.pix_perp,
+        f_perp = interpolate.interp1d(obs.instrument.apertures.rarr, obs.instrument.apertures.pix_perp,
                         kind='slinear', fill_value='extrapolate')
 
         pix_parallel_interp = f_par(aper_centers_interp)

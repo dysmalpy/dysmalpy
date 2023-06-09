@@ -596,23 +596,34 @@ def load_single_obs_3D_data(params=None, datadir=None,
                         #mask = None
                         raise ValueError
 
-
         if 'fdata_mask_sky'+extra in params.keys():
             if params['fdata_mask_sky'+extra] is not None:
-                mask_sky = fits.getdata(datadir+params['fdata_mask_sky'+extra])
-                # Crop cube: first check if masks match the cubes already or not -- otherwise load later
-                if mask_sky.shape != cube.shape[1:3]:
-                    #mask_sky = None
-                    raise ValueError
+                # Check if it's full path:
+                fdata_mask_sky = params['fdata_mask_sky'+extra]
+                if not os.path.isfile(fdata_mask_sky):
+                    fdata_mask_sky = datadir+params['fdata_mask_sky'+extra]
+                if os.path.isfile(fdata_mask_sky):
+                    mask_sky = fits.getdata(fdata_mask_sky)
+                    # Crop cube: first check if masks match the cubes already or not -- otherwise load later
+                    if mask_sky.shape != cube.shape[1:3]:
+                        #mask_sky = None
+                        raise ValueError
+
+
 
         if 'fdata_mask_spec'+extra in params.keys():
             if params['fdata_mask_spec'+extra] is not None:
-                mask_spec = fits.getdata(datadir+params['fdata_mask_spec'+extra])
-                # Crop cube: first check if masks match the cubes already or not -- otherwise load later
-                if mask_spec.shape[0] != cube.shape[0]:
-                    #mask_spec = None
-                    raise ValueError
-
+                # Check if it's full path:
+                fdata_mask_spec = params['fdata_mask_spec'+extra]
+                if not os.path.isfile(fdata_mask_spec):
+                    fdata_mask_spec = datadir+params['fdata_mask_spec'+extra]
+                if os.path.isfile(fdata_mask_spec):
+                    mask_spec = fits.getdata(fdata_mask_spec)
+                    # Crop cube: first check if masks match the cubes already or not -- otherwise load later
+                    if mask_spec.shape[0] != cube.shape[0]:
+                        #mask_sky = None
+                        raise ValueError
+                    
 
     if 'weighting_method'+extra in params.keys():
         gal_weight = setup_data_weighting_method(method=params['weighting_method'+extra], r=None)
@@ -701,7 +712,14 @@ def load_single_obs_3D_data(params=None, datadir=None,
     ####################################
     if (mask is None) & ('auto_gen_3D_mask'+extra in params.keys()) & (not skip_automask):
         if params['auto_gen_3D_mask'+extra]:
+            # if 'fdata_mask'+extra in params.keys():
             if 'fdata_mask'+extra in params.keys():
+                if params['fdata_mask'+extra] is not None:
+                    # Check if it's full path:
+                    fdata_mask = params['fdata_mask'+extra]
+                    if not os.path.isfile(fdata_mask):
+                        # Otherwise try datadir:
+                        fdata_mask = datadir+params['fdata_mask'+extra]
                 if not os.path.isfile(fdata_mask):
                     print("Can't load mask from 'fdata_mask{}'={}, ".format(extra,fdata_mask))
                     print("  but 'auto_gen_3D_mask'={}, ".format(auto_gen_3D_mask))

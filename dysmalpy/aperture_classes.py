@@ -894,12 +894,25 @@ def setup_aperture_types(obs=None, profile1d_type=None,
     # partial_weight:
     #      are partial pixels weighted in apertures?
 
+    _valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'circ_ap_pv', 'single_pix_pv']
+    _print_valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'single_pix_pv']
+    if profile1d_type.lower() not in _valid_1dprofs:
+        raise ValueError("profile1d_type={} not in the valid list: {}".format(profile1d_type.lower(), 
+                                                                              _print_valid_1dprofs))
+
     if aper_centers is None:
         raise ValueError("Must set 'aper_centers'!")
     if slit_pa is None:
         raise ValueError("Must set 'slit_pa'!")
-    if (slit_width is None) & (profile1d_type != 'circ_ap_cube'):
-        raise ValueError("Must set 'slit_width'!")
+    if (slit_width is None) & (profile1d_type not in ['circ_ap_cube', 'circ_ap_pv']):
+        if (profile1d_type.lower() == 'rect_ap_cube') & (pix_perp is not None) & (pix_parallel is not None):
+            pass
+        else:
+            msg = "profile1d_type: {}\n".format(profile1d_type)
+            if (profile1d_type.lower() in ['rect_ap_cube', 'square_ap_cube']) & ((pix_perp is None) or (pix_parallel is None)):
+                msg += " & pix_perp={}, pix_parallel={}\n".format(pix_perp, pix_parallel)
+            msg += "Must set 'slit_width'!"
+            raise ValueError(msg)
 
     # if False:
     #     slit_width = obs.instrument.slit_width

@@ -13,39 +13,33 @@ datadir,          None                       # Optional: Full path to data direc
 
 fdata_cube,           gs4-43501_h250_21h30.fits.gz   # Full path to vel map. Alternatively, just the filename if 'datadir' is set.
 fdata_err,            noise_gs4-43501_h250_21h30.fits.gz    # Full path to vel. err map. Alternatively, just the filename if 'datadir' is set.
-# fdata_mask,           MASK.fits   # Full path to mask, if a separate mask is to be used.
+fdata_mask,           GS4_43501_mask.fits   # Full path to mask, if a separate mask is to be used.
 #                                                          #   -- strongly recommended to create a mask, or else use 'auto_gen_3D_mask, True' below
                                                            # Alternatively, just the filename if 'datadir' is set.
-
-## GALAXY CENTER:
-# IMPORTANT: 0 indexed, so coordinates go from [0, nX-1] and [0, nY-1].
-# So if using QFitsView, will need to subtract 1 from both coords (as QFitsView goes from [1,nX] and [1,nY])
-xcenter,              None                       # Center position in cube, x coord. Default: (nX-1)/2.
-ycenter,              None                       # Center position in cube, y coord. Default: (nY-1)/2.
-
 
 ### FOR 3D, MUST SET CUBE, ETC by ** HAND **.
 
 spec_orig_type,       wave
 spec_line_rest,       6564.
 spec_line_rest_unit,  angstrom
-spec_vel_trim,        -800   600. #-500.   500.
+spec_vel_trim,        -500.   500.
 
 # l r b t
 spatial_crop_trim,     37  68   34  65
 
+xcenter, 51.75    #None     # x/ycenter in UNCROPPED PIXELS. If None, assumed to be center of cube.
+ycenter, 48.75    #None
 
-# smoothing_type,       median                             # Is the data median smoothed
-#                                                          #   before extracting maps?
-# smoothing_npix,       3                                  # Number of pixels for smoothing aperture
 
 data_inst_corr,   False
 
-auto_gen_3D_mask,               True
-auto_gen_mask_snr_thresh,       3. #4.
-auto_gen_mask_snr_thresh_1,     2. #4. #3. #2.5
-auto_gen_mask_sig_thresh,       2. #1.5 #2. #1.5
-auto_gen_mask_npix_min,         5
+auto_gen_3D_mask,          		True
+auto_gen_mask_apply_skymask_first, 	True
+auto_gen_mask_snr_thresh_pixel, 	None
+auto_gen_mask_sig_segmap_thresh, 	3.25 
+auto_gen_mask_npix_segmap_min,    	5
+auto_gen_mask_sky_var_thresh,    	2.  # H/J BAND  # 3. # K/Y
+auto_gen_mask_snr_int_flux_thresh,  	3.
 
 
 # ***************************** OUTPUT *****************************************

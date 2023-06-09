@@ -2001,7 +2001,7 @@ def _setup_instrument_with_suffix(suffix, inst=None, data=None, obs=None, params
         slit_pa=params['slit_pa'+suffix]
         integrate_cube=params['integrate_cube'+suffix]
     except:
-        slit_width=params['slit_width']
+        slit_width=params.get('slit_width', None)
         slit_pa=params['slit_pa']
         integrate_cube=params['integrate_cube']
 
