@@ -529,18 +529,34 @@ class Report(object):
         for cmp_n in gal.model.param_names.keys():
             for param_n in gal.model.param_names[cmp_n]:
 
-                if '{}:{}'.format(cmp_n,param_n) in results.chain_param_names:
-                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                if '{}:{}'.format(cmp_n.lower(),param_n.lower()) in results.chain_param_names:
+                    # whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n, param_n))[0][0]
+                    # best = results.bestfit_parameters[whparam]
+                    # try:
+                    #     l68 = results.bestfit_parameters_l68_err[whparam]
+                    #     u68 = results.bestfit_parameters_u68_err[whparam]
+                    # except:
+                    #     if results.bestfit_parameters_err is not None:
+                    #         l68 = u68 = results.bestfit_parameters_err[whparam]
+                    #     else:
+                    #         # Fitting failed
+                    #         best = l68 = u68 = np.NaN
+
+                    whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
                     best = results.bestfit_parameters[whparam]
-                    try:
+
+                    # Bayesian:
+                    if self.fit_method.lower() in _bayesian_fitting_methods:
                         l68 = results.bestfit_parameters_l68_err[whparam]
                         u68 = results.bestfit_parameters_u68_err[whparam]
-                    except:
+
+                    # MPFIT
+                    elif self.fit_method.upper() == 'MPFIT':
                         if results.bestfit_parameters_err is not None:
                             l68 = u68 = results.bestfit_parameters_err[whparam]
-                        else:
-                            # Fitting failed
-                            best = l68 = u68 = np.NaN
+                    else:
+                        raise ValueError
+
                 else:
                     best = getattr(gal.model.components[cmp_n], param_n).value
                     l68 = -99.

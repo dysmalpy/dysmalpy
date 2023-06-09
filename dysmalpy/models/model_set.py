@@ -1130,22 +1130,26 @@ class ModelSet:
                 logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, filename))
                 return None
 
-        # Quick test for if vcirc defined:
-        coltry = ['velocity_profile', 'circular_velocity']
-        coltrynames = ['vrot', 'vcirc']
-        coltryunits = ['[km/s]', '[km/s]']
-        cols = []
-        colnames = []
-        colunits = []
-        for c, cn, cu in zip(coltry, coltrynames, coltryunits):
-            try:
-                fnc = getattr(self, c)
-                tmp = fnc(np.array([2.]))
-                cols.append(c)
-                colnames.append(cn)
-                colunits.append(cu)
-            except:
-                pass
+        # # Quick test for if vcirc defined:
+        # coltry = ['velocity_profile', 'circular_velocity']
+        # coltrynames = ['vrot', 'vcirc']
+        # coltryunits = ['[km/s]', '[km/s]']
+        # cols = []
+        # colnames = []
+        # colunits = []
+        # for c, cn, cu in zip(coltry, coltrynames, coltryunits):
+        #     try:
+        #         fnc = getattr(self, c)
+        #         tmp = fnc(np.array([2.]))
+        #         cols.append(c)
+        #         colnames.append(cn)
+        #         colunits.append(cu)
+        #     except:
+        #         pass
+
+        cols = ['velocity_profile', 'circular_velocity']
+        colnames = ['vrot', 'vcirc']
+        colunits = ['[km/s]', '[km/s]']
 
         if len(cols) >= 1:
             self.write_profile_file(r=r, filename=filename,
