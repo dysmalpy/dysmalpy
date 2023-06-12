@@ -1147,9 +1147,12 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         vel = (R, phi, z).
         Need matmul(vel_dir_matrix, vel) = vel in (x,y,z). So:
-        vel_dir_matrix = [[Rtox, phitox, ztox],
-                          [Rtoy, phitoy, ztoy],
-                          [Rtoz, phitoz, ztoz]]
+
+        .. code-block:: text
+        
+            vel_dir_matrix = [[Rtox, phitox, ztox],
+                            [Rtoy, phitoy, ztoy],
+                            [Rtoz, phitoz, ztoz]]
 
         Parameters
         ----------

@@ -2390,8 +2390,10 @@ class GaussianRing(MassModel, _LightMassModel):
     FWHM: float
         FWHM of gaussian, in kpc
 
-    baryon_type : {'gas+stars', 'stars', 'gas'}
-        What type of baryons are included. Used for dlnrhogas/dlnr
+    baryon_type : string
+        What type of baryons are included. Used for dlnrhogas/dlnr.
+        Options: {'gas+stars', 'stars', 'gas'}
+        
 
     Notes
     -----
@@ -2400,7 +2402,6 @@ class GaussianRing(MassModel, _LightMassModel):
     .. math::
         M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
         sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
-
     
     """
 

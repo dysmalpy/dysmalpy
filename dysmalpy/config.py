@@ -16,6 +16,7 @@ from dysmalpy.fitting import MCMCFitter, MPFITFitter, NestedFitter
 
 # Third party import
 
+__all__ = [ "OutputOptions" ]
 
 class OutputOptions:
     """
