@@ -182,6 +182,6 @@ would like installed in the environment, please contact `Taro`_.
 .. _Taro: shimizu@mpe.mpg.de
 
 For those who are more familiar with Python, you can simply add
-'/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy/' to your ``PYTHONPATH``
+`/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy/` to your ``PYTHONPATH``
 environment variable. Be sure to have all of the required packages
 installed.
