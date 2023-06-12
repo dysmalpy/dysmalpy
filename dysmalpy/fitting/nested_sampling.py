@@ -43,6 +43,7 @@ __all__ = ['NestedFitter', 'NestedResults']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 try:
     import dynesty
@@ -245,6 +246,7 @@ class NestedFitter(base.Fitter):
         # Clean up logger:
         if output_options.f_log is not None:
             logger.removeHandler(loggerfile)
+            loggerfile.close()
 
         return nestedResults
 

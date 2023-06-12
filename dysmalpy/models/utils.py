@@ -21,6 +21,7 @@ from dysmalpy.parameters import DysmalParameter
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")

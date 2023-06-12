@@ -22,6 +22,7 @@ __all__ = ['DispersionConst']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")

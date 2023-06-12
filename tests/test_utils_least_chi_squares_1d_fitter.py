@@ -17,6 +17,9 @@ from spectral_cube import SpectralCube
 from dysmalpy.utils_least_chi_squares_1d_fitter import LeastChiSquares1D
 from dysmalpy.utils import gaus_fit_sp_opt_leastsq
 
+import logging
+logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.DEBUG)
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)

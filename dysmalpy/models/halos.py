@@ -48,6 +48,7 @@ g_pc_per_Msun_kmssq = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")

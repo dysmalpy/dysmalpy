@@ -124,6 +124,7 @@ __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 def plot_bestfit(mcmcResults, gal,
                  show_1d_apers=False,

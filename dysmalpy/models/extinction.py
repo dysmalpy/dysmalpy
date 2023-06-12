@@ -23,6 +23,7 @@ __all__ = ['ThinCentralPlaneDustExtinction', 'ForegroundConstantExtinction',
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")

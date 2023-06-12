@@ -32,6 +32,7 @@ __all__ = ['MPFITFitter', 'MPFITResults']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 
 
@@ -85,7 +86,6 @@ class MPFITFitter(base.Fitter):
             loggerfile = logging.FileHandler(output_options.f_log)
             loggerfile.setLevel(logging.INFO)
             logger.addHandler(loggerfile)
-
 
         # ---------------------------------------------------
 
@@ -176,6 +176,7 @@ class MPFITFitter(base.Fitter):
         # Clean up logger:
         if output_options.f_log is not None:
             logger.removeHandler(loggerfile)
+            loggerfile.close()
 
         return mpfitResults
 
