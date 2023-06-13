@@ -43,6 +43,7 @@ __dpy_version__ = mo.group(1)
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 # Class for intrinsic rot curve
 class RotCurveInt(object):

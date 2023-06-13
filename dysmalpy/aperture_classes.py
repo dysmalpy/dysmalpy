@@ -20,6 +20,7 @@ from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq, gaus_fi
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 __all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures",
             "EllipApertures", "CircApertures", "RectApertures", "SquareApertures",

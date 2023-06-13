@@ -124,6 +124,7 @@ __all__ = ['plot_trace', 'plot_corner', 'plot_bestfit']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 def plot_bestfit(mcmcResults, gal,
                  show_1d_apers=False,
@@ -4158,18 +4159,25 @@ def extract_2D_from_cube_general(cube, err=None, mask=None,
                         flux_arr = datacube.filled_data[:,i,j].value
 
                         if np.isfinite(flux_arr).sum() >= len(mod._parameters):
-                            spec_arr = spec_arr[np.isfinite(flux_arr)]
                             if wgts is not None:
-                                wgts = wgts[np.isfinite(flux_arr)]
-                            flux_arr = flux_arr[np.isfinite(flux_arr)]
+                                whgood = (np.isfinite(flux_arr) & np.isfinite(wgts))
+                            else:
+                                whgood = (np.isfinite(flux_arr))
+                            spec_arr = spec_arr[whgood]
+                            if wgts is not None:
+                                wgts = wgts[whgood]
+                            flux_arr = flux_arr[whgood]
 
 
-                            best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
                             ########################
+                            try:
+                                best_fit = fitter(mod, spec_arr, flux_arr, weights=wgts)
 
-                            flux[i,j] = np.sqrt( 2. * np.pi) * best_fit.stddev.value * best_fit.amplitude
-                            vel[i,j] = best_fit.mean.value
-                            disp[i,j] = best_fit.stddev.value
+                                flux[i,j] = np.sqrt( 2. * np.pi) * best_fit.stddev.value * best_fit.amplitude
+                                vel[i,j] = best_fit.mean.value
+                                disp[i,j] = best_fit.stddev.value
+                            except:
+                                flux[i, j] = vel[i,j] = disp[i,j] = np.nan
 
                         else:
                             flux[i, j] = vel[i,j] = disp[i,j] = np.nan
