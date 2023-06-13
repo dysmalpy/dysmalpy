@@ -1,4 +1,4 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Top-level module for fitting DYSMALPY kinematic models to the observed data
 #   Fitting method-specific classes/functions are found under the

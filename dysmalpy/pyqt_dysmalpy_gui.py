@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
 A GUI for the galaxy kinematics modeling and fitting tool DysmalPy.
 

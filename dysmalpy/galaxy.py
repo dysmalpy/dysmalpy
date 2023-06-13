@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Main classes and functions for DYSMALPY for simulating the kinematics of
 # a model galaxy and fitting it to observed data.

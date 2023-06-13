@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Testing of DYSMALPY fitting calculations
 #    + Primarily using the FITTING_WRAPPER functionality, as a shortcut
