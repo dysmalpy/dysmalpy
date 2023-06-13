@@ -31,7 +31,6 @@ __all__ = ['MCMCFitter', 'NestedFitter', 'MPFITFitter',
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 
 def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method=None):

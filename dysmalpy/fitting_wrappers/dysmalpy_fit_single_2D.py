@@ -54,7 +54,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, datadir=None,
     if 'plot_type' not in params.keys():
         params['plot_type'] = plot_type
 
-    params['overwrite'] = overwrite
+    fit_dict['overwrite'] = overwrite
 
     # Check if fitting already done:
     if params['fit_method'] == 'mcmc':

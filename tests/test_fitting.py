@@ -15,9 +15,6 @@ from dysmalpy.fitting_wrappers import dysmalpy_fit_single
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 from dysmalpy import fitting
 
-import logging
-logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.DEBUG)
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)

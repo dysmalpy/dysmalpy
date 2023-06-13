@@ -28,7 +28,6 @@ sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 
 def _normalized_gaussian1D_kern(sigma_pixel):

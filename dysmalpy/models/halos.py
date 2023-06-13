@@ -48,7 +48,6 @@ g_pc_per_Msun_kmssq = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -1220,7 +1219,7 @@ class DekelZhao(DarkMatterHalo):
 
     def calc_rhovirbar(self, rvirial=None):
         """
-        Average density in the virial radius, in :math:``M_{\odot}/\rm{kpc}^3``
+        Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
         """
         mvir = 10**self.mvirial
         if rvirial is None:

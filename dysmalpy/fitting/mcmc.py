@@ -44,7 +44,6 @@ __all__ = ['MCMCFitter', 'MCMCResults']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 try:
     import emcee
@@ -188,7 +187,6 @@ class MCMCFitter(base.Fitter):
         # Clean up logger:
         if output_options.f_log is not None:
             logger.removeHandler(loggerfile)
-            loggerfile.close()
 
         return mcmcResults
 

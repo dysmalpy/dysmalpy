@@ -25,7 +25,6 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 import warnings
 warnings.filterwarnings("ignore")

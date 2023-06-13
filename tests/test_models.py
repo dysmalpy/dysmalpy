@@ -17,9 +17,6 @@ from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 
 from dysmalpy import galaxy, models, parameters, instrument, config, observation
 
-import logging
-logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.DEBUG)
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)

@@ -17,9 +17,6 @@ from dysmalpy import fitting
 from dysmalpy import lensing
 from dysmalpy.lensing import LensingTransformer
 
-import logging
-logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.DEBUG)
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)

@@ -28,7 +28,7 @@ __all__ = ['ensure_dir', 'load_pickle', 'dump_pickle']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
+
 
 def ensure_dir(dir):
     """ Short function to ensure dir is a directory; if not, make the directory."""

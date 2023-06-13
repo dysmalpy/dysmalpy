@@ -31,13 +31,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
 
 
-__all__ = [ "rebin", "calc_pixel_distance", "create_aperture_mask", 
-            "determine_aperture_centers", "calc_pix_position", 
-            "measure_1d_profile_apertures", "apply_smoothing_2D", "apply_smoothing_3D", 
-            "symmetrize_velfield", "symmetrize_1D_profile", 
-            "fit_truncated_gaussian", "lnlike_truncnorm", "fit_uncertainty_ellipse", 
-            "gaus_fit_sp_opt_leastsq", "gaus_fit_apy_mod_fitter", "get_cin_cout"]
-
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
     shape = (arr.shape[0],

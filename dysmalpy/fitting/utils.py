@@ -24,7 +24,6 @@ from dysmalpy.instrument import DoubleBeam, Moffat, GaussianBeam
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 
 _bayesian_fitting_methods = ['mcmc', 'nested']

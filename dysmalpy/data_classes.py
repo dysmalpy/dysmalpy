@@ -20,7 +20,6 @@ from spectral_cube import SpectralCube #, BooleanArrayMask
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
-logger.setLevel(logging.INFO)
 
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
