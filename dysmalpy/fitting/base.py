@@ -930,7 +930,7 @@ def log_like(gal, fitter=None):
 
 
             else:
-                logger.warning("ndim={} not supported!".format(gal.data.ndim))
+                logger.warning("ndim={} not supported!".format(obs.data.ndim))
                 raise ValueError
 
 
