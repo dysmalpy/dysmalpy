@@ -1,0 +1,121 @@
+galID,lowsn
+z,1.526
+datadir, .
+fdata_cube,lowsn_mock.fits
+fdata_err, lowsn_mock_noise.fits
+fdata_mask,      lowsn_mock_mask.fits
+spec_orig_type,       VELOCITY  
+spec_line_rest,       6564.
+spec_line_rest_unit,  angstrom
+spec_vel_trim,        -500   500. 
+spatial_crop_trim,     0  72   0  72
+xcenter,25.0
+ycenter,25.0
+data_inst_corr,   True
+auto_gen_3D_mask,               True
+auto_gen_mask_apply_skymask_first,  True
+auto_gen_mask_snr_thresh_pixel,     None 
+auto_gen_mask_sig_segmap_thresh,    3. 
+auto_gen_mask_npix_segmap_min,      5
+auto_gen_mask_sky_var_thresh,       2.  
+auto_gen_mask_snr_int_flux_thresh,      3. 
+outdir, .
+pixscale,0.125
+fov_npix,51
+spec_type,   velocity          
+spec_start,     -500.         
+spec_step,         10.         
+nspec,            101          
+use_lsf,          True         
+sig_inst_res,40.0
+psf_type,         Gaussian     
+psf_fwhm,0.417
+psf_beta,         -99.         
+include_halo,        True  
+adiabatic_contract,  False     
+pressure_support,   True
+noord_flat,          True      
+oversample,2
+oversize,            1         
+total_mass,           10.5    
+bt,0.301
+r_eff_disk,6.595
+n_disk,               1.0      
+invq_disk,            5.0      
+n_bulge,              4.0      
+invq_bulge,           1.0      
+r_eff_bulge,0.871
+total_mass_fixed,     False
+bt_fixed, True
+r_eff_disk_fixed, True
+n_disk_fixed,         True
+r_eff_bulge_fixed,    True
+n_bulge_fixed,        True
+total_mass_bounds,   8.0  13.0
+bt_bounds,           0.0   1.0
+r_eff_disk_bounds,   0.1   73
+n_disk_bounds,       1.0   8.0
+r_eff_bulge_bounds,  0.1   5.0
+n_bulge_bounds,      1.0   8.0
+bt_stddev,           0.1
+r_eff_disk_stddev,   1.0
+total_mass_stddev,   1.0
+n_disk_stddev,       0.1
+r_eff_bulge_stddev,  1.0
+n_bulge_stddev,      0.1 
+halo_profile_type,   NFW
+mvirial,             11.5       
+halo_conc,5.172
+fdm,                 0.5
+mvirial_tied,        True
+mvirial_fixed,       True 
+halo_conc_fixed,     True
+fdm_fixed,           False   
+mvirial_bounds,      10.0 13.0
+halo_conc_bounds,    1.0 20.0
+fdm_bounds,          0.0 1.0
+mvirial_prior,       gaussian
+halo_conc_prior,     flat
+fdm_prior,           flat
+mvirial_stddev,      0.5
+halo_conc_stddev,    0.5
+fdm_stddev,          1.0
+sigma0,40
+sigma0_fixed, False
+sigma0_bounds,       5.0 150.0
+sigma0_prior,        flat
+sigma0_stddev,       25.0
+sigmaz,              0.9      
+sigmaz_fixed,        False
+sigmaz_bounds,       0.1 1.0
+sigmaz_prior,         flat
+zheight_tied,        True
+inc,36.793
+pa,90.0
+xshift,0
+yshift,0
+vel_shift,           0.        
+inc_fixed, True
+pa_fixed,            True 
+xshift_fixed,        True 
+yshift_fixed,        True 
+vel_shift_fixed,     True
+inc_bounds,          10.   90.
+pa_bounds,           80.  100.
+xshift_bounds,       -4.0  4.0       
+yshift_bounds,       -4.0  4.0        
+vel_shift_bounds,    -150.  150.       
+inc_prior,           sine_gaussian
+pa_prior,            flat
+xshift_prior,        flat
+yshift_prior,        flat
+vel_shift_prior,     flat
+inc_stddev,          0.1
+pa_stddev,           10.
+xshift_stddev,       2.
+yshift_stddev,       2.
+vel_shift_stddev,    10.
+fit_method,   mpfit
+do_plotting,True
+overwrite,       True
+maxiter,         200        
