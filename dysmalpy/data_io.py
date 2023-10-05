@@ -69,4 +69,7 @@ class _rename_unpickler(pickle_module.Unpickler):
         else:
             renamed_module = module
 
-        return super(_rename_unpickler, self).find_class(renamed_module, name)
+        try:
+            return super(_rename_unpickler, self).find_class(renamed_module, name)
+        except:
+            return super(_rename_unpickler, self).find_class(module, name)
