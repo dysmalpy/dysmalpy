@@ -71,5 +71,5 @@ class _rename_unpickler(pickle_module.Unpickler):
 
         try:
             return super(_rename_unpickler, self).find_class(renamed_module, name)
-        except:
+        except ModuleNotFoundError:
             return super(_rename_unpickler, self).find_class(module, name)
