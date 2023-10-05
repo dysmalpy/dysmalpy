@@ -87,6 +87,8 @@ class NestedFitter(base.Fitter):
         self.linked_posterior_names = None
 
 
+        self.print_func = None
+
 
     def fit(self, gal, output_options):
         """
@@ -215,6 +217,7 @@ class NestedFitter(base.Fitter):
                             maxiter=self.maxiter,
                             use_stop=self.use_stop,
                             resume=resume, 
+                            print_func=self.print_func, 
                             checkpoint_file=output_options.f_checkpoint, 
                             wt_kwargs={'pfrac': self.pfrac})
 
