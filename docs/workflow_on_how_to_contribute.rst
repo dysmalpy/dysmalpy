@@ -10,11 +10,10 @@ Before you start working on your contribution, it's crucial to have the most up-
 
 First, navigate to your local repository's directory and then run the following commands to fetch the latest changes from the remote repository and update your local branch:
 
+.. code-block:: console
 
-```bash
-git fetch origin
-git pull origin main  # Replace 'main' with the name of the branch you plan to work off of
-```
+    $ git fetch origin
+    $ git pull origin main  # Replace 'main' with the name of the branch you plan to work off of 
 
 This ensures that your local branch is synchronized with the latest changes from the main branch.
 
@@ -24,9 +23,9 @@ Before you start making any changes, it's safe to work in a dedicated branch to 
 
 To create and switch to a new branch with a meaningful name (replace your-branch-name with a descriptive name for your task):
 
-```bash
-git checkout -b your-branch-name
-```
+.. code-block:: console
+
+    $ git checkout -b your-branch-name
 
 Now you're in your new branch and ready to make changes.
 
