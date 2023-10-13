@@ -3,7 +3,7 @@ How to build and deploy documentation
 
 **NOTE: These instructions are for authorized maintainers only**
 
-To update the documentation of dysmalpy, which is located at the live server [https://www.mpe.mpg.de/resources/IR/DYSMALPY/](https://www.mpe.mpg.de/resources/IR/DYSMALPY/), please follow these steps:
+To update the documentation of dysmalpy, which is located at the live server https://www.mpe.mpg.de/resources/IR/DYSMALPY/, please follow these steps:
 
 **1. Make changes ONLY in the dysmalpy repository**
 
