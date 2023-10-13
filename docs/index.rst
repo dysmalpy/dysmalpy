@@ -19,6 +19,9 @@ dysmalpy
    examples_downloads.rst
    overview_code_structure.rst
    api.rst
+   acknowledging_and_referencing.rst
+   bugfix_instructions.rst
+   mailing_list.rst
 
 .. toctree::
    :maxdepth: 2
