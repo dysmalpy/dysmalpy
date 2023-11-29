@@ -9,7 +9,17 @@ Please provide here a concise summary of the issue.
 
 **Package Version**
 
-Indicate the version of DYSMALPY that you are using. You can find this information in your package documentation or by running ``pip show dysmalpy`` (if you are using a conda environment, make sure you are working on the environment with the DYSMALPY installation).
+Indicate the version of DYSMALPY that you are using. 
+
+You can find this information in your package documentation or by running ``pip show dysmalpy`` (if you installed DYSMALPY with pip). If you are using a conda environment, make sure you are working on the environment with the DYSMALPY installation.
+
+Alternatively, you can check the version from within python:
+
+.. code-block:: python
+
+    import dysmalpy
+    print(dysmalpy.__version__)
+
 
 **Environment Details**
 
