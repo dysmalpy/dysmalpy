@@ -14,7 +14,7 @@ If you encounter a problem when running DysmalPy, please check the tutorials [ L
 
 If you believe your issue is a bug, please use one of the following methods of notifying the maintainers, listed in order of preference:
 
-1. Open a bug report on the GitHub repository [LINK TO THE BUG REPORT TEMPLATE]. 
+1. Open a bug report on the GitHub repository [bug_report_template.rst](bug_report_template.rst) [LINK TO THE BUG REPORT TEMPLATE]. 
     
 2. Email the maintainers at [EMAIL ADDRESS]. 
 
