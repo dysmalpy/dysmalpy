@@ -22,6 +22,12 @@ The overall basic usage of DYSMALPY can be summarized as follows:
 4) **Assess:** Visualise, assess fit, and fine tune the fitting
 
 
+.. _MPFIT: https://code.google.com/archive/p/astrolibpy/issues
+.. _emcee: https://emcee.readthedocs.io
+.. _Dynesty: https://dynesty.readthedocs.io
+
+
+
 Dependencies
 ------------
 * python (version >= 3.7)
