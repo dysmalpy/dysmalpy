@@ -7,7 +7,7 @@ To update the documentation of dysmalpy, which is located at the live server htt
 
 **1. Make changes ONLY in the dysmalpy repository**
 
-To have an organized workflow and leverage from version control, we will make the changes on the documentation (e.g., on the .rst files) in the github repository and not directly in the AFS directories.
+To have an organized workflow and leverage from version control, we will make the changes on the documentation (e.g., on the .rst files) in the GitHub repository and not directly in the AFS directories.
 
 Refer to the file ```workflow_on_how_to_contribute.rst``` on how to contribute to the repository. 
 
@@ -35,7 +35,7 @@ To build the documentation with Sphinx, which compiles the files in reStructured
 
     $ make html
 
-The ```Makefle``` document that is executed using the command above has the important paths and the instrucitons for Sphinx so it should not be changed, unless strictly necessary. The built .html docs will go under ```/afs/mpe/astrosoft/dysmalpy/dysmalpy/docs/_build/html```
+The ```Makefle``` document that is executed using the command above has the important paths and the instructions for Sphinx so it should not be changed, unless strictly necessary. The built .html docs will go under ```/afs/mpe/astrosoft/dysmalpy/dysmalpy/docs/_build/html```
 
 **4. Copy the built docs to the live server**
 
@@ -45,6 +45,6 @@ To automate the process of copying the .html files to the live website using rsy
 
     $ bash /afs/mpe/www/resources/IR/DYSMALPY/update.sh
 
-The .html files will be copied to ```/afs/mpe/www/resources/IR/DYSMALPY/```, so the website will be updated automatically. Always double-ckeck that the website is updated correctly.
+The .html files will be copied to ```/afs/mpe/www/resources/IR/DYSMALPY/```, so the website will be updated automatically. Always double-check that the website is updated correctly.
 
 Thank you for contributing to Dysmalpy's documentation. If you have any questions or encounter issues during the process, feel free to ask for assistance.
