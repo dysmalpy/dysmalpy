@@ -41,14 +41,17 @@ Appendix in Price et al. (2021).
 
 The overall basic usage of DYSMALPY can be summarized as follows:
 
-1) **Setup steps:** Import modules, set paths, define global constants and 
-variables
-2) **Initialize:** Create a galaxy object with its corresponding parameters, 
+**1) Setup steps:** Import modules, set paths, define global constants and 
+variables.
+
+**2) Initialize:** Create a galaxy object with its corresponding parameters, 
 add the model set (disk, bulge, DM halo, etc), set up the observation and 
 instrument information.
-3) **Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using 
+
+**3) Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using 
 either MPFIT, MCMC or dynamic nested sampling.
-4) **Assess:** Visualise, assess fit, and fine tune the fitting
+
+**4) Assess:** Visualise, assess fit, and fine tune the fitting. 
 
 
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy/issues
