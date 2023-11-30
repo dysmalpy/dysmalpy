@@ -14,6 +14,8 @@ If `aperture_radius` is not set, then the user must set a `slit_width`.
 The default center pixel is the center of the data cube.
 
 .. image:: ../_static/dpy_apertures/circ_cp.png
+  :width: 200
+  :height: 200
 
 Rectangular Aperture
 ---------------------
@@ -25,6 +27,8 @@ Keywords controlling the aperture shape: `slit_pa`, `slit_width`, or specify `pi
 Otherwise, `rarr` will be taken from obs.data.rarr, which will then be treated as `aper_centers`.
 
 .. image:: ../_static/dpy_apertures/rect_cp.png
+  :width: 200
+  :height: 200
 
 Single Pixel PV
 ----------------
