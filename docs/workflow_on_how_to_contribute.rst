@@ -1,7 +1,9 @@
 Contribution instructions for collaborators
-============
+===========================================
 
-**NOTE: These instructions are for authorized maintainers only**
+.. warning::
+    These instructions are for authorized maintainers only
+
 
 To contribute to this repository, please follow these steps:
 

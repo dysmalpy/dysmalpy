@@ -7,7 +7,8 @@ Acknowledging and Referencing
 
 (quick dump from the text in the google doc)
 
-When using DYSMAL or DysmalPy in published research, you are required to cite the following papers describing the software methods and demonstration: 
+When using DYSMAL or DysmalPy in published research, you are required to cite 
+the following papers describing the software methods and demonstration: 
 
 Cresci+09
 

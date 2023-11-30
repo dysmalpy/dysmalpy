@@ -1,3 +1,4 @@
+.. _quickstart_tutorial:
 ===============================
 Quickstart ``Dysmalpy`` example
 ===============================
@@ -8,7 +9,6 @@ Alternatively, the script (`dysmalpy_quickstart_example.py`_)
 can be run with:
 
 .. _dysmalpy_quickstart_example.py: dysmalpy_quickstart_example.py
-
 
 .. code-block:: console
 

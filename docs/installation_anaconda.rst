@@ -73,7 +73,7 @@ or, if you want to select a specific version of python, use for example:
     $ conda create --name my-env python=3.10
 
 .. warning::
-    DysmalPy requires python version ``>=3.7``.
+    DysmalPy requires python version ``>=3.10``.
 
 
 Then follow the prompts to finish creating the new environment ``my-env``.
