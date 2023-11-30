@@ -58,8 +58,10 @@ setup_args = {'name': 'dysmalpy',
         'long_description': readme,
         'include_package_data': True,
         'packages': ['dysmalpy', 'dysmalpy.extern', 'dysmalpy.models',
-                     'dysmalpy.fitting', 'dysmalpy.fitting_wrappers'],
-        'package_data': {'dysmalpy': ['data/noordermeer/*.save', 'data/deprojected_sersic_models_tables/*.fits']},
+                     'dysmalpy.fitting', 'dysmalpy.fitting_wrappers',
+                     'tests'],
+        'package_data': {'dysmalpy': ['data/noordermeer/*.save', 'data/deprojected_sersic_models_tables/*.fits'],
+                         'tests': ['test_data/*', 'test_data_lensing/*', 'test_data_masking/*', 'test_data_masking/*']},
         'version': __version__ }
 
 
