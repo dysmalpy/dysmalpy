@@ -1293,7 +1293,13 @@ class ModelSet:
 
 
         # Get the galaxy geometry corresponding to the observation:
-        geom = self.geometries[obs.name]
+        if len(self.geometries) == 0:
+            if sum(self.mass_components.values()) > 0:
+                raise AttributeError('No geometry defined in your ModelSet!')
+            else:
+                geom = None
+        else:
+            geom = self.geometries[obs.name]
 
 
         # Start with a 3D array in the sky coordinate system

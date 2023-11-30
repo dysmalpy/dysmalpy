@@ -1145,8 +1145,8 @@ def plot_data_model_comparison_2D(obs, model,
 
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=vmin, vmax=vmax, origin=origin)
-
-            ax = plot_major_minor_axes_2D(ax, obs, model, im, obs.data.mask)
+            if len(model.geometries) > 0:
+                ax = plot_major_minor_axes_2D(ax, obs, model, im, obs.data.mask)
             if show_ruler:
                 pixscale = obs.instrument.pixscale.value
                 ax = plot_ruler_arcsec_2D(ax, pixscale, len_arcsec=1.,

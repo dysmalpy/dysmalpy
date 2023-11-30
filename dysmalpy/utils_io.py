@@ -197,8 +197,15 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
     else:
         ycenter = (vel_mod.shape[0]-1)/2. + 1
 
-    hdr['CRPIX1'] = (xcenter + model.geometries[obs.name].xshift.value, 'Pixel coordinate of reference point')
-    hdr['CRPIX2'] = (ycenter + model.geometries[obs.name].yshift.value, 'Pixel coordinate of reference point')
+    if len(model.geometries) > 0:
+        hdr['CRPIX1'] = (xcenter + model.geometries[obs.name].xshift.value, 'Pixel coordinate of reference point')
+        hdr['CRPIX2'] = (ycenter + model.geometries[obs.name].yshift.value, 'Pixel coordinate of reference point')
+    else:
+        key = next(iter(model.higher_order_geometries))
+        hdr['CRPIX1'] = (xcenter + model.higher_order_geometries[key].xshift.value,
+                         'Pixel coordinate of reference point')
+        hdr['CRPIX2'] = (ycenter + model.higher_order_geometries[key].yshift.value,
+                         'Pixel coordinate of reference point')
 
     hdr['BUNIT'] = (spec_unit, 'Spectral unit')
 
@@ -490,7 +497,7 @@ class Report(object):
         ncount_2d = 0
         for obs_name in gal.observations:
             obs = gal.observations[obs_name]
-            if obs.instrument.ndim == 2:
+            if (obs.instrument.ndim == 2) & (len(gal.model.geometries) > 0):
                 if ncount_2d == 0:
                     self.add_line( '-----------' )
                 ncount_2d += 1
@@ -527,6 +534,7 @@ class Report(object):
         #     results_status = -99
         #if (((self.fit_method.upper() == 'MPFIT') & results_status>=0) | (self.fit_method.upper() == 'MCMC')):
         # if True:
+        datstr_noord = None
         for cmp_n in gal.model.param_names.keys():
             for param_n in gal.model.param_names[cmp_n]:
 
@@ -621,7 +629,8 @@ class Report(object):
 
         
         # INFO on Noordermeer flattening:
-        self.add_line( datstr_noord )
+        if datstr_noord is not None:
+            self.add_line( datstr_noord )
 
 
         # INFO on pressure support type:
@@ -672,7 +681,7 @@ class Report(object):
 
 
             # If 2D data: Rmaxout2D:
-                if obs.instrument.ndim == 2:
+                if (obs.instrument.ndim == 2) & (len(gal.model.geometries) > 0):
                     ncount_2d += 1
                     Routmax2D = _calc_Rout_max_2D(model=gal.model, obs=obs, results=results, dscale=gal.dscale)
                     lblstr = 'obs:{}:Routmax2D'.format(''.join(obs_name.split(' ')))

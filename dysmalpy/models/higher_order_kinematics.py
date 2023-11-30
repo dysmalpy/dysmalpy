@@ -210,7 +210,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
         ind_zero = ((theta < self.thetain) |
                     (theta > thetaout) |
                     (r > self.rend))
-        flux[ind_zero] = 0.
+        flux[ind_zero] = 1e-16       # To avoid NaNs
 
         return flux
 
