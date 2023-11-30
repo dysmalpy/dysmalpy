@@ -28,7 +28,7 @@ branch off of the main or development branch (as appropriate).
 **3. Build the documentation**
 
 Once you have made changes on any of the documentation files under /docs/,
- you can build the documentation with Sphinx, which compiles the files in 
+you can build the documentation with Sphinx, which compiles the files in 
 reStructuredText format (reST) with extension .rst and Jupyter notebook 
 tutorials (.ipynb)  and produces the .html files, run the following command:
 
