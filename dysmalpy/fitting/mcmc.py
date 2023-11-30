@@ -1075,11 +1075,12 @@ def _make_emcee_sampler_results_dict_v2(sampler_results, nBurn=0):
 
 def _make_emcee_sampler_results_dict_v3(sampler_results, nBurn=0):
     """ Syntax for emcee v3 """
-
     # Cut first nBurn steps, to avoid the edge cases that are rarely explored.
-    samples = sampler_results.chain[:, nBurn:, :].reshape((-1, sampler_results.ndim))
+    samples = np.swapaxes(
+        sampler_results.get_chain(),0,1
+        )[:, nBurn:, :].reshape((-1, sampler_results.ndim))
     # Walkers, iterations
-    probs = sampler_results.lnprobability[:, nBurn:].reshape((-1))
+    probs = sampler_results.get_log_prob()[:, nBurn:].reshape((-1))
 
     acor_time = sampler_results.get_autocorr_time(tol=10, quiet=True)
 
@@ -1089,16 +1090,18 @@ def _make_emcee_sampler_results_dict_v3(sampler_results, nBurn=0):
         nCPUs = 1
 
     # Make a dictionary:
-    sampler_results_dict = { 'chain':               sampler_results.chain[:, nBurn:, :],
-                     'lnprobability':       sampler_results.lnprobability[:, nBurn:],
-                    'flatchain':            samples,
-                    'flatlnprobability':    probs,
-                    'nIter':                sampler_results.iteration,
-                    'nParam':               sampler_results.ndim,
-                    'nCPU':                 nCPUs,
-                    'nWalkers':             sampler_results.nwalkers,
-                    'acceptance_fraction':  sampler_results.acceptance_fraction,
-                    'acor_time':            acor_time }
+    sampler_results_dict = { 
+        'chain':   np.swapaxes(sampler_results.get_chain(),0,1)[:, nBurn:, :],
+        'lnprobability':       sampler_results.get_log_prob()[:, nBurn:],
+        'flatchain':            samples,
+        'flatlnprobability':    probs,
+        'nIter':                sampler_results.iteration,
+        'nParam':               sampler_results.ndim,
+        'nCPU':                 nCPUs,
+        'nWalkers':             sampler_results.nwalkers,
+        'acceptance_fraction':  sampler_results.acceptance_fraction,
+        'acor_time':            acor_time 
+    }
 
     if sampler_results.get_blobs() is not None:
         if len(sampler_results.get_blobs()) > 0:

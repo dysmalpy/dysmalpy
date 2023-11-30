@@ -23,7 +23,7 @@ logger = logging.getLogger('DysmalPy')
 logger.setLevel(logging.INFO)
 
 __all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures",
-            "EllipApertures", "CircApertures", "RectApertures", "SquareApertures",
+            "EllipApertures", "CircApertures", "RectApertures", 
             # "SinglePixelPVApertures", 
             #"CircularPVApertures",
             "setup_aperture_types"] 
@@ -548,24 +548,6 @@ class RectApertures(Apertures):
 
         super(RectApertures, self).__init__(apertures=apertures, slit_PA=slit_PA, rotate_cube=rotate_cube)
 
-class SquareApertures(RectApertures):
-    """
-    Set of SquareApertures apertures. 
-    
-    Extends RectApertures.
-
-    Note here that pix_perp and pix_parallel are the *WIDTHS* of the rectangular apertures
-
-    """
-    def __init__(self, rarr=None, slit_PA=None, pix_length=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
-             moment=False):
-
-        super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA,
-                pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny,
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight,
-                rotate_cube=rotate_cube,
-                moment=moment)
 
 
 # class SinglePixelPVApertures(Apertures):
@@ -895,11 +877,13 @@ def setup_aperture_types(obs=None, profile1d_type=None,
     # partial_weight:
     #      are partial pixels weighted in apertures?
 
-    _valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'circ_ap_pv', 'single_pix_pv']
-    _print_valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'square_ap_cube', 'single_pix_pv']
+    _valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'circ_ap_pv', 'single_pix_pv']
+    _print_valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'single_pix_pv']
     if profile1d_type.lower() not in _valid_1dprofs:
-        raise ValueError("profile1d_type={} not in the valid list: {}".format(profile1d_type.lower(), 
-                                                                              _print_valid_1dprofs))
+        raise ValueError("profile1d_type={} not in the valid list: {}".format(
+            profile1d_type.lower(), 
+            _print_valid_1dprofs
+            ))
 
     if aper_centers is None:
         raise ValueError("Must set 'aper_centers'!")
@@ -910,7 +894,9 @@ def setup_aperture_types(obs=None, profile1d_type=None,
             pass
         else:
             msg = "profile1d_type: {}\n".format(profile1d_type)
-            if (profile1d_type.lower() in ['rect_ap_cube', 'square_ap_cube']) & ((pix_perp is None) or (pix_parallel is None)):
+            if (profile1d_type.lower() in ['rect_ap_cube']) & (
+                (pix_perp is None) or (pix_parallel is None)
+            ):
                 msg += " & pix_perp={}, pix_parallel={}\n".format(pix_perp, pix_parallel)
             msg += "Must set 'slit_width'!"
             raise ValueError(msg)
@@ -962,15 +948,6 @@ def setup_aperture_types(obs=None, profile1d_type=None,
                 partial_weight=partial_weight, rotate_cube=rotate_cube,
                 moment=obs.instrument.moment)
 
-    elif (profile1d_type.lower() == 'square_ap_cube'):
-        if ('pix_length' is None):
-            pix_length = slit_width/pixscale
-
-        apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa,
-                 pix_length = pix_length,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
-                 partial_weight=partial_weight, rotate_cube=rotate_cube,
-                 moment=obs.instrument.moment)
 
     elif (profile1d_type.lower() == 'circ_ap_pv'):
         # apertures = CircularPVApertures(rarr=aper_centers, slit_PA=slit_pa,

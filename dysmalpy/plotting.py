@@ -3584,12 +3584,12 @@ def plot_single_obs_rotcurve_components(obs, model,
 
 
         for ind,text in enumerate(legend.get_texts()):
-            legend.legendHandles[ind].set_visible(False)
+            legend.legend_handles[ind].set_visible(False)
             #text.set_color(color_arr[ind])
             try:
-                text.set_color(legend.legendHandles[ind]._color)
+                text.set_color(legend.legend_handles[ind]._color)
             except:
-                text.set_color(legend.legendHandles[ind]._original_edgecolor)
+                text.set_color(legend.legend_handles[ind]._original_edgecolor)
 
         # ++++++++++++++++++++++++++++++++++++
         ax = axes[1]
@@ -3672,7 +3672,7 @@ def plot_single_obs_rotcurve_components(obs, model,
             fontsize=fontsize_leg)
         #
         for ind,text in enumerate(legend.get_texts()):
-            legend.legendHandles[ind].set_visible(False)
+            legend.legend_handles[ind].set_visible(False)
             text.set_color(color_arr[ind])
 
 

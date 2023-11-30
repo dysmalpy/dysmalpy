@@ -207,37 +207,16 @@ def read_results_ascii_file(fname=None):
 
     names = ['component', 'param_name', 'fixed', 'best_value', 'l68_err', 'u68_err']
 
-    data = pd.read_csv(fname, sep=' ', comment='#', names=names, skipinitialspace=True,
-                    index_col=False)
+    data = pd.read_csv(
+        fname, sep=' ', comment='#', names=names, skipinitialspace=True,
+        index_col=False
+    )
 
 
     return data
 
 
 
-
-def make_catalog_row_entry(ascii_data=None, galID=None):
-
-    params = ['total_mass', 'r_eff_disk', 'bt', 'mvirial', 'conc', 'sigma0']
-    extra_params = ['f_DM_RE']
-
-    data = pd.DataFrame({'galID': galID},
-                         index=[0])
-
-    for par in params:
-        whrow = np.where((ascii_data['param_name'].str.strip()==par))[0][0]
-        data[par] = ascii_data['best_value'].iloc[whrow]
-        data[par+"_u68_err"] = ascii_data['u68_err'].iloc[whrow]
-        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
-
-    for par in extra_params:
-        whrow = np.where((ascii_data['component'].str.strip()==par))[0][0]
-        data[par] = ascii_data['best_value'].iloc[whrow]
-        data[par+"_u68_err"] = ascii_data['u68_err'].iloc[whrow]
-        data[par+"_l68_err"] = ascii_data['l68_err'].iloc[whrow]
-
-
-    return data
 
 
 def load_single_obs_1D_data(fdata=None, fdata_mask=None, params=None, datadir=None, extra=''):
