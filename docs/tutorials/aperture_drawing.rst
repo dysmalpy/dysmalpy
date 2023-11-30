@@ -23,12 +23,12 @@ Keywords controlling the aperture shape: ``slit_pa``, ``slit_width``, or specify
 
 ``pix_perp`` and ``pix_parallel`` are illustrated below.
 
-``pix_perp`` and ``pix_parallel`` can be array objects defined by the user. In such a case, an array of the same length containing the aperture centers ``rarr`` has to be provided.
-Otherwise, ``rarr`` will be taken from obs.data.rarr, which will then be treated as ``aper_centers``.
-
 .. image:: ../_static/dpy_apertures/rect_cp.png
   :width: 200
   :height: 200
+
+``pix_perp`` and ``pix_parallel`` can be array objects defined by the user. In such a case, an array of the same length containing the aperture centers ``rarr`` has to be provided.
+Otherwise, ``rarr`` will be taken from ``obs.data.rarr``, which will then be treated as ``aper_centers``.
 
 Single Pixel PV
 ----------------
