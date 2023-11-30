@@ -5,6 +5,7 @@ Dynamical Simulation and Modeling Algorithm
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
+DYSMALPY website: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
 kinematics. It has been developed and maintained at the Max Planck Institute 
