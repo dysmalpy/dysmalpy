@@ -4,26 +4,31 @@ Building and deploying documentation
 .. warning::
     These instructions are for authorized maintainers only
 
-
 Building documentation locally
 ******************************
 
 Before committing documentation changes, it is recommended to check the changes 
-by building the documentation on your computer.
+by building the documentation on your computer. 
 
-**Required dependencies:**
+**1. Install Sphinx and dependencies**
 
-XXXXXXXX
+You can install Sphinx and the dependencies to build the documentation using pip:
 
+.. code-block:: console
 
-**1. Make changes within your working branch**
+    $ pip install sphinx-automodapi
+    $ pip install sphinx-rtd-theme
+    $ pip install myst_nb
+
+**2. Make changes within your working branch**
 
 For both documentation and code changes, all work should be done in a new 
 branch off of the main or development branch (as appropriate). 
 
-**2. Build the documentation**
+**3. Build the documentation**
 
-To build the documentation with Sphinx, which compiles the files in 
+Once you have made changes on any of the documentation files under /docs/,
+ you can build the documentation with Sphinx, which compiles the files in 
 reStructuredText format (reST) with extension .rst and Jupyter notebook 
 tutorials (.ipynb)  and produces the .html files, run the following command:
 
@@ -35,7 +40,7 @@ The ```Makefle``` document that is executed using the command above has the
 important paths and the instructions for Sphinx so it should not be changed, 
 unless strictly necessary. 
 
-**3. Check built html files**
+**4. Check built html files**
 
 The built .html docs are located under 
 ```/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/```
@@ -43,9 +48,10 @@ The built .html docs are located under
 Within your browser, open the local file 
 ```/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/index.html``` 
 and check the various documentation pages you have changed/added, including 
-any added links to the index page TOC.
+any added links to the index page TOC. If you are using VScode, you can install 
+the extension "Live Server" to view the built html files in your browser.
 
-**4. Iterate as necessary**
+**5. Iterate as necessary**
 
 Commit the changes after all testing and work is completed.  
 
@@ -87,7 +93,7 @@ don't, please contact Thomas Ott.)
 
 To build the documentation with Sphinx, which compiles the files in 
 reStructuredText format (reST) with extension .rst and Jupyter notebook 
-tutorials (.ipynb)  and produces the .html files, run the following command:
+tutorials (.ipynb) and produces the .html files, run the following command:
 
 .. code-block:: console
 
