@@ -12,7 +12,8 @@ Normally `slit_width` would be the FWHM of the beam size, while `aperture_radius
 If `aperture_radius` is not set, then the user must set a `slit_width`.
 The default center pixel is the centre of the data cube.
 
-.. image:: _static/circ_cp.pdf
+
+.. image:: _static/dpy_apertures/circ_cp.pdf
 
 Retangular Aperture
 Keywords controlling the aperture shape: `slit_pa`, `slit_width` or specify `pix_perp` and `pix_parallel` instead.
@@ -21,7 +22,7 @@ Keywords controlling the aperture shape: `slit_pa`, `slit_width` or specify `pix
 `pix_perp` and pix_parallel` can be array object define by user, in such case an array of the same length containing the apertures centers `rarr` has to be provided.
 Otherwise, `rarr` will be taken from obs.data.rarr, which then be treated as `aper_centers`.
 
-.. image:: _static/rect_cp.pdf
+.. image:: _static/dpy_apertures/rect_cp.pdf
 
 Single pixel PV
 Equivalent to Rectangular Aperture if `pix_parallel` is set to 1.
