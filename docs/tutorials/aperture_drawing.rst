@@ -1,17 +1,13 @@
 1D Aperture Setup
 =================
 
-Illustrations of the available 1D aperture setups from ``aperture_classes``.
+Illustrations of the available 1D aperture setups using the :code:`aperture_classes` module.
 
 Circular Aperture
 -----------------
-Keywords controlling the aperture shape: ``slit_pa``, ``slit_width``, ``aperture_radius``.
+Keywords controlling the aperture shape: :code:`slit_pa`, :code:`slit_width`, :code:`aperture_radius`.
 
-Set of circular apertures with a radius of ``aperture_radius`` along the slit described by ``slit_pa`` and ``slit_width``.
-``slit_pa`` is the position angle in degrees from North pointing towards the blue side.
-Normally, ``slit_width`` would be the FWHM of the beam size, while ``aperture_radius`` would be half of that.
-If ``aperture_radius`` is not set, then the user must set a ``slit_width``.
-The default center pixel is the center of the data cube.
+This setup consists of circular apertures with a radius specified by :code:`aperture_radius`. The apertures are positioned along the slit, which is defined by the parameters :code:`slit_pa` and :code:`slit_width`. The angle :code:`slit_pa` represents the position angle in degrees from North pointing towards the blue side. Typically, :code:`slit_width` corresponds to the FWHM of the beam size. If :code:`aperture_radius` is not set, the user must provide a value for :code:`slit_width`. The default center pixel is the center of the data cube.
 
 .. image:: ../_static/dpy_apertures/circ_cp.png
   :width: 200
@@ -19,17 +15,19 @@ The default center pixel is the center of the data cube.
 
 Rectangular Aperture
 ---------------------
-Keywords controlling the aperture shape: ``slit_pa``, ``slit_width``, or specify ``pix_perp`` and ``pix_parallel`` instead.
+Keywords controlling the aperture shape: :code:`slit_pa`, :code:`slit_width`, or alternatively, specify :code:`pix_perp` and :code:`pix_parallel`.
 
-``pix_perp`` and ``pix_parallel`` are illustrated below.
+In this configuration, rectangular apertures are utilized. The dimensions of the rectangles are controlled by either the parameters :code:`slit_pa` and :code:`slit_width` or by directly specifying :code:`pix_perp` (semi-major axis) and :code:`pix_parallel` (semi-minor axis). These dimensions are illustrated below.
+
+The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. If array objects are provided, ensure they match the length of the aperture centers specified in :code:`rarr`. Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
 
 .. image:: ../_static/dpy_apertures/rect_cp.png
-  :width: 200
-  :height: 200
 
-``pix_perp`` and ``pix_parallel`` can be array objects defined by the user. In such a case, an array of the same length containing the aperture centers ``rarr`` has to be provided.
-Otherwise, ``rarr`` will be taken from ``obs.data.rarr``, which will then be treated as ``aper_centers``.
+:width: 200
+:height: 200
+
+The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. If array objects are provided, ensure they match the length of the aperture centers specified in :code:`rarr`. Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
 
 Single Pixel PV
 ----------------
-Equivalent to Rectangular Aperture if ``pix_parallel`` is set to 1.
+This configuration is equivalent to a Rectangular Aperture when :code:`pix_parallel` is set to 1.
