@@ -12,8 +12,7 @@ In general, :code:`slit_width` would be the FWHM of the beam size.
 If :code:`aperture_radius` is not set, the user must provide a value for :code:`slit_width`.
 
 .. image:: ../_static/dpy_apertures/circ_cp.png
-  :width: 600
-  :height: 300
+  :scale: 50%
 
 The user has the flexibility to modify the aperture centers (the red dots) :code:`aper_center` by passing `rarr` (in unit of arcsecond) as an array.
 Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr` in :code:`setup_gal_models`. The default center pixel is the center of the data cube.
@@ -26,8 +25,7 @@ This setup consists of a series of rectangular apertures lies along the :code:`s
 These dimensions are illustrated below.
 
 .. image:: ../_static/dpy_apertures/rect_cp.png
-  :width: 300
-  :height: 300
+  :scale: 50%
 
 The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. They should match the length of the aperture centers specified in :code:`rarr` (in unit of arcsecond).
 Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
