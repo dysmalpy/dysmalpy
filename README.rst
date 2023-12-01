@@ -5,7 +5,7 @@ Dynamical Simulation and Modeling Algorithm
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-.. image:: docs/_static/dpy_logo_spiral/DPy_h_blk.png
+.. image:: docs/_static/dpy_logo_spiral/DPy_h_blk_wh.png
    :alt: DPy Logo
 
 DYSMALPY website: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
