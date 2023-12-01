@@ -11,7 +11,7 @@ This setup consists of circular apertures with a radius specified by :code:`aper
 In general, :code:`slit_width` would be the FWHM of the beam size.
 If :code:`aperture_radius` is not set, the user must provide a value for :code:`slit_width`. The default center pixel is the center of the data cube.
 
-.. image:: ../_static/dpy_apertures/circ_cp.pdf
+.. image:: ../_static/dpy_apertures/circ_cp.png
   :width: 200
   :height: 200
 
