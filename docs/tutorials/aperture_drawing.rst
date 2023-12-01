@@ -25,7 +25,7 @@ This setup consists of a series of rectangular apertures lies along the :code:`s
 These dimensions are illustrated below.
 
 .. image:: ../_static/dpy_apertures/rect_cp.png
-  :scale: 25%
+  :scale: 10%
 
 The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. They should match the length of the aperture centers specified in :code:`rarr` (in unit of arcsecond).
 Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
