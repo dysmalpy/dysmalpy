@@ -7,7 +7,8 @@ Circular Aperture
 -----------------
 Keywords controlling the aperture shape: :code:`slit_pa`, :code:`slit_width`, :code:`aperture_radius`.
 
-This setup consists of circular apertures with a radius specified by :code:`aperture_radius`. The apertures are positioned along the slit, which is defined by the parameters :code:`slit_pa` and :code:`slit_width`. The angle :code:`slit_pa` represents the position angle in degrees from North pointing towards the blue side. In general, :code:`slit_width` corresponds to the FWHM of the beam size.
+This setup consists of circular apertures with a radius specified by :code:`aperture_radius`. The apertures are positioned along the slit, which is defined by the parameters :code:`slit_pa` and :code:`slit_width`. The angle :code:`slit_pa` is the position angle in degrees from North pointing towards the blue side.
+In general, :code:`slit_width` would be the FWHM of the beam size.
 If :code:`aperture_radius` is not set, the user must provide a value for :code:`slit_width`. The default center pixel is the center of the data cube.
 
 .. image:: ../_static/dpy_apertures/circ_cp.png
