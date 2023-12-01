@@ -1,7 +1,7 @@
 1D Aperture Setup
 =================
 
-Illustrations of the available 1D aperture setups using the :code:`aperture_classes` module.
+Illustrations of the available 1D aperture setups using the :code:`aperture_classes` module. The apertures setup chosen should be identical to how user extract the 1D profile from the data cube.
 
 Circular Aperture
 -----------------
@@ -12,10 +12,9 @@ In general, :code:`slit_width` would be the FWHM of the beam size.
 If :code:`aperture_radius` is not set, the user must provide a value for :code:`slit_width`.
 
 .. image:: ../_static/dpy_apertures/circ_cp.png
-  :scale: 50%
+  :width: 400
 
-The user has the flexibility to modify the aperture centers (the red dots) :code:`aper_center` by passing `rarr` (in unit of arcsecond) as an array.
-Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr` in :code:`setup_gal_models`. The default center pixel is the center of the data cube.
+The aperture centers (the red dots) :code:`aper_center` are specified via :code:`rarr` (in unit of arcsecond) as an array in the first column of the input file for :code:`fdata`.
 
 Rectangular Aperture
 ---------------------
@@ -27,8 +26,7 @@ These dimensions are illustrated below.
 .. image:: ../_static/dpy_apertures/rect_cp.png
   :width: 400
 
-The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. The arrays should match the length of the aperture centers specified in :code:`rarr` (in unit of arcsecond).
-Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
+The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. The arrays should match the length of the aperture centers specified in :code:`rarr` (in unit of arcsecond) in the input file for :code:`fdata`.
 
 Single Pixel PV
 ----------------
