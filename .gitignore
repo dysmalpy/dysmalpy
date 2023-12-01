@@ -27,6 +27,9 @@ docs/_build
 .pydevproject
 .settings
 
+# VSCode
+.vscode
+
 # Pycharm editor project files
 .idea
 
