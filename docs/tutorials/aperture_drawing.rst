@@ -22,9 +22,8 @@ In this configuration, rectangular apertures are utilized. The dimensions of the
 The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. If array objects are provided, ensure they match the length of the aperture centers specified in :code:`rarr`. Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
 
 .. image:: ../_static/dpy_apertures/rect_cp.png
-
-:width: 200
-:height: 200
+  :width: 200
+  :height: 200
 
 The user has the flexibility to define arrays for :code:`pix_perp` and :code:`pix_parallel`. If array objects are provided, ensure they match the length of the aperture centers specified in :code:`rarr`. Otherwise, the aperture centers will default to the values from :code:`obs.data.rarr`.
 
