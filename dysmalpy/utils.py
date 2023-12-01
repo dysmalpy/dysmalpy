@@ -36,7 +36,8 @@ __all__ = [ "rebin", "calc_pixel_distance", "create_aperture_mask",
             "measure_1d_profile_apertures", "apply_smoothing_2D", "apply_smoothing_3D", 
             "symmetrize_velfield", "symmetrize_1D_profile", 
             "fit_truncated_gaussian", "lnlike_truncnorm", "fit_uncertainty_ellipse", 
-            "gaus_fit_sp_opt_leastsq", "gaus_fit_apy_mod_fitter", "get_cin_cout"]
+            "gaus_fit_sp_opt_leastsq", "gaus_fit_apy_mod_fitter", "get_cin_cout",
+            "citations"]
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
@@ -713,3 +714,20 @@ def _set_instrument_kernels(gal):
             obs.instrument.set_lsf_kernel(spec_center=obs.instrument.line_center)
 
     return gal
+
+
+def citations():
+    """
+    Return the papers that should be cited when using DYSMALPY
+    """
+
+    str = "Please cite the following papers if using DYSMALPY for a publication:\n"
+    str += "-----------------------------------------\n"
+
+    str += "Cresci et al. (2009): https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C\n"
+    str += "Davies et al. (2011): https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D\n"
+    str += "Wuyts et al. (2016): https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W\n"
+    str += "Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P\n"
+    str += "Lee et al. (2023): in preparation"
+
+    return str

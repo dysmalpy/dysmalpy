@@ -11,5 +11,6 @@ import dysmalpy.utils
 import dysmalpy.utils_io
 import dysmalpy.data_io
 import dysmalpy.observation
+from dysmalpy.utils import citations
 
 __version__ = "2.0.0"
