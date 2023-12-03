@@ -2401,9 +2401,9 @@ class GaussianRing(MassModel, _LightMassModel):
     Model formula:
 
     .. math::
-        M(r)=M_0\exp\left(\frac{(r-r_{peak})^2}{2\sigma_R^2}\right)
+        M(r)&=M_0\exp\left(\frac{(r-r_{\rm peak})^2}{2\sigma_R^2}\right)
 
-        \sigma_R = \mathrm{FWHM}/(2\sqrt{2\ln 2})
+        \sigma_R &= \mathrm{FWHM}/(2\sqrt{2\ln 2})
 
     """
 
