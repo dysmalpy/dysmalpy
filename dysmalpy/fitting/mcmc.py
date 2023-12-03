@@ -885,50 +885,30 @@ class MCMCResults(base.BayesianFitResults, base.FitResults):
     """
     Class to hold results of MCMC fitting to DYSMALPY models.
 
-    Note: emcee sampler_results object is ported to a dictionary in
-            mcmcResults.sampler_results
+    Notes:
+    ------
+        `emcee` sampler_results object is ported to a dictionary in
+            `mcmcResults.sampler_results`
 
-        The name of the free parameters in the chain are accessed through:
-            mcmcResults.chain_param_names,
-                or more generally (separate model + parameter names) through
-                mcmcResults.free_param_names
+        The name of the free parameters in the chain are accessed through `mcmcResults.chain_param_names`, or more generally (separate model + parameter names) through `mcmcResults.free_param_names`
 
-        Optional attribute:
-        linked_posterior_names: indicate if best-fit of parameters
-                                should be measured in multi-D histogram space
-                                format: set of linked parameter sets, with each linked parameter set
-                                        consisting of len-2 tuples/lists of the
-                                        component+parameter names.
-
-
-        Structure explanation:
-        (1) Want to analyze component+param 1 and 2 together, and then
-            3 and 4 together.
-
-            Input structure would be:
-                linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
-                with
-                join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-                jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
-                for a full array of:
-                linked_posterior_names =
-                    [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
-
-        (2) Want to analyze component+param 1 and 2 together:
-            linked_posterior_names = [ joint_param_bundle1 ]
-            with
-            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-
-            for a full array of:
-                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
-
-                eg: look at halo: mvirial and disk+bulge: total_mass together
-                    linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
-                    or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
+    Optional Attribute:
+    ----------------------
+        `linked_posterior_names`
+            Indicates if best-fit parameters should be measured in multi-dimensional histogram space.
+            It takes a list of linked parameter sets, where each set consists of len-2 tuples/lists of
+            the component + parameter names.
 
 
+    Structure Explanation:
+    ----------------------
+    #. To analyze component + param 1 and 2 together, and then 3 and 4 together: `linked_posterior_names = [joint_param_bundle1, joint_param_bundle2]` with `joint_param_bundle1 = [[cmp1, par1], [cmp2, par2]]` and `joint_param_bundle2 = [[cmp3, par3], [cmp4, par4]]`, for a full array of: `linked_posterior_names = [[[cmp1, par1], [cmp2, par2]],[[cmp3, par3], [cmp4, par4]]]`.
 
+    #. To analyze component + param 1 and 2 together: `linked_posterior_names = [joint_param_bundle1]` with `joint_param_bundle1 = [[cmp1, par1], [cmp2, par2]]`, for a full array of `linked_posterior_names = [[[cmp1, par1], [cmp2, par2]]]`.
+            Example: Look at halo: mvirial and disk+bulge: total_mass together
+                `linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]`
     """
+    
     def __init__(self, model=None, sampler_results=None,
                  linked_posterior_names=None,
                  blob_name=None, nPostBins=50):
