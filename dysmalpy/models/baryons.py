@@ -2376,7 +2376,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
 
 
 class GaussianRing(MassModel, _LightMassModel):
-    """
+    r"""
     Mass distribution following an infinitely thin Gaussian ring profile.
 
     Parameters
@@ -2401,9 +2401,10 @@ class GaussianRing(MassModel, _LightMassModel):
     Model formula:
 
     .. math::
-        M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
-        sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
-    
+        M(r)=M_0\exp\left(\frac{(r-r_{peak})^2}{2\sigma_R^2}\right)
+
+        \sigma_R = \mathrm{FWHM}/(2\sqrt{2\ln 2})
+
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -2544,7 +2545,7 @@ class GaussianRing(MassModel, _LightMassModel):
 
     def potential_gradient(self, r):
         r"""
-        Method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+        Method to evaluate the gradient of the potential, :math:`\Delta\Phi(r)/\Delta r`.
 
         Parameters
         ----------
