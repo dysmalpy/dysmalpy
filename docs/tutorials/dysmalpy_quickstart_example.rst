@@ -1,4 +1,5 @@
 .. _quickstart_tutorial:
+
 ===============================
 Quickstart ``Dysmalpy`` example
 ===============================
