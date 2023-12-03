@@ -1219,8 +1219,8 @@ class DekelZhao(DarkMatterHalo):
         return (1.-a/3.)*rhocbar
 
     def calc_rhovirbar(self, rvirial=None):
-        """
-        Average density in the virial radius, in :math:``M_{\odot}/\rm{kpc}^3``
+        r"""
+        Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
         """
         mvir = 10**self.mvirial
         if rvirial is None:
