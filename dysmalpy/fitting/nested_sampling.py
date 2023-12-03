@@ -1,5 +1,5 @@
 # coding=utf8
-# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information.
 #
 # Classes and functions for fitting DYSMALPY kinematic models
 #   to the observed data using Nested sampling, with Dynesty:
@@ -145,11 +145,11 @@ class NestedFitter(base.Fitter):
 
 
         # MUST INCLUDE NESTED-SPECIFICS NOW!
-        fit_utils._check_existing_files_overwrite(output_options, 
-                                                  fit_type='nested', 
+        fit_utils._check_existing_files_overwrite(output_options,
+                                                  fit_type='nested',
                                                   fitter=self)
 
-    
+
         # --------------------------------
         # Setup file redirect logging:
         if output_options.f_log is not None:
@@ -161,11 +161,11 @@ class NestedFitter(base.Fitter):
         # Run Dynesty:
 
         # Keywords for log likelihood:
-        logl_kwargs = {'gal': gal, 
-                       'fitter': self} 
+        logl_kwargs = {'gal': gal,
+                       'fitter': self}
 
         # Keywords for prior transform:
-        # This needs to include the gal object, 
+        # This needs to include the gal object,
         #   so we can get the appropriate per-free-param priors
         ptform_kwargs = {'gal': gal}
 
@@ -184,7 +184,7 @@ class NestedFitter(base.Fitter):
             queue_size = self.nCPUs
         else:
             pool = queue_size = None
-        
+
 
         dsampler = dynesty.DynamicNestedSampler(log_like_dynesty,
                                                 prior_transform_dynsety,
@@ -192,8 +192,8 @@ class NestedFitter(base.Fitter):
                                                 bound=self.bound,
                                                 sample=self.sample,
                                                 logl_kwargs=logl_kwargs,
-                                                ptform_kwargs=ptform_kwargs, 
-                                                blob=_calc_blob, 
+                                                ptform_kwargs=ptform_kwargs,
+                                                blob=_calc_blob,
                                                 pool=pool,
                                                 queue_size=queue_size)
 
@@ -205,27 +205,27 @@ class NestedFitter(base.Fitter):
             if output_options.f_checkpoint is not None:
                 if os.path.isfile(output_options.f_checkpoint):
                     logger.info("Reloading checkpoint file: {}".format(output_options.f_checkpoint))
-                    
+
                     # Resume the checkpointed sampler from file:
                     resume = True
-                    dsampler = dynesty.DynamicNestedSampler.restore(output_options.f_checkpoint, 
+                    dsampler = dynesty.DynamicNestedSampler.restore(output_options.f_checkpoint,
                                                 pool=pool)
-                                                
+
 
         dsampler.run_nested(nlive_init=self.nlive_init,
                             nlive_batch=self.nlive_batch,
                             maxiter=self.maxiter,
                             use_stop=self.use_stop,
-                            resume=resume, 
-                            print_func=self.print_func, 
-                            checkpoint_file=output_options.f_checkpoint, 
+                            resume=resume,
+                            print_func=self.print_func,
+                            checkpoint_file=output_options.f_checkpoint,
                             wt_kwargs={'pfrac': self.pfrac})
 
         res = dsampler.results
 
         if output_options.f_sampler_results is not None:
             # Save stuff to file, for future use:
-            dump_pickle(res, filename=output_options.f_sampler_results, 
+            dump_pickle(res, filename=output_options.f_sampler_results,
                         overwrite=output_options.overwrite)
 
 
@@ -261,56 +261,34 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
     """
     Class to hold results of nested sampling fitting to DYSMALPY models.
 
-    Note: the dynesty *Results* object (containing the results of the run) 
-          is stored in nestedResults.sampler_results
+    Notes:
+    ------
+        The dynesty *Results* object (containing the results of the run) is stored in `nestedResults.sampler_results`.
 
-        The name of the free parameters in the chain are accessed through:
-            nestedResults.chain_param_names,
-                or more generally (separate model + parameter names) through
-                nestedResults.free_param_names
+        The names of free parameters in the chain are accessed through `nestedResults.chain_param_names` or more generally (separate model + parameter names) through `nestedResults.free_param_names`
 
-        Optional attribute:
-        linked_posterior_names: indicate if best-fit of parameters
-                                should be measured in multi-D histogram space
-                                format: set of linked parameter sets, with each linked parameter set
-                                        consisting of len-2 tuples/lists of the
-                                        component+parameter names.
+    Optional Attribute:
+    ----------------------
+        `linked_posterior_names`
+            Indicates if best-fit parameters should be measured in multi-dimensional histogram space.
+            It takes a list of linked parameter sets, where each set consists of len-2 tuples/lists of
+            the component + parameter names.
 
-        Structure explanation:
-        (1) Want to analyze component+param 1 and 2 together, and then
-            3 and 4 together.
+    Structure Explanation:
+    ----------------------
+    1. To analyze component + param 1 and 2 together, and then 3 and 4 together: `linked_posterior_names = [joint_param_bundle1, joint_param_bundle2]` with `joint_param_bundle1 = [[cmp1, par1], [cmp2, par2]]` and `joint_param_bundle2 = [[cmp3, par3], [cmp4, par4]]`, for a full array of: `linked_posterior_names = [[[cmp1, par1], [cmp2, par2]],[[cmp3, par3], [cmp4, par4]]]`.
 
-            Input structure would be:
-                linked_posterior_names = [ joint_param_bundle1, joint_param_bundle2 ]
-                with
-                join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-                jont_param_bundle2 = [ [cmp3, par3], [cmp4, par4] ]
-                for a full array of:
-                linked_posterior_names =
-                    [ [ [cmp1, par1], [cmp2, par2] ], [ [cmp3, par3], [cmp4, par4] ] ]
-
-        (2) Want to analyze component+param 1 and 2 together:
-            linked_posterior_names = [ joint_param_bundle1 ]
-            with
-            join_param_bundle1 = [ [cmp1, par1], [cmp2, par2] ]
-
-            for a full array of:
-                linked_posterior_names = [ [ [cmp1, par1], [cmp2, par2] ] ]
-
-                eg: look at halo: mvirial and disk+bulge: total_mass together
-                    linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]
-                    or linked_posterior_names = [[('halo', 'mvirial'), ('disk+bulge', 'total_mass')]]
-
-
-
+    2. To analyze component + param 1 and 2 together: `linked_posterior_names = [joint_param_bundle1]` with `joint_param_bundle1 = [[cmp1, par1], [cmp2, par2]]`, for a full array of `linked_posterior_names = [[[cmp1, par1], [cmp2, par2]]]`.
+            Example: Look at halo: mvirial and disk+bulge: total_mass together
+                `linked_posterior_names = [[['halo', 'mvirial'], ['disk+bulge', 'total_mass']]]`
     """
     def __init__(self, model=None, sampler_results=None,
                  linked_posterior_names=None,
                  blob_name=None, nPostBins=50):
 
         super(NestedResults, self).__init__(model=model, blob_name=blob_name,
-                                            fit_method='Nested', 
-                                            linked_posterior_names=linked_posterior_names, 
+                                            fit_method='Nested',
+                                            linked_posterior_names=linked_posterior_names,
                                             sampler_results=sampler_results, nPostBins=nPostBins)
 
     def __setstate__(self, state):
@@ -324,12 +302,12 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
 
     def _setup_samples_blobs(self):
 
-        # Extract weighted samples, as in 
+        # Extract weighted samples, as in
         # https://dynesty.readthedocs.io/en/v1.2.3/quickstart.html?highlight=resample_equal#basic-post-processing
-        
-        samples_unweighted = self.sampler_results.samples 
+
+        samples_unweighted = self.sampler_results.samples
         blobs_unweighted = self.sampler_results.blob
-        
+
         # weights = np.exp(self.sampler.logwt - self.sampler.logz[-1])
 
         # Updated, see https://dynesty.readthedocs.io/en/v2.0.3/quickstart.html#basic-post-processing
@@ -340,9 +318,9 @@ class NestedResults(base.BayesianFitResults, base.FitResults):
         # Check if blobs_unweighted is None?
         blobs = dynesty.utils.resample_equal(blobs_unweighted, weights)
 
-        self.sampler = base.BayesianSampler(samples=samples, blobs=blobs, 
-                                            weights=weights, 
-                                            samples_unweighted=samples_unweighted, 
+        self.sampler = base.BayesianSampler(samples=samples, blobs=blobs,
+                                            weights=weights,
+                                            samples_unweighted=samples_unweighted,
                                             blobs_unweighted=blobs_unweighted)
 
     def plot_run(self, fileout=None, overwrite=False):
@@ -382,11 +360,11 @@ def log_like_dynesty(theta, gal=None, fitter=None):
 
 def prior_transform_dynsety(u, gal=None):
     """
-    From Dynesty documentation: 
+    From Dynesty documentation:
     Transforms the uniform random variables `u ~ Unif[0., 1.)`
     to the parameters of interest.
     """
-    # NEEDS TO BE IN ORDER OF THE VARIABLES 
+    # NEEDS TO BE IN ORDER OF THE VARIABLES
     # -- which means we need to construct this from the gal.model method
 
     v = gal.model.get_prior_transform(u)
@@ -405,4 +383,3 @@ def _reload_all_fitting_nested(filename_galmodel=None, filename_results=None):
     results = NestedResults()
     results.reload_results(filename=filename_results)
     return gal, results
-
