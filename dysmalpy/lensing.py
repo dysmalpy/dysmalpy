@@ -2,13 +2,15 @@
 # Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
     This is a Python code to implement lensing tranformation in DysmalPy.
-    This code uses the C++ library "libLensingTransformer.so".
+    This code uses the C++ library `libLensingTransformer.so`.
+    If `libLensingTransformer.so` is not found in the `dysmalpy.lensing_transformer` directory, please follow `README_lensing_transformer` inside for instructions to compile.
+    
+    .. Last updates:
+    ..     2021-08-03, finished first version, Daizhong Liu, MPE.
+    ..     2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
+    ..     2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
+    ..     2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 
-    Last updates:
-        2021-08-03, finished first version, Daizhong Liu, MPE.
-        2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
-        2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
-		2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 """
 
 import os, sys, datetime, timeit
@@ -709,7 +711,7 @@ def setup_lensing_transformer_from_params(
     return lensing_transformer
 
 
-def get_cached_lensing_transformer():
+def _get_cached_lensing_transformer():
     global cached_lensing_transformer_dict
     return cached_lensing_transformer_dict['0']
 
