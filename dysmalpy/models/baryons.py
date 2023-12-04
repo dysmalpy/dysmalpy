@@ -580,8 +580,7 @@ class NoordFlat(object):
 ##########################
 class InfThinMassiveGaussianRing(object):
     """
-    Class to handle circular velocities / enclosed mass profiles for
-        an infinitely thin, massive Gaussian ring.
+    Class to handle circular velocities / enclosed mass profiles for an infinitely thin, massive Gaussian ring.
 
     Lookup tables are numerically calculated, following B&T and Bovy online galaxies textbook.
 
@@ -594,7 +593,7 @@ class InfThinMassiveGaussianRing(object):
     Parameters
     ----------
     invh : float
-        Ratio of R_peak / ring_FWHM
+        Ratio of `R_peak` / `ring_FWHM`
 
     """
 
@@ -1037,7 +1036,6 @@ class ExpDisk(MassModel, _LightMassModel):
         -------
         surf_dens : float or array
             Mass surface density at `r` in units of Msun/kpc^2
-        -------
 
         """
         return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd)
