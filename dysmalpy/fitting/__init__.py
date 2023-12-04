@@ -48,12 +48,13 @@ def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method
             Fitting method that was run. Used to determine the subclass of FitResults for reloading.
             Can be set to `mpfit`, `mcmc`, or `nested`.
 
-    Output
-    ------
+    Returns
+    -------
     gal : obj
             Galaxy instance, including model with the current best-fit parameters
     retults : obj
             MCMCResults or MPFITResults instance, containing all fit results and analysis
+
     """
 
     if fit_method is None:

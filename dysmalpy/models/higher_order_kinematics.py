@@ -904,15 +904,20 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
     Notes
     -----
     This model is implemented following the derivation given in the Appendix of
-    Davies et al. 2009, ApJ, 702, 114.
+    Davies et al. 2009, ApJ, 702, 114 [1]_.
 
     Functions for the following must also be passed when setting up the model,
     which take the midplane galaxy radius R as an input:
-    Vrot(R)      [Unperturbed rotation velocity of the galaxy]
-    dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.]
-    rho0(R)      [Unperturbed midplane density profile of the galaxy]
-    f(R, m, cs, Om_p, Vrot) [Function describing the spiral shape, :math:`m\phi = f(R)`, with :math:`k \equiv df/dR`.]
-    k(R, m, cs, Om_p, Vrot) [Function for the radial wavenumber]
+
+    * Vrot(R)      [Unperturbed rotation velocity of the galaxy]
+    * dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow]
+    * rho0(R)      [Unperturbed midplane density profile of the galaxy]
+    * f(R, m, cs, Om_p, Vrot) [Function describing the spiral shape, :math:`m\phi = f(R)`, with :math:`k \equiv df/dR`]
+    * k(R, m, cs, Om_p, Vrot) [Function for the radial wavenumber]
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2009ApJ...702..114D/abstract
     """
 
     m = DysmalParameter(default=2., bounds=(0, None), fixed=True)       # Number of photometric arms

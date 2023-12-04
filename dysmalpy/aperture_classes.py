@@ -256,7 +256,7 @@ class RectAperture(Aperture):
 
     pix_perp and pix_parallel are number of pixels of rectangle width/height. 
 
-        Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
+    Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,

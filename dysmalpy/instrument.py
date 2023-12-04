@@ -42,7 +42,7 @@ def _normalized_gaussian1D_kern(sigma_pixel):
 
 
 class Instrument:
-    r"""
+    """
     Base class to define an instrument to observe a model galaxy.
 
     Parameters
@@ -51,24 +51,26 @@ class Instrument:
            Object describing the PSF of the instrument
 
     beam_type : {`'analytic'`, `'empirical'`}
-        `'analytic'` implies the beam is one of the provided beams in `dysmalpy`
-        `'empirical'` implies the provided beam is a 2D array that describes
-            the convolution kernel
+
+        * `'analytic'` implies the beam is one of the provided beams in `dysmalpy`.
+
+        * `'empirical'` implies the provided beam is a 2D array that describes
+            the convolution kernel.
 
     lsf : LSF object
           Object describing the line spread function of the instrument
 
     pixscale : float or `~astropy.units.Quantity`
-               Size of one pixel on the sky. If no units are used, arcseconds are assumed.
+            Size of one pixel on the sky. If no units are used, arcseconds are assumed.
 
     spec_type : {`'velocity'`, `'wavelength'`}
-                Whether the spectral axis is in velocity or wavelength space
+            Whether the spectral axis is in velocity or wavelength space
 
     spec_start : `~astropy.units.Quantity`
-                 The value and unit of the first spectral channel
+            The value and unit of the first spectral channel
 
     spec_step : `~astropy.units.Quantity`
-                The spacing of the spectral channels
+            The spacing of the spectral channels
 
     nspec : int
             Number of spectral channels
@@ -78,6 +80,7 @@ class Instrument:
 
     name : str
            Name of the instrument
+           
     """
 
     def __init__(self, beam=None, beam_type=None, lsf=None, pixscale=None,
@@ -282,8 +285,8 @@ class Instrument:
         ----------
         spec_center : `~astropy.units.Quantity`, optional
                       Central wavelength that corresponds to 0 velocity
-                      Only necessary if Instrument.spec_type = 'wavelength'
-                      and Instrument.spec_center hasn't been set.
+                      Only necessary if `Instrument.spec_type = 'wavelength'`
+                      and `Instrument.spec_center` hasn't been set.
 
         """
         if (self.spec_step is None):
