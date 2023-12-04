@@ -33,7 +33,7 @@ import dysmalpy
 # -- Project information -----------------------------------------------------
 
 project = 'dysmalpy'
-copyright = '2017-{}, MPE/IR-Submm Group.'.format(date.today().year)
+copyright = '2017-{}, MPE/IR-Submm Group'.format(date.today().year)
 author = 'MPE/IR-Submm Group'
 
 # The full version, including alpha/beta/rc tags
@@ -402,3 +402,4 @@ for key in html_context:
 def setup(app):
    app.add_config_value('ultimate_replacements', {}, True)
    app.connect('source-read', ultimateReplace)
+
