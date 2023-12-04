@@ -2,6 +2,20 @@
 # Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Module containing some useful utility functions
+# 
+# The `_rotate_points` and `symmetrize_velfield` functions are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari.
+#######################################################################
+#
+# Copyright (C) 2004-2014, Michele Cappellari
+# E-mail: cappellari_at_astro.ox.ac.uk
+#
+# This software is provided as is without any warranty whatsoever.
+# Permission to use, for non-commercial purposes is granted.
+# Permission to modify for personal or internal use is granted,
+# provided this copyright and disclaimer are included unchanged
+# at the beginning of the file. All other rights are reserved.
+#
+#######################################################################
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -51,10 +65,17 @@ def calc_pixel_distance(nx, ny, center_coord):
     """
     Function to calculate the distance of each pixel
     from a specific pixel as well as the position angle
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :return:
+
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+
+    Returns
+    -------
+    seps: float
+    pa: float
     """
 
     xx, yy = np.meshgrid(range(nx), range(ny))
@@ -73,11 +94,14 @@ def calc_pixel_distance(nx, ny, center_coord):
 def create_aperture_mask(nx, ny, center_coord, dr):
     """
     Function to create an aperture mask. NOT USED.
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :param dr:
-    :return:
+
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+    dr: float
+
     """
 
     seps, pa = calc_pixel_distance(nx, ny, center_coord)
@@ -102,12 +126,15 @@ def determine_aperture_centers(nx, ny, center_coord, pa, dr):
     """
     Determine the centers of the apertures that span an image/cube along a line with position
     angle pa and goes through center_coord. Each aperture is dr away from each other.
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :param pa:
-    :param dr:
-    :return:
+    
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+    pa: float
+    dr: float
+    
     """
 
     pa_rad = -np.pi/180. * pa
@@ -177,12 +204,19 @@ def determine_aperture_centers(nx, ny, center_coord, pa, dr):
 def calc_pix_position(r, pa, xcenter, ycenter):
     """
     Simple function to determine the pixel that is r away from (xcenter, ycenter) along
-    a line with position angle, pa
-    :param r:
-    :param pa:
-    :param xcenter:
-    :param ycenter:
-    :return:
+    a line with position angle (pa)
+
+    Parameters
+    ----------
+    r: float
+        distance from (xcenter,ycenter) in pixel
+    pa: float
+        position angle counter-clockwise from North
+    xcenter: float
+        x center in pixel
+    ycenter: float
+        y center in pixel
+
     """
 
     pa_rad = np.pi/180. * pa
@@ -201,23 +235,40 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
                                  profile_direction='positive', debug=False):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
-    :param cube: Cube to measure the 1D profile on
-    :param rap: Radius of the circular apertures in pixels
-    :param dr: Distance between the circular apertures in pixels
-    :param center_pixel: Central pixel that defines r = 0
-    :param pa: Position angle of the line that the circular apertures lie on
-    :param spec_arr: The spectral array (i.e. wavelengths, frequencies, velocities, etc)
-    :param spec_mask: Boolean mask to apply to the spectrum to exclude from fitting
-    :param estimate_err: True or False to use Monte Carlo to estimate the errors on the fits
-    :param nmc: The number of trials in the Monte Carlo analysis to use.
-    :returns: centers: The radial offset from the central pixel in pixels
-    :returns: flux: The integrated best fit "flux" for each aperture
-    :returns: mean: The best fit mean of the Gaussian profile in the same units as spec_arr
-    :returns: disp: The best fit dispersion of the Gaussian profile in the same units as spec_arr
+    
+    Parameters
+    ----------
+    cube: ndarray
+        Cube to measure the 1D profile on
+    rap: float
+        Radius of the circular apertures in pixels
+    dr: float
+        Distance between the circular apertures in pixels
+    center_pixel: tuple of int
+        Central pixel that defines r = 0
+    pa: float
+        Position angle of the line that the circular apertures lie on
+    spec_arr: ndarray
+        The spectral array (i.e. wavelengths, frequencies, velocities, etc)
+    spec_mask: ndarray
+        Boolean mask to apply to the spectrum to exclude from fitting
+    estimate_err: bool, optional
+        True or False to use Monte Carlo to estimate the errors on the fits
+    nmc: int, optional
+        The number of trials in the Monte Carlo analysis to use.
 
-    Note: flux, mean, and disp will be Nap x 2 arrays if estimate_err = True where Nap is the number
-          of apertures that are fit. The first row will be best fit values and the second row will
-          contain the errors on those parameters.
+    Returns
+    ----------
+        centers: ndarray
+            The radial offset from the central pixel in pixels
+        flux: ndarray
+            The integrated best fit "flux" for each aperture
+        mean: ndarray
+            The best fit mean of the Gaussian profile in the same units as spec_arr
+        disp: ndarray
+            The best fit dispersion of the Gaussian profile in the same units as spec_arr
+
+    Note: flux, mean, and disp will be Nap x 2 arrays if `estimate_err = True` where Nap is the number of apertures that are fit. The first row will be best fit values and the second row will contain the errors on those parameters.
     """
     # profile_direction = 'negative'
 
@@ -408,20 +459,7 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
 
 
 
-# _rotate_points and symmetrize_velfield from cap_symmetrize_velfield.py within display_pixels
-# package created by Michele Cappelari.
-#######################################################################
-#
-# Copyright (C) 2004-2014, Michele Cappellari
-# E-mail: cappellari_at_astro.ox.ac.uk
-#
-# This software is provided as is without any warranty whatsoever.
-# Permission to use, for non-commercial purposes is granted.
-# Permission to modify for personal or internal use is granted,
-# provided this copyright and disclaimer are included unchanged
-# at the beginning of the file. All other rights are reserved.
-#
-#######################################################################
+# The `_rotate_points` and `symmetrize_velfield` functions below are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari (see license information at the top of this file).
 
 def _rotate_points(x, y, ang):
     """

@@ -425,9 +425,11 @@ class HigherOrderKinematicsPerturbation(HigherOrderKinematics):
 #########################################
 
 def v_circular(mass_enc, r):
-    """
+    r"""
     Circular velocity given an enclosed mass and radius
-    v(r) = SQRT(GM(r)/r)
+
+    .. math:: 
+        v(r) = \sqrt{(GM(r)/r)}
 
     Parameters
     ----------
