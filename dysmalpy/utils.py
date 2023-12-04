@@ -3,7 +3,7 @@
 #
 # Module containing some useful utility functions
 # 
-# The `_rotate_points` and `symmetrize_velfield` functions are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari (see license information at the top of this file).
+# The `_rotate_points` and `symmetrize_velfield` functions are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari.
 #######################################################################
 #
 # Copyright (C) 2004-2014, Michele Cappellari
