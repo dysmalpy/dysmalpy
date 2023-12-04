@@ -57,7 +57,7 @@ either MPFIT, MCMC or dynamic nested sampling.
 **4) Assess:** Visualise, assess fit, and fine tune the fitting. 
 
 
-.. _MPFIT: https://code.google.com/archive/p/astrolibpy/issues
+.. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: httsps://dynesty.readthedocs.io
 
