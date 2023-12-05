@@ -3,7 +3,6 @@
 """
     This is a Python code to implement lensing tranformation in DysmalPy.
     This code uses the C++ library `libLensingTransformer.so`.
-    If `libLensingTransformer.so` is not found in the `dysmalpy.lensing_transformer` directory, please follow `README_lensing_transformer` inside for instructions to compile.
     
     .. Last updates:
     ..     2021-08-03, finished first version, Daizhong Liu, MPE.
