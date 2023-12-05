@@ -13,6 +13,8 @@
 
 """
 
+__all__=['LensingTransformer']
+
 import os, sys, datetime, timeit
 import logging
 logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level.
