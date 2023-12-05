@@ -78,7 +78,7 @@ ext_modules_optional = cythonize([
     include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
     library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
 )])
-ext_modules_optional.append([
+ext_modules_optional.append(
                 Extension("dysmalpy.lensingTransformer",
                     sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                     language="c++",
@@ -88,8 +88,8 @@ ext_modules_optional.append([
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
                 )
-            ])
-ext_modules_optional.append([
+            )
+ext_modules_optional.append(
                 Extension("dysmalpy.leastChiSquares1D",
                     sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
                     language="c++",
@@ -100,7 +100,7 @@ ext_modules_optional.append([
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
                 )
-            ])
+            )
 
 
 try:
