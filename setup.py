@@ -42,14 +42,16 @@ setup_args = {
         'packages': find_packages(), 
         'setup_requires': setup_requirements,
         'version': __version__, 
+        #'zip_safe': False,
         'package_data': {
             'dysmalpy': [
-                'data/deprojected_sersic_models_tables/*.fits'
-            ],
-            'tests': [
-                'test_data/*', 
-                'test_data_lensing/*', 
-                'test_data_masking/*'
+                'data/deprojected_sersic_models_tables/*.fits',
+                'tests/test_data/*', 
+                'tests/test_data_lensing/*', 
+                'tests/test_data_masking/*',
+                'examples/notebooks/*',
+                'examples/examples_param_files/*',
+                'examples/examples_param_files/model_examples/*',
             ]},
         }
 
