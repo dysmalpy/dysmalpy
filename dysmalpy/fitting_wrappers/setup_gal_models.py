@@ -2191,11 +2191,6 @@ def setup_basic_aperture_types(obs=None, params=None, extra=''):
     else:
         pix_parallel = None
 
-    if ('pix_length'+extra in params.keys()):
-        pix_length=params['pix_length'+extra]
-    else:
-        pix_length = None
-
 
     if ('partial_weight'+extra in params.keys()):
         partial_weight = params['partial_weight'+extra]
@@ -2219,7 +2214,7 @@ def setup_basic_aperture_types(obs=None, params=None, extra=''):
                     slit_pa=obs.instrument.slit_pa,
                     slit_width=obs.instrument.slit_width,
                     pix_perp=pix_perp, pix_parallel=pix_parallel,
-                    pix_length=pix_length, partial_weight=partial_weight)
+                    partial_weight=partial_weight)
 
 
     return apertures
