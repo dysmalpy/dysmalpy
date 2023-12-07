@@ -225,7 +225,7 @@ class EllipAperture(Aperture):
 
                 # define shapely object:
                 circtmp = Point((0,0)).buffer(1)
-                aper_ell = shply_affinity.scale(circtmp, int(self.pix_perp), int(self.pix_parallel))
+                aper_ell = shply_affinity.scale(circtmp, self.pix_perp, self.pix_parallel)
 
 
                 for (whc_y, whc_x) in zip(*wh_calc):
