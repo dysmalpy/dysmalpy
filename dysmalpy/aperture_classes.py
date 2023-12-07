@@ -871,7 +871,7 @@ class RectApertures(Apertures):
 def setup_aperture_types(obs=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
-            pix_length=None, partial_weight=True,
+            partial_weight=True,
             rotate_cube=False):
 
     # partial_weight:
