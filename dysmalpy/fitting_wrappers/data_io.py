@@ -1060,9 +1060,9 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
             fnew.writelines(lines)
 
 
-def ensure_dir(dir):
-    """ Short function to ensure dir is a directory; if not, make the directory."""
-    if not os.path.exists(dir):
-        print( "Making path="+dir)
-        os.makedirs(dir)
-    return None
+# def ensure_dir(dir):
+#     """ Short function to ensure dir is a directory; if not, make the directory."""
+#     if not os.path.exists(dir):
+#         print( "Making path="+dir)
+#         os.makedirs(dir)
+#     return None

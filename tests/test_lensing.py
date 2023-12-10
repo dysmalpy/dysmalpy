@@ -25,11 +25,8 @@ logger.setLevel(logging.DEBUG)
 from dysmalpy import fitting
 from dysmalpy.fitting_wrappers import utils_io as fw_utils_io
 from dysmalpy import lensing
-from dysmalpy.lensing import has_lensing_transform_keys_in_params
-from dysmalpy.lensing import setup_lensing_transformer_from_params
-from dysmalpy.lensing import get_cached_lensing_transformer
-from dysmalpy.lensing import LensingTransformer
-
+from dysmalpy.lensing import LensingTransformer, has_lensing_transform_keys_in_params, setup_lensing_transformer_from_params, _get_cached_lensing_transformer
+from dysmalpy import data_io
 
 # TESTING DIRECTORY
 path = os.path.abspath(__file__)
@@ -84,7 +81,7 @@ class TestLensing():
         assert 'lensing_imdec' in self.params
         assert has_lensing_transform_keys_in_params(self.params)
         self.outdir = os.path.join(_dir_tests_data, self.params['outdir'])
-        fitting.ensure_dir(self.outdir)
+        data_io.ensure_dir(self.outdir)
         assert os.path.isdir(self.outdir)
 
         _lens_mesh_file = os.path.join(_dir_tests_data, self.params['lensing_mesh'])
@@ -382,7 +379,7 @@ class TestLensing():
         logger.debug('type(obs0.model_data): {}'.format(type(obs0.model_data)))
         fits.PrimaryHDU(data=obs0.model_data.data).writeto('obs0.model_data.fits', overwrite=True)
         
-        this_lensing_transformer = get_cached_lensing_transformer()
+        this_lensing_transformer = _get_cached_lensing_transformer()
         fits.PrimaryHDU(data=this_lensing_transformer.image_plane_data_cube).writeto('obs0.image_plane_data_cube.fits', overwrite=True)
         fits.PrimaryHDU(data=this_lensing_transformer.source_plane_data_cube).writeto('obs0.source_plane_data_cube.fits', overwrite=True)
 
@@ -411,8 +408,8 @@ if __name__ == '__main__':
     
     TestLensing().test_read_data()
 
-    #TestLensing().test_lensing_transformation()
+    TestLensing().test_lensing_transformation()
 
-    #TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
+    TestLensing().test_reusing_a_lensing_transformer_for_changed_params()
 
     print('All done!')
