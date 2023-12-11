@@ -17,6 +17,7 @@ if not havedisplay:
     matplotlib.use('agg')
 
 from dysmalpy import fitting
+from dysmalpy import data_io
 
 try:
     import utils_io
@@ -49,7 +50,7 @@ def dysmalpy_reanalyze_single_2D(param_filename=None, datadir=None,
     outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
 
-    fitting.ensure_dir(params['outdir'])
+    data_io.ensure_dir(params['outdir'])
 
     if 'plot_type' not in params.keys():
         params['plot_type'] = plot_type

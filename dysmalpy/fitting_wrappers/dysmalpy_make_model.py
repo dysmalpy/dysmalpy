@@ -31,6 +31,7 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
     from dysmalpy import config
 
     from dysmalpy.fitting_wrappers import utils_io
+    from dysmalpy import data_io
 
     # Read in the parameters from param_filename:
     params = utils_io.read_fitting_params(fname=param_filename)
@@ -72,8 +73,8 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
         print('------------------------------------------------------------------')
         print(' ')
     else:
-        #fitting.ensure_dir(outdir)
-        utils_io.ensure_dir(outdir)
+        #data_io.ensure_dir(outdir)
+        data_io.ensure_dir(outdir)
 
         # Copy paramfile that is OS independent
         utils_io.preserve_param_file(param_filename, params=params, outdir=outdir)

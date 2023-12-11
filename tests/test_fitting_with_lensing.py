@@ -181,7 +181,8 @@ class TestFittingWrappers:
         results.reload_sampler(filename=f_sampler)
 
         # Assert lnprob values are all finite:
-        assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
+        # assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
+        assert np.sum(np.isfinite(results.sampler_results['flatlnprobability'])) == results.sampler_results['flatchain'].shape[0]
 
         for i in range(results.sampler['nParam']):
             # Assert at least one walker moved at least once for parameter i
@@ -273,11 +274,11 @@ class TestFittingWrappers:
 
 if __name__ == '__main__':
 
-    #TestFittingWrappers().test_1D_mpfit()
+    # TestFittingWrappers().test_1D_mpfit()
 
-    #TestFittingWrappers().test_1D_mcmc()
+    # TestFittingWrappers().test_1D_mcmc()
 
-    #TestFittingWrappers().test_2D_mpfit()
+    # TestFittingWrappers().test_2D_mpfit()
 
     TestFittingWrappers().test_3D_mpfit()
 
