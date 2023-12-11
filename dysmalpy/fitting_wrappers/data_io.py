@@ -886,10 +886,6 @@ def save_3D_mask(obs=None, mask=None, filename=None,
 
     return None
 
-# def ensure_path_trailing_slash(path):
-#     if (path[-1] != os.sep):
-#         path += os.sep
-#     return path
 
 ####
 def get_ndim_fit_from_paramfile(obs_ind, params=None, param_filename=None):
@@ -949,75 +945,75 @@ def stub_paramfile_dir(param_filename):
 
     return param_dir
 
-# def check_outdir_specified(params, outdir, param_filename=None):
-#     try:
-#         try:
-#             if os.path.isabs(outdir):
-#                 stub_paramfilepath = False
-#             else:
-#                 stub_paramfilepath = True
-#         except:
-#             print("Performing string splitting")
-#             delim = os.sep
-#             od_arr = outdir.split(delim)
-#             od_arr_nonempt = []
-#             for od_d in od_arr:
-#                 if len(od_d) > 0:
-#                     od_arr_nonempt.append(od_d)
+def check_outdir_specified(params, outdir, param_filename=None):
+    try:
+        try:
+            if os.path.isabs(outdir):
+                stub_paramfilepath = False
+            else:
+                stub_paramfilepath = True
+        except:
+            print("Performing string splitting")
+            delim = os.sep
+            od_arr = outdir.split(delim)
+            od_arr_nonempt = []
+            for od_d in od_arr:
+                if len(od_d) > 0:
+                    od_arr_nonempt.append(od_d)
 
-#             # If only a SINGLE relative path specified, prepend the param directory
-#             if len(od_arr_nonempt) == 1:
-#                 stub_paramfilepath = True
-#             else:
-#                 stub_paramfilepath = False
+            # If only a SINGLE relative path specified, prepend the param directory
+            if len(od_arr_nonempt) == 1:
+                stub_paramfilepath = True
+            else:
+                stub_paramfilepath = False
 
-#         if stub_paramfilepath:
-#             # Strip dir from param_filename
-#             param_dir = stub_paramfile_dir(param_filename)
-#             outdir = param_dir+outdir
-#             params['outdir'] = outdir
-#     except:
-#         raise ValueError("Directory {} not found! Couldn't get outdir.".format(outdir))
+        if stub_paramfilepath:
+            # Strip dir from param_filename
+            param_dir = stub_paramfile_dir(param_filename)
+            outdir = param_dir+outdir
+            params['outdir'] = outdir
+    except:
+        raise ValueError("Directory {} not found! Couldn't get outdir.".format(outdir))
 
-#     return outdir, params
+    return outdir, params
 
-# def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
-#     if ndim is None:
-#         raise ValueError("Must specify 'ndim'!")
-#     if ndim == 1:
-#         fdata_orig = params['fdata']
-#     elif ndim == 2:
-#         fdata_orig = params['fdata_vel']
-#     elif ndim == 3:
-#         fdata_orig = params['fdata_cube']
+def check_datadir_specified(params, datadir, ndim=None, param_filename=None):
+    if ndim is None:
+        raise ValueError("Must specify 'ndim'!")
+    if ndim == 1:
+        fdata_orig = params['fdata']
+    elif ndim == 2:
+        fdata_orig = params['fdata_vel']
+    elif ndim == 3:
+        fdata_orig = params['fdata_cube']
 
-#     if datadir is not None:
-#         fdata = "{}{}".format(datadir, fdata_orig)
-#     else:
-#         # Try case of absolute path for filenames
-#         fdata = fdata_orig
-#         datadir = None
+    if datadir is not None:
+        fdata = "{}{}".format(datadir, fdata_orig)
+    else:
+        # Try case of absolute path for filenames
+        fdata = fdata_orig
+        datadir = None
 
-#     if not os.path.isfile(fdata):
-#         # Try relative WRT current dir
-#         datadir = os.getcwd() + os.sep
-#         fdata = "{}{}".format(datadir, fdata_orig)
+    if not os.path.isfile(fdata):
+        # Try relative WRT current dir
+        datadir = os.getcwd() + os.sep
+        fdata = "{}{}".format(datadir, fdata_orig)
 
-#     if not os.path.isfile(fdata):
-#         # Strip dir from param_filename
-#         datadir = stub_paramfile_dir(param_filename)
-#         fdata = "{}{}".format(datadir, fdata_orig)
+    if not os.path.isfile(fdata):
+        # Strip dir from param_filename
+        datadir = stub_paramfile_dir(param_filename)
+        fdata = "{}{}".format(datadir, fdata_orig)
 
-#         if os.path.isfile(fdata):
-#             params['datadir'] = datadir
-#         else:
-#             try:
-#                 datadir = tkinter_io.get_datadir_tkinter(ndim=ndim)
-#                 params['datadir'] = datadir
-#             except:
-#                 raise ValueError("Data file {} not found! Couldn't get datadir from dialog window.".format(fdata))
+        if os.path.isfile(fdata):
+            params['datadir'] = datadir
+        else:
+            try:
+                datadir = tkinter_io.get_datadir_tkinter(ndim=ndim)
+                params['datadir'] = datadir
+            except:
+                raise ValueError("Data file {} not found! Couldn't get datadir from dialog window.".format(fdata))
 
-#     return datadir, params
+    return datadir, params
 
 
 def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
@@ -1059,10 +1055,3 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
         with open(fout_name, 'w') as fnew:
             fnew.writelines(lines)
 
-
-# def ensure_dir(dir):
-#     """ Short function to ensure dir is a directory; if not, make the directory."""
-#     if not os.path.exists(dir):
-#         print( "Making path="+dir)
-#         os.makedirs(dir)
-#     return None

@@ -66,7 +66,7 @@ def load_galaxy(params=None, param_filename=None, datadir=None,
         datadir = params['datadir']
 
     # Check if you can find filename; if not open datadir interface:
-    datadir, params = data_io.check_datadir_specified(params, datadir, ndim=ndim,
+    datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=ndim,
                                             param_filename=param_filename)
 
     #######################

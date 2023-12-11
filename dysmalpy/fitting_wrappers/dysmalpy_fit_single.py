@@ -83,7 +83,7 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
     #   EXPLICITLY prepend paramfile path
     outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
-    outdir, params = data_io.check_outdir_specified(params, outdir, param_filename=param_filename)
+    outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
     params['outdir'] = outdir
 
 
@@ -113,7 +113,7 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
         ndim = utils_io.get_ndim_fit_from_paramfile(0, param_filename=param_filename)
 
         # Check if you can find filename; if not open datadir interface:
-        datadir, params = data_io.check_datadir_specified(params, params['datadir'], ndim=ndim,
+        datadir, params = utils_io.check_datadir_specified(params, params['datadir'], ndim=ndim,
                                                         param_filename=param_filename)
         params['datadir'] = datadir
 

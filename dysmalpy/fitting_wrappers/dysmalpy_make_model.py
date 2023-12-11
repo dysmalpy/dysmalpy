@@ -55,7 +55,7 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
     #   EXPLICITLY prepend paramfile path
     outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
-    outdir, params = data_io.check_outdir_specified(params, outdir, param_filename=param_filename)
+    outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
 
 
     filename_extra = ''
