@@ -2,6 +2,7 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+from functools import partial
 
 import numpy as np
 
@@ -10,8 +11,17 @@ from dysmalpy import parameters
 import scipy.optimize as scp_opt
 
 
+def tie_rturn(model_set):
+    # Define a function to tie the turnover radius to half the end radius
+    rend = model_set.components['outflow'].rend.value
+
+    return rend/2.
+
+def get_param_value(mod_set, main_geom_name, param_name):
+    return mod_set.components[main_geom_name].__dict__[param_name].value
+
 def tied_geom_lambda(main_geom_name, param_name):
-    return lambda mod_set: mod_set.components[main_geom_name].__dict__[param_name].value
+    return partial(get_param_value, main_geom_name=main_geom_name, param_name=param_name)
 
 def tie_sigz_reff(model_set):
     #'sersic', 'disk+bulge', 'lsersic', 'GaussianRing'

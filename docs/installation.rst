@@ -13,7 +13,8 @@ From Source
 
 ``dysmalpy`` can also be installed from source. You will need to setup
 Python 3 on your machine and install all of the dependent packages. Please
-follow the instructions in :ref:`Python Environment Setup <install-conda>` .
+follow the instructions in `Python Environment Setup <installation-anaconda>`_ 
+(it is strongly adviced that you follow those instructions before running the commands here).
 
 
 After this is completed, you can download the latest DysmalPy package here: `tar.gz`_ | `zip`_ 
@@ -23,64 +24,84 @@ After this is completed, you can download the latest DysmalPy package here: `tar
 
 .. _zip: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.zip
 
+Default installation
+^^^^^^^^^^^^^^^^^^^^^^
 
+From a terminal, change directories to where the package was downloaded
 
-Basic Installation
-^^^^^^^^^^^^^^^^^^
+To install Dysmalpy run:
 
-From a terminal, change directories to where the package was downloaded.
+(Where N.N.N is the current version)
 
-To install the basic DysmalPy functionality (without any of the C++ extensions) from the command line, 
-run:
-
-.. 
-    (where N.N.N is the current version):
+.. code-block:: console
 
     $ tar zxvf dysmalpy-N.N.N.tar.gz
     $ cd dysmalpy-N.N.N
-    $ python setup.py install
+    $ # You can use pip to install the package:
+    $ python -m pip install .
+    $ # Alternatively, you can use the following command:
+    $ python setup.py install --single-version-externally-managed --root=/
 
 
-.. code-block:: console
-
-    $ tar zxvf dysmalpy-|release|.tar.gz
-    $ cd dysmalpy-|release|
-    $ python setup.py install
+By default, this will try to install dysmalpy with the optional C++ extensions that you may 
+have installed `here <installation-anaconda>`_. If setup.py is not able to find those extensions dysmalpy will be installed 
+with its basic functionality. 
 
 
+.. Basic Installation
+.. ^^^^^^^^^^^^^^^^^^
+
+.. From a terminal, change directories to where the package was downloaded.
+
+.. To install the basic DysmalPy functionality (without any of the C++ extensions) from the command line, 
+.. run:
+
+.. .. 
+..     (where N.N.N is the current version):
+
+..     $ tar zxvf dysmalpy-N.N.N.tar.gz
+..     $ cd dysmalpy-N.N.N
+..     $ python setup.py install
 
 
-Installation with extensions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. .. code-block:: console
+
+..     $ tar zxvf dysmalpy-|release|.tar.gz
+..     $ cd dysmalpy-|release|
+..     $ # You can use pip to install the package:
+..     $ python -m pip install .
+..     $ # Alternatively, you can use the following command:
+..     $ python setup.py install --single-version-externally-managed --root=/
 
 
-In order to install DysmalPy with the C++ extensions, we will need to also
-build the extensions.
-
-If the `gsl` and `cfitsio` are installed in non-standard locations
-(e.g., if they were installed using conda during the dependency setups),
-then we will need specify those directories as below.
-
-Typically, if `BASEDIR` is the relevant absolute directory path (e.g., `/PATH/TO/ANACONDA`
-if installed with conda, as explained in the :ref:`dependencies setup<install_deps>`),
-then `LIBDIR` and `INCLUDEDIR` are `BASEDIR/lib` and `BASEDIR/include`, respectively.
-
-(If they are installed in so the headers are in `/usr/include` or `/usr/local/include`
-and the libraries are in `/usr/lib` or `/usr/local/lib`,
-the `--include-dirs` and `--library_dirs` flags can be omitted.)
+.. Installation with extensions
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-From a terminal, change directories to where the package was downloaded,
-then install the package and build the extensions by running:
+.. In order to install DysmalPy with the C++ extensions, we will need to also
+.. build the extensions.
 
-.. code-block:: console
+.. If the `gsl` and `cfitsio` are installed in non-standard locations
+.. (e.g., if they were installed using conda during the dependency setups),
+.. then we will need specify those directories as below.
 
-    $ tar zxvf dysmalpy-|release|.tar.gz
-    $ cd dysmalpy-|release|
-    $ python setup.py build_ext --include-dirs=INCLUDEDIR --library_dirs=LIBDIR install
+.. Typically, if `BASEDIR` is the relevant absolute directory path (e.g., `/PATH/TO/ANACONDA`
+.. if installed with conda, as explained in the :ref:`dependencies setup<install_deps>`),
+.. then `LIBDIR` and `INCLUDEDIR` are `BASEDIR/lib` and `BASEDIR/include`, respectively.
+
+.. (If they are installed in so the headers are in `/usr/include` or `/usr/local/include`
+.. and the libraries are in `/usr/lib` or `/usr/local/lib`,
+.. the `--include-dirs` and `--library_dirs` flags can be omitted.)
 
 
+.. From a terminal, change directories to where the package was downloaded,
+.. then install the package and build the extensions by running:
 
+.. .. code-block:: console
+
+..     $ tar zxvf dysmalpy-|release|.tar.gz
+..     $ cd dysmalpy-|release|
+..     $ python setup.py build_ext --include-dirs=INCLUDEDIR --library_dirs=LIBDIR install --single-version-externally-managed --root=/
 
 
 .. _install_clone:
