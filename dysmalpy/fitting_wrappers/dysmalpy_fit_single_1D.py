@@ -50,7 +50,7 @@ def dysmalpy_reanalyze_single_1D(param_filename=None,
         params['outdir'] = outdir
 
     # Setup some paths:
-    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
 
     data_io.ensure_dir(params['outdir'])

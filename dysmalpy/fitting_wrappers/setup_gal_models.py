@@ -59,14 +59,14 @@ def load_galaxy(params=None, param_filename=None, datadir=None,
 
     if 'datadir' in params.keys():
         if params['datadir'] is not None:
-            datadir = fwdata_io.ensure_path_trailing_slash(params['datadir'])
+            datadir = data_io.ensure_path_trailing_slash(params['datadir'])
             params['datadir'] = datadir
 
     if 'datadir' in params.keys():
         datadir = params['datadir']
 
     # Check if you can find filename; if not open datadir interface:
-    datadir, params = fwdata_io.check_datadir_specified(params, datadir, ndim=ndim,
+    datadir, params = data_io.check_datadir_specified(params, datadir, ndim=ndim,
                                             param_filename=param_filename)
 
     #######################

@@ -53,6 +53,7 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
 
 
     # Read in the parameters from param_filename:
+    # params = utils_io.read_fitting_params(fname=param_filename)
     params = utils_io.read_fitting_params(fname=param_filename)
 
     # ---------------------------------
@@ -80,14 +81,14 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
 
     # Ensure output directory is specified: if relative file path,
     #   EXPLICITLY prepend paramfile path
-    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
-    outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
+    outdir, params = data_io.check_outdir_specified(params, outdir, param_filename=param_filename)
     params['outdir'] = outdir
 
 
     if params['datadir'] is not None:
-        datadir = utils_io.ensure_path_trailing_slash(params['datadir'])
+        datadir = data_io.ensure_path_trailing_slash(params['datadir'])
         params['datadir'] = datadir
 
     ####
@@ -112,7 +113,7 @@ def dysmalpy_fit_single(param_filename=None, datadir=None, outdir=None,
         ndim = utils_io.get_ndim_fit_from_paramfile(0, param_filename=param_filename)
 
         # Check if you can find filename; if not open datadir interface:
-        datadir, params = utils_io.check_datadir_specified(params, params['datadir'], ndim=ndim,
+        datadir, params = data_io.check_datadir_specified(params, params['datadir'], ndim=ndim,
                                                         param_filename=param_filename)
         params['datadir'] = datadir
 
