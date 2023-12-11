@@ -53,7 +53,7 @@ def dysmalpy_make_model(param_filename=None, outdir=None, overwrite=None):
 
     # Ensure output directory is specified: if relative file path,
     #   EXPLICITLY prepend paramfile path
-    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
     outdir, params = utils_io.check_outdir_specified(params, outdir, param_filename=param_filename)
 

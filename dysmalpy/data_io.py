@@ -22,7 +22,7 @@ import dill as pickle_module
 pickle_module._dill._reverse_typemap['CodeType'] = pickle_module._dill._create_code
 # ---------------------------------------------------------
 
-__all__ = ['ensure_dir', 'load_pickle', 'dump_pickle']
+__all__ = ['ensure_dir', 'ensure_path_trailing_slash', 'load_pickle', 'dump_pickle']
 
 
 # LOGGER SETTINGS
@@ -36,6 +36,11 @@ def ensure_dir(dir):
         logger.info( "Making path="+dir)
         os.makedirs(dir)
     return None
+
+def ensure_path_trailing_slash(path):
+    if (path[-1] != os.sep):
+        path += os.sep
+    return path
 
 
 def load_pickle(filename):

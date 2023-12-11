@@ -886,10 +886,6 @@ def save_3D_mask(obs=None, mask=None, filename=None,
 
     return None
 
-def ensure_path_trailing_slash(path):
-    if (path[-1] != os.sep):
-        path += os.sep
-    return path
 
 ####
 def get_ndim_fit_from_paramfile(obs_ind, params=None, param_filename=None):
@@ -1059,10 +1055,3 @@ def preserve_param_file(param_filename, params=None, datadir=None, outdir=None):
         with open(fout_name, 'w') as fnew:
             fnew.writelines(lines)
 
-
-# def ensure_dir(dir):
-#     """ Short function to ensure dir is a directory; if not, make the directory."""
-#     if not os.path.exists(dir):
-#         print( "Making path="+dir)
-#         os.makedirs(dir)
-#     return None
