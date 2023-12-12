@@ -84,6 +84,12 @@ Installation
 
 To install DYSMALPY, please follow the instructions in the `installation`_ file.
 
+Contact
+-------
+
+If you have any questions or suggestions, please contact the developers at `dysmalpy@mpe.mpg.de`.
+
+
 License
 -------
 

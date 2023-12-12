@@ -20,7 +20,7 @@ notifying the maintainers, listed in order of preference:
 .. _bug report: https://github.com/ttshimiz/dysmalpy/issues/new/choose
 
     
-2. Email the maintainers at [EMAIL ADDRESS]. 
+2. Email the maintainers at `dysmalpy@mpe.mpg.de`. 
 
 In either case, please include as much detail as possible about the issue. 
 This includes a list of the versions of the dependency packages, and a minimum 
@@ -30,4 +30,4 @@ Suggestions
 -----------
 
 If you have feature suggestions for DysmalPy, please contact the maintainers at 
-[EMAIL ADDRESS].
+`dysmalpy@mpe.mpg.de`.
