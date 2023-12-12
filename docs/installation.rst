@@ -5,27 +5,27 @@
 Installation
 ============
 
+You can install ``dysmalpy`` in a number of ways:
 
-.. _install_source:
+1. If you have limited experience with Python, we recommend installing ``dysmalpy`` using the Anaconda Python distribution.
 
-From Source
------------
+2. If you are more familiar with Python, you can install ``dysmalpy`` using the development version. 
 
-``dysmalpy`` can also be installed from source. You will need to setup
-Python 3 on your machine and install all of the dependent packages. Please
-follow the instructions in `Python Environment Setup <installation-anaconda>`_ 
-(it is strongly adviced that you follow those instructions before running the commands here).
+3. If you are a member of the MPE group, you can install ``dysmalpy`` using the provided ``.bat`` file or by using the Anaconda environment we have setup.
 
+.. _install_with_anaconda:
 
-After this is completed, you can download the latest DysmalPy package here: `tar.gz`_ | `zip`_ 
+1. Using Anaconda
+-----------------
+
+To install Anaconda and all the relevant packages and dependencies, please follow the instructions at `Python Environment Setup <installation-anaconda>`_ . 
+
+After your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
 (current version: |release|).
 
 .. _tar.gz: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.tar.gz
 
 .. _zip: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.zip
-
-Default installation
-^^^^^^^^^^^^^^^^^^^^^^
 
 From a terminal, change directories to where the package was downloaded
 
@@ -35,17 +35,107 @@ To install Dysmalpy run:
 
 .. code-block:: console
 
-    $ tar zxvf dysmalpy-N.N.N.tar.gz
-    $ cd dysmalpy-N.N.N
-    $ # You can use pip to install the package:
-    $ python -m pip install .
-    $ # Alternatively, you can use the following command:
-    $ python setup.py install --single-version-externally-managed --root=/
+        $ tar zxvf dysmalpy-N.N.N.tar.gz
+        $ cd dysmalpy-N.N.N
+        $ # You can use pip to install the package:
+        $ python -m pip install .
+        $ # Alternatively, you can use the following command:
+        $ python setup.py install --single-version-externally-managed --root=/
 
 
 By default, this will try to install dysmalpy with the optional C++ extensions that you may 
 have installed `here <installation-anaconda>`_. If setup.py is not able to find those extensions dysmalpy will be installed 
 with its basic functionality. 
+
+
+
+.. _install_clone:
+
+2. Development version
+----------------------
+
+To get the most up-to-date development version of ``dysmalpy``, clone the repository from GitHub.
+
+Within your desired parent directory, clone the repository from GitHub:
+
+.. code-block:: console
+
+    $ git clone https://github.com/dysmalpy/dysmalpy.git 
+
+
+Then add the path to this repository to your python path (eg, 
+`PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
+.bashrc or .bash_profile for bash, or the equivalent for your shell). 
+
+
+For examples on using `git fetch` or `git pull` to get updates, 
+or how to check out other branches, please see e.g. the tutorial here: 
+`https://git-scm.com/docs/gittutorial`_
+
+.. warning::
+    This way of installing ``dysmalpy`` will give you a basic installation with most of the functionality, but your ``dysmalpy`` installation will not contain the modules that need to be compiled.
+
+.. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
+
+
+After the installation is complete, you should
+be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
+
+
+.. tip::
+    Especially if working with the development version of ``dysmalpy``, you can 
+    confirm the location of the package that is imported by checking 
+    the output of 
+    
+    .. code-block:: python
+
+        import dysmalpy
+        print (dysmalpy.__file__)
+
+
+
+
+--------------------------------------------------------------------
+
+
+
+.. 2. Development version
+.. ----------------------
+
+.. You will need to setup Python 3 on your machine and install all of the dependent packages. Please
+.. follow the instructions in `Python Environment Setup <installation-anaconda>`_ 
+.. (it is strongly adviced that you follow those instructions before running the commands here).
+
+
+.. After this is completed, you can download the latest DysmalPy package here: `tar.gz`_ | `zip`_ 
+.. (current version: |release|).
+
+.. .. _tar.gz: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.tar.gz
+
+.. .. _zip: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.zip
+
+.. Default installation
+.. ^^^^^^^^^^^^^^^^^^^^^^
+
+.. From a terminal, change directories to where the package was downloaded
+
+.. To install Dysmalpy run:
+
+.. (Where N.N.N is the current version)
+
+.. .. code-block:: console
+
+..     $ tar zxvf dysmalpy-N.N.N.tar.gz
+..     $ cd dysmalpy-N.N.N
+..     $ # You can use pip to install the package:
+..     $ python -m pip install .
+..     $ # Alternatively, you can use the following command:
+..     $ python setup.py install --single-version-externally-managed --root=/
+
+
+.. By default, this will try to install dysmalpy with the optional C++ extensions that you may 
+.. have installed `here <installation-anaconda>`_. If setup.py is not able to find those extensions dysmalpy will be installed 
+.. with its basic functionality. 
 
 
 .. Basic Installation
@@ -104,60 +194,12 @@ with its basic functionality.
 ..     $ python setup.py build_ext --include-dirs=INCLUDEDIR --library_dirs=LIBDIR install --single-version-externally-managed --root=/
 
 
-.. _install_clone:
-
-Development version
--------------------
-
-To get the most up-to-date development version of `DysmalPy`, clone the repository from GitHub.
-
-Within your desired parent directory, clone the repository from GitHub:
-
-.. code-block:: console
-
-    $ git clone https://github.com/ttshimiz/dysmalpy.git 
-
-
-Then add the path to this repository to your python path (eg, 
-`PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
-.bashrc or .bash_profile for bash, or the equivalent for your shell). 
-
-
-For examples on using `git fetch` or `git pull` to get updates, 
-or how to check out other branches, please see eg the tutorial here: 
-`https://git-scm.com/docs/gittutorial`_
-
-.. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
-
-
-
-
-
-After the installation is complete, you should
-be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
-
-
-
-.. tip::
-    Especially if working with the development version of `DysmalPy`, you can 
-    confirm the location of the package that is imported by checking 
-    the output of 
-    
-    .. code-block:: python
-
-        import dysmalpy
-        print (dysmalpy.__file__)
-
-
-
-
---------------------------------------------------------------------
 
 
 .. _install_mpe:
 
-MPE group installations
------------------------
+3. MPE group installations
+----------------------------
 
 
 .. _install_windows:
@@ -169,7 +211,7 @@ A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.para
 is available for MPE-group specific architecture. 
 
 Prior to using DysmalPy with this `.bat` file, the DysmalPy source code
-and dependencies will need to be installed (see :ref:`'From Source'<install_source>`).
+and dependencies will need to be installed (see :ref: `Using Anaconda<_install_with_anaconda>`).
 
 
 .. _install_afs:

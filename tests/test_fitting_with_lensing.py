@@ -184,11 +184,11 @@ class TestFittingWrappers:
         # assert np.sum(np.isfinite(results.sampler['flatlnprobability'])) == results.sampler['flatchain'].shape[0]
         assert np.sum(np.isfinite(results.sampler_results['flatlnprobability'])) == results.sampler_results['flatchain'].shape[0]
 
-        for i in range(results.sampler['nParam']):
+        for i in range(results.sampler_results['nParam']):
             # Assert at least one walker moved at least once for parameter i
-            assert len(np.unique(results.sampler['flatchain'][:,i])) > results.sampler['nWalkers']
+            assert len(np.unique(results.sampler_results['flatchain'][:,i])) > results.sampler_results['nWalkers']
             # Assert all values of parameter i are finite:
-            assert np.sum(np.isfinite(results.sampler['flatchain'][:,i])) == results.sampler['flatchain'].shape[0]
+            assert np.sum(np.isfinite(results.sampler_results['flatchain'][:,i])) == results.sampler_results['flatchain'].shape[0]
 
         # Load output, check results
         f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
