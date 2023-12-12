@@ -220,7 +220,7 @@ A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.para
 is available for MPE-group specific architecture. 
 
 Prior to using DysmalPy with this `.bat` file, the DysmalPy source code
-and dependencies will need to be installed (see :ref:`Using Anaconda<install-conda>`).
+and dependencies will need to be installed (see :ref:`Using Anaconda<install_with_anaconda>`).
 
 
 .. _install_afs:
