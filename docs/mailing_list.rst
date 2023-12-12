@@ -10,4 +10,4 @@ If you would like to receive news and updates about ``dysmalpy`` as well as noti
 https://lists.mpe.mpg.de/cgi-bin/mailman/listinfo/dysmalpy_users
 
 .. note::
-    The mailing list is not a forum for questions and answers. If you have questions about ``dysmalpy``, please email the developers directly at `dysmalpy@mpe.mpg.de`.
+    The mailing list is not a forum for questions and answers. If you have questions about ``dysmalpy``, please email the developers directly at dysmalpy@mpe.mpg.de.
