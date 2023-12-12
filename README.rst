@@ -60,7 +60,7 @@ either MPFIT, MCMC or dynamic nested sampling.
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: httsps://dynesty.readthedocs.io
-
+.. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 
 
 Dependencies
@@ -78,6 +78,11 @@ Dependencies
 * dill
 * photutils (version >= 1.3.0)
 * shapely 
+
+Installation
+------------
+
+To install DYSMALPY, please follow the instructions in the `installation`_ file.
 
 License
 -------
