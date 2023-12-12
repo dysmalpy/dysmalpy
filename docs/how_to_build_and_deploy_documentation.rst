@@ -14,11 +14,9 @@ by building the documentation on your computer.
 
 You can install Sphinx and the dependencies to build the documentation using pip:
 
-.. code-block:: console
+.. code-block::
 
-    $ pip install sphinx-automodapi
-    $ pip install sphinx-rtd-theme
-    $ pip install myst_nb
+    pip install sphinx-automodapi sphinx-rtd-theme myst_nb sphinx-copybutton
 
 **2. Make changes within your working branch**
 
@@ -32,9 +30,9 @@ you can build the documentation with Sphinx, which compiles the files in
 reStructuredText format (reST) with extension .rst and Jupyter notebook 
 tutorials (.ipynb)  and produces the .html files, run the following command:
 
-.. code-block:: console
+.. code-block::
 
-    $ make html
+    make html
 
 The ```Makefle``` document that is executed using the command above has the 
 important paths and the instructions for Sphinx so it should not be changed, 
@@ -76,15 +74,15 @@ to the repository.
 When the repository is updated, you can pull those changes to the astrosoft 
 directory. Start an ssh session and navigate to the directory in /afs/:
 
-.. code-block:: console
+.. code-block::
 
-    $ cd /afs/mpe/astrosoft/dysmalpy/dysmalpy/docs
+    cd /afs/mpe/astrosoft/dysmalpy/dysmalpy/docs
 
 Pull the changes from the repository:
 
-.. code-block:: console
+.. code-block::
 
-    $ git pull
+    git pull
 
 (Make sure you have the relevant access rights to the /afs/ directory. If you 
 don't, please contact Thomas Ott.)
@@ -95,9 +93,9 @@ To build the documentation with Sphinx, which compiles the files in
 reStructuredText format (reST) with extension .rst and Jupyter notebook 
 tutorials (.ipynb) and produces the .html files, run the following command:
 
-.. code-block:: console
+.. code-block::
 
-    $ make html
+    make html
 
 The ```Makefile``` document that is executed using the command above has the 
 important paths and the instructions for Sphinx so it should not be changed, 
@@ -109,9 +107,9 @@ unless strictly necessary. The built .html docs will go under
 To automate the process of copying the .html files to the live website using 
 rsync, run the following shell script, ```update.sh```:
 
-.. code-block:: console
+.. code-block::
 
-    $ bash /afs/mpe/www/resources/IR/DYSMALPY/update.sh
+    bash /afs/mpe/www/resources/IR/DYSMALPY/update.sh
 
 The .html files will be copied to ```/afs/mpe/www/resources/IR/DYSMALPY/```, so 
 the website will be updated automatically. Always double-check that the website 

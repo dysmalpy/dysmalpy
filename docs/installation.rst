@@ -33,14 +33,23 @@ To install Dysmalpy run:
 
 (Where N.N.N is the current version)
 
-.. code-block:: console
+.. code-block::
 
-        $ tar zxvf dysmalpy-N.N.N.tar.gz
-        $ cd dysmalpy-N.N.N
-        $ # You can use pip to install the package:
-        $ python -m pip install .
-        $ # Alternatively, you can use the following command:
-        $ python setup.py install --single-version-externally-managed --root=/
+        tar zxvf dysmalpy-N.N.N.tar.gz
+        cd dysmalpy-N.N.N
+
+You can use pip to install the package:
+
+.. code-block::
+
+        python -m pip install .
+
+
+Alternatively, you can use the following command:
+
+.. code-block::
+
+        python setup.py install --single-version-externally-managed --root=/
 
 
 By default, this will try to install dysmalpy with the optional C++ extensions that you may 
@@ -58,12 +67,12 @@ To get the most up-to-date development version of ``dysmalpy``, clone the reposi
 
 Within your desired parent directory, clone the repository from GitHub:
 
-.. code-block:: console
+.. code-block::
 
-    $ git clone https://github.com/dysmalpy/dysmalpy.git 
+    git clone https://github.com/dysmalpy/dysmalpy.git 
 
 
-Then add the path to this repository to your python path (eg, 
+Then add the path to this repository to your python path (e.g., 
 `PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
 .bashrc or .bash_profile for bash, or the equivalent for your shell). 
 
@@ -87,7 +96,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
     confirm the location of the package that is imported by checking 
     the output of 
     
-    .. code-block:: python
+    .. code-block::
 
         import dysmalpy
         print (dysmalpy.__file__)
@@ -211,7 +220,7 @@ A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.para
 is available for MPE-group specific architecture. 
 
 Prior to using DysmalPy with this `.bat` file, the DysmalPy source code
-and dependencies will need to be installed (see :ref: `Using Anaconda<_install_with_anaconda>`).
+and dependencies will need to be installed (see :ref:`Using Anaconda<install_with_anaconda>`).
 
 
 .. _install_afs:
@@ -226,17 +235,17 @@ Python packages to run ``dysmalpy``. To activate this environment
 as well as set environment variables, run this command in your
 terminal:
 
-.. code-block:: console
+.. code-block::
 
-    $ source /afs/mpe/astrosoft/dysmalpy/dysmalpy_setup.sh
+    source /afs/mpe/astrosoft/dysmalpy/dysmalpy_setup.sh
 
 To check whether the setup ran successfully run:
 
-.. code-block:: console
+.. code-block::
 
-    $ which python
+    which python
 
-This should return `/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/bin//python`.
+This should return `/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/bin/python`.
 Keep in mind that using this environment will override any environment
 you have setup locally and only Python packages installed in the
 ``dysmalpy`` environment will be available. If there is a package you

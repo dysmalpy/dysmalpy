@@ -149,6 +149,7 @@ extensions = [
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'sphinx_rtd_theme',
+    'sphinx_copybutton',
     # 'nbsphinx',  # Original jupyter NB renderer
     "myst_nb",  # Updated jupyter NB renderer, supports hiding/removing cell input.
 ######
