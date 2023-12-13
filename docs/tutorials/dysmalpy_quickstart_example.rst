@@ -1,4 +1,5 @@
 .. _quickstart_tutorial:
+
 ===============================
 Quickstart ``Dysmalpy`` example
 ===============================
@@ -10,9 +11,9 @@ can be run with:
 
 .. _dysmalpy_quickstart_example.py: dysmalpy_quickstart_example.py
 
-.. code-block:: console
+.. code-block::
 
-    $ python dysmalpy_quickstart_example.py
+    python dysmalpy_quickstart_example.py
 
 
 The output 3D cube will be saved as a FITS file (named `dpy_test_model_3D.fits`) in your

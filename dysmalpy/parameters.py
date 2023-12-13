@@ -740,24 +740,22 @@ class ConditionalUniformPrior(Prior):
 
     def __init__(self, f_bounds=None, f_cond=_f_cond_boundaries):
         """
-        Initialize ConditionalUniformPrior instance.
+        Initialize `ConditionalUniformPrior` instance.
 
         Parameters
         ----------
         f_bounds : function
-            Function f_bounds(param, modelset) that takes the parameter and model set as input.
+            Function `f_bounds(param, modelset)` that takes the parameter and model set as input.
             It must return a 2-element array with the lower, upper bounds for the parameter,
             for the given other model parameter settings.
             These will then be used to uniformly sample the parameter within these bounds.
 
-            Note this will not be perfect, given the other parameters will be perturbed within their priors
-                (and thus some of the sampled value tuples may end up in the bad region), but hopefully
-                the MCMC walkers will still be able to work with this.
+            Note this will not be perfect, given the other parameters will be perturbed within their priors (and thus some of the sampled value tuples may end up in the bad region), but hopefully the MCMC walkers will still be able to work with this.
 
         f_cond : function, optional
-            Function f_cond(param, modelset, self.f_bounds) that takes the parameter and model set as input.
+            Function `f_cond(param, modelset, self.f_bounds)` that takes the parameter and model set as input.
             It must return True/False if the value does / does not satisfy the conditional requirements.
-            If True, then the log prior will be 0., if False, then it will be -np.inf
+            If `True`, then the log prior will be 0., if `False`, then it will be `-np.inf`
 
             If not set, it will default to a conditional based on the boundary function.
 
@@ -845,22 +843,19 @@ class ConditionalEmpiricalUniformPrior(Prior):
         ----------
 
         f_cond : function
-            Function f_cond(param, modelset, self.f_bounds) that takes the parameter and model set as input.
+            Function `f_cond(param, modelset, self.f_bounds)` that takes the parameter and model set as input.
             It must return True/False if the value does / does not satisfy the conditional requirements.
-            If True, then the log prior will be 0., if False, then it will be -np.inf
+            If `True`, then the log prior will be 0., if `False`, then it will be `-np.inf`
 
         f_bounds : function, optional
-            Function f_bounds(param, modelset, self.f_cond) that takes the parameter and model set as input.
+            Function `f_bounds(param, modelset, self.f_cond)` that takes the parameter and model set as input.
             It must return a 2-element array with the lower, upper bounds for the parameter,
             for the given other model parameter settings.
             These will then be used to uniformly sample the parameter within these bounds.
 
-            Note this will not be perfect, given the other parameters will be perturbed within their priors
-                (and thus some of the sampled value tuples may end up in the bad region), but hopefully
-                the MCMC walkers will still be able to work with this.
+            Note this will not be perfect, given the other parameters will be perturbed within their priors (and thus some of the sampled value tuples may end up in the bad region), but hopefully the MCMC walkers will still be able to work with this.
 
-            If not set, it will default to a function that iterates
-                to find boundaries based on self.f_cond.
+            If not set, it will default to a function that iterates to find boundaries based on `self.f_cond`.
 
         """
         self.f_cond = f_cond

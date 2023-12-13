@@ -889,7 +889,6 @@ def write_1d_obs_finer_scale(obs=None, model=None, dscale=None, fname=None,
                     aper_centers = aper_centers_interp,
                     aperture_radius=1.,
                     pix_perp=pix_perp_interp, pix_parallel=pix_parallel_interp,
-                    pix_length=None,
                     slit_pa=slit_pa,
                     partial_weight=obs.instrument.apertures.apertures[0].partial_weight)
     elif profile1d_type == 'circ_ap_cube':
@@ -898,7 +897,6 @@ def write_1d_obs_finer_scale(obs=None, model=None, dscale=None, fname=None,
                     aper_centers = aper_centers_interp,
                     aperture_radius=aperture_radius,
                     pix_perp=None, pix_parallel=None,
-                    pix_length=None,
                     slit_pa=slit_pa,
                     partial_weight=obs.instrument.apertures.apertures[0].partial_weight)
     elif profile1d_type == 'circ_ap_pv':
@@ -907,7 +905,6 @@ def write_1d_obs_finer_scale(obs=None, model=None, dscale=None, fname=None,
                     aper_centers = aper_centers_interp,
                     aperture_radius=aperture_radius,
                     pix_perp=None, pix_parallel=None,
-                    pix_length=None,
                     slit_pa=slit_pa, slit_width=obs.instrument.slit_width)
     else:
         do_extract = False

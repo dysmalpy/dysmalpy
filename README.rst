@@ -57,10 +57,10 @@ either MPFIT, MCMC or dynamic nested sampling.
 **4) Assess:** Visualise, assess fit, and fine tune the fitting. 
 
 
-.. _MPFIT: https://code.google.com/archive/p/astrolibpy/issues
+.. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: httsps://dynesty.readthedocs.io
-
+.. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 
 
 Dependencies
@@ -78,6 +78,17 @@ Dependencies
 * dill
 * photutils (version >= 1.3.0)
 * shapely 
+
+Installation
+------------
+
+To install DYSMALPY, please follow the instructions in the `installation`_ file.
+
+Contact
+-------
+
+If you have any questions or suggestions, please contact the developers at `dysmalpy@mpe.mpg.de`.
+
 
 License
 -------

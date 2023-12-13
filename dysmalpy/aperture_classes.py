@@ -225,7 +225,7 @@ class EllipAperture(Aperture):
 
                 # define shapely object:
                 circtmp = Point((0,0)).buffer(1)
-                aper_ell = shply_affinity.scale(circtmp, int(self.pix_perp), int(self.pix_parallel))
+                aper_ell = shply_affinity.scale(circtmp, self.pix_perp, self.pix_parallel)
 
 
                 for (whc_y, whc_x) in zip(*wh_calc):
@@ -256,7 +256,7 @@ class RectAperture(Aperture):
 
     pix_perp and pix_parallel are number of pixels of rectangle width/height. 
 
-        Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
+    Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
     """
 
     def __init__(self, slit_PA=None, pix_perp=None, pix_parallel=None,
@@ -871,7 +871,7 @@ class RectApertures(Apertures):
 def setup_aperture_types(obs=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
-            pix_length=None, partial_weight=True,
+            partial_weight=True,
             rotate_cube=False):
 
     # partial_weight:

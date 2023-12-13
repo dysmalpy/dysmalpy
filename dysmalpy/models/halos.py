@@ -491,9 +491,9 @@ class TwoPowerHalo(DarkMatterHalo):
 
         \rho=\frac{\rho_0}{(r/r_s)^\alpha(1 + r/r_s)^{\beta - \alpha}}
 
-    :math:`r_s` is the scale radius and defined as :math:`r_{vir}/c` where
-    :math:`r_{vir}` is the virial radius and :math:`c` is the concentration
-    parameter. :math:`rho_0` is the normalization parameter.
+    :math:`r_s` is the scale radius and defined as :math:`r_\mathrm{vir}/c` where
+    :math:`r_\mathrm{vir}` is the virial radius and :math:`c` is the concentration
+    parameter. :math:`\rho_0` is the normalization parameter.
 
     References
     ----------
@@ -852,7 +852,7 @@ class Einasto(DarkMatterHalo):
         \rho = \rho_0 \exp\left\{-\left(\frac{r}{h}\right)^{1/n}\right\}
 
     where :math:`h=r_s/(2n)^n` is the scale length and
-    :math:`r_s` is the scale radius defined as :math:`r_{vir}/c`.
+    :math:`r_s` is the scale radius defined as :math:`r_\mathrm{vir}/c`.
 
     In this model only `nEinasto` or `alphaEinasto` can be free since :math:`n=1/\alpha`.
 
@@ -1219,8 +1219,8 @@ class DekelZhao(DarkMatterHalo):
         return (1.-a/3.)*rhocbar
 
     def calc_rhovirbar(self, rvirial=None):
-        """
-        Average density in the virial radius, in :math:``M_{\odot}/\rm{kpc}^3``
+        r"""
+        Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
         """
         mvir = 10**self.mvirial
         if rvirial is None:

@@ -2,14 +2,17 @@
 # Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
     This is a Python code to implement lensing tranformation in DysmalPy.
-    This code uses the C++ library "libLensingTransformer.so".
+    This code uses the C++ library `libLensingTransformer.so`.
+    
+    .. Last updates:
+    ..     2021-08-03, finished first version, Daizhong Liu, MPE.
+    ..     2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
+    ..     2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
+    ..     2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 
-    Last updates:
-        2021-08-03, finished first version, Daizhong Liu, MPE.
-        2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
-        2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
-		2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 """
+
+__all__=['LensingTransformer']
 
 import os, sys, datetime, timeit
 import logging
@@ -419,18 +422,19 @@ def setup_lensing_transformer_from_params(
     """A utility function to return a LensingTransformer instance from the input parameters.
 
     One can either provide a params dict with following madatory keys:
-        - 'lensing_ra'
-        - 'lensing_dec'
-        - 'lensing_ssizex'
-        - 'lensing_ssizey'
-        - 'lensing_sra'
-        - 'lensing_sdec'
-        - 'lensing_spixsc'
-        - 'lensing_imra'
-        - 'lensing_imdec'
-        - 'pixscale'
-        - 'fov_npix'
-        - 'nspec'
+        - `lensing_ra`
+        - `lensing_dec`
+        - `lensing_ssizex`
+        - `lensing_ssizey`
+        - `lensing_sra`
+        - `lensing_sdec`
+        - `lensing_spixsc`
+        - `lensing_imra`
+        - `lensing_imdec`
+        - `pixscale`
+        - `fov_npix`
+        - `nspec`
+
     or individual parameters as arguments.
 
     Note that the individual parameter inputs overrides the use of the keys in the params dict.
@@ -708,7 +712,7 @@ def setup_lensing_transformer_from_params(
     return lensing_transformer
 
 
-def get_cached_lensing_transformer():
+def _get_cached_lensing_transformer():
     global cached_lensing_transformer_dict
     return cached_lensing_transformer_dict['0']
 

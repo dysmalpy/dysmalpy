@@ -13,11 +13,13 @@ from dysmalpy import fitting
 from dysmalpy import galaxy, instrument, models, observation
 from dysmalpy import aperture_classes
 from dysmalpy import config
+from dysmalpy.fitting_wrappers import data_io as fwdata_io
+from dysmalpy import data_io
 
 try:
-    import tied_functions, data_io, utils_io
+    import tied_functions, utils_io
 except:
-    from . import tied_functions, data_io, utils_io
+    from . import tied_functions, utils_io
 
 
 def load_galaxy(params=None, param_filename=None, datadir=None,
@@ -49,7 +51,7 @@ def load_galaxy(params=None, param_filename=None, datadir=None,
 
     # Read in the parameters from param_filename:
     if params is None:
-        params = data_io.read_fitting_params(fname=param_filename)
+        params = fwdata_io.read_fitting_params(fname=param_filename)
 
     # OVERRIDE SETTINGS FROM PARAMS FILE if passed directly -- eg from an example Jupyter NB:
     if datadir is not None:
@@ -64,7 +66,7 @@ def load_galaxy(params=None, param_filename=None, datadir=None,
         datadir = params['datadir']
 
     # Check if you can find filename; if not open datadir interface:
-    datadir, params = data_io.check_datadir_specified(params, datadir, ndim=ndim,
+    datadir, params = utils_io.check_datadir_specified(params, datadir, ndim=ndim,
                                             param_filename=param_filename)
 
     #######################
@@ -94,7 +96,7 @@ def load_observation(obs_ind, params=None, data_loader=None,
                                   tracer=params['obs_{}_tracer'.format(int(obs_ind+1))])
 
     # Get fitting dimension:
-    ndim = data_io.get_ndim_fit_from_paramfile(obs_ind, params=params)
+    ndim = fwdata_io.get_ndim_fit_from_paramfile(obs_ind, params=params)
 
 
     extra = '_{}'.format(int(obs_ind+1))
@@ -131,28 +133,28 @@ def load_observation(obs_ind, params=None, data_loader=None,
                 fdata_mask = params[key_mask]
             else:
                 fdata_mask = None
-            data = data_io.load_single_obs_1D_data(fdata=params[key_data],
+            data = fwdata_io.load_single_obs_1D_data(fdata=params[key_data],
                             fdata_mask=fdata_mask,
                             params=params, datadir=params['datadir'])
             data.filename_velocity = params['datadir']+params[key_data]
         elif ndim == 2:
             if obs_ind > 0:
-                data = data_io.load_single_obs_2D_data(params=params, extra=extra)
+                data = fwdata_io.load_single_obs_2D_data(params=params, extra=extra)
             else:
                 try:
-                    data = data_io.load_single_obs_2D_data(params=params, extra="")
+                    data = fwdata_io.load_single_obs_2D_data(params=params, extra="")
                 except:
-                    data = data_io.load_single_obs_2D_data(params=params, extra=extra)
+                    data = fwdata_io.load_single_obs_2D_data(params=params, extra=extra)
 
         elif ndim == 3:
             if obs_ind > 0:
-                data = data_io.load_single_obs_3D_data(params=params,
+                data = fwdata_io.load_single_obs_3D_data(params=params,
                                 skip_mask=skip_mask, skip_automask=skip_automask,
                                 skip_auto_truncate_crop=skip_auto_truncate_crop,
                                 return_crop_info=return_crop_info, extra=extra)
             else:
                 #try:
-                data = data_io.load_single_obs_3D_data(params=params,
+                data = fwdata_io.load_single_obs_3D_data(params=params,
                                 skip_mask=skip_mask, skip_automask=skip_automask,
                                 skip_auto_truncate_crop=skip_auto_truncate_crop,
                                 return_crop_info=return_crop_info, extra="")
@@ -2191,11 +2193,6 @@ def setup_basic_aperture_types(obs=None, params=None, extra=''):
     else:
         pix_parallel = None
 
-    if ('pix_length'+extra in params.keys()):
-        pix_length=params['pix_length'+extra]
-    else:
-        pix_length = None
-
 
     if ('partial_weight'+extra in params.keys()):
         partial_weight = params['partial_weight'+extra]
@@ -2219,7 +2216,7 @@ def setup_basic_aperture_types(obs=None, params=None, extra=''):
                     slit_pa=obs.instrument.slit_pa,
                     slit_width=obs.instrument.slit_width,
                     pix_perp=pix_perp, pix_parallel=pix_parallel,
-                    pix_length=pix_length, partial_weight=partial_weight)
+                    partial_weight=partial_weight)
 
 
     return apertures

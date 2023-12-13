@@ -12,7 +12,7 @@ z,        2.259        # Redshift
 datadir,          None                                   # Optional: Full path to data directory.
 
 fdata_cube,       fdata_cube.fits.gz
-fdata_err,        fdata_err.fits.gz
+fdata_err,        fdata_err_mod.fits.gz
 fdata_mask,       fdata_mask3D.fits.gz
 
 
@@ -28,15 +28,15 @@ spec_vel_trim,                          -500   500.
 #spatial_crop_trim,                      37 68 34 65      # l r b t
 auto_gen_3D_mask,                       True
 auto_gen_mask_apply_skymask_first,      True
-auto_gen_mask_snr_thresh_pixel,         None
+auto_gen_mask_snr_thresh_pixel,         None 
 auto_gen_mask_sig_segmap_thresh,        3.
 auto_gen_mask_npix_segmap_min,          5
 auto_gen_mask_sky_var_thresh,           2.                                                # H/J BAND  # 3. # K/Y
 auto_gen_mask_snr_int_flux_thresh,      3.
 
 
-xcenter,    None
-ycenter,    None
+xcenter,    None 
+ycenter,    None 
 
 data_inst_corr,   False
 

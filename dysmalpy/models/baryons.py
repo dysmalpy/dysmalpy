@@ -580,8 +580,7 @@ class NoordFlat(object):
 ##########################
 class InfThinMassiveGaussianRing(object):
     """
-    Class to handle circular velocities / enclosed mass profiles for
-        an infinitely thin, massive Gaussian ring.
+    Class to handle circular velocities / enclosed mass profiles for an infinitely thin, massive Gaussian ring.
 
     Lookup tables are numerically calculated, following B&T and Bovy online galaxies textbook.
 
@@ -594,7 +593,7 @@ class InfThinMassiveGaussianRing(object):
     Parameters
     ----------
     invh : float
-        Ratio of R_peak / ring_FWHM
+        Ratio of `R_peak` / `ring_FWHM`
 
     """
 
@@ -1037,7 +1036,6 @@ class ExpDisk(MassModel, _LightMassModel):
         -------
         surf_dens : float or array
             Mass surface density at `r` in units of Msun/kpc^2
-        -------
 
         """
         return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd)
@@ -2376,7 +2374,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
 
 
 class GaussianRing(MassModel, _LightMassModel):
-    """
+    r"""
     Mass distribution following an infinitely thin Gaussian ring profile.
 
     Parameters
@@ -2401,9 +2399,10 @@ class GaussianRing(MassModel, _LightMassModel):
     Model formula:
 
     .. math::
-        M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
-        sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
-    
+        M(r)&=M_0\exp\left(\frac{(r-r_{\rm peak})^2}{2\sigma_R^2}\right)
+
+        \sigma_R &= \mathrm{FWHM}/(2\sqrt{2\ln 2})
+
     """
 
     total_mass = DysmalParameter(default=1, bounds=(5, 14))
@@ -2544,7 +2543,7 @@ class GaussianRing(MassModel, _LightMassModel):
 
     def potential_gradient(self, r):
         r"""
-        Method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+        Method to evaluate the gradient of the potential, :math:`\Delta\Phi(r)/\Delta r`.
 
         Parameters
         ----------

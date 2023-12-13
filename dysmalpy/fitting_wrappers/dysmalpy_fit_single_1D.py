@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os, sys, shutil
+from dysmalpy import data_io
 
 import matplotlib
 # Check if there is a display for plotting, or if there is an SSH/TMUX session.
@@ -49,10 +50,10 @@ def dysmalpy_reanalyze_single_1D(param_filename=None,
         params['outdir'] = outdir
 
     # Setup some paths:
-    outdir = utils_io.ensure_path_trailing_slash(params['outdir'])
+    outdir = data_io.ensure_path_trailing_slash(params['outdir'])
     params['outdir'] = outdir
 
-    fitting.ensure_dir(params['outdir'])
+    data_io.ensure_dir(params['outdir'])
 
     if 'plot_type' not in params.keys():
         params['plot_type'] = plot_type

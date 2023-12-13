@@ -37,7 +37,7 @@ logger.setLevel(logging.INFO)
 # outdir = '/afs/mpe.mpg.de/home/sedona/JUPYTER_EXAMPLES/JUPYTER_OUTPUT_1D/'
 
 # Data directory
-dir_path = os.path.abspath(dysmalpy.__path__[0])
+dir_path = os.path.abspath(fitting.__path__[0])
 data_dir = os.sep.join([os.sep.join(dir_path.split(os.sep)[:-1]),'tests', 'test_data', ''])
 #'/YOUR/DATA/PATH/'   
 outdir = '/Users/sedona/data/dysmalpy_test_examples/JUPYTER_OUTPUT_1D/'
