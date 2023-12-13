@@ -65,19 +65,24 @@ either MPFIT, MCMC or dynamic nested sampling.
 
 Dependencies
 ------------
-* python (version >= 3.7)
-* numpy/scipy/matplotlib
-* astropy (version >= 2.0.0)
-* radio-beam
-* spectral-cube (version >= 0.6.0)
+* python (version >= 3.10)
+* numpy (version >= 1.24.3)
+* scipy (version >=1.9.3)
+* matplotlib
+* pandas
+* astropy (version >= 5.3)
 * multiprocess
-* emcee
+* emcee (version >= 3)
 * dynesty (version >= 2.0.0)
-* acor
-* corner
-* dill
-* photutils (version >= 1.3.0)
-* shapely 
+* corner (version >= 2.2.2)
+* dill (version >= 0.3.7)
+* photutils (version >= 1.8.0)
+* shapely (version >= 2)
+* spectral-cube (version >= 0.6.0)
+* radio-beam (version >= 0.3.3)
+* h5py (version >= 3.8.0)
+* six
+
 
 Installation
 ------------
