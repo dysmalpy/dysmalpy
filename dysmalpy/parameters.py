@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # This module contains our new Parameter class which applies a prior function
 # to a parameter
@@ -15,7 +15,7 @@ import copy
 
 # Third party
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, truncnorm
 from astropy.modeling import Parameter
 from astropy.units import Quantity
 import six
@@ -136,6 +136,10 @@ class Prior:
         """Returns the log value of the prior given the parameter value"""
 
     @abc.abstractmethod
+    def prior_unit_transform(self, *args, **kwargs):
+        """Map a uniform random variable drawn from [0.,1.] to the prior of interest"""
+
+    @abc.abstractmethod
     def sample_prior(self, *args, **kwargs):
         """Returns a random sample of parameter values distributed according to the prior"""
 
@@ -144,6 +148,8 @@ class UniformPrior(Prior):
     """
     Object for flat priors
     """
+    def __init__(self):
+        pass
 
     @staticmethod
     def log_prior(param, **kwargs):
@@ -153,8 +159,7 @@ class UniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
 
         Returns
         -------
@@ -177,6 +182,41 @@ class UniformPrior(Prior):
         else:
             return -np.inf
 
+
+    def prior_unit_transform(self, param, u, **kwargs):
+        """
+        Transforms a uniform random variable Uniform[0.,1.] to the prior distribution
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+
+        u : float or list-like
+            Random uniform variable(s) drawn from Uniform[0.,1.]
+
+        Returns
+        -------
+        v : float or list-like
+            Transformation of the random uniform variable u to random value(s) 
+            drawn from the prior distribution.
+
+        """
+        if param.bounds[0] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmin = param.bounds[0]
+        if param.bounds[1] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmax = param.bounds[1]
+
+        # Scale and shift the unit [0., 1.] to the bounds:
+        # v = range * u + min
+        v = (pmax-pmin) * u + pmin
+
+        return v
+
     @staticmethod
     def sample_prior(param, N=1, **kwargs):
         """
@@ -185,7 +225,7 @@ class UniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -211,6 +251,10 @@ class UniformPrior(Prior):
 # CAN THIS? BC NEED TO USE LinearDiskBulge / etc, bc of walker jumps ?????
 class UniformLinearPrior(Prior):
     # Note: must bounds input as LINEAR BOUNDS
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def log_prior(param, **kwargs):
 
@@ -228,6 +272,41 @@ class UniformLinearPrior(Prior):
             return 0.
         else:
             return -np.inf
+
+    def prior_unit_transform(self, param, u, **kwargs):
+        """
+        Transforms a uniform random variable Uniform[0.,1.] to the prior distribution
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+
+        u : float or list-like
+            Random uniform variable(s) drawn from Uniform[0.,1.]
+
+        Returns
+        -------
+        v : float or list-like
+            Transformation of the random uniform variable u to random value(s) 
+            drawn from the prior distribution.
+
+        """
+
+        if param.bounds[0] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmin = param.bounds[0]
+        if param.bounds[1] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmax = param.bounds[1]
+
+        # Scale and shift the unit [0., 1.] to the bounds:
+        # v = range * u + min
+        v = (pmax-pmin) * u + pmin
+
+        return v
 
     @staticmethod
     def sample_prior(param, N=1, **kwargs):
@@ -275,8 +354,7 @@ class GaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
 
         Returns
         -------
@@ -286,6 +364,31 @@ class GaussianPrior(Prior):
         return np.log(norm.pdf(param.value, loc=self.center,
                         scale=self.stddev))
 
+
+    def prior_unit_transform(self, param, u, **kwargs):
+        """
+        Transforms a uniform random variable Uniform[0.,1.] to the prior distribution
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+
+        u : float or list-like
+            Random uniform variable(s) drawn from Uniform[0.,1.]
+
+        Returns
+        -------
+        v : float or list-like
+            Transformation of the random uniform variable u to random value(s) 
+            drawn from the prior distribution.
+
+        """
+
+        v  = norm.ppf(u, loc=self.center, scale=self.stddev)
+
+        return v
+
     def sample_prior(self, param, N=1, **kwargs):
         """
         Returns a random sample of parameter values distributed according to the prior
@@ -293,7 +396,7 @@ class GaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -334,8 +437,7 @@ class BoundedGaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
 
         Returns
         -------
@@ -359,6 +461,42 @@ class BoundedGaussianPrior(Prior):
         else:
             return -np.inf
 
+    def prior_unit_transform(self, param, u, **kwargs):
+        """
+        Transforms a uniform random variable Uniform[0.,1.] to the prior distribution
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+
+        u : float or list-like
+            Random uniform variable(s) drawn from Uniform[0.,1.]
+
+        Returns
+        -------
+        v : float or list-like
+            Transformation of the random uniform variable u to random value(s) 
+            drawn from the prior distribution.
+
+        """
+
+        if param.bounds[0] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:            
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmax = param.bounds[1]
+
+        a = (pmin - self.center) / self.stddev
+        b = (pmax - self.center) / self.stddev
+        v = truncnorm.ppf(u, a, b, loc=self.center, scale=self.stddev)
+
+        return v
+
     def sample_prior(self, param, N=1, **kwargs):
         """
         Returns a random sample of parameter values distributed according to the prior
@@ -366,7 +504,7 @@ class BoundedGaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -421,6 +559,25 @@ class BoundedGaussianLinearPrior(Prior):
             return np.log(norm.pdf(np.power(10., param.value), loc=self.center, scale=self.stddev))
         else:
             return -np.inf
+
+
+    def prior_unit_transform(self, param, u, **kwargs):
+
+        if param.bounds[0] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:            
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmax = param.bounds[1]
+
+        a = (pmin - self.center) / self.stddev
+        b = (pmax - self.center) / self.stddev
+        v = truncnorm.ppf(u, a, b, loc=self.center, scale=self.stddev)
+
+        return v
 
     def sample_prior(self, param, N=1, **kwargs):
 
@@ -478,8 +635,7 @@ class BoundedSineGaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
 
         Returns
         -------
@@ -501,6 +657,42 @@ class BoundedSineGaussianPrior(Prior):
         else:
             return -np.inf
 
+    def prior_unit_transform(self, param, u, **kwargs):
+        """
+        Transforms a uniform random variable Uniform[0.,1.] to the prior distribution
+
+        Parameters
+        ----------
+        param : `~dysmalpy.parameters.DysmalParameter`
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+
+        u : float or list-like
+            Random uniform variable(s) drawn from Uniform[0.,1.]
+
+        Returns
+        -------
+        v : float or list-like
+            Transformation of the random uniform variable u to random value(s) 
+            drawn from the prior distribution.
+
+        """
+
+        if param.bounds[0] is None:
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmin = param.bounds[0]
+
+        if param.bounds[1] is None:            
+            raise ValueError("Parameter must have well-defined bounds! bounds: {}".format(param.bounds))
+        else:
+            pmax = param.bounds[1]
+
+        a = (pmin - self.center) / self.stddev
+        b = (pmax - self.center) / self.stddev
+        v = truncnorm.ppf(np.sin(u*np.pi/180.), a, b, loc=self.center, scale=self.stddev)
+
+        return v
+
     def sample_prior(self, param, N=1, **kwargs):
         """
         Returns a random sample of parameter values distributed according to the prior
@@ -508,7 +700,7 @@ class BoundedSineGaussianPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -548,24 +740,22 @@ class ConditionalUniformPrior(Prior):
 
     def __init__(self, f_bounds=None, f_cond=_f_cond_boundaries):
         """
-        Initialize ConditionalUniformPrior instance.
+        Initialize `ConditionalUniformPrior` instance.
 
         Parameters
         ----------
         f_bounds : function
-            Function f_bounds(param, modelset) that takes the parameter and model set as input.
+            Function `f_bounds(param, modelset)` that takes the parameter and model set as input.
             It must return a 2-element array with the lower, upper bounds for the parameter,
             for the given other model parameter settings.
             These will then be used to uniformly sample the parameter within these bounds.
 
-            Note this will not be perfect, given the other parameters will be perturbed within their priors
-                (and thus some of the sampled value tuples may end up in the bad region), but hopefully
-                the MCMC walkers will still be able to work with this.
+            Note this will not be perfect, given the other parameters will be perturbed within their priors (and thus some of the sampled value tuples may end up in the bad region), but hopefully the MCMC walkers will still be able to work with this.
 
         f_cond : function, optional
-            Function f_cond(param, modelset, self.f_bounds) that takes the parameter and model set as input.
+            Function `f_cond(param, modelset, self.f_bounds)` that takes the parameter and model set as input.
             It must return True/False if the value does / does not satisfy the conditional requirements.
-            If True, then the log prior will be 0., if False, then it will be -np.inf
+            If `True`, then the log prior will be 0., if `False`, then it will be `-np.inf`
 
             If not set, it will default to a conditional based on the boundary function.
 
@@ -580,8 +770,10 @@ class ConditionalUniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+        
+        modelset : `~dysmalpy.models.ModelSet`
+            Current `~dysmalpy.models.ModelSet`, of which param is a part
 
         Returns
         -------
@@ -596,6 +788,13 @@ class ConditionalUniformPrior(Prior):
         else:
             return -np.inf
 
+    
+    def prior_unit_transform(self, param, u, modelset=None, **kwargs):
+
+        raise NotImplementedError("Need to implement in a way that uses something similar to self.f_cond()")
+
+        return v
+
     def sample_prior(self, param, N=1, modelset=None, **kwargs):
         """
         Returns a random sample of parameter values distributed according to the prior
@@ -603,7 +802,7 @@ class ConditionalUniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -644,22 +843,19 @@ class ConditionalEmpiricalUniformPrior(Prior):
         ----------
 
         f_cond : function
-            Function f_cond(param, modelset, self.f_bounds) that takes the parameter and model set as input.
+            Function `f_cond(param, modelset, self.f_bounds)` that takes the parameter and model set as input.
             It must return True/False if the value does / does not satisfy the conditional requirements.
-            If True, then the log prior will be 0., if False, then it will be -np.inf
+            If `True`, then the log prior will be 0., if `False`, then it will be `-np.inf`
 
         f_bounds : function, optional
-            Function f_bounds(param, modelset, self.f_cond) that takes the parameter and model set as input.
+            Function `f_bounds(param, modelset, self.f_cond)` that takes the parameter and model set as input.
             It must return a 2-element array with the lower, upper bounds for the parameter,
             for the given other model parameter settings.
             These will then be used to uniformly sample the parameter within these bounds.
 
-            Note this will not be perfect, given the other parameters will be perturbed within their priors
-                (and thus some of the sampled value tuples may end up in the bad region), but hopefully
-                the MCMC walkers will still be able to work with this.
+            Note this will not be perfect, given the other parameters will be perturbed within their priors (and thus some of the sampled value tuples may end up in the bad region), but hopefully the MCMC walkers will still be able to work with this.
 
-            If not set, it will default to a function that iterates
-                to find boundaries based on self.f_cond.
+            If not set, it will default to a function that iterates to find boundaries based on `self.f_cond`.
 
         """
         self.f_cond = f_cond
@@ -672,8 +868,10 @@ class ConditionalEmpiricalUniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
-        modelset :
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
+        
+        modelset : `~dysmalpy.models.ModelSet`
+            Current `~dysmalpy.models.ModelSet`, of which param is a part
 
         Returns
         -------
@@ -688,6 +886,13 @@ class ConditionalEmpiricalUniformPrior(Prior):
         else:
             return -np.inf
 
+
+    def prior_unit_transform(self, param, u, modelset=None, **kwargs):
+
+        raise NotImplementedError("Need to implement in a way that uses something similar to self.f_cond()")
+
+        return v
+        
     def sample_prior(self, param, N=1, modelset=None, **kwargs):
         """
         Returns a random sample of parameter values distributed according to the prior
@@ -695,7 +900,7 @@ class ConditionalEmpiricalUniformPrior(Prior):
         Parameters
         ----------
         param : `~dysmalpy.parameters.DysmalParameter`
-            `~dysmalpy.parameters.DysmalParameter` object for which the prior is associated to
+            `~dysmalpy.parameters.DysmalParameter` object with which the prior is associated
         N : int, optional
             Size of random sample. Default is 1.
 
@@ -734,7 +939,7 @@ class DysmalParameter(Parameter):
                  max=None, bounds=None, prior=None):
 
         if prior is None:
-            prior = UniformPrior
+            prior = UniformPrior()
 
         super(DysmalParameter, self).__init__(name=name,
                                               description=description,

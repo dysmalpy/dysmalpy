@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # File containing all of the available classes to define aperture for
 # extracting 1D spectra for a galaxy/model.
@@ -12,16 +12,23 @@ import logging
 
 # Third party imports
 import numpy as np
-import astropy.units as u
+# import scipy.interpolate as scp_interp
+# import scipy.ndimage as scp_ndi
 
 from dysmalpy.utils import calc_pixel_distance, gaus_fit_sp_opt_leastsq, gaus_fit_apy_mod_fitter
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 __all__ = [ "Aperture", "EllipAperture", "RectAperture", "Apertures",
-            "EllipApertures", "CircApertures", "RectApertures", "SquareApertures" ]
+            "EllipApertures", "CircApertures", "RectApertures", 
+            # "SinglePixelPVApertures", 
+            #"CircularPVApertures",
+            "setup_aperture_types"] 
+            #, 
+            #"calc_1dprofile", "calc_1dprofile_circap_pv"]
 
 deg2rad = np.pi / 180.
 
@@ -39,9 +46,11 @@ except:
 # Base Class for a data container
 class Aperture(object):
     """
-    Generic case.
+    Base Aperture class, containting a single aperture from which to extract 
+    a 1D spectrum and flux, velocity, and dispersion.
+
     aper_center, center_pixel should be in *Pixel* units, and in x,y coordinates
-    ####Shape center_pixel: 2 ([x, y])
+
     Shape aper_center: 2 ( [x0, y0] )
     """
 
@@ -61,7 +70,7 @@ class Aperture(object):
             self._mask_ap = None
 
     def define_aperture_mask(self):
-        mask = np.ones((self.ny, self.nx), dtype=bool)
+        mask = np.zeros((self.ny, self.nx), dtype=bool)
         mask[np.int(self.aper_center[1]), np.int(self.aper_center[0])] = True
         return mask
 
@@ -161,6 +170,10 @@ class Aperture(object):
 
 class EllipAperture(Aperture):
     """
+    Elliptical Aperture
+
+    pix_perp and pix_parallel are number of pixels of the elliptical semi axes lengths.
+
     Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
     """
 
@@ -212,7 +225,7 @@ class EllipAperture(Aperture):
 
                 # define shapely object:
                 circtmp = Point((0,0)).buffer(1)
-                aper_ell = shply_affinity.scale(circtmp, int(self.pix_perp), int(self.pix_parallel))
+                aper_ell = shply_affinity.scale(circtmp, self.pix_perp, self.pix_parallel)
 
 
                 for (whc_y, whc_x) in zip(*wh_calc):
@@ -230,7 +243,7 @@ class EllipAperture(Aperture):
                     apmask[whc_y,whc_x] = overlap.area
             else:
                 raise ValueError("Currently cannot do partial weights if python package shapely is not installed")
-                apmask = None # fractional pixels
+                # apmask = None # fractional pixels
         else:
             apmask = ( (yslits/self.pix_parallel)**2 + (xslits/self.pix_perp)**2 <= 1. )
 
@@ -239,6 +252,10 @@ class EllipAperture(Aperture):
 #
 class RectAperture(Aperture):
     """
+    Rectangular aperture. 
+
+    pix_perp and pix_parallel are number of pixels of rectangle width/height. 
+
     Note: slit_PA is CCW from north / up (sky "y" direction). In Degrees!
     """
 
@@ -312,7 +329,7 @@ class RectAperture(Aperture):
 
             else:
                 raise ValueError("Currently cannot do partial weights if python package shapely is not installed")
-                apmask = None # fractional pixels
+                # apmask = None # fractional pixels
         else:
             apmask = ( (np.abs(xslits) <= self.pix_perp/2.) & (np.abs(yslits) <= self.pix_parallel/2.) )
 
@@ -321,7 +338,10 @@ class RectAperture(Aperture):
 
 
 class Apertures(object):
-    """
+    """ 
+    Base Aperture class, continaing a list/array of Aperture objects 
+    defining the full set of apertures for a kinematic observation. 
+
     Generic case. Should be array of Aperture objects. Needs the loop.
     """
     def __init__(self, apertures=None, slit_PA=None, rotate_cube=False):
@@ -332,7 +352,7 @@ class Apertures(object):
 
     def extract_1d_kinematics(self, spec_arr=None,
                 cube=None, err=None, mask=None, spec_mask=None,
-                center_pixel = None, pixscale=None):
+                center_pixel=None, pixscale=None):
         """
         aper_centers_pixout: the radial direction positions, relative to kin center, in pixels
         """
@@ -376,13 +396,17 @@ class Apertures(object):
 
 class EllipApertures(Apertures):
     """
-    Generic case. Should be array of Aperture objects. Needs the loop.
+    Set of elliptical apertures. 
+    
     Uses same generic extract_1d_kinematics as Apertures.
     Sizes can vary. -- depending on if pix_perp and pix_parallel are arrays or scalar.
 
     FOR THIS CASE: aper_centers are along the slit.
 
     rarr should be in *** ARCSEC ***
+
+    Note here that pix_perp and pix_parallel are the semi axes lengths!
+
 
     """
     def __init__(self, rarr=None, slit_PA=None, pix_perp=None, pix_parallel=None,
@@ -440,6 +464,11 @@ class EllipApertures(Apertures):
 
 
 class CircApertures(EllipApertures):
+    """
+    Set of circular apertures. 
+    
+    Extends EllipApertures.
+    """
     def __init__(self, rarr=None, slit_PA=None, rpix=None,
              nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
              moment=False):
@@ -452,8 +481,10 @@ class CircApertures(EllipApertures):
 #
 class RectApertures(Apertures):
     """
-    Generic case. Should be array of Aperture objects. Needs the loop.
+    Set of rectangular apertures. 
+    
     Uses same generic extract_1d_kinematics as Apertures.
+
     Sizes can vary. -- depending on if pix_perp and pix_parallel are arrays or scalar.
 
     FOR THIS CASE: aper_centers are along the slit.
@@ -517,108 +548,441 @@ class RectApertures(Apertures):
 
         super(RectApertures, self).__init__(apertures=apertures, slit_PA=slit_PA, rotate_cube=rotate_cube)
 
-class SquareApertures(RectApertures):
-    """
-    Note here that pix_perp and pix_parallel are the *WIDTHS* of the rectangular apertures
-
-    """
-    def __init__(self, rarr=None, slit_PA=None, pix_length=None,
-             nx=None, ny=None, center_pixel=None, pixscale=None, partial_weight=True, rotate_cube=False,
-             moment=False):
-
-        super(SquareApertures, self).__init__(rarr=rarr, slit_PA=slit_PA,
-                pix_perp=pix_length, pix_parallel=pix_length, nx=nx, ny=ny,
-                center_pixel=center_pixel, pixscale=pixscale, partial_weight=partial_weight,
-                rotate_cube=rotate_cube,
-                moment=moment)
 
 
+# class SinglePixelPVApertures(Apertures):
+#     """
+#     Wrapper around the original IDL DYSMAL "single pixel PV" extraction
+#     calculations.
+
+#     Preserved as an option for checks, etc.
+
+#     rarr should be in *** ARCSEC ***
+
+#     slit_width: arcsec
+#     slit_PA: degrees
+
+#     """
+#     def __init__(self, slit_width=None, slit_PA=None,
+#                  pixscale=None, rarr=None,
+#                  moment=True):
+
+#         self.slit_width = slit_width
+#         self.slit_PA = slit_PA
+#         self.pixscale = pixscale
+#         self.rarr = rarr
+        
+#         super(SinglePixelPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
+
+#     def extract_1d_kinematics(self, spec_arr=None,
+#                 cube=None, err=None, mask=None, spec_mask=None,
+#                 center_pixel = None, pixscale=None):
+#         """
+#         aper_centers_pixout: the radial direction positions, relative to kin center, in pixels
+#         """
+
+#         r1d, flux1d, vel1d, disp1d = calc_1dprofile(cube,
+#                         self.slit_width,self.slit_PA-180.,
+#                         self.pixscale, spec_arr)
+#         vinterp = scp_interp.interp1d(r1d, vel1d, fill_value='extrapolate')
+#         disp_interp = scp_interp.interp1d(r1d, disp1d, fill_value='extrapolate')
+#         vel1d = vinterp(self.rarr)
+#         disp1d = disp_interp(self.rarr)
+#         flux_interp = scp_interp.interp1d(r1d, flux1d, fill_value='extrapolate')
+#         flux1d = flux_interp(self.rarr)
+
+#         #return self.aper_centers, flux1d, vel1d, disp1d
+#         return self.rarr, flux1d, vel1d, disp1d
+
+# class CircularPVApertures(Apertures):
+#     """
+#     Wrapper around the original IDL DYSMAL "circular aperture PV" extraction
+#     calculations.
+
+#     Should be mathemtically equivalent to the cube-applied CircApertures,
+#     but preserved as an option for checks, etc.
+
+#     rarr should be in *** ARCSEC ***
+
+#     slit_width: arcsec
+#     slit_PA: degrees
+
+#     """
+#     def __init__(self, slit_width=None, slit_PA=None,
+#                  pixscale=None, rarr=None,
+#                  moment=True):
+
+#         self.slit_width = slit_width
+#         self.slit_PA = slit_PA
+#         self.pixscale = pixscale
+#         self.rarr = rarr
+        
+#         #<TODO><20220618># no self.apertures??
+        
+#         super(CircularPVApertures, self).__init__(apertures=None, slit_PA=slit_PA, rotate_cube=False)
+
+#     def extract_1d_kinematics(self, spec_arr=None,
+#                 cube=None, err=None, mask=None, spec_mask=None,
+#                 center_pixel = None, pixscale=None):
+#         """
+#         aper_centers_pixout: the radial direction positions, relative to kin center, in pixels
+#         """
+
+#         r1d, flux1d, vel1d, disp1d = calc_1dprofile_circap_pv(cube,
+#                         self.slit_width,self.slit_PA-180.,
+#                         self.pixscale, spec_arr)
+#         vinterp = scp_interp.interp1d(r1d, vel1d, fill_value='extrapolate')
+#         disp_interp = scp_interp.interp1d(r1d, disp1d, fill_value='extrapolate')
+#         vel1d = vinterp(self.rarr)
+#         disp1d = disp_interp(self.rarr)
+#         flux_interp = scp_interp.interp1d(r1d, flux1d, fill_value='extrapolate')
+#         flux1d = flux_interp(self.rarr)
+
+#         #return self.aper_centers, flux1d, vel1d, disp1d
+#         return self.rarr, flux1d, vel1d, disp1d
 
 
-def setup_aperture_types(gal=None, profile1d_type=None,
+
+
+# def area_segm(rr, dd):
+
+#     return (rr**2 * np.arccos(dd/rr) -
+#             dd * np.sqrt(2. * rr * (rr-dd) - (rr-dd)**2))
+
+
+
+# def calc_1dprofile(cube, slit_width, slit_angle, pxs, vx, soff=0.):
+#     """
+#     Measure the 1D rotation curve from a cube using a pseudoslit.
+
+#     This function measures the 1D rotation curve by first creating a PV diagram based on the
+#     input slit properties. Fluxes, velocities, and dispersions are then measured from the spectra
+#     at each single position in the PV diagram by calculating the 0th, 1st, and 2nd moments
+#     of each spectrum.
+
+#     Parameters
+#     ----------
+#     cube : 3D array
+#         Data cube from which to measure the rotation curve. First dimension is assumed to
+#         be spectral direction.
+
+#     slit_width : float
+#         Slit width of the pseudoslit in arcseconds
+
+#     slit_angle : float
+#         Position angle of the pseudoslit
+
+#     pxs : float
+#         Pixelscale of the data cube in arcseconds/pixel
+
+#     vx : 1D array
+#         Values of the spectral axis. This array must have the same length as the
+#         first dimension of `cube`.
+
+#     soff : float, optional
+#         Offset of the slit from center in arcseconds. Default is 0.
+
+#     Returns
+#     -------
+#     xvec : 1D array
+#         Position along slit in arcseconds
+
+#     flux : 1D array
+#         Relative flux of the line at each position. Calculated as the sum of the spectrum.
+
+#     vel : 1D array
+#         Velocity at each position in same units as given by `vx`. Calculated as the first moment
+#         of the spectrum.
+
+#     disp : 1D array
+#         Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
+#         second moment of the spectrum.
+
+#     """
+#     cube_shape = cube.shape
+#     psize = cube_shape[1]
+#     vsize = cube_shape[0]
+#     lin = np.arange(psize) - np.fix(psize/2.)
+#     veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
+#                                            reshape=False)
+#     tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
+#             ((lin*pxs) >= (soff-slit_width/2.)))
+#     data = np.zeros((psize, vsize))
+
+#     flux = np.zeros(psize)
+
+#     yvec = vx
+#     xvec = lin*pxs
+
+#     for i in range(psize):
+#         for j in range(vsize):
+#             data[i, j] = np.mean(veldata[j, i, tmpn])
+#         flux[i] = np.sum(data[i,:])
+
+#     flux = flux / np.max(flux) * 10.
+#     pvec = (flux < 0.)
+
+#     vel = np.zeros(psize)
+#     disp = np.zeros(psize)
+#     for i in range(psize):
+#         vel[i] = np.sum(data[i,:]*yvec)/np.sum(data[i,:])
+#         disp[i] = np.sqrt( np.sum( ((yvec-vel[i])**2) * data[i,:]) / np.sum(data[i,:]) )
+
+#     if np.sum(pvec) > 0.:
+#         vel[pvec] = -1.e3
+#         disp[pvec] = 0.
+
+#     return xvec, flux, vel, disp
+
+
+# def calc_1dprofile_circap_pv(cube, slit_width, slit_angle, pxs, vx, soff=0.):
+#     """
+#     Measure the 1D rotation curve from a cube using a pseudoslit
+
+#     This function measures the 1D rotation curve by first creating a PV diagram based on the
+#     input slit properties. Fluxes, velocities, and dispersions are then measured from spectra
+#     produced by integrating over circular apertures placed on the PV diagram with radii equal
+#     to 0.5*`slit_width`. The 0th, 1st, and 2nd moments of the integrated spectra are then calculated
+#     to determine the flux, velocity, and dispersion.
+
+#     Parameters
+#     ----------
+#     cube : 3D array
+#         Data cube from which to measure the rotation curve. First dimension is assumed to
+#         be spectral direction.
+
+#     slit_width : float
+#         Slit width of the pseudoslit in arcseconds
+
+#     slit_angle : float
+#         Position angle of the pseudoslit
+
+#     pxs : float
+#         Pixelscale of the data cube in arcseconds/pixel
+
+#     vx : 1D array
+#         Values of the spectral axis. This array must have the same length as the
+#         first dimension of `cube`.
+
+#     soff : float, optional
+#         Offset of the slit from center in arcseconds. Default is 0.
+
+#     Returns
+#     -------
+#     xvec : 1D array
+#         Position along slit in arcseconds
+
+#     flux : 1D array
+#         Relative flux of the line at each position. Calculated as the sum of the spectrum.
+
+#     vel : 1D array
+#         Velocity at each position in same units as given by `vx`. Calculated as the first moment
+#         of the spectrum.
+
+#     disp : 1D array
+#         Velocity dispersion at each position in the same units as given by `vx`. Calculated as the
+#         second moment of the spectrum.
+
+#     """
+#     cube_shape = cube.shape
+#     psize = cube_shape[1]
+#     vsize = cube_shape[0]
+#     lin = np.arange(psize) - np.fix(psize/2.)
+#     veldata = scp_ndi.interpolation.rotate(cube, slit_angle, axes=(2, 1),
+#                                            reshape=False)
+#     tmpn = (((lin*pxs) <= (soff+slit_width/2.)) &
+#             ((lin*pxs) >= (soff-slit_width/2.)))
+#     data = np.zeros((psize, vsize))
+#     flux = np.zeros(psize)
+
+#     yvec = vx
+#     xvec = lin*pxs
+
+#     for i in range(psize):
+#         for j in range(vsize):
+#             data[i, j] = np.mean(veldata[j, i, tmpn])
+#         tmp = data[i]
+#         flux[i] = np.sum(tmp)
+
+#     flux = flux / np.max(flux) * 10.
+#     pvec = (flux < 0.)
+
+#     # Calculate circular segments
+#     rr = 0.5 * slit_width
+#     pp = pxs
+
+#     nslice = int(1 + 2 * np.ceil((rr - 0.5 * pp) / pp))
+
+#     circaper_idx = np.arange(nslice) - 0.5 * (nslice - 1)
+#     circaper_sc = np.zeros(nslice)
+
+#     circaper_sc[int(0.5*nslice - 0.5)] = (np.pi*rr**2 -
+#                                           2.*area_segm(rr, 0.5*pp))
+
+#     if nslice > 1:
+#         circaper_sc[0] = area_segm(rr, (0.5*nslice - 1)*pp)
+#         circaper_sc[nslice-1] = circaper_sc[0]
+
+#     if nslice > 3:
+#         for cnt in range(1, int(0.5*(nslice-3))+1):
+#             circaper_sc[cnt] = (area_segm(rr, (0.5*nslice - 1. - cnt)*pp) -
+#                                 area_segm(rr, (0.5*nslice - cnt)*pp))
+#             circaper_sc[nslice-1-cnt] = circaper_sc[cnt]
+
+#     circaper_vel = np.zeros(psize)
+#     circaper_disp = np.zeros(psize)
+#     circaper_flux = np.zeros(psize)
+
+#     nidx = len(circaper_idx)
+#     for i in range(psize):
+#         tot_vnum = 0.
+#         tot_denom = 0.
+#         cnt_idx = 0
+#         cnt_start = int(i + circaper_idx[0]) if (i + circaper_idx[0]) > 0 else 0
+#         cnt_end = (int(i + circaper_idx[nidx-1]) if (i + circaper_idx[nidx-1]) <
+#                                                     (psize-1) else (psize-1))
+#         for cnt in range(cnt_start, cnt_end+1):
+#             tmp = data[cnt]
+#             tot_vnum += circaper_sc[cnt_idx] * np.sum(tmp*yvec)
+#             tot_denom += circaper_sc[cnt_idx] * np.sum(tmp)
+#             cnt_idx = cnt_idx + 1
+
+#         circaper_vel[i] = tot_vnum / tot_denom
+#         circaper_flux[i] = tot_denom
+
+#         tot_dnum = 0.
+#         cnt_idx = 0
+#         for cnt in range(cnt_start, cnt_end+1):
+#             tmp = data[cnt]
+#             tot_dnum = (tot_dnum + circaper_sc[cnt_idx] *
+#                         np.sum(tmp*(yvec-circaper_vel[i])**2))
+#             cnt_idx = cnt_idx + 1
+
+#         circaper_disp[i] = np.sqrt(tot_dnum / tot_denom)
+
+#     if np.sum(pvec) > 0.:
+#         circaper_vel[pvec] = -1.e3
+#         circaper_disp[pvec] = 0.
+#         circaper_flux[pvec] = 0.
+
+#     return xvec, circaper_flux, circaper_vel, circaper_disp
+
+
+def setup_aperture_types(obs=None, profile1d_type=None,
             slit_width = None, aper_centers=None, slit_pa=None,
             aperture_radius=None, pix_perp=None, pix_parallel=None,
-            pix_length=None, from_data=True,
-            partial_weight=True, rotate_cube=False,
-            moment=False,
-            oversample=1):
+            partial_weight=True,
+            rotate_cube=False):
 
     # partial_weight:
-    #           are partial pixels weighted in apertures?
+    #      are partial pixels weighted in apertures?
 
-    if from_data:
-        slit_width = gal.data.slit_width
-        aper_centers = gal.data.rarr
-        slit_pa = gal.data.slit_pa
+    _valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'circ_ap_pv', 'single_pix_pv']
+    _print_valid_1dprofs = ['circ_ap_cube', 'rect_ap_cube', 'single_pix_pv']
+    if profile1d_type.lower() not in _valid_1dprofs:
+        raise ValueError("profile1d_type={} not in the valid list: {}".format(
+            profile1d_type.lower(), 
+            _print_valid_1dprofs
+            ))
 
-    rstep = gal.instrument.pixscale.value
-    nx = gal.instrument.fov[0]
-    ny = gal.instrument.fov[1]
+    if aper_centers is None:
+        raise ValueError("Must set 'aper_centers'!")
+    if slit_pa is None:
+        raise ValueError("Must set 'slit_pa'!")
+    if (slit_width is None) & (profile1d_type not in ['circ_ap_cube', 'circ_ap_pv']):
+        if (profile1d_type.lower() == 'rect_ap_cube') & (pix_perp is not None) & (pix_parallel is not None):
+            pass
+        else:
+            msg = "profile1d_type: {}\n".format(profile1d_type)
+            if (profile1d_type.lower() in ['rect_ap_cube']) & (
+                (pix_perp is None) or (pix_parallel is None)
+            ):
+                msg += " & pix_perp={}, pix_parallel={}\n".format(pix_perp, pix_parallel)
+            msg += "Must set 'slit_width'!"
+            raise ValueError(msg)
 
-    if (oversample > 1):
-        nx *= oversample
-        ny *= oversample
-        rstep /= (1.* oversample)
-        aper_centers *= oversample
+    # if False:
+    #     slit_width = obs.instrument.slit_width
+    #     aper_centers = obs.instrument.rarr
+    #     slit_pa = obs.instrument.slit_pa
+
+    pixscale = obs.instrument.pixscale.value
+    nx = obs.instrument.fov[0]
+    ny = obs.instrument.fov[1]
+
 
     try:
-        xcenter_samp = (gal.data.xcenter + 0.5)*oversample - 0.5
-        ycenter_samp = (gal.data.ycenter + 0.5)*oversample - 0.5
+        xcenter_samp = (obs.obs_options.xcenter + 0.5) - 0.5
+        ycenter_samp = (obs.obs_options.ycenter + 0.5) - 0.5
         center_pixel = [xcenter_samp, ycenter_samp]
     except:
         center_pixel = None
 
-    if (gal.data is not None):
-        if (gal.data.aper_center_pix_shift is not None):
-            if center_pixel is not None:
-                center_pixel = [center_pixel[0] + gal.data.aper_center_pix_shift[0]*oversample,
-                                center_pixel[1] + gal.data.aper_center_pix_shift[1]*oversample]
-            else:
-                center_pixel = [np.int(nx / 2) + gal.data.aper_center_pix_shift[0]*oversample,
-                                np.int(ny / 2) + gal.data.aper_center_pix_shift[1]*oversample]
 
-
-    #print("aperture_class: center_pixel={}".format(center_pixel))
+    # ----------------------------------------
+    # SET UP SPECIFIC TYPES:
 
     if (profile1d_type.lower() == 'circ_ap_cube'):
         if (aperture_radius is not None):
-            rpix = aperture_radius/rstep
+            rpix = aperture_radius/pixscale
         else:
-            rpix = slit_width/rstep/2.
+            if slit_width is None:
+                raise ValueError("If not setting 'aperture_radius', must set 'slit_width'.")
+            rpix = slit_width/pixscale/2.
 
         apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
                  partial_weight=partial_weight, rotate_cube=rotate_cube,
-                 moment=moment)
+                 moment=obs.instrument.moment)
 
     elif (profile1d_type.lower() == 'rect_ap_cube'):
         if (pix_perp is None):
-            pix_perp = slit_width/rstep
-        else:
-            pix_perp *= oversample
+            pix_perp = slit_width/pixscale
 
         if (pix_parallel is None):
-            pix_parallel = slit_width/rstep
-        else:
-            pix_parallel *= oversample
+            pix_parallel = slit_width/pixscale
 
         apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
                 pix_perp=pix_perp, pix_parallel=pix_parallel,
-                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
+                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
                 partial_weight=partial_weight, rotate_cube=rotate_cube,
-                moment=moment)
+                moment=obs.instrument.moment)
 
-    elif (profile1d_type.lower() == 'square_ap_cube'):
-        if ('pix_length' is None):
-            pix_length = slit_width/rstep
+
+    elif (profile1d_type.lower() == 'circ_ap_pv'):
+        # apertures = CircularPVApertures(rarr=aper_centers, slit_PA=slit_pa,
+        #                                 slit_width=slit_width, pixscale=pixscale,
+        #                                 moment=obs.instrument.moment)
+
+        # Just do the direct cube circular aperture extraction:
+        wmsg = "profile1d_type = 'circ_ap_pv' is depreciated! Use 'circ_ap_cube' instead!"
+        logger.warning(wmsg)
+        if (aperture_radius is not None):
+            rpix = aperture_radius/pixscale
         else:
-            pix_length *= oversample
+            if slit_width is None:
+                raise ValueError("If not setting 'aperture_radius', must set 'slit_width'.")
+            rpix = slit_width/pixscale/2.
+        apertures = CircApertures(rarr=aper_centers, slit_PA=slit_pa, rpix=rpix,
+                        nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+                        partial_weight=partial_weight, rotate_cube=rotate_cube,
+                        moment=obs.instrument.moment)
 
-        apertures = SquareApertures(rarr=aper_centers, slit_PA=slit_pa, pix_length = pix_length,
-                 nx=nx, ny=ny, center_pixel=center_pixel, pixscale=rstep,
-                 partial_weight=partial_weight, rotate_cube=rotate_cube,
-                 moment=moment)
+    elif (profile1d_type.lower() == 'single_pix_pv'):
+        # apertures = SinglePixelPVApertures(rarr=aper_centers, slit_PA=slit_pa,
+        #                                    slit_width=slit_width, pixscale=pixscale,
+        #                                    moment=obs.instrument.moment)
+        
+        # Just use rectangular apertures:
+        pix_perp = slit_width/pixscale
+        pix_parallel = 1
 
+        apertures = RectApertures(rarr=aper_centers, slit_PA=slit_pa,
+                pix_perp=pix_perp, pix_parallel=pix_parallel,
+                nx=nx, ny=ny, center_pixel=center_pixel, pixscale=pixscale,
+                partial_weight=partial_weight, rotate_cube=rotate_cube,
+                moment=obs.instrument.moment)
+        
     else:
         raise TypeError('Unknown method for measuring the 1D profiles.')
 

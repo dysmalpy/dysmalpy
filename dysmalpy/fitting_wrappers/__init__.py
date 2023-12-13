@@ -1,4 +1,4 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 
 import dysmalpy.fitting_wrappers.dysmalpy_fit_single
 import dysmalpy.fitting_wrappers.dysmalpy_fit_single_1D

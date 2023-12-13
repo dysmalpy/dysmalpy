@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # File containing all of the available classes to hold observed data for a
 # galaxy.
@@ -15,11 +15,12 @@ import copy
 import numpy as np
 import astropy.units as u
 from astropy.wcs import WCS
-from spectral_cube import SpectralCube, BooleanArrayMask
+from spectral_cube import SpectralCube #, BooleanArrayMask
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 
 __all__ = ["Data", "Data1D", "Data2D", "Data3D"]
@@ -45,12 +46,12 @@ class Data(object):
         self.shape = shape
         self.mask = np.array(mask, dtype=bool)
 
-        self.smoothing_type = smoothing_type
-        self.smoothing_npix = smoothing_npix
-
         self.filename_velocity = filename_velocity
         self.filename_dispersion = filename_dispersion
 
+        self.smoothing_type = smoothing_type
+        self.smoothing_npix = smoothing_npix
+        
         self.xcenter = xcenter
         self.ycenter = ycenter
 
@@ -74,8 +75,6 @@ class Data1D(Data):
                  mask_velocity=None,
                  mask_vel_disp=None,
                  weight=None,
-                 slit_width=None,
-                 slit_pa=None, aper_center_pix_shift=None,
                  estimate_err=False, error_frac=0.2,
                  inst_corr=False,
                  filename_velocity=None,
@@ -177,11 +176,8 @@ class Data1D(Data):
             error['flux'] = flux_err
 
         ############
-        self.aper_center_pix_shift = aper_center_pix_shift
 
         shape = velocity.shape
-        self.slit_width = slit_width
-        self.slit_pa = slit_pa
         self.rarr = r
 
         self.apertures = None
@@ -470,8 +466,7 @@ class Data0D(Data):
     """
 
     def __init__(self, x, flux, flux_err=None, weight=None,
-                 mask=None, integrate_cube=True, slit_width=None,
-                 slit_pa=None, estimate_err=False, error_frac=0.2):
+                 mask=None, estimate_err=False, error_frac=0.2):
 
         if x.shape != flux.shape:
             raise ValueError("r and velocity are not the same size.")
@@ -502,9 +497,6 @@ class Data0D(Data):
             error = flux_err
 
         ############
-        self.integrate_cube = integrate_cube
-        self.slit_width = slit_width
-        self.slit_pa = slit_pa
         self.x = x
         shape = x.shape
 

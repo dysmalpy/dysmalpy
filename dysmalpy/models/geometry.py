@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Geometry models for DysmalPy
 
@@ -29,9 +29,10 @@ __all__ = ['Geometry']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class Geometry(_DysmalFittable3DModel):
@@ -55,6 +56,9 @@ class Geometry(_DysmalFittable3DModel):
     vel_shift : float
         Systemic velocity shift that will be applied to the whole cube in km/s
 
+    obs_name : string
+        (Attribute): Name of the observation to which this geometry belongs.
+
     Methods
     -------
     coord_transform:
@@ -77,8 +81,19 @@ class Geometry(_DysmalFittable3DModel):
 
     vel_shift = DysmalParameter(default=0.0, fixed=True)  # default: none
 
+    obs_name = 'galaxy'
+
     _type = 'geometry'
     outputs = ('xp', 'yp', 'zp')
+
+    def __init__(self, obs_name=None, **kwargs):
+        if obs_name is None:
+            raise ValueError("Geometries must have an 'obs_name' specified!")
+
+        self.obs_name = obs_name
+
+        super(Geometry, self).__init__(**kwargs)
+
 
     @staticmethod
     def evaluate(x, y, z, inc, pa, xshift, yshift, vel_shift):
@@ -210,7 +225,7 @@ class Geometry(_DysmalFittable3DModel):
         vel : float or array or tuple of arrays
             Amplitude of the velocity.
             If model._multicoord_velocity is True, must pass a tuple of velocity components
-                for each coordinate in the model's native geometry.
+            for each coordinate in the model's native geometry.
 
         x, y, z : float or array
             xyz position in the radial flow reference frame.

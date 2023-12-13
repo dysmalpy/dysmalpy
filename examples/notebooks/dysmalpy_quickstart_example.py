@@ -3,12 +3,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from dysmalpy import galaxy
-from dysmalpy import models
-from dysmalpy import instrument
-from dysmalpy import data_classes
-from dysmalpy import parameters
-from dysmalpy import plotting
+from dysmalpy import galaxy, observation, models, instrument, aperture_classes, \
+                     parameters, plotting
 
 import numpy as np
 import astropy.units as u
@@ -23,26 +19,27 @@ else:
     havedisplay=True
 
 # **Set function to tie scale height relative to effective radius**
-
 def tie_sigz_reff(model_set):
-
     reff = model_set.components['disk+bulge'].r_eff_disk.value
     invq = model_set.components['disk+bulge'].invq_disk
     sigz = 2.0*reff/invq/2.35482
-
     return sigz
 
 
-# ---------
+# ---------------------------------------------------------------
 
-## Initialize galaxy, model set, instrument
-
+## Initialize galaxy, model set, observations, and instruments
 gal = galaxy.Galaxy(z=2., name='galaxy')
 mod_set = models.ModelSet()
+obs = observation.Observation(name='OBS', tracer='LINE')
 inst = instrument.Instrument()
 
-### Baryonic component: Combined Disk+Bulge
+## Set observation options:
+obs.mod_options.oversample = 3
+obs.fit_options.fit_flux = True   # Also plot the flux.
+                                  # Velocity/dispersion included by default.
 
+### Baryonic component: Combined Disk+Bulge
 total_mass = 10.5    # M_sun
 bt = 0.3             # Bulge-Total ratio
 r_eff_disk = 4.0     # kpc
@@ -82,7 +79,6 @@ bary.r_eff_disk.prior = parameters.BoundedGaussianPrior(center=5.0, stddev=1.0)
 
 
 ### Halo component
-
 mvirial = 12.0
 conc = 5.0
 
@@ -98,18 +94,17 @@ halo = models.NFW(mvirial=mvirial, conc=conc, z=gal.z,
 halo.mvirial.prior = parameters.BoundedGaussianPrior(center=11.5, stddev=0.5)
 
 
-### Dispersion profile
-
+### Dispersion profile -- note the tracer must match the observation's tracer:
 sigma0 = 39.   # km/s
 disp_fixed = {'sigma0': False}
 disp_bounds = {'sigma0': (5, 300)}
 
 disp_prof = models.DispersionConst(sigma0=sigma0, fixed=disp_fixed,
-                                          bounds=disp_bounds, name='dispprof')
+                                   bounds=disp_bounds, name='dispprof',
+                                   tracer='LINE')
 
 
 ### z-height profile
-
 sigmaz = 0.9   # kpc
 zheight_fixed = {'sigmaz': False}
 
@@ -117,8 +112,7 @@ zheight_prof = models.ZHeightGauss(sigmaz=sigmaz, name='zheightgaus',
                                    fixed=zheight_fixed)
 zheight_prof.sigmaz.tied = tie_sigz_reff
 
-### Geometry
-
+### Geometry -- note the "obs_name" attribute must match the observation's name:
 inc = 62.     # degrees
 pa = 142.     # degrees, blue-shifted side CCW from north
 xshift = 0    # pixels from center
@@ -135,11 +129,11 @@ geom_bounds = {'inc': (0, 90),
                'yshift': (-10, -4)}
 
 geom = models.Geometry(inc=inc, pa=pa, xshift=xshift, yshift=yshift,
-                       fixed=geom_fixed, bounds=geom_bounds, name='geom')
+                       fixed=geom_fixed, bounds=geom_bounds, name='geom',
+                       obs_name='OBS')
 
 
 ### Add all model components to ModelSet
-
 mod_set.add_component(bary, light=True)
 mod_set.add_component(halo)
 mod_set.add_component(disp_prof)
@@ -148,13 +142,11 @@ mod_set.add_component(geom)
 
 
 ### Set kinematic options for calculating velocity profile
-
 mod_set.kinematic_options.adiabatic_contract = False
 mod_set.kinematic_options.pressure_support = True
 
 
 ### Set up the instrument
-
 beamsize = 0.55*u.arcsec                 # FWHM of beam
 sig_inst = 45*u.km/u.s                   # Instrumental spectral resolution
 
@@ -170,19 +162,22 @@ inst.spec_step = 10*u.km/u.s             # Spectral step
 inst.spec_start = -1000*u.km/u.s         # Starting value of spectrum
 inst.nspec = 201                         # Number of spectral pixels
 
+inst.moment = False                      # Use Gaussian fitting to extract to 1D/2D
+
 # Set the beam kernel so it doesn't have to be calculated every step
 inst.set_beam_kernel()
 inst.set_lsf_kernel()
 
 
-### Add the model set, instrument to the Galaxy
+### Add the instrument to the observation:
+obs.instrument = inst
 
+### Add the model set, observation to the Galaxy
 gal.model = mod_set
-gal.instrument = inst
+gal.add_observation(obs)
 
 
 ## Create models
-
 f_cube = 'dpy_test_model_3D.fits'
 if havedisplay:
     fileout1D = fileout2D = None
@@ -191,22 +186,26 @@ else:
     fileout2D = "dpy_test_model_2D.pdf"
 
 ### 3D model
-
-gal.create_model_data(oversample=3, ndim_final=3, from_data=False)
-gal.model_cube.data.write(f_cube, overwrite=True)
+gal.observations['OBS'].instrument.ndim = 3  # Set ndim of model
+gal.create_model_data()
+gal.observations['OBS'].model_cube.data.write(f_cube, overwrite=True)
 
 
 ### 2D model
-
-gal.create_model_data(oversample=3, ndim_final=2, from_data=False)
-plotting.plot_model_2D(gal, inst_corr=True, fileout=fileout2D)
+gal.observations['OBS'].instrument.ndim = 2  # Set ndim of model
+gal.create_model_data()
+plotting.plot_model_2D(gal, inst_corr=True, fileout_base=fileout2D)
 
 ### 1D model
+gal.observations['OBS'].instrument.ndim = 1  # Set ndim of model
+# Define apertures for 1D profile: slit PA=kin PA; slit width=PSF FWHM
 aper_arr = np.linspace(-(inst.fov[0]-1)/2., (inst.fov[0]-1)/2.,
                            num=inst.fov[0])*inst.pixscale.value
-gal.create_model_data(oversample=3, ndim_final=1, from_data=False,
-                      slit_width = 0.55, slit_pa=142.,
-                      aper_centers=aper_arr,
-                      profile1d_type='circ_ap_cube')
+apertures = aperture_classes.setup_aperture_types(obs=gal.observations['OBS'],
+                                                  profile1d_type='circ_ap_cube',
+                                                  aper_centers=aper_arr,
+                                                  slit_width=0.55, slit_pa=142.)
+gal.observations['OBS'].instrument.apertures = apertures
 
-plotting.plot_model_1D(gal, inst_corr=True, best_dispersion=sigma0, fileout=fileout1D)
+gal.create_model_data()
+plotting.plot_model_1D(gal, inst_corr=True, best_dispersion=sigma0, fileout_base=fileout1D)

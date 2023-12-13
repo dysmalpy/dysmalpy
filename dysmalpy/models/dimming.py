@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Extinction models for DysmalPy
 
@@ -25,9 +25,10 @@ _default_cosmo = apy_cosmo.FlatLambdaCDM(H0=70., Om0=0.3)
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 
 

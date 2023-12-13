@@ -61,20 +61,19 @@ do not conflict with dependencies of any other packages you have installed.
 To create a new environment with python installed, from the terminal or an Anaconda Prompt,
 use the following command:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda create --name my-env python
+    conda create --name my-env python
 
 
 or, if you want to select a specific version of python, use for example:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda create --name my-env python=3.9
+    conda create --name my-env python=3.10
 
 .. warning::
-    We do not recommend using a version of python below ``3.6``, as we haven't checked
-    whether DysmalPy and its dependencies works properly with these previous versions.
+    DysmalPy requires python version ``>=3.10``.
 
 
 Then follow the prompts to finish creating the new environment ``my-env``.
@@ -98,47 +97,47 @@ Activating an Anaconda environment
 If you have installed the DysmalPy dependencies in the non-root Anaconda environment,
 you activate this environment with the following command:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda activate my-env
+    conda activate my-env
 
 or for MacOS and Linux
 
-.. code-block:: console
+.. code-block::
 
-    $ source activate my-env
+    source activate my-env
 
 or for Windows:
 
-.. code-block:: console
+.. code-block::
 
-    $ activate my-env
+    activate my-env
 
 
 To deactivate the environment, you can then use the command:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda deactivate
+    conda deactivate
 
 or for MacOS and Linux
 
-.. code-block:: console
+.. code-block::
 
-    $ source deactivate
+    source deactivate
 
 or for Windows:
 
-.. code-block:: console
+.. code-block::
 
-    $ deactivate
+    deactivate
 
 .. tip::
     Check that your environment is activated by running
 
-    .. code-block:: console
+    .. code-block::
 
-        $ which python
+        which python
 
     This should return a path ending with ``envs/my-env/bin/python``.
 
@@ -158,16 +157,16 @@ A number of the DysmalPy dependencies are not available in the default Anaconda 
 but are instead available in the ``astroconda`` channel.
 To ensure this channel is installed, from the terminal or the Anaconda Prompt, run:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda config --add channels http://ssb.stsci.edu/astroconda
+    conda config --add channels http://ssb.stsci.edu/astroconda
 
 To verify the channel has been added, check that the ``astroconda`` url shows up in
 the list of channels returned by the following command:
 
-.. code-block:: console
+.. code-block::
 
-    $ conda config --show channels
+    conda config --show channels
 
 
 
@@ -215,11 +214,12 @@ will be installed using ``pip`` at the end.
 
     From the terminal or an Anaconda prompt, run the following:
 
-    .. code-block:: console
+    .. code-block::
 
-        $ conda install astropy ipython numpy scipy matplotlib cython dill photutils
-        $ conda install -c astropy -c defaults h5py pandas
-        $ conda install -c conda-forge -c astropy emcee shapely corner
+        conda install astropy ipython numpy scipy matplotlib cython dill 
+        conda install -c astropy -c defaults h5py pandas
+        conda install -c conda-forge -c astropy photutils emcee shapely corner  
+        conda install -c conda-forge dynesty
 
 
 #. Install remaining dependencies with ``pip``:
@@ -231,9 +231,9 @@ will be installed using ``pip`` at the end.
 
     Again from the terminal or an Anaconda prompt, run:
 
-    .. code-block:: console
+    .. code-block::
 
-        $ pip install spectral-cube radio-beam
+        pip install spectral-cube radio-beam
 
 
 #. *OPTIONAL*: Install libraries for C++ extensions
@@ -244,10 +244,10 @@ will be installed using ``pip`` at the end.
     These can be installed separately (using your normal means), or can be installed
     as follows:
 
-    .. code-block:: console
+    .. code-block::
 
-        $ conda install gsl cfitsio
-        $ conda install -c conda-forge libcblas
+        conda install gsl cfitsio
+        conda install -c conda-forge libcblas
 
 
     Note that the installation directory will be needed later when compiling the

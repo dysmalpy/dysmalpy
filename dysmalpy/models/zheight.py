@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # ZHeight models for DysmalPy
 
@@ -23,8 +23,10 @@ __all__ = ['ZHeightGauss', 'ZHeightExp']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # ******* Z-Height Profiles ***************

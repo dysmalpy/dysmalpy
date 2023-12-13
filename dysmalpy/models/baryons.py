@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Baryon mass models for DysmalPy
 
@@ -7,26 +7,27 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
-import os
+import os, copy
 import logging
 import glob
 
 # Third party imports
 import numpy as np
 import scipy.special as scp_spec
-import scipy.io as scp_io
+import scipy.integrate as scp_int
+import scipy.optimize as scp_opt
 import scipy.interpolate as scp_interp
 import scipy.optimize as scp_opt
 import scipy.integrate as scp_int
 import astropy.constants as apy_con
-import astropy.units as u
 
 
 from astropy.table import Table
 
 # Local imports
 from .base import MassModel, _LightMassModel, v_circular, \
-                  menc_from_vcirc, sersic_mr, _I0_gaussring
+                  sersic_mr, _I0_gaussring
+# from .base import menc_from_vcirc
 from dysmalpy.parameters import DysmalParameter
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
@@ -35,33 +36,17 @@ __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'mass_comp_conditional_ring',
            'NoordFlat', 'InfThinMassiveGaussianRing']
 
-# NOORDERMEER DIRECTORY
+# NEW, RECALCULATED NOORDERMEER DIRECTORY: INCLUDES dlnrho/dlnr; MASS PROFILES
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
 # located one up:
 dir_path = os.sep.join(dir_path.split(os.sep)[:-1])
-# _dir_noordermeer = dir_path+"/data/noordermeer/"
-_dir_noordermeer = os.sep.join([dir_path, "data", "noordermeer", ""])
+_dir_deprojected_sersic_models = os.sep.join([dir_path, "data",
+                                "deprojected_sersic_models_tables", ""])
 
 
-# ALT NOORDERMEER DIRECTORY:
-# _dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR', None)
-# BACKWARDS COMPATIBILITY
-_dir_deprojected_sersic_models = os.getenv('DEPROJECTED_SERSIC_MODELS_DATADIR',
-                                 os.getenv('SERSIC_PROFILE_MASS_VC_DATADIR', None))
-
-
-
-# try:
-#     import sersic_profile_mass_VC.calcs as sersic_profile_mass_VC_calcs
-#     _sersic_profile_mass_VC_loaded = True
-# except:
-#     _sersic_profile_mass_VC_loaded = False
 
 # MASSIVE RING DIRECTORIES:
-# _dir_gaussian_ring_tables_TMP = os.sep.join(["", "Users", "sedona", "data",
-#                                              "mpe_ir", "ring_rot_curves", "ring_RC_tables"])
-# _dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', _dir_gaussian_ring_tables_TMP)
 _dir_gaussian_ring_tables = os.getenv('GAUSSIAN_RING_PROFILE_DATADIR', None)
 
 # CONSTANTS
@@ -79,8 +64,11 @@ pc = apy_con.pc
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
+
+import warnings
+warnings.filterwarnings("ignore")
 
 
 
@@ -236,7 +224,7 @@ class NoordFlat(object):
     Class to handle circular velocities / enclosed mass profiles for a thick Sersic component.
 
     Lookup tables are numerically calculated from the derivations provided in
-    Noordermeer 2008 [1]_ which properly accounted for the thickness of the mass component.
+    `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ which properly accounted for the thickness of the mass component.
 
     The lookup table provides rotation curves for Sersic components with
     `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
@@ -245,7 +233,7 @@ class NoordFlat(object):
 
     References
     ----------
-    .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
+    `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
 
     Parameters
     ----------
@@ -298,87 +286,12 @@ class NoordFlat(object):
 
     def _reset_interps(self):
         self._set_vcirc_interp()
+        self._set_menc_interp()
         if self.rho_interp_func is not None:
             self._set_rho_interp(interp_type=self._rho_interp_type)
         if self.dlnrhodlnr_interp_func is not None:
             self._set_dlnrhodlnr_interp(interp_type=self._dlnrhodlnr_interp_type)
 
-
-    ##### NOTE: CONSIDER CHANGING FROM USING .SAV FILES TO NEW FITS TABLES?
-    def read_noord_flat_SAV(self):
-        """
-        Load table with circular velocity for a thick Sersic component
-        """
-        noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
-        noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
-                                     100])  # 1:1, 1:2, 1:3, ...flattening
-
-        nearest_n = noordermeer_n[np.argmin(np.abs(noordermeer_n - self.n))]
-        nearest_q = noordermeer_invq[np.argmin(np.abs(noordermeer_invq - self.invq))]
-
-        # Need to do this internally instead of relying on IDL save files!!
-        file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
-            nearest_n, nearest_q)
-
-        restNVC = scp_io.readsav(file_noord)
-
-        return restNVC
-
-    def _set_vcirc_interp(self):
-        # Only set if n, invq has changed:
-        if ((self._n != self._n_current) | (self._invq != self._invq_current)):
-            self._n_current = self._n
-            self._invq_current = self._invq
-
-            restNVC = self.read_noord_flat_SAV()
-
-            N2008_vcirc = restNVC.N2008_vcirc
-            N2008_rad = restNVC.N2008_rad
-
-            self.N2008_Re = restNVC.N2008_Re
-            self.N2008_mass = restNVC.N2008_mass
-
-            self.vcirc_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-                                           fill_value="extrapolate")
-
-
-
-    def apply_noord_flat(self, r, r_eff, mass):
-        """
-        Calculate circular velocity for a thick Sersic component
-
-        Parameters
-        ----------
-        r : float or array
-            Radius or radii at which to calculate the circular velocity in kpc
-
-        r_eff : float
-            Effective radius of the Sersic component in kpc
-
-        mass : float
-            Total mass of the Sersic component
-
-        Returns
-        -------
-        vcirc : float or array
-            Circular velocity at each given `r`
-
-        Notes
-        -----
-        This function determines the circular velocity as a function of radius for
-        a Sersic component with a total mass, `mass`, Sersic index, `n`, and
-        an effective radius to scale height ratio, `invq`. This uses lookup tables
-        numerically calculated from the derivations provided in Noordermeer 2008 [2]_ which
-        properly accounted for the thickness of the mass component.
-
-        References
-        ----------
-        .. [2] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
-        """
-        vcirc = (self.vcirc_interp(r / r_eff * self.N2008_Re) * np.sqrt(
-                 mass / self.N2008_mass) * np.sqrt(self.N2008_Re / r_eff))
-
-        return vcirc
 
 
     def read_deprojected_sersic_table(self):
@@ -395,23 +308,17 @@ class NoordFlat(object):
         try:
             t = Table.read(file_sersic)
         except:
-            # Backwards compatibility:
-            try:
-                file_sersic = _dir_deprojected_sersic_models + 'mass_VC_profile_sersic_n{:0.1f}_invq{:0.2f}.fits'.format(nearest_n, nearest_invq)
-                t = Table.read(file_sersic)
-            except:
-                raise ValueError("File {} not found. _dir_deprojected_sersic_models={}. Check that system var ${} is set correctly.".format(file_sersic,
-                        _dir_deprojected_sersic_models, 'DEPROJECTED_SERSIC_MODELS_DATADIR'))
-
+            # REMOVE BACKWARDS COMPATIBILITY!
+            raise ValueError("File {} not found. _dir_deprojected_sersic_models={}.".format(file_sersic))
         return t[0]
 
 
-    def _set_vcirc_interp_new(self):
+    def _set_vcirc_interp(self):
         # SHOULD BE EXACTLY, w/in numerical limitations, EQUIV TO OLD CALCULATION
         table = self.read_deprojected_sersic_table()
 
-        N2008_vcirc =   table['vcirc']
-        N2008_rad =     table['R']
+        N2008_vcirc =        table['vcirc']
+        N2008_rad =          table['R']
         self.N2008_Re =      table['Reff']
         self.N2008_mass =    table['total_mass']
 
@@ -422,6 +329,100 @@ class NoordFlat(object):
 
         # return vcirc
 
+    def _set_menc_interp(self):
+        table = self.read_deprojected_sersic_table()
+
+        table_Rad =  table['R']
+        table_menc = table['menc3D_sph']
+
+        # Clean up values inside rmin:  Add the value at r=0: menc=0
+        if table['R'][0] > 0.:
+            table_Rad = np.append(0., table_Rad)
+            table_menc = np.append(0., table_menc)
+
+        self.menc_interp = scp_interp.interp1d(table_Rad, table_menc, 
+                                        fill_value="extrapolate")
+
+    def circular_velocity(self, r, r_eff, mass):
+        """
+        Calculate circular velocity for a thick Sersic component, by interpolating
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        r_eff : float
+            Effective radius of the Sersic component in kpc
+
+        mass : float
+            Total mass of the Sersic component
+
+        Returns
+        -------
+        vcirc : float or array
+            Circular velocity at each given `r`, in km/s
+
+        Notes
+        -----
+        This function determines the circular velocity as a function of radius for
+        a Sersic component with a total mass, `mass`, Sersic index, `n`, and
+        an effective radius to scale height ratio, `invq`. This uses lookup tables
+        numerically calculated from the derivations provided in `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ 
+        which properly account for the thickness of the mass component.
+
+        References
+        ----------
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
+        """
+        vcirc = (self.vcirc_interp(r / r_eff * self.N2008_Re) * np.sqrt(
+                 mass / self.N2008_mass) * np.sqrt(self.N2008_Re / r_eff))
+
+        return vcirc
+
+
+    def enclosed_mass(self, r, r_eff, mass):
+        """
+        Calculate enclosed mass for a thick Sersic component, by interpolating
+
+        Parameters
+        ----------
+        r : float or array
+            Radius or radii at which to calculate the circular velocity in kpc
+
+        r_eff : float
+            Effective radius of the Sersic component in kpc
+
+        mass : float
+            Total mass of the Sersic component
+
+        Returns
+        -------
+        menc : float or array
+            Enclosed mass (in a sphere) at each given `r`, in solar masses
+
+        Notes
+        -----
+        This function determines the spherical enclosed mass as a function of radius for
+        a Sersic component with a total mass, `mass`, Sersic index, `n`, and
+        an effective radius to scale height ratio, `invq`. This uses lookup tables
+        numerically calculated from the derivations provided in `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_ 
+        (as extended in `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_)
+        which properly account for the thickness of the mass component.
+
+        References
+        ----------
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
+        `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_
+        """
+
+        menc = self.menc_interp(r / r_eff * self.N2008_Re) * (mass / self.N2008_mass)
+        
+        # # TEST:
+        # print("USING OLD vcirc from menc! (baryons.py)")
+        # menc = menc_from_vcirc(self.circular_velocity(r, r_eff, mass), r)
+
+        return menc
 
     def rho(self, r, Reff, total_mass, interp_type='linear'):
         if (self._rho_interp_type != interp_type) | (self.rho_interp_func is None):
@@ -460,9 +461,20 @@ class NoordFlat(object):
                 # Length 1 array input
                 return rho_interp
 
-        return rho_interp
 
     def dlnrho_dlnr(self, r, Reff, interp_type='linear'):
+
+        """
+        Calculate log mass density gradient for a thick Sersic component, by interpolating. 
+
+        Can be used to determine an alternative pressure support correction. 
+
+        References
+        ----------
+        `Noordermeer 2008 <https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract>`_
+        `Price et al. 2022 <https://ui.adsabs.harvard.edu/abs/2022A%26A...665A.159P/abstract>`_
+
+        """
         if (self._dlnrhodlnr_interp_type != interp_type) | (self.dlnrhodlnr_interp_func is None):
             # Update rho funcs:
             self._set_dlnrhodlnr_interp(interp_type=interp_type)
@@ -565,215 +577,10 @@ class NoordFlat(object):
 
 
 
-
-
-# ## ORIGINAL VERSION:
-# def apply_noord_flat(r, r_eff, mass, n, invq):
-#     """
-#     Calculate circular velocity for a thick Sersic component
-#
-#     Parameters
-#     ----------
-#     r : float or array
-#         Radius or radii at which to calculate the circular velocity in kpc
-#
-#     r_eff : float
-#         Effective radius of the Sersic component in kpc
-#
-#     mass : float
-#         Total mass of the Sersic component
-#
-#     n : float
-#         Sersic index
-#
-#     invq : float
-#         Ratio of the effective radius of the Sersic component in the midplane to the
-#         effective radius in the z-direction
-#
-#     Returns
-#     -------
-#     vcirc : float or array
-#         Circular velocity at each given `r`
-#
-#     Notes
-#     -----
-#     This function determines the circular velocity as a function of radius for
-#     a Sersic component with a total mass, `mass`, Sersic index, `n`, and
-#     an effective radius to scale height ratio, `invq`. This uses lookup tables
-#     numerically calculated from the derivations provided in Noordermeer 2008 [1]_ which
-#     properly accounted for the thickness of the mass component.
-#
-#     The lookup table provides rotation curves for Sersic components with
-#     `n` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100].
-#     If the given `n` and/or `invq` are not one of these values then the nearest
-#     ones are used.
-#
-#     References
-#     ----------
-#     .. [1] https://ui.adsabs.harvard.edu/abs/2008MNRAS.385.1359N/abstract
-#     """
-#
-#     noordermeer_n = np.arange(0.5, 8.1, 0.1)  # Sersic indices
-#     noordermeer_invq = np.array([1, 2, 3, 4, 5, 6, 8, 10, 20,
-#                                  100])  # 1:1, 1:2, 1:3, ...flattening
-#
-#     nearest_n = noordermeer_n[
-#         np.argmin(np.abs(noordermeer_n - n))]
-#     nearest_q = noordermeer_invq[
-#         np.argmin(np.abs(noordermeer_invq - invq))]
-#
-#     # Need to do this internally instead of relying on IDL save files!!
-#     file_noord = _dir_noordermeer + 'VC_n{0:3.1f}_invq{1}.save'.format(
-#         nearest_n, nearest_q)
-#
-#     #try:
-#     if True:
-#         restNVC = scp_io.readsav(file_noord)
-#         N2008_vcirc = restNVC.N2008_vcirc
-#         N2008_rad = restNVC.N2008_rad
-#         N2008_Re = restNVC.N2008_Re
-#         N2008_mass = restNVC.N2008_mass
-#
-#         v_interp = scp_interp.interp1d(N2008_rad, N2008_vcirc,
-#                                        fill_value="extrapolate")
-#         vcirc = (v_interp(r / r_eff * N2008_Re) * np.sqrt(
-#                  mass / N2008_mass) * np.sqrt(N2008_Re / r_eff))
-#
-#     # except:
-#     #     vcirc = apply_noord_flat_new(r, r_eff, mass, n, invq)
-#
-#     return vcirc
-
-
-###########################
-
-#
-# def sersic_curve_rho(r, Reff, total_mass, n, invq, interp_type='linear'):
-#     table = get_sersic_VC_table_new(n, invq)
-#
-#     table_rho =     table['rho']
-#     table_rad =     table['R']
-#     table_Reff =    table['Reff']
-#     table_mass =    table['total_mass']
-#
-#     # Drop nonfinite parts:
-#     whfin = np.where(np.isfinite(table_rho))[0]
-#     table_rho = table_rho[whfin]
-#     table_rad = table_rad[whfin]
-#
-#     # Ensure it's an array:
-#     if isinstance(r*1., float):
-#         rarr = np.array([r])
-#     else:
-#         rarr = np.array(r)
-#     # Ensure all radii are 0. or positive:
-#     rarr = np.abs(rarr)
-#
-#
-#     # # UNIFIED INTERPOLATION/EXTRAPOLATION
-#     # r_interp = scp_interp.interp1d(table_rad, table_rho, bounds_error=False,
-#     #                                fill_value='extrapolate', kind='linear')
-#     #
-#     # rho_interp =  (r_interp(rarr / Reff * table_Reff) * (total_mass / table_mass) * (table_Reff / Reff)**3 )
-#
-#     scale_fac = (total_mass / table_mass) * (table_Reff / Reff)**3
-#
-#     if interp_type.lower().strip() == 'cubic':
-#         r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value=np.NaN, bounds_error=False, kind='cubic')
-#         r_interp_extrap = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate', kind='linear')
-#
-#         rho_interp = np.zeros(len(rarr))
-#         wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
-#         wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
-#         rho_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) * scale_fac )
-#         rho_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff) * scale_fac)
-#     elif interp_type.lower().strip() == 'linear':
-#         r_interp = scp_interp.interp1d(table_rad, table_rho, fill_value='extrapolate',
-#                                        bounds_error=False, kind='linear')
-#         rho_interp =     (r_interp(rarr / Reff * table_Reff) * scale_fac )
-#
-#     else:
-#         raise ValueError("interp type '{}' unknown!".format(interp_type))
-#
-#
-#
-#     if (len(rarr) > 1):
-#         return rho_interp
-#     else:
-#         if isinstance(r*1., float):
-#             # Float input
-#             return rho_interp[0]
-#         else:
-#             # Length 1 array input
-#             return rho_interp
-#
-#     return rho_interp
-#
-# def sersic_curve_dlnrho_dlnr(r, Reff, n, invq, interp_type='linear'):
-#     table = get_sersic_VC_table_new(n, invq)
-#
-#     table_dlnrho_dlnr =     table['dlnrho_dlnr']
-#     table_rad =     table['R']
-#     table_Reff =    table['Reff']
-#     table_mass =    table['total_mass']
-#
-#     # Drop nonfinite parts:
-#     whfin = np.where(np.isfinite(table_dlnrho_dlnr))[0]
-#     table_dlnrho_dlnr = table_dlnrho_dlnr[whfin]
-#     table_rad = table_rad[whfin]
-#
-#
-#     # Ensure it's an array:
-#     if isinstance(r*1., float):
-#         rarr = np.array([r])
-#     else:
-#         rarr = np.array(r)
-#     # Ensure all radii are 0. or positive:
-#     rarr = np.abs(rarr)
-#
-#     #
-#     # # UNIFIED INTERPOLATION/EXTRAPOLATION
-#     # r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, bounds_error=False,
-#     #                                fill_value='extrapolate', kind='linear')
-#     # dlnrho_dlnr_interp = (r_interp(rarr / Reff * table_Reff) )
-#
-#     if interp_type.lower().strip() == 'cubic':
-#         r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value=np.NaN, bounds_error=False, kind='cubic')
-#         r_interp_extrap = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
-#
-#         dlnrho_dlnr_interp = np.zeros(len(rarr))
-#         wh_in =     np.where((rarr <= table_rad.max()) & (rarr >= table_rad.min()))[0]
-#         wh_extrap = np.where((rarr > table_rad.max()) | (rarr < table_rad.min()))[0]
-#         dlnrho_dlnr_interp[wh_in] =     (r_interp(rarr[wh_in] / Reff * table_Reff) )
-#         dlnrho_dlnr_interp[wh_extrap] = (r_interp_extrap(rarr[wh_extrap] / Reff * table_Reff))
-#     elif interp_type.lower().strip() == 'linear':
-#         r_interp = scp_interp.interp1d(table_rad, table_dlnrho_dlnr, fill_value='extrapolate',
-#                                        bounds_error=False, kind='linear')
-#         dlnrho_dlnr_interp =     (r_interp(rarr / Reff * table_Reff)  )
-#     else:
-#         raise ValueError("interp type '{}' unknown!".format(interp_type))
-#
-#
-#     if (len(rarr) > 1):
-#         return dlnrho_dlnr_interp
-#     else:
-#         if isinstance(r*1., float):
-#             # Float input
-#             return dlnrho_dlnr_interp[0]
-#         else:
-#             # Length 1 array input
-#             return dlnrho_dlnr_interp
-#
-#     return dlnrho_dlnr_interp
-
-
-
-
 ##########################
 class InfThinMassiveGaussianRing(object):
     """
-    Class to handle circular velocities / enclosed mass profiles for
-        an infinitely thin, massive Gaussian ring.
+    Class to handle circular velocities / enclosed mass profiles for an infinitely thin, massive Gaussian ring.
 
     Lookup tables are numerically calculated, following B&T and Bovy online galaxies textbook.
 
@@ -786,7 +593,7 @@ class InfThinMassiveGaussianRing(object):
     Parameters
     ----------
     invh : float
-        Ratio of R_peak / ring_FWHM
+        Ratio of `R_peak` / `ring_FWHM`
 
     """
 
@@ -814,8 +621,6 @@ class InfThinMassiveGaussianRing(object):
         # self._set_vcirc_interp()
         self._set_potential_gradient_interp()
         self._set_menc_interp()
-
-
 
     def read_ring_table(self):
         # Use the "typical" collection of table values:
@@ -1148,6 +953,7 @@ class ExpDisk(MassModel, _LightMassModel):
     r_eff = DysmalParameter(default=1, bounds=(0, 50))
     mass_to_light = DysmalParameter(default=1, fixed=True)
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type
@@ -1230,7 +1036,6 @@ class ExpDisk(MassModel, _LightMassModel):
         -------
         surf_dens : float or array
             Mass surface density at `r` in units of Msun/kpc^2
-        -------
 
         """
         return surf_dens_exp_disk(r, 10.**self.total_mass, self.rd)
@@ -1335,6 +1140,7 @@ class Sersic(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq=1.0, noord_flat=False, baryon_type='gas+stars', **kwargs):
 
@@ -1393,7 +1199,7 @@ class Sersic(MassModel, _LightMassModel):
 
     def enclosed_mass(self, r):
         """
-        Sersic enclosed mass
+        Sersic enclosed mass (linear)
 
         Parameters
         ----------
@@ -1407,14 +1213,12 @@ class Sersic(MassModel, _LightMassModel):
         """
 
         if self.noord_flat:
-            ## Take Noordermeer+08 vcirc, and then get Menc from vcirc
-            # return menc_from_vcirc(apply_noord_flat(r, self.r_eff, 10**self.total_mass,
-            #                          self.n, self.invq), r)
 
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            return menc_from_vcirc(self.noord_flattener.apply_noord_flat(r, self.r_eff,
-                                   10**self.total_mass), r)
+
+            # Correct flattened mass profile: 
+            return self.noord_flattener.enclosed_mass(r, self.r_eff, 10**self.total_mass)
 
         else:
             return sersic_menc_2D_proj(r, 10**self.total_mass, self.n, self.r_eff)
@@ -1437,12 +1241,9 @@ class Sersic(MassModel, _LightMassModel):
             Circular velocity in km/s
         """
         if self.noord_flat:
-            # vcirc = apply_noord_flat(r, self.r_eff, 10**self.total_mass,
-            #                          self.n, self.invq)
-
             # Check v, invq are right:
             self._update_noord_flatteners()
-            vcirc = self.noord_flattener.apply_noord_flat(r, self.r_eff, 10**self.total_mass)
+            vcirc = self.noord_flattener.circular_velocity(r, self.r_eff, 10**self.total_mass)
         else:
             vcirc = super(Sersic, self).circular_velocity(r)
 
@@ -1585,6 +1386,7 @@ class DiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', gas_component='disk', baryon_type='gas+stars',
@@ -1603,19 +1405,21 @@ class DiskBulge(MassModel, _LightMassModel):
         self._initialize_noord_flatteners()
 
     def __setstate__(self, state):
-        super(DiskBulge, self).__setstate__(state)
+        state_mod = copy.deepcopy(state)
+        if 'noord_flat' in state.keys():
+            del state_mod['noord_flat']
+            state_mod['_noord_flat'] = state['noord_flat']
 
-        if 'baryon_type' in state.keys():
+        super(DiskBulge, self).__setstate__(state_mod)
+
+        if 'baryon_type' in state_mod.keys():
             pass
         else:
             self.baryon_type = 'gas+stars'
             self.gas_component = 'disk'
 
-        if '_noord_flat' in state.keys():
-            pass
-        else:
-            self._noord_flat = state['noord_flat']
-            self._initialize_noord_flatteners()
+        if 'noord_flat' in state.keys():
+            self._initialize_noord_flatteners()    
 
     @property
     def noord_flat(self):
@@ -1680,19 +1484,12 @@ class DiskBulge(MassModel, _LightMassModel):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #             self.n_bulge, self.invq_bulge), r)
-            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-            #             self.n_disk,  self.invq_disk),  r)
-
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
-                        self.r_eff_bulge, mbulge_total), r)
-            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
-                        self.r_eff_disk,  mdisk_total),  r)
+
+            # Correct flattened mass profiles: 
+            menc_bulge = self.noord_flattener_bulge.enclosed_mass(r, self.r_eff_bulge, mbulge_total)
+            menc_disk  = self.noord_flattener_disk.enclosed_mass(r, self.r_eff_disk, mdisk_total)
 
         else:
             # 2D projected:
@@ -1718,15 +1515,12 @@ class DiskBulge(MassModel, _LightMassModel):
         mdisk_total = 10 ** self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-            #             self.n_disk,  self.invq_disk),  r)
-
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
-                        self.r_eff_disk,  mdisk_total),  r)
+
+            # Correct flattened mass profiles: 
+            menc_disk  = self.noord_flattener_disk.enclosed_mass(r, self.r_eff_disk, mdisk_total)
+
         else:
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
@@ -1749,15 +1543,11 @@ class DiskBulge(MassModel, _LightMassModel):
         mbulge_total = 10 ** self.total_mass * self.bt
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #             self.n_bulge, self.invq_bulge), r)
-
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
-                        self.r_eff_bulge, mbulge_total), r)
+
+            # Correct flattened mass profiles: 
+            menc_bulge = self.noord_flattener_bulge.enclosed_mass(r, self.r_eff_bulge, mbulge_total)
 
         else:
             # 2D projected:
@@ -1795,12 +1585,10 @@ class DiskBulge(MassModel, _LightMassModel):
         """
         if self.noord_flat:
             mdisk_total = 10**self.total_mass*(1-self.bt)
-            # vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-            #                          self.n_disk, self.invq_disk)
 
             # Check v, invq are right:
             self._update_noord_flatteners()
-            vcirc = self.noord_flattener_disk.apply_noord_flat(r, self.r_eff_disk, mdisk_total)
+            vcirc = self.noord_flattener_disk.circular_velocity(r, self.r_eff_disk, mdisk_total)
 
         else:
             mass_enc = self.enclosed_mass_disk(r)
@@ -1825,12 +1613,10 @@ class DiskBulge(MassModel, _LightMassModel):
 
         if self.noord_flat:
             mbulge_total = 10**self.total_mass*self.bt
-            # vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #                          self.n_bulge, self.invq_bulge)
 
             # Check v, invq are right:
             self._update_noord_flatteners()
-            vcirc = self.noord_flattener_bulge.apply_noord_flat(r, self.r_eff_bulge, mbulge_total)
+            vcirc = self.noord_flattener_bulge.circular_velocity(r, self.r_eff_bulge, mbulge_total)
         else:
             mass_enc = self.enclosed_mass_bulge(r)
             vcirc = v_circular(mass_enc, r)
@@ -2205,6 +1991,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, invq_disk=5, invq_bulge=1, noord_flat=False,
                  light_component='disk', baryon_type='gas+stars', **kwargs):
@@ -2296,20 +2083,12 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #             self.n_bulge, self.invq_bulge), r)
-            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-            #             self.n_disk,  self.invq_disk),  r)
-
-
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
-                        self.r_eff_bulge, mbulge_total), r)
-            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
-                        self.r_eff_disk,  mdisk_total),  r)
+
+            # Correct flattened mass profiles: 
+            menc_bulge = self.noord_flattener_bulge.enclosed_mass(r, self.r_eff_bulge, mbulge_total)
+            menc_disk  = self.noord_flattener_disk.enclosed_mass(r, self.r_eff_disk, mdisk_total)
 
         else:
             # 2D projected:
@@ -2335,15 +2114,12 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         mdisk_total = self.total_mass * (1 - self.bt)
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_disk =  menc_from_vcirc(apply_noord_flat(r, self.r_eff_disk,  mdisk_total,
-            #             self.n_disk,  self.invq_disk),  r)
-
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_disk =  menc_from_vcirc(self.noord_flattener_disk.apply_noord_flat(r,
-                        self.r_eff_disk,  mdisk_total),  r)
+
+            # Correct flattened mass profiles: 
+            menc_disk  = self.noord_flattener_disk.enclosed_mass(r, self.r_eff_disk, mdisk_total)
+
         else:
             # 2D projected:
             menc_disk = sersic_menc_2D_proj(r, mdisk_total, self.n_disk, self.r_eff_disk)
@@ -2367,14 +2143,12 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         mbulge_total = self.total_mass * self.bt
 
         if self.noord_flat:
-            # # TO FIX
-            # menc_bulge = menc_from_vcirc(apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #             self.n_bulge, self.invq_bulge), r)
-            # TO FIX
-            # Check v, invq are right:
+            # Check menc, invq are right:
             self._update_noord_flatteners()
-            menc_bulge = menc_from_vcirc(self.noord_flattener_bulge.apply_noord_flat(r,
-                        self.r_eff_bulge, mbulge_total), r)
+
+            # Correct flattened mass profiles: 
+            menc_bulge = self.noord_flattener_bulge.enclosed_mass(r, self.r_eff_bulge, mbulge_total)
+            
         else:
             # 2D projected:
             menc_bulge = sersic_menc_2D_proj(r, mbulge_total, self.n_bulge, self.r_eff_bulge)
@@ -2397,12 +2171,10 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         """
         if self.noord_flat:
             mdisk_total = self.total_mass*(1-self.bt)
-            # vcirc = apply_noord_flat(r, self.r_eff_disk, mdisk_total,
-            #                          self.n_disk, self.invq_disk)
 
             # Check v, invq are right:
             self._update_noord_flatteners()
-            vcirc = self.noord_flattener_disk.apply_noord_flat(r, self.r_eff_disk, mdisk_total)
+            vcirc = self.noord_flattener_disk.circular_velocity(r, self.r_eff_disk, mdisk_total)
         else:
             mass_enc = self.enclosed_mass_disk(r)
             vcirc = v_circular(mass_enc, r)
@@ -2425,12 +2197,10 @@ class LinearDiskBulge(MassModel, _LightMassModel):
         """
         if self.noord_flat:
             mbulge_total = self.total_mass*self.bt
-            # vcirc = apply_noord_flat(r, self.r_eff_bulge, mbulge_total,
-            #                          self.n_bulge, self.invq_bulge)
 
             # Check v, invq are right:
             self._update_noord_flatteners()
-            vcirc = self.noord_flattener_bulge.apply_noord_flat(r, self.r_eff_bulge, mbulge_total)
+            vcirc = self.noord_flattener_bulge.circular_velocity(r, self.r_eff_bulge, mbulge_total)
         else:
             mass_enc = self.enclosed_mass_bulge(r)
             vcirc = v_circular(mass_enc, r)
@@ -2604,7 +2374,7 @@ class LinearDiskBulge(MassModel, _LightMassModel):
 
 
 class GaussianRing(MassModel, _LightMassModel):
-    """
+    r"""
     Mass distribution following an infinitely thin Gaussian ring profile.
 
     Parameters
@@ -2619,17 +2389,19 @@ class GaussianRing(MassModel, _LightMassModel):
     FWHM: float
         FWHM of gaussian, in kpc
 
-    baryon_type : {'gas+stars', 'stars', 'gas'}
-        What type of baryons are included. Used for dlnrhogas/dlnr
+    baryon_type : string
+        What type of baryons are included. Used for dlnrhogas/dlnr.
+        Options: {'gas+stars', 'stars', 'gas'}
+        
 
     Notes
     -----
     Model formula:
 
     .. math::
+        M(r)&=M_0\exp\left(\frac{(r-r_{\rm peak})^2}{2\sigma_R^2}\right)
 
-        M(r)=M_0\exp\left[-\frac{(r-r_{peak})^2}{2\sigma_R^2}\right], \\
-        sigma_R = \mathrm{FWHM}/(2\sqrt{2*=\ln 2})
+        \sigma_R &= \mathrm{FWHM}/(2\sqrt{2\ln 2})
 
     """
 
@@ -2639,6 +2411,7 @@ class GaussianRing(MassModel, _LightMassModel):
     mass_to_light = DysmalParameter(default=1, fixed=True)
 
     _subtype = 'baryonic'
+    tracer = 'mass'
 
     def __init__(self, baryon_type='gas+stars', **kwargs):
         self.baryon_type = baryon_type
@@ -2688,7 +2461,7 @@ class GaussianRing(MassModel, _LightMassModel):
             return x_eff * self.R_peak.value
         except:
             logger.warning("Could not find ring_reff. Assuming reff=Rpeak instead...")
-            return self.R_peak
+            return self.R_peak.value
 
     def r_eff(self):
         return self.ring_reff()
@@ -2770,7 +2543,7 @@ class GaussianRing(MassModel, _LightMassModel):
 
     def potential_gradient(self, r):
         r"""
-        Method to evaluate the gradient of the potential, :math:`\del\Phi(r)/\del r`.
+        Method to evaluate the gradient of the potential, :math:`\Delta\Phi(r)/\Delta r`.
 
         Parameters
         ----------

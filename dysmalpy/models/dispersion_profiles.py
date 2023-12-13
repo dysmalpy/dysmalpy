@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Dispersion models for DysmalPy
 
@@ -22,15 +22,26 @@ __all__ = ['DispersionConst']
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # ******* Dispersion Profiles **************
 class DispersionProfile(_DysmalFittable1DModel):
     """Base object for dispersion profile models"""
     _type = 'dispersion'
+
+    tracer = 'LINE'
+
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("Dispersion profiles must have a 'tracer' specified!")
+
+        self.tracer = tracer
+
+        super(DispersionProfile, self).__init__(**kwargs)
 
 
 class DispersionConst(DispersionProfile):
@@ -41,6 +52,9 @@ class DispersionConst(DispersionProfile):
     ----------
     sigma0 : float
         Value of the dispersion at all radii
+
+    tracer : string
+        (Attribute): Name of the dynamical tracer
     """
     sigma0 = DysmalParameter(default=10., bounds=(0, None), fixed=True)
 

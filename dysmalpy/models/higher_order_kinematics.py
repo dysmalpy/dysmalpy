@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Higher-order kinematics models for DysmalPy
 
@@ -11,8 +11,8 @@ import logging
 
 # Third party imports
 import numpy as np
-import scipy.misc as scp_misc
-import scipy.integrate as scp_integrate
+# import scipy.misc as scp_misc
+# import scipy.integrate as scp_integrate
 
 # Local imports
 from .base import _DysmalFittable3DModel, HigherOrderKinematicsSeparate, \
@@ -22,7 +22,7 @@ from dysmalpy.parameters import DysmalParameter
 try:
     from dysmalpy.models import utils
 except:
-    from . import utils
+   from . import utils
 
 __all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
            'UniformRadialFlow', 'PlanarUniformRadialFlow',
@@ -34,9 +34,10 @@ __all__ = ['BiconicalOutflow', 'UnresolvedOutflow',
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
     r"""
@@ -209,7 +210,7 @@ class BiconicalOutflow(HigherOrderKinematicsSeparate, _DysmalFittable3DModel):
         ind_zero = ((theta < self.thetain) |
                     (theta > thetaout) |
                     (r > self.rend))
-        flux[ind_zero] = 0.
+        flux[ind_zero] = 1e-16       # To avoid NaNs
 
         return flux
 
@@ -704,8 +705,8 @@ class VariableXBarFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel
     -----
     The following function must also be passed when setting up the model,
     which takes the bar coordinate xbar as an input:
-        - vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate abs(xbar).
-                           vbar > 0 for outflow, vbar < 0 for inflow.]
+
+    vbar(xbar, model_set)   [Amplidute of flow velocity as a function of bar coordinate abs(xbar).  vbar > 0 for outflow, vbar < 0 for inflow.]
 
     """
 
@@ -903,16 +904,20 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
     Notes
     -----
     This model is implemented following the derivation given in the Appendix of
-    Davies et al. 2009, ApJ, 702, 114.
+    Davies et al. 2009, ApJ, 702, 114 [1]_.
 
     Functions for the following must also be passed when setting up the model,
     which take the midplane galaxy radius R as an input:
-        - Vrot(R)      [Unperturbed rotation velocity of the galaxy]
-        - dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow.]
-        - rho0(R)      [Unperturbed midplane density profile of the galaxy]
-        - f(R, m, cs, Om_p, Vrot) [Function describing the spiral shape, :math:`m\phi = f(R)`,
-                        with :math:`k \equiv df/dR`.]
-        - k(R, m, cs, Om_p, Vrot) [Function for the radial wavenumber]
+
+    * Vrot(R)      [Unperturbed rotation velocity of the galaxy]
+    * dVrot_dR(R)  [Derivative of Vrot(R) -- ideally evaluated analytically, otherwise very slow]
+    * rho0(R)      [Unperturbed midplane density profile of the galaxy]
+    * f(R, m, cs, Om_p, Vrot) [Function describing the spiral shape, :math:`m\phi = f(R)`, with :math:`k \equiv df/dR`]
+    * k(R, m, cs, Om_p, Vrot) [Function for the radial wavenumber]
+
+    References
+    ----------
+    .. [1] https://ui.adsabs.harvard.edu/abs/2009ApJ...702..114D/abstract
     """
 
     m = DysmalParameter(default=2., bounds=(0, None), fixed=True)       # Number of photometric arms
@@ -1148,9 +1153,12 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
 
         vel = (R, phi, z).
         Need matmul(vel_dir_matrix, vel) = vel in (x,y,z). So:
-        vel_dir_matrix = [[Rtox, phitox, ztox],
-                          [Rtoy, phitoy, ztoy],
-                          [Rtoz, phitoz, ztoz]]
+
+        .. code-block:: text
+        
+            vel_dir_matrix = [[Rtox, phitox, ztox],
+                            [Rtoy, phitoy, ztoy],
+                            [Rtoz, phitoz, ztoz]]
 
         Parameters
         ----------

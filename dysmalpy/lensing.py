@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
     This is a Python code to implement lensing tranformation in DysmalPy.
-    This code uses the C++ library "libLensingTransformer.so".
-
-    Last updates:
-        2021-08-03, finished first version, Daizhong Liu, MPE.
-        2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
+    This code uses the C++ library `libLensingTransformer.so`.
+    
+    .. Last updates:
+    ..     2021-08-03, finished first version, Daizhong Liu, MPE.
+    ..     2021-08-04, added self.image_plane_data_cube and self.image_plane_data_info, set logging, Daizhong Liu, MPE.
+    ..     2022-05-24, change to take ObsLensingOptions instance as input vs params dict.
+    ..     2022-06-18, change back to simple params dict and do not use ObsLensingOptions here.
 
 """
 
-# <DZLIU><20210726> ++++++++++
+__all__=['LensingTransformer']
 
 import os, sys, datetime, timeit
 import logging
@@ -19,14 +22,15 @@ if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
 import ctypes
 from ctypes import cdll, c_void_p, c_char_p, c_double, c_long, c_int, POINTER
 import numpy as np
+import multiprocessing, threading
 from distutils.sysconfig import get_config_var
-#mylib = cdll.LoadLibrary(os.path.abspath(os.path.dirname(__file__))+os.sep+"libLensingTransformer.so")
+
 mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX')
-# <SHP><20211109> ++++++++++++
+# ++++++++++++
 if not os.path.isfile(mylibfile):
     mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensing_transformer"
     mylibfile += os.sep+"libLensingTransformer.so"
-# <SHP><20211109> ++++++++++++
+# ++++++++++++
 mylib = cdll.LoadLibrary(mylibfile)
 cached_lensing_transformer_dict = {'0': None}
 
@@ -160,6 +164,10 @@ class LensingTransformer(object):
         self.logMessage('mylibfile %r'%(mylibfile))
         self.logMessage('mylib %s'%(mylib))
 
+    def setDebugLevel(self, level=1):
+        if self.myobj is not None and self.mylib is not None:
+            self.mylib.setLensingTransformerDebugLevel(self.myobj, level)
+
     def setSourcePlaneDataCube(
             self,
             source_plane_data_cube,
@@ -209,7 +217,7 @@ class LensingTransformer(object):
         else:
             ceny = float(source_plane_ceny)
         self.source_plane_data_info = {'NAXIS':3, 'NAXIS1':nx, 'NAXIS2':ny, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0,
-                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'',
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT3':'',
                 'CRPIX1':cenx, 'CRPIX2':ceny, 'CRPIX3':1.0, 'CRVAL1':cenra, 'CRVAL2':cendec, 'CRVAL3':1.0,
                 'CDELT1':-pixsc/3600.0, 'CDELT2':pixsc/3600.0, 'CDELT3':1.0,
             }
@@ -343,6 +351,9 @@ class LensingTransformer(object):
         #                                              image_plane_ra, image_plane_dec, image_plane_pixelsize,
         #                                              image_plane_sizex, image_plane_sizey,
         #                                              image_plane_cenx=nan, image_plane_ceny=nan, verbose=1
+        if verbose and logger.level == logging.DEBUG:
+            self.setDebugLevel(2) #DBEUGGING# 20211221
+            mylib.setGlobalDebugLevel(2)
         mylib.performLensingTransformation.argtypes = [c_void_p,
                                                        c_double, c_double, c_double,
                                                        c_long, c_long,
@@ -358,7 +369,7 @@ class LensingTransformer(object):
 
         self.image_plane_data_cube = outdata
         self.image_plane_data_info = {'NAXIS':3, 'NAXIS1':imsizex, 'NAXIS2':imsizey, 'NAXIS3':nchan, 'RADESYS':'ICRS', 'SPECSYS':'TOPOCENT', 'EQUINOX':2000.0,
-                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT2':'',
+                'CTYPE1':'RA---TAN', 'CTYPE2':'DEC--TAN', 'CTYPE3':'CHANNEL', 'CUNIT1':'deg', 'CUNIT2':'deg', 'CUNIT3':'',
                 'CRPIX1':imcenx, 'CRPIX2':imceny, 'CRPIX3':1.0, 'CRVAL1':imcenra, 'CRVAL2':imcendec, 'CRVAL3':1.0,
                 'CDELT1':-impixsc/3600.0, 'CDELT2':impixsc/3600.0, 'CDELT3':1.0,
             }
@@ -387,6 +398,7 @@ def has_lensing_transform_keys_in_params(
 
 def setup_lensing_transformer_from_params(
         params = None,
+		mesh_dir = None, 
         mesh_file = None,
         mesh_ra = None,
         mesh_dec = None,
@@ -405,23 +417,24 @@ def setup_lensing_transformer_from_params(
         cache_lensing_transformer = True,
         reuse_cached_lensing_transformer = True,
         verbose = True,
+        **kwargs,
     ):
     """A utility function to return a LensingTransformer instance from the input parameters.
 
     One can either provide a params dict with following madatory keys:
-        - 'lensing_ra'
-        - 'lensing_dec'
-        - 'lensing_ssizex'
-        - 'lensing_ssizey'
-        - 'nspec'
-        - 'lensing_sra'
-        - 'lensing_sdec'
-        - 'lensing_spixsc'
-        - 'lensing_imra'
-        - 'lensing_imdec'
-        - 'pixscale'
-        - 'fov_npix'
-        - 'fov_npix'
+        - `lensing_ra`
+        - `lensing_dec`
+        - `lensing_ssizex`
+        - `lensing_ssizey`
+        - `lensing_sra`
+        - `lensing_sdec`
+        - `lensing_spixsc`
+        - `lensing_imra`
+        - `lensing_imdec`
+        - `pixscale`
+        - `fov_npix`
+        - `nspec`
+
     or individual parameters as arguments.
 
     Note that the individual parameter inputs overrides the use of the keys in the params dict.
@@ -431,6 +444,12 @@ def setup_lensing_transformer_from_params(
 
     """
 
+    if mesh_dir is None:
+        if params is not None:
+            if 'lensing_datadir' in params:
+                mesh_dir = params['lensing_datadir']
+            elif 'datadir' in params:
+                mesh_dir = params['datadir']
     if mesh_file is None:
         if params is not None:
             if 'lensing_mesh' in params:
@@ -551,10 +570,9 @@ def setup_lensing_transformer_from_params(
         # return None
 
     # prepend lensing_datadir path to the mesh file
-    if 'lensing_datadir' in params:
-        if params['lensing_datadir'] is not None:
-            mesh_file = os.path.join(params['lensing_datadir'], mesh_file)
-
+    if mesh_dir is not None and mesh_dir != '':
+        mesh_file = os.path.join(mesh_dir, mesh_file)
+	
     # unzip
     if mesh_file.endswith('.gz'):
         import gzip
@@ -629,7 +647,9 @@ def setup_lensing_transformer_from_params(
         #
         if reuse_check_ok:
             if verbose or (logger.level == logging.DEBUG):
-                logMessage('reusing lensing transformer '+str(hex(id(reuse_lensing_transformer))))
+                logMessage('reusing lensing transformer '+str(hex(id(reuse_lensing_transformer)))+
+                           ' in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                          )
             return reuse_lensing_transformer
         else:
             del reuse_lensing_transformer
@@ -643,23 +663,23 @@ def setup_lensing_transformer_from_params(
         #   this is the first time creating this object and the cache is empty
         #   debug mode
         #   or verbose
-        logMessage('creating lensing transformer with:\n'+\
-                '    mesh_file = %r, \n'%(mesh_file)+\
-                '    mesh_ra = %s, \n'%(mesh_ra)+\
-                '    mesh_dec = %s, \n'%(mesh_dec)+\
-                '    source_plane_nx = %s, \n'%(source_plane_nx)+\
-                '    source_plane_ny = %s, \n'%(source_plane_ny)+\
-                '    source_plane_nchan = %s, \n'%(source_plane_nchan)+\
-                '    source_plane_cenra = %s, \n'%(source_plane_cenra)+\
-                '    source_plane_cendec = %s, \n'%(source_plane_cendec)+\
-                '    source_plane_pixsc = %s, \n'%(source_plane_pixsc)+\
-                '    image_plane_cenra = %s, \n'%(image_plane_cenra)+\
-                '    image_plane_cendec = %s, \n'%(image_plane_cendec)+\
-                '    image_plane_pixsc = %s, \n'%(image_plane_pixsc)+\
-                '    image_plane_sizex = %s, \n'%(image_plane_sizex)+\
-                '    image_plane_sizey = %s'%(image_plane_sizey)+\
-                '\n'
-            )
+        logMessage('creating lensing transformer with:\n'+
+                   '    mesh_file = %r, \n'%(mesh_file)+
+                   '    mesh_ra = %s, \n'%(mesh_ra)+
+                   '    mesh_dec = %s, \n'%(mesh_dec)+
+                   '    source_plane_nx = %s, \n'%(source_plane_nx)+
+                   '    source_plane_ny = %s, \n'%(source_plane_ny)+
+                   '    source_plane_nchan = %s, \n'%(source_plane_nchan)+
+                   '    source_plane_cenra = %s, \n'%(source_plane_cenra)+
+                   '    source_plane_cendec = %s, \n'%(source_plane_cendec)+
+                   '    source_plane_pixsc = %s, \n'%(source_plane_pixsc)+
+                   '    image_plane_cenra = %s, \n'%(image_plane_cenra)+
+                   '    image_plane_cendec = %s, \n'%(image_plane_cendec)+
+                   '    image_plane_pixsc = %s, \n'%(image_plane_pixsc)+
+                   '    image_plane_sizex = %s, \n'%(image_plane_sizex)+
+                   '    image_plane_sizey = %s\n'%(image_plane_sizey)+
+                   '  in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                  )
     lensing_transformer = LensingTransformer(\
             mesh_file = mesh_file,
             mesh_ra = mesh_ra,
@@ -678,7 +698,9 @@ def setup_lensing_transformer_from_params(
             verbose = verbose,
         )
     if verbose:
-        logMessage('created lensing transformer '+str(hex(id(lensing_transformer))))
+        logMessage('created lensing transformer '+str(hex(id(lensing_transformer)))+
+                   ' in thread '+str(multiprocessing.current_process().pid)+' '+str(hex(threading.currentThread().ident))
+                  )
 
     # global cached_lensing_transformer_dict
     if cache_lensing_transformer:
@@ -690,5 +712,9 @@ def setup_lensing_transformer_from_params(
     return lensing_transformer
 
 
+def _get_cached_lensing_transformer():
+    global cached_lensing_transformer_dict
+    return cached_lensing_transformer_dict['0']
 
-# <DZLIU><20210726> ----------
+
+

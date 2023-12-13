@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
 A GUI for the galaxy kinematics modeling and fitting tool DysmalPy.
 
@@ -70,7 +71,8 @@ from dysmalpy.fitting_wrappers.dysmalpy_fit_single import dysmalpy_fit_single
 from dysmalpy.fitting_wrappers.setup_gal_models import (setup_gal_model_base,
         setup_single_object_1D, setup_single_object_2D, setup_single_object_3D,
         setup_fit_dict, setup_lensing_dict)
-from dysmalpy.fitting_wrappers import data_io
+# from dysmalpy.fitting_wrappers import data_io
+from dysmalpy import data_io
 from dysmalpy.utils import apply_smoothing_3D, rebin, gaus_fit_sp_opt_leastsq
 
 # <DZLIU><20210726> ++++++++++
@@ -3742,7 +3744,7 @@ class QDysmalPyFittingStarship(multiprocessing.context.SpawnProcess):
             # see dysmalpy_fit_single.py
             # param_filename = os.path.join(params['outdir'], 'fit.params') #<TODO># always save as this file name
             if param_filename is not None:
-                fitting.ensure_dir(params['outdir'])
+                data_io.ensure_dir(params['outdir'])
                 utils_io.preserve_param_file(param_filename, params=params, 
                                              datadir=params['datadir'], 
                                              outdir=params['outdir'])

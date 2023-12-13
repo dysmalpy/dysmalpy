@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Utility calculations for models, shared between different model types
 
@@ -8,6 +8,8 @@ from __future__ import (absolute_import, division, print_function,
 
 # Standard library
 import logging
+
+from collections import OrderedDict
 
 # Third party imports
 import numpy as np
@@ -19,8 +21,32 @@ from dysmalpy.parameters import DysmalParameter
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
+
+
+def get_light_components_by_tracer(model_set, tracer):
+
+    ncmp_tracer = 0
+    lcomps_tracer = OrderedDict()
+    # Add all components that match the specific tracer:
+    for cmp in model_set.light_components:
+        if (model_set.light_components[cmp]):
+            if (model_set.components[cmp].tracer == tracer):
+                ncmp_tracer += 1
+                lcomps_tracer[cmp] = model_set.light_components[cmp]
+
+    # Fallback: no tracer-specifics? Use the mass components:
+    if ncmp_tracer == 0:
+        for cmp in model_set.light_components:
+            if (model_set.light_components[cmp]):
+                if (model_set.components[cmp].tracer == 'mass'):
+                    lcomps_tracer[cmp] = model_set.light_components[cmp]
+
+    return lcomps_tracer
+
 
 
 def get_geom_phi_rad_polar(x, y):
@@ -84,7 +110,7 @@ def insert_param_state(state, pn, value=None, fixed=True, tied=False, bounds=Non
 def remove_param_state(state, pn):
     """
     Function to remove a DysmalParameter from state for backwards compatibility
-    when loading pickles (if, eg the parameter has been shifted to a plain attribute). 
+    when loading pickles (if, eg the parameter has been shifted to a plain attribute).
     """
     del state[pn]
     if '_constraints' in state.keys():

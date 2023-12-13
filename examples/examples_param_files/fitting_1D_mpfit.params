@@ -102,7 +102,7 @@ light_components_list,   disk
 adiabatic_contract,  False     # Apply adiabatic contraction?
 pressure_support,    True      # Apply assymmetric drift correction?
 noord_flat,          True      # Apply Noordermeer flattenning?
-oversample,          3         # Spatial oversample factor
+oversample,          1         # Spatial oversample factor
 oversize,            1         # Oversize factor
 
 
@@ -129,9 +129,9 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 total_mass_fixed,     False
-bt_fixed,             False
 r_eff_disk_fixed,     False
 
+bt_fixed,             True
 n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True
@@ -560,7 +560,7 @@ inc_bounds,          0.0 90.0
 
 # **************************** Fitting Settings ********************************
 
-fit_method,      mpfit     # mcmc or mpfit
+fit_method,      mpfit     # mcmc, nested, or mpfit
 
 do_plotting,     True      # Produce all output plots?
 

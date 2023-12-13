@@ -7,16 +7,16 @@ from dysmalpy import fitting
 from dysmalpy import instrument
 from dysmalpy import data_classes
 from dysmalpy import parameters
-from dysmalpy import plotting
+# from dysmalpy import plotting
 from dysmalpy import aperture_classes
-from fitting_wrappers import utils_io
+from dysmalpy.fitting_wrappers import utils_io
 
-import os
-import copy
+# import os
+# import copy
 
 import numpy as np
 import astropy.units as u
-import astropy.io.fits as fits
+# import astropy.io.fits as fits
 
 
 

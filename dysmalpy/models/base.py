@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # File containing base classes for DysmalPy models
 
@@ -22,7 +22,7 @@ from dysmalpy.parameters import DysmalParameter, UniformPrior
 try:
     from dysmalpy.models import utils
 except:
-    from . import utils
+   from . import utils
 
 __all__ = ['MassModel', 'LightModel',
            'HigherOrderKinematicsSeparate', 'HigherOrderKinematicsPerturbation'
@@ -38,6 +38,7 @@ pc = apy_con.pc
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
 
 
@@ -424,9 +425,11 @@ class HigherOrderKinematicsPerturbation(HigherOrderKinematics):
 #########################################
 
 def v_circular(mass_enc, r):
-    """
+    r"""
     Circular velocity given an enclosed mass and radius
-    v(r) = SQRT(GM(r)/r)
+
+    .. math:: 
+        v(r) = \sqrt{(GM(r)/r)}
 
     Parameters
     ----------

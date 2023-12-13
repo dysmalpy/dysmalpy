@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Halo mass models for DysmalPy
 
@@ -48,11 +48,10 @@ g_pc_per_Msun_kmssq = G.to(u.pc / u.Msun * (u.km / u.s) ** 2).value
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
-
-# _dict_lmvir_fac_test_z = {'zarr':   np.array([0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.25, 2.5]),
-#                           'facarr': np.array([1.8, 1.72, 1.65, 1.58, 1.52, 1.46, 1.40, 1.35, 1.3])}
+import warnings
+warnings.filterwarnings("ignore")
 
 _dict_lmvir_fac_test_z = {'zarr':    np.arange(0.5, 2.75, 0.25),
                           'fdmarr': np.array([1.e-3, 1.e-2, 0.1, 0.25, 0.5, 0.75, 0.9, 1-1.e-2, 1-1.e-3]),
@@ -245,11 +244,11 @@ class DarkMatterHalo(MassModel):
         else:
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
-                bar_mtot = 0
+                bar_mtot_linear = 0
                 for bcmp in baryons['components']:
                     vsqr_bar_re += bcmp.vcirc_sq(r_fdm)
-                    bar_mtot += 10**bcmp.total_mass.value
-                bar_mtot = np.log10(bar_mtot)
+                    bar_mtot_linear += 10**bcmp.total_mass.value
+                bar_mtot = np.log10(bar_mtot_linear)
             else:
                 vsqr_bar_re = baryons.vcirc_sq(r_fdm)
                 bar_mtot = baryons.total_mass.value
@@ -334,8 +333,8 @@ class DarkMatterHalo(MassModel):
 
         if adiabatic_contract:
             modtmp = ModelSet()
-            if isinstance(baryons, dict):
-                for bcmp,b_light in zip(baryons['components'], baryons['light']):
+            if isinstance(bary, dict):
+                for bcmp,b_light in zip(bary['components'], bary['light']):
                     modtmp.add_component(bcmp, light=b_light)
             else:
                 modtmp.add_component(bary, light=True)
@@ -492,9 +491,9 @@ class TwoPowerHalo(DarkMatterHalo):
 
         \rho=\frac{\rho_0}{(r/r_s)^\alpha(1 + r/r_s)^{\beta - \alpha}}
 
-    :math:`r_s` is the scale radius and defined as :math:`r_{vir}/c` where
-    :math:`r_{vir}` is the virial radius and :math:`c` is the concentration
-    parameter. :math:`rho_0` is the normalization parameter.
+    :math:`r_s` is the scale radius and defined as :math:`r_\mathrm{vir}/c` where
+    :math:`r_\mathrm{vir}` is the virial radius and :math:`c` is the concentration
+    parameter. :math:`\rho_0` is the normalization parameter.
 
     References
     ----------
@@ -853,7 +852,7 @@ class Einasto(DarkMatterHalo):
         \rho = \rho_0 \exp\left\{-\left(\frac{r}{h}\right)^{1/n}\right\}
 
     where :math:`h=r_s/(2n)^n` is the scale length and
-    :math:`r_s` is the scale radius defined as :math:`r_{vir}/c`.
+    :math:`r_s` is the scale radius defined as :math:`r_\mathrm{vir}/c`.
 
     In this model only `nEinasto` or `alphaEinasto` can be free since :math:`n=1/\alpha`.
 
@@ -1220,7 +1219,7 @@ class DekelZhao(DarkMatterHalo):
         return (1.-a/3.)*rhocbar
 
     def calc_rhovirbar(self, rvirial=None):
-        """
+        r"""
         Average density in the virial radius, in :math:`M_{\odot}/\rm{kpc}^3`
         """
         mvir = 10**self.mvirial
@@ -1245,8 +1244,8 @@ class DekelZhao(DarkMatterHalo):
         halotmp.__setattr__('mvirial', mvirial)
 
         modtmp = ModelSet()
-        if isinstance(baryons, dict):
-            for bcmp,b_light in zip(baryons['components'], baryons['light']):
+        if isinstance(bary, dict):
+            for bcmp,b_light in zip(bary['components'], bary['light']):
                 modtmp.add_component(bcmp, light=b_light)
         else:
             modtmp.add_component(bary, light=True)

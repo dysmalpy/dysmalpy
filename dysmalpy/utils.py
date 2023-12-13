@@ -1,19 +1,34 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Module containing some useful utility functions
+# 
+# The `_rotate_points` and `symmetrize_velfield` functions are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari.
+#######################################################################
+#
+# Copyright (C) 2004-2014, Michele Cappellari
+# E-mail: cappellari_at_astro.ox.ac.uk
+#
+# This software is provided as is without any warranty whatsoever.
+# Permission to use, for non-commercial purposes is granted.
+# Permission to modify for personal or internal use is granted,
+# provided this copyright and disclaimer are included unchanged
+# at the beginning of the file. All other rights are reserved.
+#
+#######################################################################
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 # Standard library
 import warnings
+import logging
 
 # Third party imports
 import numpy as np
 import astropy.modeling as apy_mod
 import astropy.stats as apy_stats
-import astropy.units as u
+# import astropy.units as u
 import matplotlib.pyplot as plt
 import scipy.signal as sp_sig
 import scipy.ndimage as sp_ndi
@@ -23,9 +38,20 @@ from scipy.stats import norm
 from astropy.convolution import Gaussian2DKernel
 from astropy.convolution import convolve_fft as apy_convolve_fft
 
-from spectral_cube import SpectralCube, BooleanArrayMask
-
 std2fwhm = (2. *np.sqrt(2.*np.log(2.)))
+
+# LOGGER SETTINGS
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('DysmalPy')
+
+
+__all__ = [ "rebin", "calc_pixel_distance", "create_aperture_mask", 
+            "determine_aperture_centers", "calc_pix_position", 
+            "measure_1d_profile_apertures", "apply_smoothing_2D", "apply_smoothing_3D", 
+            "symmetrize_velfield", "symmetrize_1D_profile", 
+            "fit_truncated_gaussian", "lnlike_truncnorm", "fit_uncertainty_ellipse", 
+            "gaus_fit_sp_opt_leastsq", "gaus_fit_apy_mod_fitter", "get_cin_cout",
+            "citations"]
 
 # Function to rebin a cube in the spatial dimension
 def rebin(arr, new_2dshape):
@@ -33,16 +59,23 @@ def rebin(arr, new_2dshape):
              new_2dshape[0], arr.shape[1] // new_2dshape[0],
              new_2dshape[1], arr.shape[2] // new_2dshape[1])
     return arr.reshape(shape).sum(-1).sum(-2)
-
+    
 
 def calc_pixel_distance(nx, ny, center_coord):
     """
     Function to calculate the distance of each pixel
     from a specific pixel as well as the position angle
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :return:
+
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+
+    Returns
+    -------
+    seps: float
+    pa: float
     """
 
     xx, yy = np.meshgrid(range(nx), range(ny))
@@ -61,11 +94,14 @@ def calc_pixel_distance(nx, ny, center_coord):
 def create_aperture_mask(nx, ny, center_coord, dr):
     """
     Function to create an aperture mask. NOT USED.
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :param dr:
-    :return:
+
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+    dr: float
+
     """
 
     seps, pa = calc_pixel_distance(nx, ny, center_coord)
@@ -90,12 +126,15 @@ def determine_aperture_centers(nx, ny, center_coord, pa, dr):
     """
     Determine the centers of the apertures that span an image/cube along a line with position
     angle pa and goes through center_coord. Each aperture is dr away from each other.
-    :param nx:
-    :param ny:
-    :param center_coord:
-    :param pa:
-    :param dr:
-    :return:
+    
+    Parameters
+    ----------
+    nx: float
+    ny: float
+    center_coord: tuple
+    pa: float
+    dr: float
+    
     """
 
     pa_rad = -np.pi/180. * pa
@@ -165,12 +204,19 @@ def determine_aperture_centers(nx, ny, center_coord, pa, dr):
 def calc_pix_position(r, pa, xcenter, ycenter):
     """
     Simple function to determine the pixel that is r away from (xcenter, ycenter) along
-    a line with position angle, pa
-    :param r:
-    :param pa:
-    :param xcenter:
-    :param ycenter:
-    :return:
+    a line with position angle (pa)
+
+    Parameters
+    ----------
+    r: float
+        distance from (xcenter,ycenter) in pixel
+    pa: float
+        position angle counter-clockwise from North
+    xcenter: float
+        x center in pixel
+    ycenter: float
+        y center in pixel
+
     """
 
     pa_rad = np.pi/180. * pa
@@ -189,23 +235,40 @@ def measure_1d_profile_apertures(cube, rap, pa, spec_arr, dr=None, center_pixel=
                                  profile_direction='positive', debug=False):
     """
     Measure the 1D rotation curve using equally spaced apertures along a defined axis
-    :param cube: Cube to measure the 1D profile on
-    :param rap: Radius of the circular apertures in pixels
-    :param dr: Distance between the circular apertures in pixels
-    :param center_pixel: Central pixel that defines r = 0
-    :param pa: Position angle of the line that the circular apertures lie on
-    :param spec_arr: The spectral array (i.e. wavelengths, frequencies, velocities, etc)
-    :param spec_mask: Boolean mask to apply to the spectrum to exclude from fitting
-    :param estimate_err: True or False to use Monte Carlo to estimate the errors on the fits
-    :param nmc: The number of trials in the Monte Carlo analysis to use.
-    :returns: centers: The radial offset from the central pixel in pixels
-    :returns: flux: The integrated best fit "flux" for each aperture
-    :returns: mean: The best fit mean of the Gaussian profile in the same units as spec_arr
-    :returns: disp: The best fit dispersion of the Gaussian profile in the same units as spec_arr
+    
+    Parameters
+    ----------
+    cube: ndarray
+        Cube to measure the 1D profile on
+    rap: float
+        Radius of the circular apertures in pixels
+    dr: float
+        Distance between the circular apertures in pixels
+    center_pixel: tuple of int
+        Central pixel that defines r = 0
+    pa: float
+        Position angle of the line that the circular apertures lie on
+    spec_arr: ndarray
+        The spectral array (i.e. wavelengths, frequencies, velocities, etc)
+    spec_mask: ndarray
+        Boolean mask to apply to the spectrum to exclude from fitting
+    estimate_err: bool, optional
+        True or False to use Monte Carlo to estimate the errors on the fits
+    nmc: int, optional
+        The number of trials in the Monte Carlo analysis to use.
 
-    Note: flux, mean, and disp will be Nap x 2 arrays if estimate_err = True where Nap is the number
-          of apertures that are fit. The first row will be best fit values and the second row will
-          contain the errors on those parameters.
+    Returns
+    ----------
+        centers: ndarray
+            The radial offset from the central pixel in pixels
+        flux: ndarray
+            The integrated best fit "flux" for each aperture
+        mean: ndarray
+            The best fit mean of the Gaussian profile in the same units as spec_arr
+        disp: ndarray
+            The best fit dispersion of the Gaussian profile in the same units as spec_arr
+
+    Note: flux, mean, and disp will be Nap x 2 arrays if `estimate_err = True` where Nap is the number of apertures that are fit. The first row will be best fit values and the second row will contain the errors on those parameters.
     """
     # profile_direction = 'negative'
 
@@ -341,28 +404,6 @@ def apply_smoothing_2D(vel, disp, smoothing_type=None, smoothing_npix=1):
         return vel, disp
 
 
-# def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1):
-#     if smoothing_type is None:
-#         return cube
-#     else:
-#         if (smoothing_type.lower() == 'median'):
-#             #cube = sp_sig.medfilt(cube, kernel_size=(1, smoothing_npix, smoothing_npix))
-#             cb = cube.filled_data[:].value
-#             if (smoothing_npix % 2) == 1:
-#                 cb = sp_sig.medfilt(cb, kernel_size=(1, smoothing_npix, smoothing_npix))
-#             else:
-#                 cb = sp_ndi.median_filter(cb, size=(1,smoothing_npix, smoothing_npix), mode='constant', cval=0.)
-#
-#             cube = cube._new_cube_with(data=cb, wcs=cube.wcs,
-#                                               mask=cube.mask, meta=cube.meta,
-#                                               fill_value=cube.fill_value)
-#             #cube = cube.spatial_smooth_median(smoothing_npix)
-#
-#         else:
-#             print("Smoothing type={} not supported".format(smoothing_type))
-#
-#         return cube
-
 def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
     if smoothing_type is None:
         return cube
@@ -418,20 +459,7 @@ def apply_smoothing_3D(cube, smoothing_type=None, smoothing_npix=1, quiet=True):
 
 
 
-# _rotate_points and symmetrize_velfield from cap_symmetrize_velfield.py within display_pixels
-# package created by Michele Cappelari.
-#######################################################################
-#
-# Copyright (C) 2004-2014, Michele Cappellari
-# E-mail: cappellari_at_astro.ox.ac.uk
-#
-# This software is provided as is without any warranty whatsoever.
-# Permission to use, for non-commercial purposes is granted.
-# Permission to modify for personal or internal use is granted,
-# provided this copyright and disclaimer are included unchanged
-# at the beginning of the file. All other rights are reserved.
-#
-#######################################################################
+# The `_rotate_points` and `symmetrize_velfield` functions below are adopted from `cap_symmetrize_velfield.py` within `display_pixels` created by Michele Cappellari (see license information at the top of this file).
 
 def _rotate_points(x, y, ang):
     """
@@ -691,3 +719,53 @@ def get_cin_cout(shape, asint=False):
             carr[j] = ca
 
     return tuple(carr)
+
+
+
+#########################
+def _check_data_inst_FOV_compatibility(gal):
+    logger_msg = None
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.fit_options.fit & (obs.data.ndim == 1):
+                if min(obs.instrument.fov)/2. <  np.abs(obs.data.rarr).max() / obs.instrument.pixscale.value:
+                    if logger_msg is None:
+                        logger_msg = ""
+                    else:
+                        logger_msg += "\n"
+                    logger_msg += "obs={}: FOV smaller than the maximum data extent!\n".format(obs.name)
+                    logger_msg += "                FOV=[{},{}] pix; max(abs(data.rarr))={} pix".format(obs.instrument.fov[0],
+                                    obs.instrument.fov[1], np.abs(obs.data.rarr).max()/ obs.instrument.pixscale)
+
+    if logger_msg is not None:
+        logger.warning(logger_msg)
+
+    return None
+
+def _set_instrument_kernels(gal):
+    # Pre-calculate instrument kernels:
+    for obs_name in gal.observations:
+        obs = gal.observations[obs_name]
+        if obs.instrument._beam_kernel is None:
+            obs.instrument.set_beam_kernel()
+        if obs.instrument._lsf_kernel is None and obs.instrument.lsf is not None:
+            obs.instrument.set_lsf_kernel(spec_center=obs.instrument.line_center)
+
+    return gal
+
+
+def citations():
+    """
+    Return the papers that should be cited when using DYSMALPY
+    """
+
+    str = "Please cite the following papers if using DYSMALPY for a publication:\n"
+    str += "-----------------------------------------\n"
+
+    str += "Cresci et al. (2009): https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C\n"
+    str += "Davies et al. (2011): https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D\n"
+    str += "Wuyts et al. (2016): https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W\n"
+    str += "Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P\n"
+    str += "Lee et al. (2023): in preparation"
+
+    return str

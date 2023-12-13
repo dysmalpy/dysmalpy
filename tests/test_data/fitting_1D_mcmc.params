@@ -24,8 +24,9 @@ aperture_radius,  0.275                      # Circular aperture radius, in ARCS
 moment_calc,      False
 overwrite, True
 
-#linked_posteriors,         total_mass   r_eff_disk   bt   mvirial
-linked_posteriors,         total_mass   r_eff_disk   bt   fdm
+##linked_posteriors,         total_mass   r_eff_disk   bt   mvirial
+#linked_posteriors,         total_mass   r_eff_disk   bt   fdm
+linked_posteriors,         total_mass   r_eff_disk   fdm
 
 # ***************************** OUTPUT *****************************************
 outdir,           PYTEST_OUTPUT/GS4_43501_1D_out_mcmc/         # Full path for output directory
@@ -63,7 +64,7 @@ include_halo,        True     # Include the halo as a component in fitting?
 adiabatic_contract,  False     # Apply adiabatic contraction?
 pressure_support,    True      # Apply assymmetric drift correction?
 noord_flat,          True      # Apply Noordermeer flattenning?
-oversample,          3         # Spatial oversample factor
+oversample,          1         # Spatial oversample factor
 oversize,            1         # Oversize factor
 
 
@@ -83,9 +84,9 @@ r_eff_bulge,          1.0      # Effective radius of bulge in kpc
 
 # Fixed? True if its a fixed parameter, False otherwise
 total_mass_fixed,     False
-bt_fixed,             False
 r_eff_disk_fixed,     False
 
+bt_fixed,             True
 n_disk_fixed,         True
 r_eff_bulge_fixed,    True
 n_bulge_fixed,        True

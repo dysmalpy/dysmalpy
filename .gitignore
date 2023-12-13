@@ -27,6 +27,9 @@ docs/_build
 .pydevproject
 .settings
 
+# VSCode
+.vscode
+
 # Pycharm editor project files
 .idea
 
@@ -70,6 +73,7 @@ distribute-*.tar.gz
 
 # Private data
 tests/test_data/PYTEST_OUTPUT/
+tests/test_data/GS4_43501_mask.fits
 tests/test_data_lensing/PYTEST_OUTPUT/
 tests/test_data/GS4_43501_mask.fits
 tests/test_data_lensing/mesh.dat

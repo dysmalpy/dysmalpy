@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Kinematic options for DysmalPy
 
@@ -18,17 +18,16 @@ import scipy.optimize as scp_opt
 # Local imports
 from .baryons import DiskBulge, LinearDiskBulge, Sersic, ExpDisk
 
-from dysmalpy import config
-
 __all__ = ['KinematicOptions']
 
 
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
-
+import warnings
+warnings.filterwarnings("ignore")
 
 # ****** Kinematic Options Class **********
 class KinematicOptions:
@@ -71,7 +70,7 @@ class KinematicOptions:
 
     By default (`pressure_support_type=1`), the asymmetric drift derivation from
     Burkert et al. (2010) [1]_, Equation (11) is applied
-    (assuming an exponential disk, with :math:`R_e=1.678R_e`):
+    (assuming an exponential disk, with :math:`R_e=1.678r_d`):
 
     .. math::
 
@@ -120,7 +119,6 @@ class KinematicOptions:
 
     def apply_adiabatic_contract(self, model, r, vbaryon_sq, vhalo_sq,
                                  compute_dm=False, return_vsq=False,
-                                 model_aperture_r=config._model_aperture_r,
                                  step1d = 0.2):
         """
         Function that applies adiabatic contraction to a ModelSet
@@ -144,11 +142,6 @@ class KinematicOptions:
 
         return_vsq : bool
             If True, return square velocities instead of taking sqrt.
-
-        model_aperture_r : function
-            Function that takes the model set as input and returns the aperture radius (in kpc).
-            The default returns the disk effective radius
-            (i.e., self.components['disk+bulge'].__getattribute__['r_eff_disk'].value )
 
         step1d : float
             Step size in kpc to use during adiabatic contraction calculation
@@ -174,7 +167,7 @@ class KinematicOptions:
                 rmaxin = r
 
             try:
-                r_ap = model_aperture_r(model)
+                r_ap = model._model_aperture_r()
             except:
                 r_ap = 0.
 
@@ -245,16 +238,9 @@ class KinematicOptions:
 
             vhalo_adi = vhalo_adi_interp_map_3d(r)
 
-            # #vel = np.sqrt(vhalo_adi ** 2 + vbaryon ** 2)
-            # vel = np.sqrt(vhalo_adi ** 2 + vbaryon_sq)
-
             vel_sq = vhalo_adi ** 2 + vbaryon_sq
         else:
-            #vel = np.sqrt(vhalo_sq + vbaryon_sq)
-
             vel_sq = vhalo_sq + vbaryon_sq
-            # if compute_dm:
-            #     vhalo = np.sqrt(vhalo_sq)
 
         if return_vsq:
             if compute_dm:
@@ -276,7 +262,7 @@ class KinematicOptions:
                 return vel
 
 
-    def apply_pressure_support(self, r, model, vel_sq):
+    def apply_pressure_support(self, r, model, vel_sq, tracer=None):
         """
         Function to apply asymmetric drift correction
 
@@ -291,6 +277,9 @@ class KinematicOptions:
         vel_sq : float or array
             Square of circular velocity in km^2/s^2
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_sq : float or array
@@ -298,7 +287,10 @@ class KinematicOptions:
 
         """
         if self.pressure_support:
-            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            if tracer is None:
+                raise ValueError("Must specify 'tracer' to determine pressure support!")
+
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model, tracer=tracer)
             vel_squared = vel_sq - vel_asymm_drift_sq
 
             # if array:
@@ -312,7 +304,7 @@ class KinematicOptions:
 
         return vel_squared
 
-    def correct_for_pressure_support(self, r, model, vel_sq):
+    def correct_for_pressure_support(self, r, model, vel_sq, tracer=None):
         """
         Remove asymmetric drift effect from input velocities
 
@@ -327,14 +319,19 @@ class KinematicOptions:
         vel_sq : float or array
             Square of rotational velocities in km^2/s^2 from which to remove asymmetric drift
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_sq : float or array
             Square of circular velocity after asymmetric drift is removed, in km^2/s^2
         """
         if self.pressure_support:
-            #
-            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model)
+            if tracer is None:
+                raise ValueError("Must specify 'tracer' to determine pressure support!")
+
+            vel_asymm_drift_sq = self.get_asymm_drift_profile(r, model, tracer=tracer)
             vel_squared = vel_sq + vel_asymm_drift_sq
 
             # if array:
@@ -348,7 +345,7 @@ class KinematicOptions:
 
         return vel_squared
 
-    def get_asymm_drift_profile(self, r, model):
+    def get_asymm_drift_profile(self, r, model, tracer=None):
         """
         Calculate the asymmetric drift correction
 
@@ -360,11 +357,17 @@ class KinematicOptions:
         model : `ModelSet`
             ModelSet the correction is applied to
 
+        tracer : string
+            Name of the dynamical tracer (used to determine which is the appropriate dispersion profile).
+
         Returns
         -------
         vel_asymm_drift_sq : float or array
             Square velocity correction in km^2/s^2 associated with asymmetric drift
         """
+        if tracer is None:
+            raise ValueError("Must specify 'tracer' to determine pressure support!")
+
         # Compatibility hack, to handle the changed galaxy structure
         #    (properties, not attributes for data[*], instrument
         if 'pressure_support_type' not in self.__dict__.keys():
@@ -374,13 +377,15 @@ class KinematicOptions:
             # Set to default if missing:
             self.pressure_support_n = None
 
-        pre = self.get_pressure_support_param(model, param='re')
+        if (self.pressure_support_type == 1) | \
+           (self.pressure_support_type == 2):
+            pre = self.get_pressure_support_param(model, param='re')
 
-        if model.dispersion_profile is None:
-            raise AttributeError("Can't apply pressure support without "
-                                 "a dispersion profile!")
+        if tracer not in model.dispersions.keys():
+            raise AttributeError("The dispersion profile for tracer={} not found!".format(tracer))
 
-        sigma = model.dispersion_profile(r)
+        sigma = model.dispersions[tracer](r)
+
         if self.pressure_support_type == 1:
             # Pure exponential derivation // n = 1
             vel_asymm_drift_sq = 3.36 * (r / pre) * sigma ** 2

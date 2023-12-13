@@ -17,7 +17,8 @@ data_inst_corr,   True                       # Is the dispersion corrected for
 slit_width,       0.2                        # arcsecs
 slit_pa,          48                         # Degrees from N towards blue
 symmetrize_data,  False                      # Symmetrize data before fitting?
-profile1d_type,   circ_ap_pv                 # Default 1D aperture extraction shape
+#profile1d_type,   circ_ap_pv                 # Default 1D aperture extraction shape
+profile1d_type,   circ_ap_cube               # Default 1D aperture extraction shape
 aperture_radius,  0.2                        # Circular aperture radius, in ARCSEC. Have used half slit width in past
                                              # -- Eg, aperture diam = slit width
 

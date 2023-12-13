@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 """
     This is a Python code to implement 1D least squares fitting in DysmalPy.
     This code uses the C++ library "leastChiSquares1D.cpp".

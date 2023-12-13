@@ -1,5 +1,5 @@
 # coding=utf8
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
 #
 # Light distribution models for DysmalPy
 
@@ -20,8 +20,7 @@ from dysmalpy.parameters import DysmalParameter
 try:
     from dysmalpy.models import utils
 except:
-    from . import utils
-
+   from . import utils
 
 __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
            'LightGaussianRingAzimuthal']
@@ -30,8 +29,10 @@ __all__ = ['LightTruncateSersic', 'LightGaussianRing', 'LightClump',
 # LOGGER SETTINGS
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DysmalPy')
+logger.setLevel(logging.INFO)
 
-np.warnings.filterwarnings('ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
@@ -55,6 +56,8 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
     r_outer : float
         Outer truncation radius in kpc. Default: np.inf kpc (untruncated)
 
+    tracer : string
+        (Attribute): Name of the dynamical tracer
 
     Notes
     -----
@@ -62,10 +65,10 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
 
     .. math::
 
-        I(r) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{r}{r_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
+        I(R) = I_e \exp \\left\{ -b_n \\left[ \\left( \\frac{R}{R_{\mathrm{eff}}} \\right)^{1/n} -1 \\right] \\right\}
 
-    The constant :math:`b_n` is defined such that :math:`r_{\mathrm{eff}}` contains half the total
-    light, and can be solved for numerically.
+    The constant :math:`b_n` is defined such that :math:`R_{\mathrm{eff}}` contains half the total
+    light, and can be solved for numerically as: 
 
     .. math::
 
@@ -82,7 +85,7 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
 
         plt.figure()
         plt.subplot(111, xscale='log', yscale='log')
-        ls1 = LightTruncateSersic(r_eff=5, n=1, r_inner=1, r_outer=20, L_tot=1.e11)
+        ls1 = LightTruncateSersic(r_eff=5, n=1, r_inner=1, r_outer=20, L_tot=1.e11, tracer='halpha')
         r=np.arange(0, 100, .01)
 
         for n in range(1, 10):
@@ -104,7 +107,11 @@ class LightTruncateSersic(LightModel, _DysmalFittable1DModel):
     r_inner = DysmalParameter(default=0., bounds=(0, 10))
     r_outer = DysmalParameter(default=np.inf, bounds=(0, np.inf))
 
-    def __init__(self, **kwargs):
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("'tracer' for light profile must be specified!")
+        self.tracer = tracer
+
         super(LightTruncateSersic, self).__init__(**kwargs)
 
     @staticmethod
@@ -146,6 +153,8 @@ class LightGaussianRing(LightModel, _DysmalFittable1DModel):
     L_tot: float
         Total luminsoity of component. Arbitrary units
 
+    tracer : string
+        (Attribute): Name of the dynamical tracer
 
     Notes
     -----
@@ -161,7 +170,11 @@ class LightGaussianRing(LightModel, _DysmalFittable1DModel):
     FWHM = DysmalParameter(default=1, bounds=(0, 50))
     L_tot = DysmalParameter(default=1, bounds=(0, 50))
 
-    def __init__(self, **kwargs):
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("'tracer' for light profile must be specified!")
+        self.tracer = tracer
+
         super(LightGaussianRing, self).__init__(**kwargs)
 
     def sigma_R(self):
@@ -219,6 +232,9 @@ class LightClump(LightModel, _DysmalFittable3DModel):
     n : float
         Sersic index of clump
 
+    tracer : string
+        (Attribute): Name of the dynamical tracer
+
     Notes
     -----
     Model formula:
@@ -244,7 +260,11 @@ class LightClump(LightModel, _DysmalFittable3DModel):
     phi = DysmalParameter(default=0., bounds=(0, 360))
     theta = DysmalParameter(default=90., bounds=(0, 180))
 
-    def __init__(self, **kwargs):
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("'tracer' for light profile must be specified!")
+        self.tracer = tracer
+
         super(LightClump, self).__init__(**kwargs)
 
     @staticmethod
@@ -253,11 +273,6 @@ class LightClump(LightModel, _DysmalFittable3DModel):
         Light profile of the clump
         """
         phi_rad = np.pi / 180. * phi
-        # theta_rad = np.pi / 180. * theta
-        # r = np.sqrt( (x-r_center*np.cos(phi_rad)*np.sin(theta_rad))**2 + \
-        #              (y-r_center*np.sin(phi_rad)*np.sin(theta_rad))**2 + \
-        #              (z-r_center*np.cos(theta_rad))**2)
-        # return sersic_mr(r, L_tot, n, r_eff)
 
         # INGORE THETA, and assume clump centered at midplane:
         r = np.sqrt( (x-r_center*np.cos(phi_rad))**2 + \
@@ -271,7 +286,7 @@ class LightClump(LightModel, _DysmalFittable3DModel):
         Parameters
         ----------
         x, y, z : float or array
-            Positioin at which to calculate the light profile
+            Position at which to calculate the light profile
 
         Returns
         -------
@@ -307,6 +322,9 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
     gamma : float
         Scaling factor for how quickly the brightness changes occur from [0., abs(180.)].
 
+    tracer : string
+        (Attribute): Name of the dynamical tracer
+
     Notes
     -----
     Model formula, for the radial part:
@@ -326,7 +344,11 @@ class LightGaussianRingAzimuthal(LightModel, _DysmalFittable3DModel):
     contrast = DysmalParameter(default=1., bounds=(0., 1.))
     gamma = DysmalParameter(default=1., bounds=(0, 100.))
 
-    def __init__(self, **kwargs):
+    def __init__(self, tracer=None, **kwargs):
+        if tracer is None:
+            raise ValueError("'tracer' for light profile must be specified!")
+        self.tracer = tracer
+
         super(LightGaussianRingAzimuthal, self).__init__(**kwargs)
 
     def sigma_R(self):

@@ -25,7 +25,7 @@ from os import path
 import sphinx
 from distutils.version import LooseVersion
 
-from pkg_resources import DistributionNotFound, get_distribution
+# from pkg_resources import DistributionNotFound, get_distribution
 
 import dysmalpy
 
@@ -33,8 +33,8 @@ import dysmalpy
 # -- Project information -----------------------------------------------------
 
 project = 'dysmalpy'
-copyright = '2017-{}, MPE/IR Group'.format(date.today().year)
-author = 'Sedona Price and Taro Shimizu'
+copyright = '2017-{}, MPE/IR-Submm Group'.format(date.today().year)
+author = 'MPE/IR-Submm Group'
 
 # The full version, including alpha/beta/rc tags
 version = dysmalpy.__version__
@@ -51,6 +51,13 @@ needs_sphinx = '1.8' #'1.3'
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
+
+
+
+html_context = {
+    "version": version, 
+    "release": release, 
+}
 
 def check_sphinx_version(expected_version):
     sphinx_version = LooseVersion(sphinx.__version__)
@@ -142,6 +149,7 @@ extensions = [
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
     'sphinx_rtd_theme',
+    'sphinx_copybutton',
     # 'nbsphinx',  # Original jupyter NB renderer
     "myst_nb",  # Updated jupyter NB renderer, supports hiding/removing cell input.
 ######
@@ -154,7 +162,8 @@ extensions = [
 #    'astropy_helpers.sphinx.ext.changelog_links'
 ]
 
-jupyter_execute_notebooks = "off"
+# jupyter_execute_notebooks = "off"
+nb_execution_mode = "off"
 # See options: https://coderefinery.github.io/sphinx-lesson/branch/rkdarst--sample-episode-md/jupyter/
 # myst_number_code_blocks =
 myst_enable_extensions = [
@@ -370,3 +379,28 @@ latex_elements['preamble'] = r"""
 
 # A timeout value, in seconds, for the linkcheck builder
 linkcheck_timeout = 60
+
+
+
+# Hack for version replacement thanks to 
+# https://github.com/sphinx-doc/sphinx/issues/4054#issuecomment-329097229
+
+def ultimateReplace(app, docname, source):
+    result = source[0]
+    for key in app.config.ultimate_replacements:
+        result = result.replace(key, app.config.ultimate_replacements[key])
+    source[0] = result
+
+# ultimate_replacements = {
+#     "|release|" : release
+# }
+
+# ultimate_replacements = html_context
+ultimate_replacements = {}
+for key in html_context:
+    ultimate_replacements['|{}|'.format(key)] = html_context[key]
+
+def setup(app):
+   app.add_config_value('ultimate_replacements', {}, True)
+   app.connect('source-read', ultimateReplace)
+

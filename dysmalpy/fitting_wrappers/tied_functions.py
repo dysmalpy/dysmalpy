@@ -2,17 +2,26 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
-import os, sys
+from functools import partial
 
 import numpy as np
-import astropy.units as u
-import astropy.constants as apy_con
 
 from dysmalpy import parameters
 
 import scipy.optimize as scp_opt
 
+
+def tie_rturn(model_set):
+    # Define a function to tie the turnover radius to half the end radius
+    rend = model_set.components['outflow'].rend.value
+
+    return rend/2.
+
+def get_param_value(mod_set, main_geom_name, param_name):
+    return mod_set.components[main_geom_name].__dict__[param_name].value
+
+def tied_geom_lambda(main_geom_name, param_name):
+    return partial(get_param_value, main_geom_name=main_geom_name, param_name=param_name)
 
 def tie_sigz_reff(model_set):
     #'sersic', 'disk+bulge', 'lsersic', 'GaussianRing'
@@ -238,7 +247,7 @@ def tied_mhalo_mstar_fixed_lmstar(model_set):
 
 def tie_lmvirial_NFW(model_set):
     return tie_lmvirial_to_fdm(model_set)
-    
+
 def tie_lmvirial_to_fdm(model_set):
     comp_halo = None
     comps_bar = []
@@ -260,7 +269,8 @@ def tie_lmvirial_to_fdm(model_set):
     bar_dict = {'components': comps_bar,
                 'light': light_bar}
 
-    # fdm aperture set by r_eff
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # Generalize r_fdm component (as in changes from AN):
     if 'disk+bulge' in model_set.mass_components:
         if model_set.mass_components['disk+bulge']:
             r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
@@ -371,6 +381,8 @@ def tie_DZ_c2_MstarMhalo(model_set):
 
 
 def tie_fdm(model_set):
+    # r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
+    # Generalize r_fdm component (as in changes from AN):
     if 'disk+bulge' in model_set.mass_components:
         if model_set.mass_components['disk+bulge']:
             r_fdm = model_set.components['disk+bulge'].r_eff_disk.value
