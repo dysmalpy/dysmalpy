@@ -13,7 +13,7 @@ DYSMALPY website: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
 kinematics. It has been developed and maintained at the Max Planck Institute 
 for Extraterrestrial Physics (MPE) and it extends the DYSMAL fitting models 
-introduced in previous thoroughly-tested works (Cresci et al. 2009 and Davies 
+introduced in previous thoroughly tested works (Cresci et al. 2009 and Davies 
 et al. 2011, as well as subsequent improvements described in Wuyts et al. 2016, 
 Genzel et al. 2017, and Übler et al. 2018).
 
@@ -38,7 +38,7 @@ galaxy, generating a 3D mock cube capturing composite kinematics, and
 accounting for observational effects such as beam smearing and instrumental 
 line broadening. The model cube can be directly compared to the datacube in 3D, 
 but it can also be compared to 1D or 2D kinematic observations by extracting 
-the corresponding one or two dimensional profiles following the same procedure 
+the corresponding one or two-dimensional profiles following the same procedure 
 that was used on the observed data. For detailed information, refer to the 
 Appendix in Price et al. (2021).
 
@@ -59,7 +59,7 @@ either MPFIT, MCMC or dynamic nested sampling.
 
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
-.. _Dynesty: httsps://dynesty.readthedocs.io
+.. _Dynesty: https://dynesty.readthedocs.io
 .. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 
 
