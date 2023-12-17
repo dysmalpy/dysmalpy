@@ -246,7 +246,7 @@ will be installed using ``pip`` at the end.
 
     .. code-block::
 
-        conda install gsl cfitsio
+        conda install gsl cfitsio ; \
         conda install -c conda-forge libcblas
 
 
