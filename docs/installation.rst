@@ -18,7 +18,7 @@ You can install ``dysmalpy`` in a number of ways:
 1. Using Anaconda
 -----------------
 
-To install Anaconda and all the relevant packages and dependencies, please follow the instructions at `Python Environment Setup <installation-anaconda>`_ . 
+To install Anaconda and all the relevant packages and dependencies, please follow the instructions at :ref:`Python Environment Setup<conda_install>`.
 
 After your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
 (current version: |release|).
@@ -53,7 +53,7 @@ Alternatively, you can use the following command:
 
 
 By default, this will try to install dysmalpy with the optional C++ extensions that you may 
-have installed `here <installation-anaconda>`_. If setup.py is not able to find those extensions dysmalpy will be installed 
+have installed :ref:`here<conda_optional_install>`. If setup.py is not able to find those extensions dysmalpy will be installed 
 with its basic functionality. 
 
 
@@ -220,7 +220,7 @@ A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.para
 is available for MPE-group specific architecture. 
 
 Prior to using DysmalPy with this `.bat` file, the DysmalPy source code
-and dependencies will need to be installed (see :ref:`Using Anaconda<install_with_anaconda>`).
+and dependencies will need to be installed (see :ref:`Using Anaconda<conda_install>`).
 
 
 .. _install_afs:
