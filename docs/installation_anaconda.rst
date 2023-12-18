@@ -216,9 +216,9 @@ will be installed using ``pip`` at the end.
 
     .. code-block::
 
-        conda install astropy ipython numpy scipy matplotlib cython dill ; \
-        conda install -c astropy -c defaults h5py pandas ; \
-        conda install -c conda-forge -c astropy photutils emcee shapely corner ; \
+        conda install astropy ipython numpy scipy matplotlib cython dill ; 
+        conda install -c astropy -c defaults h5py pandas ; 
+        conda install -c conda-forge -c astropy photutils emcee shapely corner ; 
         conda install -c conda-forge dynesty
 
 
