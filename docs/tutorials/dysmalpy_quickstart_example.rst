@@ -4,9 +4,9 @@
 Quickstart ``Dysmalpy`` example
 ===============================
 
-This code can be pasted within a python session to quickly test Dysmalpy model creation.
+This code can be pasted within a python session to quickly test `Dysmalpy` model creation.
 
-Alternatively, the script (`dysmalpy_quickstart_example.py`_)
+Alternatively, the :download:`script <dysmalpy_quickstart_example.py>`
 can be run with:
 
 .. _dysmalpy_quickstart_example.py: dysmalpy_quickstart_example.py

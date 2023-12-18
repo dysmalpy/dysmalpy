@@ -235,6 +235,7 @@ will be installed using ``pip`` at the end.
 
         pip install spectral-cube radio-beam
 
+.. _conda_optional_install:
 
 #. *OPTIONAL*: Install libraries for C++ extensions
 
@@ -246,7 +247,7 @@ will be installed using ``pip`` at the end.
 
     .. code-block::
 
-        conda install gsl cfitsio ; \
+        conda install gsl cfitsio ; 
         conda install -c conda-forge libcblas
 
 
