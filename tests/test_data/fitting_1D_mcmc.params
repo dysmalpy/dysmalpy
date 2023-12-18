@@ -24,9 +24,7 @@ aperture_radius,  0.275                      # Circular aperture radius, in ARCS
 moment_calc,      False
 overwrite, True
 
-##linked_posteriors,         total_mass   r_eff_disk   bt   mvirial
-#linked_posteriors,         total_mass   r_eff_disk   bt   fdm
-linked_posteriors,         total_mass   r_eff_disk   fdm
+linked_posteriors,         total_mass   r_eff_disk   fdm   sigma0
 
 # ***************************** OUTPUT *****************************************
 outdir,           PYTEST_OUTPUT/GS4_43501_1D_out_mcmc/         # Full path for output directory
