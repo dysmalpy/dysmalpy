@@ -237,7 +237,7 @@ will be installed using ``pip`` at the end.
 
 .. _conda_optional_install:
 
-#. *OPTIONAL*: Install libraries for C++ extensions
+*OPTIONAL*: Install libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
     the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed.
