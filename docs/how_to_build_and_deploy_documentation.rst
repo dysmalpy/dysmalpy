@@ -34,24 +34,24 @@ tutorials (.ipynb)  and produces the .html files, run the following command:
 
     make html
 
-The ```Makefle``` document that is executed using the command above has the 
+The `Makefle` document that is executed using the command above has the 
 important paths and the instructions for Sphinx so it should not be changed, 
 unless strictly necessary. 
 
 **4. Check built html files**
 
 The built .html docs are located under 
-```/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/```
+`/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/`
 
 Within your browser, open the local file 
-```/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/index.html``` 
+`/PATH/TO/YOUR/DYSMALPY/INSTALL/dysmalpy/docs/_build/html/index.html` 
 and check the various documentation pages you have changed/added, including 
 any added links to the index page TOC. If you are using VScode, you can install 
 the extension "Live Server" to view the built html files in your browser.
 
 **5. Iterate as necessary**
 
-Commit the changes after all testing and work is completed.  
+Commit the changes after all testing and work are completed.  
 
 
 Building and deploying to the live server
@@ -62,11 +62,11 @@ https://www.mpe.mpg.de/resources/IR/DYSMALPY/, please follow these steps:
 
 **1. Make changes ONLY in the dysmalpy repository**
 
-To have an organized workflow and leverage from version control, we will make 
+To have an organized workflow and leveraged version control, we will make 
 the changes on the documentation (e.g., on the .rst files) in the GitHub 
 repository and not directly in the AFS directories.
 
-Refer to the file ```workflow_on_how_to_contribute.rst``` on how to contribute 
+Refer to the file `workflow_on_how_to_contribute.rst` on how to contribute 
 to the repository. 
 
 **2. Pull the changes to the AFS directory**
@@ -97,21 +97,21 @@ tutorials (.ipynb) and produces the .html files, run the following command:
 
     make html
 
-The ```Makefile``` document that is executed using the command above has the 
+The `Makefile` document that is executed using the command above has the 
 important paths and the instructions for Sphinx so it should not be changed, 
 unless strictly necessary. The built .html docs will go under 
-```/afs/mpe/astrosoft/dysmalpy/dysmalpy/docs/_build/html```
+`/afs/mpe/astrosoft/dysmalpy/dysmalpy/docs/_build/html`
 
 **4. Copy the built docs to the live server**
 
 To automate the process of copying the .html files to the live website using 
-rsync, run the following shell script, ```update.sh```:
+rsync, run the following shell script, ``update.sh``:
 
 .. code-block::
 
     bash /afs/mpe/www/resources/IR/DYSMALPY/update.sh
 
-The .html files will be copied to ```/afs/mpe/www/resources/IR/DYSMALPY/```, so 
+The .html files will be copied to `/afs/mpe/www/resources/IR/DYSMALPY/`, so 
 the website will be updated automatically. Always double-check that the website 
 is updated correctly.
 
