@@ -38,7 +38,10 @@ def read_fitting_params_input(fname=None):
                 tmpval = df['values'][j].split('#')[0].strip()
             except:
                 try:
-                    tmpval = df['values'][j].strip()
+                    if np.isnan(df['values'][j]):
+                        tmpval = None
+                    else:
+                        tmpval = df['values'][j].strip()
                 except:
                     print("param key: {}".format(key))
                     print("param line: {}".format(df['values'][j]))
