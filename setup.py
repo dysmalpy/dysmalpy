@@ -4,9 +4,12 @@
 # Imports #
 import os
 import re
+import site
+import copy
+import tempfile
+import shutil
 
-
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension, find_packages, Command
 from Cython.Build import cythonize
 
 import logging
@@ -26,34 +29,21 @@ log = logging.getLogger(__file__)
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-
-
 setup_requirements = ['Cython', 'numpy']
+import_list = ["dysmalpy.lensing", "dysmalpy.utils_least_chi_squares_1d_fitter"]
+name_list = ["LensingTransformer", "LeastChiSquares1D"]
 
-# Setup #
-setup_args = {
-        'name': 'dysmalpy',
-        'author': "MPE IR/Sub-mm Group",
-        'author_email': 'shimizu@mpe.mpg.de',
-        'description': "A modelling and fitting package for galaxy kinematics.",
-        'long_description': readme,
-        'url': "https://github.com/ttshimiz/dysmalpy",
-        'include_package_data': True,
-        'packages': find_packages(), 
-        'setup_requires': setup_requirements,
-        'version': __version__, 
-        #'zip_safe': False,
-        'package_data': {
-            'dysmalpy': [
-                'data/deprojected_sersic_models_tables/*.fits',
-                'tests/test_data/*', 
-                'tests/test_data_lensing/*', 
-                'tests/test_data_masking/*',
-                'examples/notebooks/*',
-                'examples/examples_param_files/*',
-                'examples/examples_param_files/model_examples/*',
-            ]},
-        }
+# Get a list of site-packages directories
+site_packages = site.getsitepackages()
+
+# Search for the installation path
+install_path = None
+for site_package in site_packages:
+    potential_path = os.path.abspath(site_package)
+    if os.path.exists(potential_path):
+        install_path = potential_path
+        print(f"Installation path: {install_path}")
+        break            
 
 
 # Add CONDA include and lib paths if necessary
@@ -65,23 +55,80 @@ if 'CONDA_PREFIX' in os.environ:
     log.debug('conda_include_path: {!r}'.format(conda_include_path))
     log.debug('conda_lib_path: {!r}'.format(conda_lib_path))
 
+class CheckBuildCommand(Command):
+    """Custom command to check for compiled .so files after build."""
+    description = 'Check for compiled .so files'
+    user_options = []
+
+    def initialize_options(self):
+        self.build_lib = None
+
+    def finalize_options(self):
+        self.set_undefined_options('build_ext', ('build_lib', 'build_lib'))
+
+    def run(self):
+        if not getattr(self, '_has_run', False):
+            setattr(self, '_has_run', True)
+
+            print("\n[✓] Installation of DYSMALPY successful! \nNow let's check if the advanced C++ extensions were compiled successfully.\n")
+            
+            successes = []
+            failures = []
+
+            # Loop to build each extension separately
+            for i, ext_module in enumerate(original_ext_modules[1:3]):
+                # Create a temporary directory for the current extension
+                temp_dir = tempfile.mkdtemp()
+
+                # Create a deep copy of the original setup_args
+                setup_args_copy = copy.deepcopy(setup_args)
+
+                # Add the current extension to ext_modules dynamically
+                setup_args_copy['ext_modules'] = [ext_module]
+                # Make sure the extension is not optional for this check
+                ext_module.optional = False
+
+                # Set the build directory to the temporary directory
+                setup_args_copy['script_args'] = ['build_ext', '-b', temp_dir]
+
+                # Print information about the extension being compiled
+                print(f"\nCompiling extension: {ext_module.name}")
+                
+                try:
+                    # Run the setup function
+                    result = setup(**setup_args_copy)
+                    print(f"[✓] {ext_module.name} compiled successfully.")
+                    successes.append(ext_module.name)
+                    
+                except SystemExit as e:
+                    print(f"[x] Compilation failed for {ext_module.name}. Error: {str(e)}")
+                    failures.append(ext_module.name)
+                    pass
+                except Exception as e:
+                    print(f"[x] An unexpected error occurred during compilation of {ext_module.name}. Error: {str(e)}")
+                    failures.append(ext_module.name)
+                    pass
+
+                finally:
+                    # Clean up the temporary directory
+                    shutil.rmtree(temp_dir)
+                
+            # Print a summary of the results
+            print("\nSummary:")
+            print(f"Advanced C++ extensions compiled successfully: {successes}")
+            print(f"Advanced C++ extensions that failed to compile: {failures}")
 
 
-
-ext_modules = cythonize([
-    Extension("dysmalpy.models.cutils",
-    sources=["dysmalpy/models/cutils.pyx"],
-    include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
-    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
-)])
-ext_modules_optional = cythonize([
-    Extension("dysmalpy.models.cutils",
-    sources=["dysmalpy/models/cutils.pyx"],
-    include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
-    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
-)])
-ext_modules_optional.append(
-                Extension("dysmalpy.lensingTransformer",
+# Only the mandatory modules
+original_ext_modules = [
+        # Basic modules
+        Extension("dysmalpy.models.cutils",
+                sources=["dysmalpy/models/cutils.pyx"],
+                include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
+                library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                ),
+        # Lensing transformer
+        Extension("dysmalpy.lensingTransformer",
                     sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                     language="c++",
                     include_dirs=[conda_include_path, "lensing_transformer", "/usr/include", "/usr/local/include", "/opt/local/include"],
@@ -89,10 +136,9 @@ ext_modules_optional.append(
                     library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
-                )
-            )
-ext_modules_optional.append(
-                Extension("dysmalpy.leastChiSquares1D",
+                ),
+        # Chi squared fitter
+        Extension("dysmalpy.leastChiSquares1D",
                     sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
                     language="c++",
                     include_dirs=[conda_include_path, "utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include", "/opt/local/include"],
@@ -102,21 +148,38 @@ ext_modules_optional.append(
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
                 )
-            )
+            ]
 
+# Cythonize the extensions
+ext_modules = cythonize(original_ext_modules)
 
-try:
-    # try building with optional modules :
-    setup( **setup_args, ext_modules=ext_modules_optional )
+# Setup #
+setup_args = {
+        'name': 'dysmalpy',
+        'author': "MPE IR/Sub-mm Group",
+        'author_email': 'shimizu@mpe.mpg.de',
+        'description': "A modelling and fitting package for galaxy kinematics.",
+        'long_description': readme,
+        'url': "https://github.com/dysmalpy/dysmalpy",
+        'include_package_data': True,
+        'packages': find_packages(), 
+        'setup_requires': setup_requirements,
+        'version': __version__,
+        'ext_modules': ext_modules,
+        'cmdclass': {'check_build': CheckBuildCommand},
+        'package_data': {
+            'dysmalpy': [
+                'data/deprojected_sersic_models_tables/*.fits',
+                'tests/test_data/*', 
+                'tests/test_data_lensing/*', 
+                'tests/test_data_masking/*',
+                'examples/notebooks/*',
+                'examples/examples_param_files/*',
+                'examples/examples_param_files/model_examples/*',
+            ]},
+        }
+                    
 
-    log.info("Installation with optional modules successful!")
+# Perform the setup
+result = setup(**setup_args)
 
-except:
-    log.warning("The optional modules could not be compiled")
-
-    # If this new 'setup' call don't fail, the module
-    # will be successfully installed, without the optional modules:
-    setup( **setup_args, ext_modules=ext_modules )
-
-
-    log.info("Installation without optional modules successful!")
