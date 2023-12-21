@@ -61,7 +61,7 @@ which extensions were compiled and which were not.
 
 .. _install_clone:
 
-1. Development version
+2. Development version
 ----------------------
 
 To get the most up-to-date development version of ``dysmalpy``, clone the repository from GitHub.
