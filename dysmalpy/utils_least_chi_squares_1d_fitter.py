@@ -11,7 +11,7 @@
 
 # <DZLIU><20210805> ++++++++++
 
-import os, sys, copy, timeit
+import os, sys, copy, timeit, glob
 import logging
 logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level.
 if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
@@ -22,11 +22,13 @@ import numpy as np
 from distutils.sysconfig import get_config_var
 #mylib = cdll.LoadLibrary(os.path.abspath(os.path.dirname(__file__))+os.sep+"libLeastChiSquares1D.so")
 mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"leastChiSquares1D"+get_config_var('EXT_SUFFIX')
-# <SHP><20211103> ++++++++++++
+
+# ++++++++++++
 if not os.path.isfile(mylibfile):
-    mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"utils_least_chi_squares_1d_fitter"
-    mylibfile += os.sep+"libLeastChiSquares1D.so"
-# <SHP><20211103> ++++++++++++
+    mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"leastChiSquares1D*.so"
+    mylibfile = glob.glob(mylibfile)[0]    
+# ++++++++++++
+
 mylib = cdll.LoadLibrary(mylibfile)
 
 class LeastChiSquares1D(object):

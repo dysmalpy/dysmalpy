@@ -14,7 +14,7 @@
 
 __all__=['LensingTransformer']
 
-import os, sys, datetime, timeit
+import os, sys, datetime, timeit, glob
 import logging
 logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level.
 if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
@@ -26,10 +26,11 @@ import multiprocessing, threading
 from distutils.sysconfig import get_config_var
 
 mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX')
+
 # ++++++++++++
 if not os.path.isfile(mylibfile):
-    mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensing_transformer"
-    mylibfile += os.sep+"libLensingTransformer.so"
+    mylibfile = os.path.abspath(os.path.dirname(__file__))+os.sep+"lensingTransformer*.so"
+    mylibfile = glob.glob(mylibfile)[0]
 # ++++++++++++
 mylib = cdll.LoadLibrary(mylibfile)
 cached_lensing_transformer_dict = {'0': None}
