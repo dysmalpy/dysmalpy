@@ -42,19 +42,20 @@ You can use pip to install the package:
 
 .. code-block::
 
-        python -m pip install .
+        python -m pip install . && python setup.py check_build
 
 
 Alternatively, you can use the following command:
 
 .. code-block::
 
-        python setup.py install --single-version-externally-managed --root=/
+        python setup.py install --single-version-externally-managed --root=/ && python setup.py check_build
 
 
-By default, this will try to install dysmalpy with the optional C++ extensions that you may 
-have installed :ref:`here<conda_optional_install>`. If setup.py is not able to find those extensions dysmalpy will be installed 
-with its basic functionality. 
+By default, the first part of the command will try to install dysmalpy with the additional C++ extensions that you may 
+have installed :ref:`here<conda_optional_install>`. These are not necessary but it is adviced for you to have them. 
+The second part of the command will check if the extensions were compiled succesfully, you will see in the terminal 
+which extensions were compiled and which were not.
 
 
 

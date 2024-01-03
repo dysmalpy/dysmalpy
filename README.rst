@@ -40,28 +40,16 @@ line broadening. The model cube can be directly compared to the datacube in 3D,
 but it can also be compared to 1D or 2D kinematic observations by extracting 
 the corresponding one or two-dimensional profiles following the same procedure 
 that was used on the observed data. For detailed information, refer to the 
-Appendix in Price et al. (2021).
-
-The overall basic usage of DYSMALPY can be summarized as follows:
-
-**1) Setup steps:** Import modules, set paths, define global constants and 
-variables.
-
-**2) Initialize:** Create a galaxy object with its corresponding parameters, 
-add the model set (disk, bulge, DM halo, etc), set up the observation and 
-instrument information.
-
-**3) Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using 
-either MPFIT, MCMC or dynamic nested sampling.
-
-**4) Assess:** Visualise, assess fit, and fine tune the fitting. 
+Appendix in `Price et al. (2021)`_.
 
 
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: https://dynesty.readthedocs.io
 .. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
-
+.. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/juan_edits/examples/notebooks
+.. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
+.. _Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 
 Dependencies
 ------------
@@ -88,6 +76,26 @@ Installation
 ------------
 
 To install DYSMALPY, please follow the instructions in the `installation`_ file.
+
+Usage
+-----
+
+The overall basic usage of DYSMALPY can be summarized as follows:
+
+**1) Setup steps:** Import modules, set paths, define global constants and 
+variables.
+
+**2) Initialize:** Create a galaxy object with its corresponding parameters, 
+add the model set (disk, bulge, DM halo, etc), set up the observation and 
+instrument information.
+
+**3) Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using 
+either MPFIT, MCMC or dynamic nested sampling.
+
+**4) Assess:** Visualise, assess fit, and fine tune the fitting. 
+
+We strongly recommend to follow and understand the `tutorials`_ section of the main website. 
+Alternatively, you can run and familiarize yourself with the jupyter notebooks in the `notebooks`_ folder (these will be included in your installation of dysmalpy under examples/notebooks).
 
 Contact
 -------
