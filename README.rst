@@ -40,7 +40,7 @@ line broadening. The model cube can be directly compared to the datacube in 3D,
 but it can also be compared to 1D or 2D kinematic observations by extracting 
 the corresponding one or two-dimensional profiles following the same procedure 
 that was used on the observed data. For detailed information, refer to the 
-Appendix in Price et al. (2021).
+Appendix in `Price et al. (2021)`_.
 
 
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
@@ -49,6 +49,7 @@ Appendix in Price et al. (2021).
 .. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 .. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/juan_edits/examples/notebooks
 .. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
+.. _Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 
 Dependencies
 ------------
