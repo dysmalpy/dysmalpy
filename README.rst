@@ -94,7 +94,7 @@ either MPFIT, MCMC or dynamic nested sampling.
 **4) Assess:** Visualise, assess fit, and fine tune the fitting. 
 
 We strongly recommend to follow and understand the `tutorials`_ section of the main website. 
-Alternatively, you can run and familiarize yourself with the jupyter notebooks in the `examples/notebooks`_ folder (these will be included in your installation of dysmalpy).
+Alternatively, you can run and familiarize yourself with the jupyter notebooks in the `notebooks`_ folder (these will be included in your installation of dysmalpy under examples/notebooks).
 
 Contact
 -------
