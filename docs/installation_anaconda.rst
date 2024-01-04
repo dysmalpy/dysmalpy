@@ -169,37 +169,67 @@ the list of channels returned by the following command:
     conda config --show channels
 
 
-
-
 .. _install_deps:
 
-Installing DysmalPy dependencies with ``conda`` and ``pip``
------------------------------------------------------------
+Installing DysmalPy libraries and dependencies with ``conda``
+-------------------------------------------------------------
+
+
+**Install libraries**
+~~~~~~~~~~~~~~~~~~~~~
+
+
+.. _conda_optional_install:
+
+*ADVANCED*: Install libraries for C++ extensions
+
+    To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
+    the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed. The installation
+    of these libraries is recommended, but not required.
+
+    These can be installed separately (using your normal means), or can be installed
+    as follows:
+
+    .. code-block::
+
+        conda install gsl cfitsio ; 
+        conda install -c conda-forge libcblas
+
+
+    Note that the installation directory will be needed later when compiling the
+    extensions. This is either `/PATH/TO/ANACONDA` if using anaconda as above
+    (where the base `/PATH/TO/ANACONDA` should be listed under the "active env location"
+    from the output of `$ conda info`), or whatever directory was specified
+    for the separate install.
+
+
+**Install python dependencies**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. attention:: 
+    **If you want to install the python dependencies with pip, you can skip back to the installation 
+    instructions. If you prefer using conda to manage them please continue below.**
+
+Install dependencies with ``conda``:
 
 The benefit of using an Anaconda python distribution is the easy management of
-packages, and all of their dependencies.
-
-Most of the dependencies of DysmalPy can be installed with ``conda``. The remainder
-will be installed using ``pip`` at the end.
+packages, and all of their dependencies. Most of the dependencies of DysmalPy 
+can be installed with ``conda``. Two of them will need to be installed using ``pip`` at the end.
 
 .. attention::
     If you are using an environment, activate it before proceeding with the
     installation of the dependencies.
     See :ref:`Activating an Anaconda environment <conda_env_activate>`.
 
-
-.. attention::
-    Before beginning with dependency installation, make sure the
+    Also, before beginning with dependency installation, make sure the
     ``astroconda`` channel has been added to conda.
     See :ref:`Adding channels to conda <add_channels>`.
 
 
-#. Install dependencies with ``conda``:
-
-    We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
-    and `photutils`_.
-    We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
-    and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
+We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
+and `photutils`_.
+We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
+and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
 
     .. _ipython: https://ipython.org/
     .. _NumPy: https://numpy.org/
@@ -222,7 +252,7 @@ will be installed using ``pip`` at the end.
         conda install -c conda-forge dynesty
 
 
-#. Install remaining dependencies with ``pip``:
+Finally, install remaining dependencies with ``pip``:
 
     We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
 
@@ -234,29 +264,6 @@ will be installed using ``pip`` at the end.
     .. code-block::
 
         pip install spectral-cube radio-beam
-
-.. _conda_optional_install:
-
-*OPTIONAL*: Install libraries for C++ extensions
-
-    To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
-    the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed.
-
-    These can be installed separately (using your normal means), or can be installed
-    as follows:
-
-    .. code-block::
-
-        conda install gsl cfitsio ; 
-        conda install -c conda-forge libcblas
-
-
-    Note that the installation directory will be needed later when compiling the
-    extensions. This is either `/PATH/TO/ANACONDA` if using anaconda as above
-    (where the base `/PATH/TO/ANACONDA` should be listed under the "active env location"
-    from the output of `$ conda info`), or whatever directory was specified
-    for the separate install.
-
 
 .. note::
     If AstroPy is already installed, it can be updated to the
