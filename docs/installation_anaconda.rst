@@ -63,14 +63,14 @@ use the following command:
 
 .. code-block::
 
-    conda create --name my-env python
+    conda create --name my-env python pip
 
 
 or, if you want to select a specific version of python, use for example:
 
 .. code-block::
 
-    conda create --name my-env python=3.10
+    conda create --name my-env python=3.10 pip
 
 .. warning::
     DysmalPy requires python version ``>=3.10``.
