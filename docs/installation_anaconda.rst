@@ -207,8 +207,8 @@ Installing DysmalPy libraries and dependencies with ``conda``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. attention:: 
-    **If you want to install the python dependencies with pip, you can skip back to the installation 
-    instructions. If you prefer using conda to manage them please continue below.**
+    If you want to install the python dependencies with pip, you can skip back to the :ref:`installation 
+    instructions<install>`. If you prefer using conda to manage them please continue below.
 
 Install dependencies with ``conda``:
 
@@ -226,10 +226,10 @@ can be installed with ``conda``. Two of them will need to be installed using ``p
     See :ref:`Adding channels to conda <add_channels>`.
 
 
-We will use ``conda`` to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
+We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
 and `photutils`_.
 We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
-and ``dill`` are installed, as well as a number of other ``astropy`` dependencies.
+and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
 
     .. _ipython: https://ipython.org/
     .. _NumPy: https://numpy.org/
@@ -241,8 +241,10 @@ and ``dill`` are installed, as well as a number of other ``astropy`` dependencie
     .. _shapely: https://github.com/Toblerity/Shapely
     .. _cython: https://cython.org
     .. _photutils: https://photutils.readthedocs.io
+    .. _conda: https://docs.conda.io/projects/conda
+    .. _dill: https://dill.readthedocs.io/en/latest/
 
-    From the terminal or an Anaconda prompt, run the following:
+From the terminal or an Anaconda prompt, run the following:
 
     .. code-block::
 
