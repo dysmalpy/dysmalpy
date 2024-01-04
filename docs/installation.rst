@@ -75,7 +75,7 @@ which extensions were compiled and which were not.
 **1.2 Using conda to install the dependencies**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Please use the following command: 
+If you have chosen to install the python dependencies with conda, please use the following command: 
 
 .. code-block::
 
