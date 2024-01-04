@@ -43,27 +43,27 @@ To install Dysmalpy run:
         cd dysmalpy-N.N.N
 
 .. note::
-    You can also clone the repository from GitHub with:
+    You can also clone the repository from GitHub with (make sure you have git installed with e.g. ``conda install git``):
 
     .. code-block::
 
         git clone https://github.com/dysmalpy/dysmalpy.git
 
 **1.1 Using pip to install the dependencies**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can use pip to install the package and dependencies:
 
 .. code-block::
 
-        python -m pip install . && python setup.py check_build
+        python3 -m pip install . && python3 setup.py check_build
 
 
 Alternatively, you can use the following command:
 
 .. code-block::
 
-        python setup.py install --single-version-externally-managed --root=/ && python setup.py check_build
+        python3 setup.py install --single-version-externally-managed --root=/ && python3 setup.py check_build
 
 
 By default, the first part of the command will try to install dysmalpy with the additional C++ extensions that you may 
@@ -73,13 +73,13 @@ which extensions were compiled and which were not.
 
 
 **1.2 Using conda to install the dependencies**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you have chosen to install the python dependencies with conda, please use the following command: 
 
 .. code-block::
 
-        python -m pip install . --no-deps && python setup.py check_build
+        python3 -m pip install . --no-deps && python3 setup.py check_build
 
 .. note:: 
     The ``--no-deps`` flag will prevent pip from installing the dependencies that you have already installed with conda in (:ref:`Python Environment Setup<conda_install>`).
@@ -240,7 +240,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
 .. _install_windows:
 
 Windows `.bat` File
-^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~
 
 A `.bat` file, for running DysmalPy with a parameters file (e.g., ``fitting.params``) 
 is available for MPE-group specific architecture. 
@@ -252,7 +252,7 @@ and dependencies will need to be installed (see :ref:`Using Anaconda<conda_insta
 .. _install_afs:
 
 AFS Machine
-^^^^^^^^^^^
+~~~~~~~~~~~
 
 If you are on an AFS machine, ``dysmalpy`` is located at
 `/afs/mpe.mpg.de/astrosoft/dysmalpy`. We have further setup

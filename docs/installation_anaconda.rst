@@ -88,6 +88,8 @@ activate the environment before you run DysmalPy, or activate it by default by
 modifying your shell login script (e.g., your .bashrc, .bash_profile, .profile, .tcshrc, ... file).
 
 
+.. note:: 
+    If you are using Windows, it is adviced to use the Anaconda Powershell Prompt to run the commands below.
 
 .. _conda_env_activate:
 
@@ -181,13 +183,19 @@ Installing DysmalPy libraries and dependencies with ``conda``
 
 .. _conda_optional_install:
 
-*ADVANCED*: Install libraries for C++ extensions
+Install *ADVANCED* libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
     the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed. The installation
     of these libraries is recommended, but not required.
 
-    These can be installed separately (using your normal means), or can be installed
+    First, if you do not have C++ compilers installed in you system, you can install them with conda:
+
+    .. code-block::
+
+        conda install -c conda-forge cxx-compiler
+
+    Then, the libraries can be installed separately (using your normal means), or with conda
     as follows:
 
     .. code-block::
