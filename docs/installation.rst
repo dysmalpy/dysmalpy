@@ -65,6 +65,17 @@ Alternatively, you can use the following command:
 
         python3 setup.py install --single-version-externally-managed --root=/ && python3 setup.py check_build
 
+.. note:: 
+    If you would like to specify your specific ``include`` and ``library`` paths you can set them by defining the 
+    ``C_INCLUDE_PATH`` and ``LD_LIBRARY_PATH`` environment variables like this:
+
+    .. code-block::
+
+        export C_INCLUDE_PATH=/your/include/path
+        export LD_LIBRARY_PATH=/your/lib/path
+
+    then you can run the usual installation command.
+        
 
 By default, the first part of the command will try to install dysmalpy with the additional C++ extensions that you may 
 have installed :ref:`here<conda_optional_install>`. These are not necessary but it is adviced for you to have them. 
@@ -86,7 +97,7 @@ If you have chosen to install the python dependencies with conda, please use the
 
 .. _install_clone:
 
-2. Development version
+1. Development version
 ----------------------
 
 To get the most up-to-date development version of ``dysmalpy``, clone the repository from GitHub.

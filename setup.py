@@ -43,8 +43,11 @@ for site_package in site_packages:
     if os.path.exists(potential_path):
         install_path = potential_path
         print(f"Installation path: {install_path}")
-        break            
+        break
 
+# Initialize the directory paths:
+include_dirs=["/usr/include", "/usr/include/x86_64-linux-gnu", "/usr/include/aarch64-linux-gnu", "/usr/local/include", "/opt/local/include"]
+library_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-gnu", "/usr/local/lib", "/opt/local/lib"]
 
 # Add CONDA include and lib paths if necessary
 conda_include_path = "."
@@ -54,6 +57,24 @@ if 'CONDA_PREFIX' in os.environ:
     conda_lib_path = os.path.join(os.getenv('CONDA_PREFIX'), 'lib')
     log.debug('conda_include_path: {!r}'.format(conda_include_path))
     log.debug('conda_lib_path: {!r}'.format(conda_lib_path))
+    include_dirs.append(conda_include_path)
+    library_dirs.append(conda_lib_path)
+    
+c_include_path = "."
+if 'C_INCLUDE_PATH' in os.environ:
+    c_include_path = os.getenv('C_INCLUDE_PATH').split(":")
+    include_dirs.extend(c_include_path)
+
+cplus_include_path = "."
+if 'CPLUS_INCLUDE_PATH' in os.environ:
+    cplus_include_path = os.getenv('CPLUS_INCLUDE_PATH').split(":")
+    include_dirs.extend(cplus_include_path)
+
+ld_library_path = "."
+if 'LD_LIBRARY_PATH' in os.environ:
+    ld_library_path = os.getenv('LD_LIBRARY_PATH').split(":")
+    library_dirs.extend(ld_library_path)
+
 
 class CheckBuildCommand(Command):
     """Custom command to check for compiled .so files after build."""
@@ -123,17 +144,17 @@ class CheckBuildCommand(Command):
 original_ext_modules = [
         # Basic modules
         Extension("dysmalpy.models.cutils",
-                sources=["dysmalpy/models/cutils.pyx"],
-                include_dirs=[conda_include_path, "/usr/include", "/usr/local/include", "/opt/local/include"],
-                library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                sources=["dysmalpy/models/cutils.pyx"],   
+                include_dirs=include_dirs,
+                library_dirs=library_dirs,
                 ),
         # Lensing transformer
         Extension("dysmalpy.lensingTransformer",
                     sources=["dysmalpy/lensing_transformer/lensingTransformer.cpp"],
                     language="c++",
-                    include_dirs=[conda_include_path, "lensing_transformer", "/usr/include", "/usr/local/include", "/opt/local/include"],
+                    include_dirs=include_dirs+["lensing_transformer"],
                     libraries=['gsl', 'gslcblas', 'cfitsio'],
-                    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                    library_dirs=library_dirs,
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
                 ),
@@ -141,9 +162,9 @@ original_ext_modules = [
         Extension("dysmalpy.leastChiSquares1D",
                     sources=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.cpp"],
                     language="c++",
-                    include_dirs=[conda_include_path, "utils_least_chi_squares_1d_fitter", "/usr/include", "/usr/local/include", "/opt/local/include"],
+                    include_dirs=include_dirs+["utils_least_chi_squares_1d_fitter"],
                     libraries=['gsl', 'gslcblas', 'pthread'],
-                    library_dirs=[conda_lib_path, "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/opt/local/lib"],
+                    library_dirs=library_dirs,
                     depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
                     extra_compile_args=['-std=c++11'], optional=True
@@ -157,7 +178,7 @@ ext_modules = cythonize(original_ext_modules)
 setup_args = {
         'name': 'dysmalpy',
         'author': "MPE IR/Sub-mm Group",
-        'author_email': 'shimizu@mpe.mpg.de',
+        'author_email': 'dysmalpy@mpe.mpg.de',
         'description': "A modelling and fitting package for galaxy kinematics.",
         'long_description': readme,
         'url': "https://github.com/dysmalpy/dysmalpy",

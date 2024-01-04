@@ -183,26 +183,27 @@ Installing DysmalPy libraries and dependencies with ``conda``
 
 .. _conda_optional_install:
 
-Install *ADVANCED* libraries for C++ extensions
+*REQUIRED*: You need a working C++ compiler:
+
+First, if you do not have C++ compilers installed in you system, you can install them with conda:
+
+    .. code-block::
+
+        conda install -c conda-forge c-compiler
+
+*ADVANCED*: A set of specific libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
     the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed. The installation
     of these libraries is recommended, but not required.
 
-    First, if you do not have C++ compilers installed in you system, you can install them with conda:
-
-    .. code-block::
-
-        conda install -c conda-forge cxx-compiler
-
-    Then, the libraries can be installed separately (using your normal means), or with conda
+    The libraries can be installed using your normal means, or with conda
     as follows:
 
     .. code-block::
 
         conda install gsl cfitsio ; 
         conda install -c conda-forge libcblas
-
 
     Note that the installation directory will be needed later when compiling the
     extensions. This is either `/PATH/TO/ANACONDA` if using anaconda as above
