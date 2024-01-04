@@ -9,6 +9,10 @@ You can install ``dysmalpy`` in a number of ways:
 
 1. If you have limited experience with Python, we recommend installing ``dysmalpy`` using the Anaconda Python distribution.
 
+    1.1 Using pip to install the dependencies (default)
+
+    1.2 Using conda to install the dependencies
+
 2. If you are more familiar with Python, you can install ``dysmalpy`` using the development version. 
 
 3. If you are a member of the MPE group, you can install ``dysmalpy`` using the provided ``.bat`` file or by using the Anaconda environment we have setup.
@@ -23,9 +27,9 @@ To install Anaconda and all the relevant packages and dependencies, please follo
 After your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
 (current version: |release|).
 
-.. _tar.gz: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.tar.gz
+.. _tar.gz: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.tar.gz
 
-.. _zip: https://github.com/ttshimiz/dysmalpy/archive/refs/tags/v|release|.zip
+.. _zip: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.zip
 
 From a terminal, change directories to where the package was downloaded
 
@@ -38,7 +42,17 @@ To install Dysmalpy run:
         tar zxvf dysmalpy-N.N.N.tar.gz
         cd dysmalpy-N.N.N
 
-You can use pip to install the package:
+.. note::
+    You can also clone the repository from GitHub with:
+
+    .. code-block::
+
+        git clone https://github.com/dysmalpy/dysmalpy.git
+
+**1.1 Using pip to install the dependencies**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can use pip to install the package and dependencies:
 
 .. code-block::
 
@@ -58,6 +72,17 @@ The second part of the command will check if the extensions were compiled succes
 which extensions were compiled and which were not.
 
 
+**1.2 Using conda to install the dependencies**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Please use the following command: 
+
+.. code-block::
+
+        python -m pip install . --no-deps && python setup.py check_build
+
+.. note:: 
+    The ``--no-deps`` flag will prevent pip from installing the dependencies that you have already installed with conda in (:ref:`Python Environment Setup<conda_install>`).
 
 .. _install_clone:
 
