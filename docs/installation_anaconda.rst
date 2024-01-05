@@ -187,18 +187,18 @@ Installing DysmalPy libraries and dependencies with ``conda``
 
 .. _conda_optional_install:
 
-***REQUIRED***: You need a working C++ compiler:
-
-First, if you do not have C++ compilers installed in you system, you can install them with conda:
+***REQUIRED***: You need a working C++ compiler as well as ``gsl`` and ``cython``, 
+you can install them with conda:
 
     .. code-block::
 
-        conda install -c conda-forge c-compiler
+        conda install -c conda-forge c-compiler ;
+        conda install cython gsl
 
 ***ADVANCED***: A set of specific libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
-    the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed. The installation
+    the ``cfitsio``, and ``libcblas`` libraries are needed. The installation
     of these libraries is recommended, but not required.
 
     The libraries can be installed using your normal means, or with conda
@@ -206,7 +206,7 @@ First, if you do not have C++ compilers installed in you system, you can install
 
     .. code-block::
 
-        conda install gsl cfitsio ; 
+        conda install cfitsio ; 
         conda install -c conda-forge libcblas
 
     Note that the installation directory will be needed later when compiling the
@@ -249,7 +249,7 @@ Two of them will need to be installed using ``pip`` at the end.
 
 We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
 and `photutils`_.
-We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `cython`_,
+We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_,
 and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
 
     .. _ipython: https://ipython.org/
@@ -260,7 +260,6 @@ and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
     .. _emcee: https://emcee.readthedocs.io
     .. _corner: https://corner.readthedocs.io
     .. _shapely: https://github.com/Toblerity/Shapely
-    .. _cython: https://cython.org
     .. _photutils: https://photutils.readthedocs.io
     .. _conda: https://docs.conda.io/projects/conda
     .. _dill: https://dill.readthedocs.io/en/latest/
@@ -269,7 +268,7 @@ From the terminal or an Anaconda prompt, run the following:
 
     .. code-block::
 
-        conda install astropy ipython numpy scipy matplotlib cython dill ; 
+        conda install astropy ipython numpy scipy matplotlib dill ; 
         conda install -c astropy -c defaults h5py pandas ; 
         conda install -c conda-forge -c astropy photutils emcee shapely corner ; 
         conda install -c conda-forge dynesty
