@@ -24,23 +24,21 @@ You can install ``dysmalpy`` in a number of ways:
 
 To install Anaconda and all the relevant packages and dependencies, please follow the instructions at :ref:`Python Environment Setup<conda_install>`.
 
-After your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
+After (and only after) your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
 (current version: |release|).
 
 .. _tar.gz: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.tar.gz
 
 .. _zip: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.zip
 
-From a terminal, change directories to where the package was downloaded
-
-To install Dysmalpy run:
-
-(Where N.N.N is the current version)
+From a terminal, change directories to where the package was downloaded, decompress it and navigate inside the directory with:
 
 .. code-block::
 
         tar zxvf dysmalpy-N.N.N.tar.gz
         cd dysmalpy-N.N.N
+
+(Where N.N.N is the current version)
 
 .. note::
     You can also clone the repository from GitHub with (make sure you have git installed with e.g. ``conda install git``):
@@ -49,21 +47,39 @@ To install Dysmalpy run:
 
         git clone https://github.com/dysmalpy/dysmalpy.git
 
-**1.1 Using pip to install the dependencies**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can use pip to install the package and dependencies:
+Before proceeding, please check if the C++ extesions can be compiled using the libraries that you may 
+have installed :ref:`here<conda_optional_install>`. Please run the following command:
 
 .. code-block::
 
-        python3 -m pip install . && python3 setup.py check_build
+    python3 setup.py check_build
+
+This should return a message with the information about the extensions that can be compiled and those
+that cannot. 
+
+.. note:: 
+    From the output of the command above, please note that The C++ extension ``dysmalpy.models.cutils`` 
+    is **mandatory**, so make sure the compilation was succesful.
+    The ``dysmalpy.lensingTransformer`` and ``dysmalpy.leastChiSquares1D`` extensions are optional, but 
+    recommended if you want to use the lensing or the least-squares fitter modules.
+
+Now, you can install ``dysmalpy`` and its dependencies in one of the following ways:
+
+**1.1 Using pip to install the dependencies (default)**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can use pip to install dysmalpy (and its corresponding dependencies):
+
+.. code-block::
+
+        python3 -m pip install .
 
 
 Alternatively, you can use the following command:
 
 .. code-block::
 
-        python3 setup.py install --single-version-externally-managed --root=/ && python3 setup.py check_build
+        python3 setup.py install --single-version-externally-managed --root=/
 
 .. note:: 
     If you would like to specify your specific ``include`` and ``library`` paths you can set them by defining the 
@@ -75,12 +91,6 @@ Alternatively, you can use the following command:
         export LD_LIBRARY_PATH=/your/lib/path
 
     then you can run the usual installation command.
-        
-
-By default, the first part of the command will try to install dysmalpy with the additional C++ extensions that you may 
-have installed :ref:`here<conda_optional_install>`. These are not necessary but it is adviced for you to have them. 
-The second part of the command will check if the extensions were compiled succesfully, you will see in the terminal 
-which extensions were compiled and which were not.
 
 
 **1.2 Using conda to install the dependencies**
@@ -90,7 +100,7 @@ If you have chosen to install the python dependencies with conda, please use the
 
 .. code-block::
 
-        python3 -m pip install . --no-deps && python3 setup.py check_build
+        python3 -m pip install . --no-deps
 
 .. note:: 
     The ``--no-deps`` flag will prevent pip from installing the dependencies that you have already installed with conda in (:ref:`Python Environment Setup<conda_install>`).
@@ -119,7 +129,8 @@ or how to check out other branches, please see e.g. the tutorial here:
 `https://git-scm.com/docs/gittutorial`_
 
 .. warning::
-    This way of installing ``dysmalpy`` will give you a basic installation with most of the functionality, but your ``dysmalpy`` installation will not contain the modules that need to be compiled.
+    This way of installing ``dysmalpy`` will give you a basic installation with most of the functionality, 
+    but your ``dysmalpy`` installation will not contain the modules that need to be compiled.
 
 .. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
 
@@ -136,7 +147,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
     .. code-block::
 
         import dysmalpy
-        print (dysmalpy.__file__)
+        print(dysmalpy.__file__)
 
 
 

@@ -91,13 +91,13 @@ class CheckBuildCommand(Command):
         if not getattr(self, '_has_run', False):
             setattr(self, '_has_run', True)
 
-            print("\n[✓] Installation of DYSMALPY successful! \nNow let's check if the advanced C++ extensions were compiled successfully.\n")
+            print("\nLet's check if the advanced C++ extensions can be compiled successfully.\n")
             
             successes = []
             failures = []
 
             # Loop to build each extension separately
-            for i, ext_module in enumerate(original_ext_modules[1:3]):
+            for i, ext_module in enumerate(original_ext_modules):
                 # Create a temporary directory for the current extension
                 temp_dir = tempfile.mkdtemp()
 
@@ -137,7 +137,7 @@ class CheckBuildCommand(Command):
             # Print a summary of the results
             print("\nSummary:")
             print(f"Advanced C++ extensions compiled successfully: {successes}")
-            print(f"Advanced C++ extensions that failed to compile: {failures}")
+            print(f"Advanced C++ extensions that failed to compile: {failures}\n")
 
 
 # Only the mandatory modules

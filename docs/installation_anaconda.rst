@@ -149,6 +149,14 @@ or for Windows:
     Then reactivate ``my-env`` by running ``$ conda activate my-env``.
 
 
+.. .. attention::
+..      If you are using an environment, activate it before proceeding.
+..      See :ref:`Activating an Anaconda environment <conda_env_activate>`.
+
+..      Also, before beginning with dependency installation, make sure the
+..      ``astroconda`` channel has been added to conda.
+..      See :ref:`Adding channels to conda <add_channels>`.
+
 
 .. _add_channels:
 
@@ -177,13 +185,9 @@ Installing DysmalPy libraries and dependencies with ``conda``
 -------------------------------------------------------------
 
 
-**Install libraries**
-~~~~~~~~~~~~~~~~~~~~~
-
-
 .. _conda_optional_install:
 
-*REQUIRED*: You need a working C++ compiler:
+***REQUIRED***: You need a working C++ compiler:
 
 First, if you do not have C++ compilers installed in you system, you can install them with conda:
 
@@ -191,7 +195,7 @@ First, if you do not have C++ compilers installed in you system, you can install
 
         conda install -c conda-forge c-compiler
 
-*ADVANCED*: A set of specific libraries for C++ extensions
+***ADVANCED***: A set of specific libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
     the ``gsl``, ``cfitsio``, and ``libcblas`` libraries are needed. The installation
@@ -211,6 +215,21 @@ First, if you do not have C++ compilers installed in you system, you can install
     from the output of `$ conda info`), or whatever directory was specified
     for the separate install.
 
+.. At this step, check if the C++ extesions can be compiled by running:
+
+.. .. code-block::
+
+..     python3 setup.py check_build
+
+.. This should return a message with the information about the extensions that where compiled and those
+.. that failed. 
+
+.. .. note:: 
+..     From the output of the command above, please note that The C++ extension ``dysmalpy.models.cutils`` 
+..     is mandatory, so make sure the compilation was succesful.
+..     The ``dysmalpy.lensingTransformer`` and ``dysmalpy.leastChiSquares1D`` extensions are optional, but 
+..     recommended if you want to use the lensing or the least-squares fitter modules.
+
 
 **Install python dependencies**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -219,21 +238,14 @@ First, if you do not have C++ compilers installed in you system, you can install
     If you want to install the python dependencies with pip, you can skip back to the :ref:`installation 
     instructions<install>`. If you prefer using conda to manage them please continue below.
 
-Install dependencies with ``conda``:
+.. Install dependencies with ``conda`` :
 
-The benefit of using an Anaconda python distribution is the easy management of
-packages, and all of their dependencies. Most of the dependencies of DysmalPy 
-can be installed with ``conda``. Two of them will need to be installed using ``pip`` at the end.
+.. The benefit of using an Anaconda python distribution is the easy management of
+.. packages, and all of their dependencies. 
 
-.. attention::
-    If you are using an environment, activate it before proceeding with the
-    installation of the dependencies.
-    See :ref:`Activating an Anaconda environment <conda_env_activate>`.
-
-    Also, before beginning with dependency installation, make sure the
-    ``astroconda`` channel has been added to conda.
-    See :ref:`Adding channels to conda <add_channels>`.
-
+Most of the dependencies of ``dysmalpy`` can be installed with ``conda`` 
+(make sure your conda environment is activated, see :ref:`Activating an Anaconda environment <conda_env_activate>`). 
+Two of them will need to be installed using ``pip`` at the end.
 
 We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
 and `photutils`_.
@@ -263,18 +275,16 @@ From the terminal or an Anaconda prompt, run the following:
         conda install -c conda-forge dynesty
 
 
-Finally, install remaining dependencies with ``pip``:
+Finally, install remaining dependencies (`spectral-cube`_ and `radio-beam`_) with ``pip``
+by running:
 
-    We will then use ``pip`` to install `spectral-cube`_ and `radio-beam`_.
+.. _spectral-cube: https://spectral-cube.readthedocs.io
+.. _radio-beam: https://radio-beam.readthedocs.io
 
-        .. _spectral-cube: https://spectral-cube.readthedocs.io
-        .. _radio-beam: https://radio-beam.readthedocs.io
 
-    Again from the terminal or an Anaconda prompt, run:
+.. code-block::
 
-    .. code-block::
-
-        pip install spectral-cube radio-beam
+    pip install spectral-cube radio-beam
 
 .. note::
     If AstroPy is already installed, it can be updated to the
