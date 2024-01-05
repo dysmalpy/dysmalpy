@@ -195,6 +195,10 @@ you can install them with conda:
         conda install -c conda-forge c-compiler ;
         conda install cython gsl
 
+on linux you might want to install ``build-essential`` instead of ``c-compiler`` with 
+``sudo apt-get install build-essential``
+
+
 ***ADVANCED***: A set of specific libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,

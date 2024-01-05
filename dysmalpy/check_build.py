@@ -8,9 +8,8 @@
     Created: 05/01/2024 by Juan Espejo
 """
 
-import os
+import os, sys
 import logging
-import dysmalpy
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__) # here we do not setLevel so that it inherits its caller logging level.
 if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
@@ -18,9 +17,15 @@ if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
 from ctypes import cdll
 from distutils.sysconfig import get_config_var
 
+import site
+# Ensure that the path to the site-packages directory is in sys.path
+site_packages = site.getsitepackages()[0]
+sys.path.insert(0, site_packages)
+
 print("\nChecking if the C++ libraries were built succesfully during installation.")
 
-dysmalpy_path = os.path.abspath(os.path.dirname(dysmalpy.__file__))    
+#dysmalpy_path = os.path.abspath(os.path.dirname(dysmalpy.__file__))
+dysmalpy_path = f'{sys.path[0]}/dysmalpy'
 print("Dysmalpy installation path: {}\n".format(dysmalpy_path))
 
 #########
