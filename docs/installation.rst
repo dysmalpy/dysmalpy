@@ -52,7 +52,7 @@ have installed :ref:`here<conda_optional_install>`. Please run the following com
 
 .. code-block::
 
-    python3 setup.py check_build
+    python setup.py check_build
 
 This should return a message with the information about the extensions that can be compiled and those
 that cannot. 
@@ -72,14 +72,14 @@ You can use pip to install dysmalpy (and its corresponding dependencies):
 
 .. code-block::
 
-        python3 -m pip install .
+        python -m pip install .
 
 
 Alternatively, you can use the following command:
 
 .. code-block::
 
-        python3 setup.py install --single-version-externally-managed --root=/
+        python setup.py install --single-version-externally-managed --root=/
 
 .. note:: 
     If you would like to specify your specific ``include`` and ``library`` paths you can set them by defining the 
@@ -100,7 +100,7 @@ If you have chosen to install the python dependencies with conda, please use the
 
 .. code-block::
 
-        python3 -m pip install . --no-deps
+        python -m pip install . --no-deps
 
 .. note:: 
     The ``--no-deps`` flag will prevent pip from installing the dependencies that you have already installed with conda in (:ref:`Python Environment Setup<conda_install>`).
