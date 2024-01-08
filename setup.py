@@ -10,6 +10,7 @@ import tempfile
 import shutil
 
 from setuptools import setup, Extension, find_packages, Command
+from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
 
 import logging
@@ -156,7 +157,8 @@ original_ext_modules = [
                     libraries=['gsl', 'gslcblas', 'cfitsio'],
                     library_dirs=library_dirs,
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
-                    extra_compile_args=['-std=c++11'], optional=True
+                    extra_compile_args=['-std=c++11'], 
+                    optional=True
                 ),
         # Chi squared fitter
         Extension("dysmalpy.leastChiSquares1D",
@@ -167,12 +169,41 @@ original_ext_modules = [
                     library_dirs=library_dirs,
                     depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
-                    extra_compile_args=['-std=c++11'], optional=True
+                    extra_compile_args=['-std=c++11'], 
+                    optional=True
                 )
             ]
 
-# Cythonize the extensions
-ext_modules = cythonize(original_ext_modules)
+# Cythonize the extensions (default to the site-packages directory)
+ext_modules = cythonize(original_ext_modules, annotate=True)
+
+# Create a modified version of the extension modules to build in the local directory
+local_ext_modules = [
+    Extension(
+        module.name,
+        sources=module.sources,
+        include_dirs=module.include_dirs,
+        library_dirs=module.library_dirs,
+        depends=module.depends,
+        extra_compile_args=module.extra_compile_args,
+        optional=module.optional,
+    )
+    for module in original_ext_modules
+]
+
+
+# Cythonize the extensions for the local directory
+local_ext_modules = cythonize(local_ext_modules, build_dir=".", annotate=True)
+
+# Combine the two sets of extensions
+all_ext_modules = ext_modules + local_ext_modules
+
+class BuildExtCommand(build_ext):
+    def run(self):
+        # Run the original build_ext command with --inplace for the local directory
+        self.inplace = True
+        build_ext.run(self)
+
 
 # Setup #
 setup_args = {
@@ -186,8 +217,8 @@ setup_args = {
         'packages': find_packages(), 
         'setup_requires': setup_requirements,
         'version': __version__,
-        'ext_modules': ext_modules,
-        'cmdclass': {'check_build': CheckBuildCommand},
+        'ext_modules': all_ext_modules,
+        'cmdclass': {'check_build': CheckBuildCommand, 'build_ext': BuildExtCommand},
         'package_data': {
             'dysmalpy': [
                 'data/deprojected_sersic_models_tables/*.fits',
