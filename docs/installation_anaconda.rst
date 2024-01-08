@@ -187,7 +187,7 @@ Installing DysmalPy libraries and dependencies with ``conda``
 
 .. _conda_optional_install:
 
-***REQUIRED***: You need a working C++ compiler as well as ``gsl`` and ``cython``, 
+***REQUIRED***: You need a working C compiler as well as ``gsl`` and ``cython``, 
 you can install them with conda:
 
     .. code-block::
@@ -196,20 +196,21 @@ you can install them with conda:
         conda install cython gsl
 
 on linux you might want to install ``build-essential`` instead of ``c-compiler`` with 
-``sudo apt-get install build-essential``
+``sudo apt install build-essential`` which contains escencial build tools.
 
 
 ***ADVANCED***: A set of specific libraries for C++ extensions
 
     To compile the Dysmalpy C++ Gaussian least-squares fitter and the lensing modules,
-    the ``cfitsio``, and ``libcblas`` libraries are needed. The installation
-    of these libraries is recommended, but not required.
+    you need a C++ compiler and a set of libraries. The libraries are ``cfitsio``, ``libcblas``. 
+    The installation of these libraries is recommended, but not required.
 
     The libraries can be installed using your normal means, or with conda
     as follows:
 
     .. code-block::
 
+        conda install -c conda-forge cxx-compiler ;
         conda install cfitsio ; 
         conda install -c conda-forge libcblas
 
