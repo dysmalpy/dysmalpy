@@ -935,8 +935,8 @@ def _get_ndim_fit_from_paramfile_with_extra(extra="", params=None, param_filenam
 
 def stub_paramfile_dir(param_filename):
     try:
-        #delim = os.sep
-        delim = '/'
+        delim = os.sep
+        #delim = '/'
         # Strip dir from param_filename
         pf_arr = param_filename.split(delim)
         if len(pf_arr) > 1:
