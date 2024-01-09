@@ -123,6 +123,12 @@ Then add the path to this repository to your python path (e.g.,
 `PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
 .bashrc or .bash_profile for bash, or the equivalent for your shell). 
 
+If order to compile the C++ extensions locally please run:
+
+.. code-block::
+
+    python setup.py build_ext --inplace
+
 
 For examples on using `git fetch` or `git pull` to get updates, 
 or how to check out other branches, please see e.g. the tutorial here: 
@@ -130,7 +136,7 @@ or how to check out other branches, please see e.g. the tutorial here:
 
 .. warning::
     This way of installing ``dysmalpy`` will give you a basic installation with most of the functionality, 
-    but your ``dysmalpy`` installation will not contain the modules that need to be compiled.
+    but your ``dysmalpy`` installation will not contain the other modules that you may need for some functionality.
 
 .. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
 
@@ -255,7 +261,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
 
 .. _install_mpe:
 
-3. MPE group installations
+1. MPE group installations
 ----------------------------
 
 
