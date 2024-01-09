@@ -54,12 +54,13 @@ library_dirs=["/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-g
 conda_include_path = "."
 conda_lib_path = "."
 if 'CONDA_PREFIX' in os.environ:
-    conda_include_path = os.path.join(os.getenv('CONDA_PREFIX'), 'include')
-    conda_lib_path = os.path.join(os.getenv('CONDA_PREFIX'), 'lib')
+    conda_prefix=os.getenv('CONDA_PREFIX')
+    conda_include_path = [os.path.join(conda_prefix, 'include'), os.path.join(os.path.join(conda_prefix, 'Library'), 'include')]
+    conda_lib_path = [os.path.join(conda_prefix, 'lib'), os.path.join(os.path.join(conda_prefix, 'Library'), 'lib')]
     log.debug('conda_include_path: {!r}'.format(conda_include_path))
     log.debug('conda_lib_path: {!r}'.format(conda_lib_path))
-    include_dirs.append(conda_include_path)
-    library_dirs.append(conda_lib_path)
+    include_dirs.extend(conda_include_path)
+    library_dirs.extend(conda_lib_path)
     
 c_include_path = "."
 if 'C_INCLUDE_PATH' in os.environ:
@@ -140,6 +141,14 @@ class CheckBuildCommand(Command):
             print(f"Advanced C++ extensions compiled successfully: {successes}")
             print(f"Advanced C++ extensions that failed to compile: {failures}\n")
 
+# List of symbols to export for the C++ extensions: (necessary for Windows)
+symbols_lensingTransformer = ["GlobalDebug", "isLittleEndian", "checkPointInMeshGridCell", "checkPointInPolygon" ,"setGlobalDebugLevel",
+                              "createLensingTransformer", "updateSourcePlaneDataCube", "performLensingTransformation", 
+                              "destroyLensingTransformer", "saveDataCubeToFitsFile"]
+
+symbols_leastChiSquares1D = ["GlobalDebug", "isLittleEndian", "setGlobalDebugLevel", "createLeastChiSquares1D", "fitLeastChiSquares1D",
+                             "fitLeastChiSquares1DForDataCube", "fitLeastChiSquares1DForDataCubeWithMultiThread", 
+                             "destroyLeastChiSquares1D", "freeDataArrayMemory"]
 
 # Only the mandatory modules
 original_ext_modules = [
@@ -157,6 +166,7 @@ original_ext_modules = [
                     libraries=['gsl', 'gslcblas', 'cfitsio'],
                     library_dirs=library_dirs,
                     depends=["dysmalpy/lensing_transformer/lensingTransformer.hpp"],
+                    export_symbols=symbols_lensingTransformer,
                     extra_compile_args=['-std=c++11'], 
                     optional=True
                 ),
@@ -169,6 +179,7 @@ original_ext_modules = [
                     library_dirs=library_dirs,
                     depends=["dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquares1D.hpp",
                             "dysmalpy/utils_least_chi_squares_1d_fitter/leastChiSquaresFunctions1D.hpp"],
+                    export_symbols=symbols_leastChiSquares1D,
                     extra_compile_args=['-std=c++11'], 
                     optional=True
                 )
@@ -176,27 +187,6 @@ original_ext_modules = [
 
 # Cythonize the extensions (default to the site-packages directory)
 ext_modules = cythonize(original_ext_modules, annotate=True)
-
-# Create a modified version of the extension modules to build in the local directory
-local_ext_modules = [
-    Extension(
-        module.name,
-        sources=module.sources,
-        include_dirs=module.include_dirs,
-        library_dirs=module.library_dirs,
-        depends=module.depends,
-        extra_compile_args=module.extra_compile_args,
-        optional=module.optional,
-    )
-    for module in original_ext_modules
-]
-
-
-# Cythonize the extensions for the local directory
-local_ext_modules = cythonize(local_ext_modules, build_dir=".", annotate=True)
-
-# Combine the two sets of extensions
-all_ext_modules = ext_modules + local_ext_modules
 
 class BuildExtCommand(build_ext):
     def run(self):
@@ -217,7 +207,7 @@ setup_args = {
         'packages': find_packages(), 
         'setup_requires': setup_requirements,
         'version': __version__,
-        'ext_modules': all_ext_modules,
+        'ext_modules': ext_modules,
         'cmdclass': {'check_build': CheckBuildCommand, 'build_ext': BuildExtCommand},
         'package_data': {
             'dysmalpy': [
@@ -228,10 +218,9 @@ setup_args = {
                 'examples/notebooks/*',
                 'examples/examples_param_files/*',
                 'examples/examples_param_files/model_examples/*',
-            ]},
+            ],},
         }
                     
 
 # Perform the setup
 result = setup(**setup_args)
-
