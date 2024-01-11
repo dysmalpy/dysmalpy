@@ -198,12 +198,12 @@ you can install them with conda:
     On linux: you might want to install ``build-essential`` instead of ``c-compiler`` with 
     ``sudo apt install build-essential`` which contains essential build tools.
 
-    .. _windows build tools: https://visualstudio.microsoft.com/es/downloads/
+    .. _windows build tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/
 
     .. attention:: 
         Windows users: you NEED to download the visual studio build tools from `windows build tools`_ 
         and from there you need to get the default installation of the 
-        ``C++ build tools``.
+        ``C++ build tools`` (Desktop developement with C++).
 
 
 ***ADVANCED***: A set of specific libraries for C++ extensions
