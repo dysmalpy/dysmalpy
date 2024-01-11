@@ -999,7 +999,7 @@ double *fitLeastChiSquares1DForDataCubeWithMultiThread(\
     if (nthread <= 0) { nthread = 1; }
     if ((size_t)nthread > (size_t)(ny*nx)) { nthread = (ny*nx); }
     nstep = (size_t)((ny*nx)/nthread); // dividing the loop range 0-(ny*nx-1) into strides for 'nthread' threads
-    struct MultiThreadPayloadStruct my_thread_payloads[nthread];
+    struct MultiThreadPayloadStruct *my_thread_payloads = new struct MultiThreadPayloadStruct[nthread];
     for (k=0; k < (size_t)nthread; k++) {
         // create class
         LeastChiSquares1D *my_least_chisq_fitter = new LeastChiSquares1D();
