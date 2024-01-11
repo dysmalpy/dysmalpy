@@ -16,15 +16,15 @@ if '__main__' in logging.Logger.manager.loggerDict: # pragma: no cover
     logger.setLevel(logging.getLogger('__main__').level)
 from ctypes import cdll
 from distutils.sysconfig import get_config_var
-import site
+# import site
 
 print("\nChecking if the C++ libraries were built succesfully during installation.")
 
-# Get the path to the dysmalpy package from the local version
-site_packages = site.getsitepackages()[0]
-sys.path.insert(0, site_packages)
-dysmalpy_path_env = f'{sys.path[0]}/dysmalpy'
-print("Dysmalpy installation path: {}\n".format(dysmalpy_path_env))
+# # Get the path to the dysmalpy package from the local version
+# site_packages = site.getsitepackages()[0]
+# sys.path.insert(0, site_packages)
+# dysmalpy_path_env = f'{sys.path[0]}/dysmalpy'
+# print("Dysmalpy installation path: {}\n".format(dysmalpy_path_env))
 
 # Get the path to the dysmalpy package from the installed version
 import dysmalpy
@@ -45,15 +45,15 @@ except OSError as e:
     logger.error("The cutils C++ library was not compiled succesfully in your local directory")
     raise e
 
-# Check if the cutils C++ library was compiled succesfully in your envirnoment
-try:
-    mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"models"+os.sep+"cutils"+get_config_var('EXT_SUFFIX'))
-    print("The cutils C++ library was compiled succesfully in your envirnoment.\n\
-# Compiled file: {}\n".format(mylib))
-except OSError as e:
-    #print("The cutils C++ library was not compiled succesfully")
-    logger.error("The cutils C++ library was not compiled succesfully in your envirnoment.")
-    raise e
+# # Check if the cutils C++ library was compiled succesfully in your envirnoment
+# try:
+#     mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"models"+os.sep+"cutils"+get_config_var('EXT_SUFFIX'))
+#     print("The cutils C++ library was compiled succesfully in your envirnoment.\n\
+# # Compiled file: {}\n".format(mylib))
+# except OSError as e:
+#     #print("The cutils C++ library was not compiled succesfully")
+#     logger.error("The cutils C++ library was not compiled succesfully in your envirnoment.")
+#     raise e
 
 ######################
 # lensing transformer
@@ -68,14 +68,14 @@ except OSError as e:
     logger.error("The lensingTransformer C++ library was not compiled succesfully in your local directory.")
     raise e
 
-# Check if the lensingTransformer C++ library was compiled succesfully in your envirnoment
-try:
-    mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX'))
-    print("The lensingTransformer C++ library was compiled succesfully in your envirnoment.\n\
-# Compiled file: {}\n".format(mylib))
-except OSError as e:
-    logger.error("The lensingTransformer C++ library was not compiled succesfully in your envirnoment.")
-    raise e
+# # Check if the lensingTransformer C++ library was compiled succesfully in your envirnoment
+# try:
+#     mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"lensingTransformer"+get_config_var('EXT_SUFFIX'))
+#     print("The lensingTransformer C++ library was compiled succesfully in your envirnoment.\n\
+# # Compiled file: {}\n".format(mylib))
+# except OSError as e:
+#     logger.error("The lensingTransformer C++ library was not compiled succesfully in your envirnoment.")
+#     raise e
 
 ####################
 # least chi-squares 
@@ -90,11 +90,11 @@ except OSError as e:
     logger.error("The leastChiSquares1D C++ library was not compiled succesfully in your local directory.")
     raise e
 
-# Check if the leastChiSquares1D C++ library was compiled succesfully in your envirnoment
-try:
-    mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"leastChiSquares1D"+get_config_var('EXT_SUFFIX'))
-    print("The leastChiSquares1D C++ library was compiled succesfully in your envirnoment.\n\
-# Compiled file: {}\n".format(mylib))
-except OSError as e:
-    logger.error("The leastChiSquares1D C++ library was not compiled succesfully in your envirnoment.")
-    raise e
+# # Check if the leastChiSquares1D C++ library was compiled succesfully in your envirnoment
+# try:
+#     mylib = cdll.LoadLibrary(dysmalpy_path_env+os.sep+"leastChiSquares1D"+get_config_var('EXT_SUFFIX'))
+#     print("The leastChiSquares1D C++ library was compiled succesfully in your envirnoment.\n\
+# # Compiled file: {}\n".format(mylib))
+# except OSError as e:
+#     logger.error("The leastChiSquares1D C++ library was not compiled succesfully in your envirnoment.")
+#     raise e
