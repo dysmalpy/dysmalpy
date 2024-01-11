@@ -195,8 +195,15 @@ you can install them with conda:
         conda install -c conda-forge c-compiler ;
         conda install cython gsl
 
-on linux you might want to install ``build-essential`` instead of ``c-compiler`` with 
-``sudo apt install build-essential`` which contains escencial build tools.
+    On linux: you might want to install ``build-essential`` instead of ``c-compiler`` with 
+    ``sudo apt install build-essential`` which contains essential build tools.
+
+    .. _windows build tools: https://visualstudio.microsoft.com/es/downloads/
+
+    .. attention:: 
+        Windows users: you NEED to download the visual studio build tools from `windows build tools`_ 
+        and from there you need to get the default installation of the 
+        ``C++ build tools``.
 
 
 ***ADVANCED***: A set of specific libraries for C++ extensions
@@ -213,6 +220,13 @@ on linux you might want to install ``build-essential`` instead of ``c-compiler``
         conda install -c conda-forge cxx-compiler ;
         conda install cfitsio ; 
         conda install -c conda-forge libcblas
+
+    .. note:: 
+        If you are installing ``dysmalpy`` on Windows, you will also need to install ``pthreads`` with:
+
+        .. code-block::
+
+            conda install -c conda-forge pthreads-win32
 
     Note that the installation directory will be needed later when compiling the
     extensions. This is either `/PATH/TO/ANACONDA` if using anaconda as above
