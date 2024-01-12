@@ -264,7 +264,7 @@ you can install them with conda:
 
 Most of the dependencies of ``dysmalpy`` can be installed with ``conda`` 
 (make sure your conda environment is activated, see :ref:`Activating an Anaconda environment <conda_env_activate>`). 
-Two of them will need to be installed using ``pip`` at the end.
+Three of them will need to be installed using ``pip`` at the end.
 
 We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
 and `photutils`_.
@@ -289,20 +289,21 @@ From the terminal or an Anaconda prompt, run the following:
 
         conda install astropy ipython numpy scipy matplotlib dill ; 
         conda install -c astropy -c defaults h5py pandas ; 
-        conda install -c conda-forge -c astropy photutils emcee shapely corner ; 
+        conda install -c conda-forge -c astropy emcee shapely corner ; 
         conda install -c conda-forge dynesty
 
 
-Finally, install remaining dependencies (`spectral-cube`_ and `radio-beam`_) with ``pip``
+Finally, install remaining dependencies (`spectral-cube`_, `radio-beam`_ and `photutils`_) with ``pip``
 by running:
 
 .. _spectral-cube: https://spectral-cube.readthedocs.io
 .. _radio-beam: https://radio-beam.readthedocs.io
+.. _photutils: https://photutils.readthedocs.io/en/stable/
 
 
 .. code-block::
 
-    pip install spectral-cube radio-beam
+    pip install spectral-cube radio-beam photutils
 
 .. note::
     If AstroPy is already installed, it can be updated to the
