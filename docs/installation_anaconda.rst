@@ -298,8 +298,6 @@ by running:
 
 .. _spectral-cube: https://spectral-cube.readthedocs.io
 .. _radio-beam: https://radio-beam.readthedocs.io
-.. _photutils: https://photutils.readthedocs.io/en/stable
-
 
 .. code-block::
 
