@@ -1346,13 +1346,14 @@ class LinearNFW(DarkMatterHalo):
 
     def calc_rho0(self, rvirial=None):
         r"""
-        Density at the scale radius
+        Normalization of the density distribution
 
         Returns
         -------
         rho0 : float
-            Mass density at the scale radius in :math:`M_{\odot}/\rm{kpc}^3`
+            Mass density normalization in :math:`M_{\odot}/\rm{kpc}^3`
         """
+        
         if rvirial is None:
             rvirial = self.calc_rvir()
         aa = self.mvirial/(4.*np.pi*rvirial**3)*self.conc**3
