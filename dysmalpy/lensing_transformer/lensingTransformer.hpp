@@ -10,7 +10,7 @@
 #define LENSINGTRANSFORMER_H
 
 // Detect windows
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(__NT__)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(__NT__)
     #define __WINDOWS__
     #define GSL_DLL
 #endif
