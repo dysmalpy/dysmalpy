@@ -1,6 +1,9 @@
-rem set PYTHONPATH=C:\Programme\dysmalpy
-call C:\Programme\anaconda3\Scripts\activate.bat
+set PYTHONPATH="C:\Program Files\dysmalpy"
 
-C:\Programme\anaconda3\python.exe C:\Programme\dysmalpy\dysmalpy\fitting_wrappers\dysmalpy_fit_single.py
+call "C:\Program Files\anaconda3\Scripts\activate.bat" "C:\Program Files\anaconda3"
+
+call conda activate dysmalpy_env
+
+python "C:\Program Files\dysmalpy\dysmalpy\fitting_wrappers\dysmalpy_fit_single.py"
 
 pause
