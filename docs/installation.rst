@@ -96,7 +96,8 @@ Alternatively, you can use the following command:
 **1.2 Using conda to install the dependencies**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you have chosen to install the python dependencies with conda, please use the following command: 
+If you have chosen to install the python dependencies with conda (following the steps at :ref:`Python Environment Setup<conda_install>`), 
+please use the following command: 
 
 .. code-block::
 
