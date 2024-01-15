@@ -1360,3 +1360,32 @@ class LinearNFW(DarkMatterHalo):
         bb = 1./(np.log(1.+self.conc) - (self.conc/(1.+self.conc)))
 
         return aa * bb
+    
+    def calc_rvir(self):
+        r"""
+        Calculate the virial radius based on virial mass and redshift
+
+        Returns
+        -------
+        rvir : float
+            Virial radius
+
+        Notes
+        -----
+        Formula:
+
+        .. math::
+
+            M_{\rm vir} = 100 \frac{H(z)^2 R_{\rm vir}^3}{G}
+
+        This is based on Mo, Mao, & White (1998) [1]_ which defines the virial
+        radius as the radius where the mean mass density is :math:`200\rho_{\rm crit}`.
+        :math:`\rho_{\rm crit}` is the critical density for closure at redshift, :math:`z`.
+        """
+        # hz = self.cosmo.H(self.z).value
+        # rvir = ((self.mvirial * (g_pc_per_Msun_kmssq * 1e-3) /
+        #         (10 * hz * 1e-3) ** 2) ** (1. / 3.))
+        rvir = ((self.mvirial * (g_pc_per_Msun_kmssq * 1e-3) /
+                (10 * self._hz * 1e-3) ** 2) ** (1. / 3.))
+
+        return rvir
