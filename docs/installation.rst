@@ -96,7 +96,8 @@ Alternatively, you can use the following command:
 **1.2 Using conda to install the dependencies**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you have chosen to install the python dependencies with conda, please use the following command: 
+If you have chosen to install the python dependencies with conda (following the steps at :ref:`Python Environment Setup<conda_install>`), 
+please use the following command: 
 
 .. code-block::
 
@@ -136,7 +137,7 @@ or how to check out other branches, please see e.g. the tutorial here:
 
 .. warning::
     This way of installing ``dysmalpy`` will give you a basic installation with most of the functionality, 
-    but your ``dysmalpy`` installation will not contain the other modules that you may need for some functionality.
+    but your ``dysmalpy`` installation will not contain the other modules that you may need.
 
 .. _https://git-scm.com/docs/gittutorial: https://git-scm.com/docs/gittutorial
 
@@ -261,7 +262,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
 
 .. _install_mpe:
 
-1. MPE group installations
+3. MPE group installations
 ----------------------------
 
 
@@ -303,9 +304,7 @@ This should return `/afs/mpe.mpg.de/astrosoft/dysmalpy/anaconda3/bin/python`.
 Keep in mind that using this environment will override any environment
 you have setup locally and only Python packages installed in the
 ``dysmalpy`` environment will be available. If there is a package you
-would like installed in the environment, please contact `Taro`_.
-
-.. _Taro: shimizu@mpe.mpg.de
+would like installed in the environment, please contact the maintainers at dysmalpy@mpe.mpg.de.
 
 For those who are more familiar with Python, you can simply add
 `/afs/mpe.mpg.de/astrosoft/dysmalpy/dysmalpy/` to your ``PYTHONPATH``

@@ -264,10 +264,9 @@ you can install them with conda:
 
 Most of the dependencies of ``dysmalpy`` can be installed with ``conda`` 
 (make sure your conda environment is activated, see :ref:`Activating an Anaconda environment <conda_env_activate>`). 
-Two of them will need to be installed using ``pip`` at the end.
+Three of them will need to be installed using ``pip`` at the end.
 
-We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, `shapely`_,
-and `photutils`_.
+We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
 We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_,
 and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
 
@@ -289,20 +288,18 @@ From the terminal or an Anaconda prompt, run the following:
 
         conda install astropy ipython numpy scipy matplotlib dill ; 
         conda install -c astropy -c defaults h5py pandas ; 
-        conda install -c conda-forge -c astropy photutils emcee shapely corner ; 
-        conda install -c conda-forge dynesty
+        conda install -c conda-forge -c astropy emcee shapely corner
 
-
-Finally, install remaining dependencies (`spectral-cube`_ and `radio-beam`_) with ``pip``
+Finally, install remaining dependencies (`spectral-cube`_, `radio-beam`_, `photutils`_, and `dynesty`_) with ``pip``
 by running:
 
 .. _spectral-cube: https://spectral-cube.readthedocs.io
 .. _radio-beam: https://radio-beam.readthedocs.io
-
+.. _dynesty: https://pypi.org/project/dynesty/
 
 .. code-block::
 
-    pip install spectral-cube radio-beam
+    pip install spectral-cube radio-beam photutils dynesty==2.1.3
 
 .. note::
     If AstroPy is already installed, it can be updated to the
@@ -321,3 +318,6 @@ by running:
 
     If this still fails, as a last resort try to use ``pip`` to install the package by running:
     ``$ pip install PACKAGE``
+
+Once all the dependencies are installed in your conda envinroment, you can go back to the :ref:`installation instructions<install>` to 
+finalize the installation of ``dysmalpy``.

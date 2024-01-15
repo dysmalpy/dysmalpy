@@ -9,9 +9,20 @@
 #ifndef LENSINGTRANSFORMER_H
 #define LENSINGTRANSFORMER_H
 
+// Detect windows
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(__NT__)
+    #define __WINDOWS__
+    #define GSL_DLL
+#endif
+
 //#include <Python.h> // This implies inclusion of the following standard headers: <stdio.h>, <string.h>, <errno.h>, <limits.h>, <assert.h> and <stdlib.h> (if available). -- https://docs.python.org/2/c-api/intro.html
 #include <stdio.h>
-#include <unistd.h> // for access()
+#ifdef __WINDOWS__
+    #include <io.h>
+    #define F_OK 0
+#else
+    #include <unistd.h> // for access()
+#endif
 #include <iomanip> // for std::setw std::setfill
 #include <iostream> // for std::cout std::cerr
 #include <fstream>
@@ -25,6 +36,10 @@
 #include "gsl/gsl_matrix.h"
 //#include "fftw3/fftw3.h"
 //#include "fftw3/fftw3-mpi.h"
+
+#ifdef __WINDOWS__
+    void PyInit_lensingTransformer(void) {};
+#endif
 
 /*
     LensingTransformer Class.

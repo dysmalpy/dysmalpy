@@ -7,8 +7,19 @@
 #ifndef leastChiSquaresFunctions1D_hpp
 #define leastChiSquaresFunctions1D_hpp
 
+// Detect windows
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(__NT__)
+    #define __WINDOWS__
+    #define WIN32
+    #define GSL_DLL
+#endif
+
 #include <stdio.h>
-#include <unistd.h> // for access()
+#ifdef __WINDOWS__
+    #include <io.h>
+#else
+    #include <unistd.h> // for access()
+#endif
 #include <iomanip> // for std::setw std::setfill
 #include <iostream> // for std::cout std::cerr
 #include <algorithm>
@@ -21,6 +32,10 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_multifit_nlinear.h>
+
+#ifdef __WINDOWS__
+    void PyInit_leastChiSquares1D(void) {};
+#endif
 
 
 struct DataStruct4gsl
@@ -48,9 +63,9 @@ struct ParamsStruct
 
 namespace LeastChiSquaresFunctionsGaussian1D 
 {
-    static int func4gsl_f(const gsl_vector *variables, void *data, gsl_vector *f) __attribute__ ((unused));
-    static int func4gsl_df(const gsl_vector *variables, void *data, gsl_matrix *J) __attribute__ ((unused));
-    static int func4gsl_fvv(const gsl_vector *variables, const gsl_vector *v, void *data, gsl_vector *fvv) __attribute__ ((unused));
+    static int func4gsl_f(const gsl_vector *variables, void *data, gsl_vector *f);// __attribute__ ((unused));
+    static int func4gsl_df(const gsl_vector *variables, void *data, gsl_matrix *J);// __attribute__ ((unused));
+    static int func4gsl_fvv(const gsl_vector *variables, const gsl_vector *v, void *data, gsl_vector *fvv);// __attribute__ ((unused));
     // see https://www.gnu.org/software/gsl/doc/html/nls.html#sec-providing-function-minimized
     
     /*

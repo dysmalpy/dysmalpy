@@ -12,9 +12,20 @@
 #ifndef LEASTCHISQUARES1D_H
 #define LEASTCHISQUARES1D_H
 
+// Detect windows
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__) || defined(__NT__)
+    #define __WINDOWS__
+    #define WIN32
+    #define GSL_DLL
+#endif
+
 //#include <Python.h> // This implies inclusion of the following standard headers: <stdio.h>, <string.h>, <errno.h>, <limits.h>, <assert.h> and <stdlib.h> (if available). -- https://docs.python.org/2/c-api/intro.html
 #include <stdio.h>
-#include <unistd.h> // for access()
+#ifdef __WINDOWS__
+    #include <io.h>
+#else
+    #include <unistd.h> // for access()
+#endif
 #include <iomanip> // for std::setw std::setfill
 #include <iostream> // for std::cout std::cerr
 #include <fstream>
