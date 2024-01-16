@@ -58,11 +58,16 @@ Dependencies
 * scipy (version >=1.9.3)
 * matplotlib
 * pandas
+* ipython
+* defaults
+* pytest
+* multiprocess
 * astropy (version >= 5.3)
 * multiprocess
 * emcee (version >= 3)
-* dynesty (version >= 2.0.0)
+* dynesty (version >= 2.1.3)
 * corner (version >= 2.2.2)
+* cython
 * dill (version >= 0.3.7)
 * photutils (version >= 1.8.0)
 * shapely (version >= 2)
@@ -70,7 +75,6 @@ Dependencies
 * radio-beam (version >= 0.3.3)
 * h5py (version >= 3.8.0)
 * six
-
 
 Installation
 ------------
