@@ -267,8 +267,7 @@ Most of the dependencies of ``dysmalpy`` can be installed with ``conda``
 Three of them will need to be installed using ``pip`` at the end.
 
 We will use `conda`_ to install `AstroPy`_, `emcee`_, `corner`_, and `shapely`_.
-We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_,
-and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
+We will also ensure that `ipython`_, `NumPy`_, `SciPy`_, `matplotlib`_, `dill`_ and `pytest`_ are installed, as well as a number of other `AstroPy`_ dependencies.
 
     .. _ipython: https://ipython.org/
     .. _NumPy: https://numpy.org/
@@ -281,12 +280,13 @@ and `dill`_ are installed, as well as a number of other `AstroPy`_ dependencies.
     .. _photutils: https://photutils.readthedocs.io
     .. _conda: https://docs.conda.io/projects/conda
     .. _dill: https://dill.readthedocs.io/en/latest/
+    .. _pytest: https://docs.pytest.org/
 
 From the terminal or an Anaconda prompt, run the following:
 
     .. code-block::
 
-        conda install astropy ipython numpy scipy matplotlib dill ; 
+        conda install astropy ipython numpy scipy matplotlib dill pytest ; 
         conda install -c astropy -c defaults h5py pandas ; 
         conda install -c conda-forge -c astropy emcee shapely corner
 
@@ -299,7 +299,8 @@ by running:
 
 .. code-block::
 
-    pip install spectral-cube radio-beam photutils dynesty==2.1.3
+    pip install spectral-cube radio-beam photutils "dynesty>=2.1.3"
+
 
 .. note::
     If AstroPy is already installed, it can be updated to the
