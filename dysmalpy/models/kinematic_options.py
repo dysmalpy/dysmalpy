@@ -1,5 +1,5 @@
 # coding=utf8
-# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information.
 #
 # Kinematic options for DysmalPy
 
@@ -301,6 +301,8 @@ class KinematicOptions:
                 if vel_squared < 0:
                     vel_squared = 0.
             #vel = np.sqrt(vel_squared)
+        else:
+            vel_squared = vel_sq
 
         return vel_squared
 

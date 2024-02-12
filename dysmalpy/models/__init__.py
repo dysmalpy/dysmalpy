@@ -1,4 +1,4 @@
-# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information.
 #
 # Submodule for handling of DysmalPy ModelSets (and Models) to use build the galaxy model
 
@@ -16,6 +16,8 @@ from dysmalpy.models.halos import NFW, TwoPowerHalo, Burkert, \
                                   Einasto, DekelZhao, LinearNFW
 from dysmalpy.models.higher_order_kinematics import BiconicalOutflow, UnresolvedOutflow, \
                                                     UniformRadialFlow, PlanarUniformRadialFlow, \
+                                                    PlanarExponentialRadialFlow, \
+                                                    PlanarLinearRadialFlow, \
                                                     AzimuthalPlanarRadialFlow, \
                                                     UniformBarFlow, VariableXBarFlow, \
                                                     UniformWedgeFlow, \
@@ -41,7 +43,7 @@ __all__ = ['ModelSet',
            'NFW', 'LinearNFW', 'TwoPowerHalo', 'Burkert', 'Einasto', 'DekelZhao',
            # Higher-order components
            'BiconicalOutflow', 'UnresolvedOutflow',
-           'UniformRadialFlow', 'PlanarUniformRadialFlow',
+           'UniformRadialFlow', 'PlanarUniformRadialFlow', 'PlanarExponentialRadialFlow', 'PlanarLinearRadialFlow',
            'AzimuthalPlanarRadialFlow',
            'UniformBarFlow', 'VariableXBarFlow',
            'UniformWedgeFlow',

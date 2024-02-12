@@ -1,5 +1,5 @@
 # coding=utf8
-# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information. 
+# Copyright (c) MPE/IR-Submm Group. See LICENSE.rst for license information.
 #
 # Higher-order kinematics models for DysmalPy
 
@@ -504,6 +504,199 @@ class PlanarUniformRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable
         return vel_dir_unit_vector
 
 
+class PlanarExponentialRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for a planar exponential radial flow, with radial flow only in the plane of the galaxy.
+
+    Parameters
+    ----------
+    vr : float
+        Central radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
+
+    scale_r : float
+        Exponential scale length in kpc
+
+    acc_r : float
+        Max acceleration radius in kpc
+
+    Notes
+    -----
+    This model simply adds an exponentially decreasing radial velocity component
+    to all of the positions in the galaxy. There is also the option to include
+    an acceleration zone where the velocity first linearly increases from 0 to
+    vr at acc_r.
+    """
+    vr = DysmalParameter(default=30.)
+    scale_r = DysmalParameter(default=0.5)
+    acc_r = DysmalParameter(default=0)
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cylindrical'
+    outputs = ('vrad',)
+
+    def __init__(self, **kwargs):
+
+        super(PlanarExponentialRadialFlow, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(x, y, z, vr, scale_r, acc_r):
+        """Evaluate the radial velocity as a function of position x, y, z"""
+
+        R = np.sqrt(x ** 2 + y ** 2)
+        if acc_r > 0:
+            vel = np.zeros_like(R)
+            vel[R <= acc_r] = vr * R[R <= acc_r] / acc_r
+            vel[R > acc_r] = vr * np.exp(-(R[R > acc_r] - acc_r) / scale_r)
+        else:
+            vel = vr * np.exp(-R / scale_r)
+
+        return vel
+
+    def velocity(self, x, y, z, *args):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.vr, self.scale_r, self.acc_r)
+
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a planar uniform radial flow, this is the +Rhat direction, in cylindrical coordinates
+            (R,phi,z).
+        """
+
+        R = np.sqrt(x ** 2 + y ** 2)
+
+        vhat_y = y/R
+
+        # Excise rgal=0 values
+        vhat_y = utils.replace_values_by_refarr(vhat_y, R, 0., 0.)
+
+        if not _save_memory:
+            vhat_x = x/R
+            vhat_z = z * 0.
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, R, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only y direction: z is by definition 0.
+            vel_dir_unit_vector = np.array([0., vhat_y, 0.], dtype=object)
+
+        return vel_dir_unit_vector
+
+
+class PlanarLinearRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
+    """
+    Model for a planar linear radial flow, with radial flow only in the plane of the galaxy.
+
+    Parameters
+    ----------
+    vr : float
+        Central or maximum radial velocity in km/s. vr > 0 for outflow, vr < 0 for inflow
+
+    out_r : float
+        Outflow extent in kpc
+
+    acc_r : float
+        Max acceleration radius in kpc
+
+    Notes
+    -----
+    This model simply adds an exponentially decreasing radial velocity component
+    to all of the positions in the galaxy. There is also the option to include
+    an acceleration zone where the velocity first linearly increases from 0 to
+    vr at acc_r.
+    """
+    vr = DysmalParameter(default=30.)
+    scale_r = DysmalParameter(default=0.5)
+    out_r = DysmalParameter(default=0)
+
+    _spatial_type = 'resolved'
+    _multicoord_velocity = False
+    _native_geometry = 'cylindrical'
+    outputs = ('vrad',)
+
+    def __init__(self, **kwargs):
+
+        super(PlanarLinearRadialFlow, self).__init__(**kwargs)
+
+    @staticmethod
+    def evaluate(x, y, z, vr, out_r, acc_r):
+        """Evaluate the radial velocity as a function of position x, y, z"""
+
+        R = np.sqrt(x ** 2 + y ** 2)
+        if acc_r > 0:
+            vel = np.zeros_like(R)
+            vel[R <= acc_r] = vr * R[R <= acc_r] / acc_r
+            vel[R > acc_r] = vr * (1 - R/out_r) / (1 - acc_r/out_r)
+        else:
+            vel = vr * (1 - R/out_r)
+
+        return vel
+
+    def velocity(self, x, y, z, *args):
+        """Return the velocity as a function of x, y, z"""
+        return self.evaluate(x, y, z, self.vr, self.scale_r, self.acc_r)
+
+    def vel_direction_emitframe(self, x, y, z, _save_memory=False):
+        r"""
+        Method to return the velocity direction in the galaxy Cartesian frame.
+
+        Parameters
+        ----------
+        x, y, z : float or array
+            xyz position in the radial flow reference frame.
+
+        _save_memory : bool, optional
+            Option to save memory by only calculating the relevant matrices (eg during fitting).
+            Default: False
+
+        Returns
+        -------
+        vel_dir_unit_vector : 3-element array
+            Direction of the velocity vector in (xyz).
+
+            For a planar uniform radial flow, this is the +Rhat direction, in cylindrical coordinates
+            (R,phi,z).
+        """
+
+        R = np.sqrt(x ** 2 + y ** 2)
+
+        vhat_y = y/R
+
+        # Excise rgal=0 values
+        vhat_y = utils.replace_values_by_refarr(vhat_y, R, 0., 0.)
+
+        if not _save_memory:
+            vhat_x = x/R
+            vhat_z = z * 0.
+
+            # Excise rgal=0 values
+            vhat_x = utils.replace_values_by_refarr(vhat_x, R, 0., 0.)
+
+            vel_dir_unit_vector = np.array([vhat_x, vhat_y, vhat_z])
+        else:
+            # Only y direction: z is by definition 0.
+            vel_dir_unit_vector = np.array([0., vhat_y, 0.], dtype=object)
+
+        return vel_dir_unit_vector
 
 class AzimuthalPlanarRadialFlow(HigherOrderKinematicsPerturbation, _DysmalFittable3DModel):
     """
@@ -1155,7 +1348,7 @@ class SpiralDensityWave(HigherOrderKinematicsPerturbation, _DysmalFittable3DMode
         Need matmul(vel_dir_matrix, vel) = vel in (x,y,z). So:
 
         .. code-block:: text
-        
+
             vel_dir_matrix = [[Rtox, phitox, ztox],
                             [Rtoy, phitoy, ztoy],
                             [Rtoz, phitoz, ztoz]]
