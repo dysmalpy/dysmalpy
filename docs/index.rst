@@ -13,9 +13,9 @@ dysmalpy
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy
 kinematics. It has been developed and maintained at the Max Planck Institute
 for Extraterrestrial Physics (MPE) and it extends the DYSMAL fitting models
-introduced in previous thoroughly-tested works (Cresci et al. 2009 and Davies
-et al. 2011, as well as subsequent improvements described in Wuyts et al. 2016,
-Genzel et al. 2017, and Übler et al. 2018).
+introduced in previous thoroughly-tested works (`Cresci et al. 2009`_ and `Davies
+et al. 2011`_, as well as subsequent improvements described in `Wuyts et al. 2016`_,
+`Genzel et al. 2017`_, and `Übler et al. 2018`_).
 
 The code employs a set of models that describe the mass distribution and various
 kinematic components to describe and fit the kinematics of galaxies. Dysmalpy
@@ -40,24 +40,28 @@ line broadening. The model cube can be directly compared to the datacube in 3D,
 but it can also be compared to 1D or 2D kinematic observations by extracting
 the corresponding one or two dimensional profiles following the same procedure
 that was used on the observed data. For detailed information, refer to the
-Appendix in Price et al. (2021).
+Appendix in `Price et al. (2021)`_.
 
-The overall basic usage of DYSMALPY can be summarized as follows:
+The overall basic usage of DYSMALPY can be summarised as follows:
 
 1) **Setup steps:** Import modules, set paths, define global constants and
 variables
-2) **Initialize:** Create a galaxy object with its corresponding parameters,
+2) **Initialise:** Create a galaxy object with its corresponding parameters,
 add the model set (disk, bulge, DM halo, etc), set up the observation and
 instrument information.
 3) **Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using
 either MPFIT, MCMC or dynamic nested sampling.
 4) **Assess:** Visualise, assess fit, and fine tune the fitting
 
-
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy/issues
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: https://dynesty.readthedocs.io
-
+.. _Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
+.. _Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
+.. _Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
+.. _Genzel et al. 2017: https://ui.adsabs.harvard.edu/abs/2017Natur.543..397G/abstract
+.. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
+.. _Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 
 
 .. toctree::
