@@ -46,7 +46,7 @@ Appendix in `Price et al. (2021)`_.
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: https://dynesty.readthedocs.io
-.. _installation: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
+.. _installation instructions: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 .. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/juan_edits/examples/notebooks
 .. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 .. _Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
@@ -79,7 +79,7 @@ Dependencies
 Installation
 ------------
 
-To install DYSMALPY, please follow the instructions in the `installation`_ file.
+To install DYSMALPY, please follow the instructions in the `installation instructions`_ file.
 
 Usage
 -----
