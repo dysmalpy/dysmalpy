@@ -13,9 +13,9 @@ DYSMALPY website: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
 kinematics. It has been developed and maintained at the Max Planck Institute 
 for Extraterrestrial Physics (MPE) and it extends the DYSMAL fitting models 
-introduced in previous thoroughly tested works (Cresci et al. 2009 and Davies 
-et al. 2011, as well as subsequent improvements described in Wuyts et al. 2016, 
-Genzel et al. 2017, and Übler et al. 2018).
+introduced in previous thoroughly tested works (`Cresci et al. 2009`_ and `Davies
+et al. 2011`_, as well as subsequent improvements described in `Wuyts et al. 2016`_,
+`Genzel et al. 2017`_, and `Übler et al. 2018`_).
 
 The code employs a set of models that describe the mass distribution and 
 various kinematic components to describe and fit the kinematics of galaxies. 
@@ -49,7 +49,13 @@ Appendix in `Price et al. (2021)`_.
 .. _installation instructions: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
 .. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/juan_edits/examples/notebooks
 .. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
+.. _Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
+.. _Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
+.. _Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
+.. _Genzel et al. 2017: https://ui.adsabs.harvard.edu/abs/2017Natur.543..397G/abstract
+.. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
+
 
 Dependencies
 ------------
