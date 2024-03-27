@@ -19,7 +19,7 @@ the Max Planck Institute for Extraterrestrial Physics (MPE).
 It extends the IDL-based DYSMAL fitting models introduced and thoroughly 
 tested in previous works (`Davies et al. 2004a`_, `2004b`_; `Cresci et al. 2009`_; 
 `Davies et al. 2011`_) as well as subsequent improvements described by 
-`Wuyts et al. 2016`_; Lang et al. 2017; `Übler et al. 2018`_. 
+`Wuyts et al. 2016`_; `Lang et al. 2017`_; `Übler et al. 2018`_. 
 Its Python incarnation and latest developments and testing are presented by 
 `Price et al. 2021`_ and Lee et al. 2024, in prep. 
 
@@ -57,14 +57,10 @@ Appendix in `Price et al. 2021`_ as well as Lee et al. 2024, in prep.
 
 The overall basic usage of DYSMALPY can be summarised as follows:
 
-1) **Setup steps:** Import modules, set paths, define global constants and
-variables
-2) **Initialise:** Create a galaxy object with its corresponding parameters,
-add the model set (disk, bulge, DM halo, etc), set up the observation and
-instrument information.
-3) **Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using
-either MPFIT, MCMC or dynamic nested sampling.
-4) **Assess:** Visualise, assess fit, and fine tune the fitting
+1.  **Setup steps:** Import modules, set paths, define global constants and variables
+2.  **Initialise:** Create a galaxy object with its corresponding parameters, add the model set (disk, bulge, DM halo, etc), set up the observation and instrument information.
+3.  **Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using either MPFIT, MCMC or dynamic nested sampling.
+4.  **Assess:** Visualise, assess fit, and fine tune the fitting
 
 We strongly recommend to follow and understand the `tutorials`_ section of the 
 main website. Alternatively, you can run and familiarize yourself with the '
@@ -84,6 +80,7 @@ installation of dysmalpy under examples/notebooks).
 .. _Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
 .. _Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
 .. _Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
+.. _Lang et al. 2017: https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract
 .. _Genzel et al. 2017: https://ui.adsabs.harvard.edu/abs/2017Natur.543..397G/abstract
 .. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
