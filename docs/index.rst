@@ -14,14 +14,14 @@ dysmalpy
 DysmalPy (DYnamical Simulation and Modelling ALgorithm in PYthon) is a 
 Python-based forward modeling code designed for analyzing galaxy kinematics. 
 It was originally inspired by Reinhard Genzel's DISDYN program 
-(e.g., `Tacconi et al. 1994`_), has been developed and is maintained at 
+(e.g., `Tacconi et al. 1994`_`), has been developed and is maintained at 
 the Max Planck Institute for Extraterrestrial Physics (MPE). 
 It extends the IDL-based DYSMAL fitting models introduced and thoroughly 
-tested in previous works (`Davies et al. 2004a`_, `2004b`_; `Cresci et al. 2009`_; 
-`Davies et al. 2011`_) as well as subsequent improvements described by 
-`Wuyts et al. 2016`_; `Lang et al. 2017`_; `Übler et al. 2018`_. 
-Its Python incarnation and latest developments and testing are presented by 
-`Price et al. 2021`_ and Lee et al. 2024, in prep. 
+tested in previous works (`Davies et al. 2004a`_; `Davies et al. 2004b`_; 
+`Cresci et al. 2009`_; `Davies et al. 2011`_) as well as subsequent 
+improvements described by `Wuyts et al. 2016`_; `Lang et al. 2017`_; 
+`Übler et al. 2018`_. Its Python incarnation and latest developments and 
+testing are presented by `Price et al. (2021)`_ and Lee et al. 2024, in prep. 
 
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
 kinematics. It has been developed and maintained at the Max Planck Institute 
@@ -76,7 +76,7 @@ installation of dysmalpy under examples/notebooks).
 .. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 .. _Tacconi et al. 1994: https://ui.adsabs.harvard.edu/abs/1994ApJ...426L..77T/abstract
 .. _Davies et al. 2004a: https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract
-.. _2004b: https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract
+.. _Davies et al. 2004b: https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract
 .. _Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
 .. _Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
 .. _Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
