@@ -761,11 +761,13 @@ def citations():
 
     str = "Please cite the following papers if using DYSMALPY for a publication:\n"
     str += "-----------------------------------------\n"
-
+    str += "Davies et al. (2004a): https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D\n"
+    str += "Davies et al. (2004b): https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D\n"
     str += "Cresci et al. (2009): https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C\n"
     str += "Davies et al. (2011): https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D\n"
     str += "Wuyts et al. (2016): https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W\n"
+    str += "Lang et al. (2017): https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L\n"
     str += "Price et al. (2021): https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P\n"
-    str += "Lee et al. (2023): in preparation"
+    str += "Lee et al. (2024): in preparation"
 
     return str
