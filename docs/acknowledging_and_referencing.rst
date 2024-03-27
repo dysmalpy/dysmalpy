@@ -5,38 +5,37 @@
 Acknowledging and Referencing
 ===============================
 
-(quick dump from the text in the google doc)
+When using DYSMAL or DysmalPy in published research, 
+we ask that you cite the all of the following papers: 
 
-When using DYSMAL or DysmalPy in published research, you are required to cite 
-the following papers describing the software methods and demonstration: 
-
-Cresci+09
-
-Davies+11
-
-Wuyts+16
-
-Genzel+17 (grey)
-
-Übler+18 (grey)
-
-Price+21
-
-Lee+23 [in prep]
-
-[BLACK TEXT: MAJOR CODING MILESTONES & EXTENSIVE DEMONSTRATION. 
-GREY TEXT: to check; more minor changes described??? To confirm ]
-
-[COMMENTS? OTHER PAPERS THAT SHOULD BE INCLUDED?]
+* Davies et al. 2004a: https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract
+* Davies et al. 2004b: https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract
+* Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
+* Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
+* Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
+* Lang et al. 2017: https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract
+* Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
+* Lee et al. 2024, in prep: 
 
 
-PAGE LISTING USAGE STATISTICS & LINK TO ADS PAPER LIBRARY:
+Please also cite the papers for the fitters you use in any analysis:
 
-As of [XXX DATE XXX], DYSMAL (including DysmalPy) has been used in NNN publications. These include modeling galaxy kinematics from z~0.5-4+, AGN outflows of nearby galaxies, and XXX OTHER HIGHLIGHTS? XXXX.
+* MPFIT (least squares): https://ui.adsabs.harvard.edu/abs/2009ASPC..411..251M/abstract
+* emcee (MCMC): https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F
+* dynesty (nested sampling): https://dynesty.readthedocs.io/en/stable/references.html
+
+
+Publications using DYSMAL and DysmalPy
+**************************************
+
+As of [XXX DATE XXX], DYSMAL (including DysmalPy) has been used in 
+NNN publications. These include modeling galaxy kinematics from z~0.5-4+, 
+AGN outflows of nearby galaxies, and XXX OTHER HIGHLIGHTS? XXXX.
 
 Selected publications using DYSMAL:
 [LIST]
 
 
-A more comprehensive list of publications using DYSMAL can be found here: [XXX LINK TO ADS LIBRARY XXX]. 
+A more comprehensive list of publications using DYSMAL can be found here: 
+[XXX LINK TO ADS LIBRARY XXX]. 
 
