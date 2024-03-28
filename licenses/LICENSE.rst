@@ -13,13 +13,13 @@ Credits:
 If you use DYSMAL (including the python version, DysmalPy), 
 we ask that you cite the all of the following papers: 
  
-* Davies et al. 2004a: https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract
-* Davies et al. 2004b: https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract
-* Cresci et al. 2009: https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract
-* Davies et al. 2011: https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract
-* Wuyts et al. 2016: https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract
-* Lang et al. 2017: https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract
-* Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
+* Davies et al. 2004a: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract>`_
+* Davies et al. 2004b: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract>`_
+* Cresci et al. 2009: `<https://ui.adsabs.harvard.edu/abs/2009ApJ...697..115C/abstract>`_
+* Davies et al. 2011: `<https://ui.adsabs.harvard.edu/abs/2011ApJ...741...69D/abstract>`_
+* Wuyts et al. 2016: `<https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract>`_
+* Lang et al. 2017: `<https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract>`_
+* Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
 * Lee et al. 2024, in prep:
 
 Disclaimer:
