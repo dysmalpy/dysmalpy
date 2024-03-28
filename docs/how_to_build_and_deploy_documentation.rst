@@ -72,7 +72,13 @@ to the repository.
 **2. Pull the changes to the AFS directory**
 
 When the repository is updated, you can pull those changes to the astrosoft 
-directory. Start an ssh session and navigate to the directory in /afs/:
+directory. Start an ssh session, then activate the dysmalpy environment with:
+
+.. code-block::
+
+    source /afs/mpe/astrosoft/dysmalpy/dysmalpy_setup.sh
+
+Then, navigate to the directory in /afs/:
 
 .. code-block::
 
