@@ -219,6 +219,7 @@ setup_args = {
                 'examples/notebooks/*',
                 'examples/examples_param_files/*',
                 'examples/examples_param_files/model_examples/*',
+                '../LICENSE.rst',
             ],},
         }
                     

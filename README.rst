@@ -135,5 +135,8 @@ If you have any questions or suggestions, please contact the developers at dysma
 License
 -------
 
-This project is Copyright (c) MPE/IR-Submm Group. See the licenses folder for 
-license information. 
+This project is Copyright (c) MPE/IR-Submm Group. For the complete license and referencing information, please see 
+the the `LICENSE`_ file.
+
+.. _LICENSE: https://github.com/dysmalpy/dysmalpy/LICENSE.rst
+

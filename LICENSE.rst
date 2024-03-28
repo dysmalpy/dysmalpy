@@ -1,3 +1,5 @@
+.. _LICENSE:
+
 Copyright (c) 2017-2024, MPE/IR-Submm Group. All rights reserved.
 
 Use of this software, without modification, is freely permitted. 

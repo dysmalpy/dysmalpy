@@ -100,6 +100,7 @@ installation of dysmalpy under examples/notebooks).
    mailing_list.rst
    workflow_on_how_to_contribute.rst
    how_to_build_and_deploy_documentation.rst
+   link_to_license.rst
 
 .. toctree::
    :maxdepth: 2
