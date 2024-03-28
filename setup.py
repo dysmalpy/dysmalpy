@@ -211,6 +211,7 @@ setup_args = {
         'cmdclass': {'check_build': CheckBuildCommand, 'build_ext': BuildExtCommand},
         'package_data': {
             'dysmalpy': [
+                'models/cutils.pyx',
                 'data/deprojected_sersic_models_tables/*.fits',
                 'tests/test_data/*', 
                 'tests/test_data_lensing/*', 
