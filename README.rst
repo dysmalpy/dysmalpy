@@ -24,7 +24,7 @@ testing are presented by `Price et al. 2021`_ and Lee et al. 2024, in prep.
 
 Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
 kinematics. It has been developed and maintained at the Max Planck Institute 
-for Extraterrestrial Physics (MPE) and it extends the DYSMAL fitting models 
+for Extraterrestrial Physics (MPE), and it extends the DYSMAL fitting models 
 introduced in previous thoroughly tested works (`Cresci et al. 2009`_ and 
 `Davies et al. 2011`_, as well as subsequent improvements described in 
 `Wuyts et al. 2016`_, `Genzel et al. 2017`_, and `Übler et al. 2018`_).
@@ -38,7 +38,7 @@ component parameters together, and options for fitting using either
 least-squares minimization (with `MPFIT`_) or Markov chain Monte Carlo (MCMC) 
 posterior sampling (with `emcee`_) or dynamic nested sampling (with `Dynesty`_). 
 
-Dysmalpy is parametric in nature, allowing direct fitting of intrinsic galaxy 
+Dysmalpy is parametric in nature, allowing the direct fitting of the intrinsic galaxy 
 properties, exploration of mass decomposition, dark matter fractions, and 
 assessment of parameter degeneracies and associated uncertainties. This stands 
 in contrast to a non-parametric kinematic fitting approach, which requires 
@@ -118,10 +118,10 @@ instrument information.
 **3) Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using 
 either MPFIT, MCMC or dynamic nested sampling.
 
-**4) Assess:** Visualise, assess fit, and fine tune the fitting. 
+**4) Assess:** Visualise, assess fit, and fine-tune the fitting. 
 
-We strongly recommend to follow and understand the `tutorials`_ section of the 
-main website. Alternatively, you can run and familiarize yourself with the '
+We strongly recommend following and understanding the `tutorials`_ section of the 
+main website. Alternatively, you can run and familiarize yourself with the 
 jupyter notebooks in the `notebooks`_ folder (these will be included in your 
 installation of dysmalpy under examples/notebooks).
 
