@@ -138,5 +138,5 @@ License
 This project is Copyright (c) MPE/IR-Submm Group. For the complete license and referencing information, please see 
 the the `LICENSE`_ file.
 
-.. _LICENSE: https://github.com/dysmalpy/dysmalpy/LICENSE.rst
+.. _LICENSE: https://github.com/dysmalpy/dysmalpy/blob/main/LICENSE.rst
 
