@@ -1,17 +1,19 @@
+.. _LICENSE:
+
 Copyright (c) 2017-2024, MPE/IR-Submm Group. All rights reserved.
 
 Use of this software, without modification, is freely permitted. 
 All users must obtain a copy of this code from 
 the DYSMALPY website https://www.mpe.mpg.de/resources/IR/DYSMALPY/, 
-the github repository https://github.com/dysmalpy/dysmalpy, 
+the GitHub repository https://github.com/dysmalpy/dysmalpy, 
 or the Pypi website https://pypi.org/project/dysmalpy/; 
 redistribution of this code is not permitted. 
 Modifications of the source code are not permitted without permission from 
 the copyright holder. 
 
 Credits: 
-If you use DYSMAL (including the python version, DysmalPy), 
-we ask that you cite the all of the following papers: 
+If you use DYSMAL (including the Python version, DysmalPy), 
+we ask that you cite all of the following papers: 
  
 * Davies et al. 2004a: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract>`_
 * Davies et al. 2004b: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract>`_
