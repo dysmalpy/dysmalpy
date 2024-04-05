@@ -6,7 +6,7 @@ Acknowledging and Referencing
 ===============================
 
 When using DYSMAL or DysmalPy in published research, 
-we ask that you cite the all of the following papers: 
+we ask that you cite all of the following papers: 
 
 * Davies et al. 2004a: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract>`_
 * Davies et al. 2004b: `<https://ui.adsabs.harvard.edu/abs/2004ApJ...613..781D/abstract>`_
@@ -27,11 +27,14 @@ Please also cite the papers for the fitters you use in any analysis:
 
 Publications using DysmalPy
 **************************************
-Refereed Articles Using DysmalPy/Dysmal or its Precursor (DisDYN):
+* Refereed Articles Using DysmalPy/Dysmal or its Precursor (DisDYN):
 
-| Publication List on `ADS`_.
 
-| Selected work on high-z galaxies featuring key applications of Dysmal/DysmalPy as of 5 Apr 2024:
+Publication List on `ADS`_.
+
+
+
+* Selected work on high-z galaxies featuring key applications of Dysmal/DysmalPy as of 5 Apr 2024:
 
 | **Genzel et al. 2023, ApJ, 957, 48**
 | "Evidence for Large-scale, Rapid Gas Inflows in z~2 Star-forming Disks"
