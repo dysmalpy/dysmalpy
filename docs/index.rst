@@ -7,7 +7,7 @@
    just the logo being visible
 
 =========
-dysmalpy
+Dysmalpy
 =========
 
 
