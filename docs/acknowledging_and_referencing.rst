@@ -38,7 +38,7 @@ Publication List on `ADS`_.
 
 | **Genzel et al. 2023, ApJ, 957, 48**
 | "Evidence for Large-scale, Rapid Gas Inflows in z~2 Star-forming Disks"
-| https://ui.adsabs.harvard.edu/abs/2023ApJ...944...78N/abstract
+| https://ui.adsabs.harvard.edu/abs/2023ApJ...957...48G/abstract
 
 | **Nestor Shachar et al. 2023, ApJ, 944, 78**
 | "RC100: Rotation Curves of 100 Massive Star-forming Galaxies at z=0.6-2.5
