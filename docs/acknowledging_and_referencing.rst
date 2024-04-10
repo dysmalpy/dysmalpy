@@ -17,6 +17,8 @@ we ask that you cite all of the following papers:
 * Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
 * Lee et al. 2024, in prep: 
 
+| Export the above citations from ADS to BibTeX format: 
+| `<https://ui.adsabs.harvard.edu/public-libraries/2KcoFK9MQcGjiLTjETZMKw>`_
 
 Please also cite the papers for the fitters you use in any analysis:
 
@@ -83,6 +85,5 @@ Publication List on `ADS`_.
 | **Genzel et al. 2006, Nature, 442, 786**
 | "The rapid formation of a large rotating disk galaxy three billion years after the Big Bang"
 | https://ui.adsabs.harvard.edu/abs/2006Natur.442..786G/abstract
-
 
 .. _ADS: https://ui.adsabs.harvard.edu/public-libraries/ET9U1BBFQ1yDRtGPkBxGdQ
