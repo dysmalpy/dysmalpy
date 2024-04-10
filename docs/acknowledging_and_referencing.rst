@@ -45,6 +45,10 @@ Publication List on `ADS`_.
 | Reveal Little Dark Matter on Galactic Scales"
 | https://ui.adsabs.harvard.edu/abs/2023ApJ...944...78N/abstract
 
+| **Genzel et al. 2020, ApJ, 902, 98**
+| "Rotation curves in z~1-2 star-forming disks: Evidence of cored dark matter distributions"
+| https://ui.adsabs.harvard.edu/abs/2020ApJ...902...98G/abstract
+
 | **Übler et al. 2019, ApJ, 880, 48**
 | "The Evolution and Origin of Ionized Gas Velocity Dispersion from z~2.6 to z~0.6 with KMOS3D"
 | https://ui.adsabs.harvard.edu/abs/2019ApJ...880...48U/abstract

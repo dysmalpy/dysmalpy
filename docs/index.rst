@@ -19,25 +19,35 @@ the Max Planck Institute for Extraterrestrial Physics (MPE).
 It extends the IDL-based DYSMAL fitting models introduced and thoroughly 
 tested in previous works (`Davies et al. 2004a`_; `Davies et al. 2004b`_; 
 `Cresci et al. 2009`_; `Davies et al. 2011`_) as well as subsequent 
-improvements described by `Wuyts et al. 2016`_; `Lang et al. 2017`_; 
+improvements described by `Wuyts et al. 2016`_; `Lang et al. 2017`_; `Genzel et al. 2017`_;
 `Übler et al. 2018`_. Its Python incarnation and latest developments and 
 testing are presented by `Price et al. 2021`_ and Lee et al. 2024, in prep. 
 
-Dysmalpy is a Python-based forward modeling code designed for analyzing galaxy 
-kinematics. It has been developed and maintained at the Max Planck Institute 
-for Extraterrestrial Physics (MPE), and it extends the DYSMAL fitting models 
-introduced in previous thoroughly tested works (`Cresci et al. 2009`_ and 
-`Davies et al. 2011`_, as well as subsequent improvements described in 
-`Wuyts et al. 2016`_, `Genzel et al. 2017`_, and `Übler et al. 2018`_).
-
-The code employs a set of models that describe the mass distribution and 
+This code employs a set of models that describe the mass distribution and 
 various kinematic components to describe and fit the kinematics of galaxies. 
-Dysmalpy includes many features, including support for multiple halo profiles,
-flexibility in modeling baryon components such as non-circular higher-order 
-kinematic features, multi-observation fitting, the ability to tie model 
-component parameters together, and options for fitting using either 
-least-squares minimization (with `MPFIT`_) or Markov chain Monte Carlo (MCMC) 
-posterior sampling (with `emcee`_) or dynamic nested sampling (with `Dynesty`_). 
+Dysmalpy has several features, which include support for multiple halo profiles,
+flexibility in modeling baryon components such as non-circular higher-order kinematic features,
+multi-observation fitting, the ability to tie model component parameters together and 
+options for fitting using either least-squares minimization (with `MPFIT`_),
+Markov chain Monte Carlo (MCMC) posterior sampling (with `emcee`_) or dynamic nested sampling (with `Dynesty`_).
+
+Dysmalpy is specifically designed for the analysis of disk galaxies.
+The classification of a galaxy as a disk can be made following the set
+of 5 criteria outlined by `Wisnioski et al. 2015`_; Sect. 4.1,
+motivated by expectations for ideal rotating disks and increasingly
+stringent and demanding of the data:
+
+- Smooth monotonic velocity gradient across the galaxy, defining the kinematic axis;
+- Centrally peaked velocity dispersion distribution with maximum at the position of steepest velocity gradient, defining the kinematic center;
+- Dominant rotational support, quantified by the ratio of :math:`v_{rot}/\sigma_0>1`; 
+- Coaligned morphological and kinematic major axes;
+- Spatial coincidence of kinematic and morphological centers.
+  
+In practice, the first three criteria are essential.
+Importantly, in the context of the disk framework, the velocity dispersion
+:math:`\sigma_0` used for this classification denotes the random motions within the
+disk component (corrected for spectral and spatial resolution), which relate
+to its geometrical thickness.
 
 Dysmalpy is parametric in nature, allowing the direct fitting of the intrinsic galaxy 
 properties, exploration of mass decomposition, dark matter fractions, and 
@@ -84,6 +94,7 @@ installation of dysmalpy under examples/notebooks).
 .. _Genzel et al. 2017: https://ui.adsabs.harvard.edu/abs/2017Natur.543..397G/abstract
 .. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
+.. _Wisnioski et al. 2015: https://ui.adsabs.harvard.edu/abs/2015ApJ...799..209W/abstract
 
 
 .. toctree::
