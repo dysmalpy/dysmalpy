@@ -8,6 +8,8 @@ import site
 import copy
 import tempfile
 import shutil
+import platform
+import subprocess
 
 from setuptools import setup, Extension, find_packages, Command
 from setuptools.command.build_ext import build_ext
@@ -193,6 +195,38 @@ class BuildExtCommand(build_ext):
         # Run the original build_ext command with --inplace for the local directory
         self.inplace = True
         build_ext.run(self)
+        
+    # Create a function to create the symbolic link for the different OS
+    def create_symbolic_link(target):
+        # Determine the operating system
+        system = platform.system()
+        
+        # Define the symbolic link path
+        symlink_path = os.path.join('dysmalpy', target)
+        
+        # Create symbolic link based on the operating system
+        if system == 'Windows':
+            # Check if the symbolic link already exists
+            if os.path.islink(symlink_path):
+                print(f"Symbolic link {symlink_path} already exists.")
+                # Remove the existing symbolic link
+                os.unlink(symlink_path)
+            try:
+                # Make sure you have admin provileges to create the symbolic link
+                subprocess.run(f'cmd /c mklink /D {symlink_path} {target}', shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Error creating symbolic link: {e}")
+        # else:
+        #     try:
+        #         current_dir = os.path.dirname(os.path.abspath(__file__))
+        #         command = ['ln', '-s', f'{current_dir}/{target}', f'{current_dir}/dysmalpy/{target}']
+        #         subprocess.run(command, check=True)
+        #     except OSError as e:
+        #         print(f"Error creating symbolic link: {e}")
+
+    # Create the symbolic links that work in Windows
+    create_symbolic_link('examples')
+    create_symbolic_link('tests')
 
 
 # Setup #
@@ -226,3 +260,34 @@ setup_args = {
 
 # Perform the setup
 result = setup(**setup_args)
+
+
+# # Create a function to create the symbolic link for the different OS
+# def create_symbolic_link(target):
+#     # Determine the operating system
+#     system = platform.system()
+    
+#     # Define the symbolic link path
+#     symlink_path = os.path.join('dysmalpy', target)
+    
+#     # Check if the symbolic link already exists
+#     if os.path.islink(symlink_path):
+#         print(f"Symbolic link {symlink_path} already exists.")
+#         # Remove the existing symbolic link
+#         os.unlink(symlink_path)
+    
+#     # Create symbolic link based on the operating system
+#     if system == 'Windows':
+#         try:
+#             subprocess.run(f'cmd /c mklink /D {symlink_path} {target}', shell=True, check=True)
+#         except subprocess.CalledProcessError as e:
+#             print(f"Error creating symbolic link: {e}")
+#     else:
+#         try:
+#             os.symlink(target, symlink_path)
+#         except OSError as e:
+#             print(f"Error creating symbolic link: {e}")
+
+# # Create the symbolic links that work in all OS
+# create_symbolic_link('examples')
+# create_symbolic_link('tests')
