@@ -229,7 +229,7 @@ def plot_trace_mcmc(mcmcResults, fileout=None, overwrite=False):
 
         for j in range(nTraceWalkers):
             axes[k].plot(mcmcResults.sampler_results['chain'][trace_inds[j],:,k].T, '-',
-                    color=trace_colors[j], lw=lwTrace, alpha=alphaTrace)
+                    color=trace_colors[j], lw=lwTrace, alpha=alphaTrace, rasterized=True)
 
 
         axes[k].set_ylabel(names[k])
