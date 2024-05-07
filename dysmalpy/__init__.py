@@ -13,4 +13,7 @@ import dysmalpy.data_io
 import dysmalpy.observation
 from dysmalpy.utils import citations
 
-__version__ = "2.0.0"
+# Alpha release (pre-release):
+__version__ = "2.0a1"
+# Official release:
+# __version__ = "2.0.0"

@@ -68,12 +68,12 @@ Appendix in `Price et al. 2021`_ as well as Lee et al. 2024, in prep.
 The overall basic usage of DYSMALPY can be summarised as follows:
 
 1.  **Setup steps:** Import modules, set paths, define global constants and variables
-2.  **Initialise:** Create a galaxy object with its corresponding parameters, add the model set (disk, bulge, DM halo, etc), set up the observation and instrument information.
+2.  **Initialise:** Create a galaxy object with its corresponding parameters, add the model set (disk, bulge, DM halo, etc), and set up the observation and instrument information.
 3.  **Fitting:** Perform fitting/bayesian sampling in either 1D, 2D, or 3D using either MPFIT, MCMC or dynamic nested sampling.
 4.  **Assess:** Visualise, assess fit, and fine tune the fitting
 
-We strongly recommend to follow and understand the `tutorials`_ section of the 
-main website. Alternatively, you can run and familiarize yourself with the '
+We strongly recommend following and understanding the `tutorials`_ section of the 
+main website. Alternatively, you can run and familiarize yourself with the 
 jupyter notebooks in the `notebooks`_ folder (these will be included in your 
 installation of dysmalpy under examples/notebooks).
 
