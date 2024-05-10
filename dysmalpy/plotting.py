@@ -225,7 +225,8 @@ def plot_trace_mcmc(mcmcResults, fileout=None, overwrite=False):
     for k in range(nRows):
         axes.append(plt.subplot(gs[k,0]))
 
-        axes[k].plot(mcmcResults.sampler_results['chain'][norm_inds,:,k].T, '-', color='black', alpha=alpha)
+        axes[k].plot(mcmcResults.sampler_results['chain'][norm_inds,:,k].T, '-', 
+                     color='black', alpha=alpha, rasterized=True)
 
         for j in range(nTraceWalkers):
             axes[k].plot(mcmcResults.sampler_results['chain'][trace_inds[j],:,k].T, '-',
