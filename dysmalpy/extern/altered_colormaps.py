@@ -11,6 +11,7 @@ From Drummond Fielding and Chris White GSPS talk, 24 March 2017
 """
 
 import matplotlib.cm as cm
+import matplotlib as mpl
 import matplotlib.colors as colors
 import numpy as np
 
@@ -36,13 +37,13 @@ def new_sequential_cmap(name_original, gamma, bad=None, over=None, under=None,
 
   Returns new colormap.
   """
-
+  
   # Get original colormap
   try:
       cmap_original_data = cm.datad[name_original]
   except:
       cmap_original_data = cm.datad[name_original.split('_r')[0]][::-1]
-  cmap_original = cm.get_cmap(name_original)
+  cmap_original = mpl.colormaps[name_original]
 
   # Define new colormap data
   cmap_new_data = {}
@@ -66,7 +67,7 @@ def new_sequential_cmap(name_original, gamma, bad=None, over=None, under=None,
   cmap_new.set_under(under)
 
   # Register and return new colormap
-  cm.register_cmap(name=name_new, cmap=cmap_new)
+  mpl.colormaps.register(name=name_new, cmap=cmap_new)
   return cmap_new
 
 def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
@@ -107,7 +108,7 @@ def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
       cmap_original_data = cm.datad[name_original]
   except:
       cmap_original_data = cm.datad[name_original.split('_r')[0]][::-1]
-  cmap_original = cm.get_cmap(name_original)
+  cmap_original = mpl.colormaps[name_original]
 
   # Define new colormap data
   cmap_new_data = {}
@@ -161,5 +162,5 @@ def new_diverging_cmap(name_original, diverge=0.5, gamma_lower=1.0,
   cmap_new.set_under(under)
 
   # Register and return new colormap
-  cm.register_cmap(name=name_new, cmap=cmap_new)
+  mpl.colormaps.register(name=name_new, cmap=cmap_new)
   return cmap_new
