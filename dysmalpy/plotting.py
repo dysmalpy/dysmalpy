@@ -82,10 +82,10 @@ try:
 except:
     import matplotlib.cm as cm
     cmap_viridis = cm.viridis
-    cmap_spectral_r = cm.get_cmap("Spectral_r")
+    cmap_spectral_r = mpl.colormaps["Spectral_r"]
     cmap_greys = cm.Greys
     cmap_plasma = cm.plasma
-    cmap_rdbu_r = cm.get_cmap("RdBu_r_stretch")
+    cmap_rdbu_r = mpl.colormaps["RdBu_r_stretch"]
     cmap_seismic = cm.seismic
 
     
