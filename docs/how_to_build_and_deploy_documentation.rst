@@ -2,7 +2,8 @@ Building and deploying documentation
 ====================================
 
 .. warning::
-    These instructions are for authorized maintainers only
+    These instructions are for authorized maintainers only. Note that you need to 
+    have the C++ extensions in order to build the documentation without any errors.
 
 Building documentation locally
 ******************************

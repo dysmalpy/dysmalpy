@@ -27,9 +27,9 @@ To install Anaconda and all the relevant packages and dependencies, please follo
 After (and only after) your anaconda installation is complete. You can download the latest ``dysmalpy`` package here: `tar.gz`_ | `zip`_ 
 (current version: |release|).
 
-.. _tar.gz: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.tar.gz
+.. _tar.gz: https://www.mpe.mpg.de/resources/IR/DYSMALPY/dysmalpy_optional_extra_files/dysmalpy-|release|.tar.gz
 
-.. _zip: https://github.com/dysmalpy/dysmalpy/archive/refs/tags/v|release|.zip
+.. _zip: https://www.mpe.mpg.de/resources/IR/DYSMALPY/dysmalpy_optional_extra_files/dysmalpy-|release|.zip
 
 From a terminal, change directories to where the package was downloaded, decompress it and navigate inside the directory with:
 
