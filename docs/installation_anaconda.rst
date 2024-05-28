@@ -234,6 +234,23 @@ you can install them with conda:
     from the output of `$ conda info`), or whatever directory was specified
     for the separate install.
 
+Before proceeding, please check if the C++ extesions can be compiled using the libraries that you
+have installed. Please run the following command:
+
+.. code-block::
+
+    python setup.py check_build
+
+This should return a message with the information about the extensions that can be compiled and those
+that cannot. 
+
+.. note:: 
+    From the output of the command above, please note that The C++ extension ``dysmalpy.models.cutils`` 
+    is **mandatory**, so make sure the compilation was succesful.
+    The ``dysmalpy.lensingTransformer`` and ``dysmalpy.leastChiSquares1D`` extensions are optional, but 
+    recommended if you want to use the lensing or the least-squares fitter modules.
+
+
 .. At this step, check if the C++ extesions can be compiled by running:
 
 .. .. code-block::

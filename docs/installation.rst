@@ -7,19 +7,40 @@ Installation
 
 You can install ``dysmalpy`` in a number of ways:
 
-1. If you have limited experience with Python, we recommend installing ``dysmalpy`` using the Anaconda Python distribution.
+1. **Pip install:** The quickest and simplest way to install ``dysmalpy`` is from the pypi repository using pip. 
+   This will install the latest stable version and its dependencies.
 
-    1.1 Using pip to install the dependencies (default)
+2. **Using anaconda:** Installing ``dysmalpy`` using the Anaconda Python distribution.
 
-    1.2 Using conda to install the dependencies
+    2.1 Using pip to install the dependencies (default)
 
-2. If you are more familiar with Python, you can install ``dysmalpy`` using the development version. 
+    2.2 Using conda to install the dependencies
 
-3. If you are a member of the MPE group, you can install ``dysmalpy`` using the provided ``.bat`` file or by using the Anaconda environment we have setup.
+3. **Developement version:** If you are more familiar with Python, you can install ``dysmalpy`` using the development version. 
+
+4. **MPE group installations:** If you are a member of the MPE group, you can install ``dysmalpy`` using the provided ``.bat`` file or by using the Anaconda environment we have setup.
+
+.. _install_with_pip:
+
+1. Pip install
+--------------
+
+To install the latest stable version of ``dysmalpy`` and its dependencies, you can use pip. 
+
+.. warning::
+    Please note that the C++ extensions are not included in the pypi package and you will need to install them separately.
+    You can find the instructions on how to install them (and test if they can be built) in the :ref:`Python Environment Setup<conda_install>` section.
+
+Once you have installed the extensions, you can install ``dysmalpy`` using pip:
+
+.. code-block::
+
+    python -m pip install dysmalpy
+
 
 .. _install_with_anaconda:
 
-1. Using Anaconda
+2. Using Anaconda
 -----------------
 
 To install Anaconda and all the relevant packages and dependencies, please follow the instructions at :ref:`Python Environment Setup<conda_install>`.
@@ -47,25 +68,25 @@ From a terminal, change directories to where the package was downloaded, decompr
 
         git clone https://github.com/dysmalpy/dysmalpy.git
 
-Before proceeding, please check if the C++ extesions can be compiled using the libraries that you may 
-have installed :ref:`here<conda_optional_install>`. Please run the following command:
+.. Before proceeding, please check if the C++ extesions can be compiled using the libraries that you may 
+.. have installed :ref:`here<conda_optional_install>`. Please run the following command:
 
-.. code-block::
+.. .. code-block::
 
-    python setup.py check_build
+..     python setup.py check_build
 
-This should return a message with the information about the extensions that can be compiled and those
-that cannot. 
+.. This should return a message with the information about the extensions that can be compiled and those
+.. that cannot. 
 
-.. note:: 
-    From the output of the command above, please note that The C++ extension ``dysmalpy.models.cutils`` 
-    is **mandatory**, so make sure the compilation was succesful.
-    The ``dysmalpy.lensingTransformer`` and ``dysmalpy.leastChiSquares1D`` extensions are optional, but 
-    recommended if you want to use the lensing or the least-squares fitter modules.
+.. .. note:: 
+..     From the output of the command above, please note that The C++ extension ``dysmalpy.models.cutils`` 
+..     is **mandatory**, so make sure the compilation was succesful.
+..     The ``dysmalpy.lensingTransformer`` and ``dysmalpy.leastChiSquares1D`` extensions are optional, but 
+..     recommended if you want to use the lensing or the least-squares fitter modules.
 
 Now, you can install ``dysmalpy`` and its dependencies in one of the following ways:
 
-**1.1 Using pip to install the dependencies (default)**
+**2.1 Using pip to install the dependencies (default)**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can use pip to install dysmalpy (and its corresponding dependencies):
@@ -93,7 +114,7 @@ Alternatively, you can use the following command:
     then you can run the usual installation command.
 
 
-**1.2 Using conda to install the dependencies**
+**2.2 Using conda to install the dependencies**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you have chosen to install the python dependencies with conda (following the steps at :ref:`Python Environment Setup<conda_install>`), 
@@ -108,7 +129,7 @@ please use the following command:
 
 .. _install_clone:
 
-2. Development version
+3. Development version
 ----------------------
 
 To get the most up-to-date development version of ``dysmalpy``, clone the repository from GitHub.
@@ -262,7 +283,7 @@ be able to run ``import dysmalpy`` within IPython or your Jupyter notebook.
 
 .. _install_mpe:
 
-3. MPE group installations
+4. MPE group installations
 ----------------------------
 
 
