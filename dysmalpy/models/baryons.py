@@ -586,7 +586,7 @@ class InfThinMassiveGaussianRing(object):
 
     The lookup table provides rotation curves for Gaussian rings with
     `invh` = 0.5 - 8 at steps of 0.1 and `invq` = [1, 2, 3, 4, 5, 6, 7, 8, 10, 20, 100],
-    where :math:`invh = R_{\mathrm{peak}} / \mathrm{FWHM}_{\mathrm{ring}}`
+    where :math:`\mathrm{invh} = R_{\mathrm{peak}} / \mathrm{FWHM}_{\mathrm{ring}}`
     If the given `n` and/or `invq` are not one of these values then the nearest
     ones are used.
 
