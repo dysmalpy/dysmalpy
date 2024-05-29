@@ -235,7 +235,7 @@ you can install them with conda:
     for the separate install.
 
 Before proceeding, please check if the C++ extesions can be compiled using the libraries that you
-have installed. Please run the following command:
+have installed. Please run the following command (inside the dysmalpy directory where the file ``setup.py`` is located):
 
 .. code-block::
 
