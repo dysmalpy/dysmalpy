@@ -24,11 +24,10 @@ You can find this information in your package documentation or by running ``pip 
 
 Alternatively, you can check the version from within python:
 
-.. code-block:: python
-
+```python
     import dysmalpy
     print(dysmalpy.__version__)
-
+```
 
 **Environment Details**
 
@@ -58,5 +57,7 @@ Provide any additional information that might be helpful in resolving the issue.
 **Code Snippet**
 
 If possible, include a minimal, complete, and verifiable code snippet that reproduces the issue.
-    
-    ``your python code here``
+
+```python
+    your python code here
+```
