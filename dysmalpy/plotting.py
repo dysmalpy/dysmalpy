@@ -2761,7 +2761,7 @@ def plot_single_obs_model_1D(obs,
     # Setup data/model comparison: if this isn't the fit dimension
     #   data/model comparison (eg, fit in 2D, showing 1D comparison)
 
-    model_data = obs.model_data
+    model_data = copy.deepcopy(obs.model_data)
 
     if inst_corr:
             model_data.data['dispersion'] = \
@@ -2971,7 +2971,7 @@ def plot_single_obs_model_2D(obs, model,
         grid = grid_arr[j]
 
         for ax, k in zip(grid, keyxarr):
-            im = obs.model_data.data[keyyarr[j]].copy()
+            im = copy.deepcopy(obs.model_data.data[keyyarr[j]])
             if apply_mask:
                 im[~msk] = np.NaN
             if keyyarr[j] == 'flux':
