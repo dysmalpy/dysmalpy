@@ -108,7 +108,8 @@ def write_model_obs_file(obs=None, model=None, fname=None, overwrite=False):
 
 def write_model_1d_obs_file(obs=None, fname=None, overwrite=False):
     """
-    Short function to save *observed* space 1D model profile for a obsaxy (eg, for plotting, etc)
+    Short function to save *observed* space 1D model profile for a observation 
+    (eg, for plotting, etc)
     Follows form of H.Ü. example.
     """
     if (not overwrite) and (fname is not None):
@@ -122,25 +123,30 @@ def write_model_1d_obs_file(obs=None, fname=None, overwrite=False):
     model_disp = obs.model_data.data['dispersion']
 
     # Correct dispersion for instrumental resolution of data is inst-corrected:
-    if 'inst_corr' in obs.data.data.keys():
-        if obs.data.data['inst_corr']:
-            model_disp = np.sqrt( model_disp**2 - obs.instrument.lsf.dispersion.to(u.km/u.s).value**2 )
-            model_disp[~np.isfinite(model_disp)] = 0
+    if obs.data is not None:
+        if 'inst_corr' in obs.data.data.keys():
+            if obs.data.data['inst_corr']:
+                model_disp = np.sqrt( 
+                    model_disp**2 
+                    - obs.instrument.lsf.dispersion.to(u.km/u.s).value**2 
+                )
+                model_disp[~np.isfinite(model_disp)] = 0
 
     # Write 1D profiles to text file
-    np.savetxt(fname, np.transpose([model_r, model_flux, model_vel, model_disp]),
-               fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
-               header='r [arcsec], flux [...], vel [km/s], disp [km/s]')
+    np.savetxt(
+        fname, 
+        np.transpose([model_r, model_flux, model_vel, model_disp]),
+        fmt='%2.4f\t%2.4f\t%5.4f\t%5.4f',
+        header='r [arcsec], flux [...], vel [km/s], disp [km/s]'
+    )
 
     return None
 
 
 def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
     """
-    Method to save the model 2D maps for a obsaxy.
+    Method to save the model 2D maps for a observation.
     """
-
-    data_mask = obs.data.mask
 
     vel_mod =  obs.model_data.data['velocity']
 
@@ -155,12 +161,24 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
         disp_mod = np.ones(vel_mod.shape) * np.NaN
 
     # Correct model for instrument dispersion if the data is instrument corrected:
-    if ('inst_corr' in obs.data.data.keys()) & (obs.model_data.data['dispersion'] is not None):
-        if obs.data.data['inst_corr']:
-            disp_mod = np.sqrt(disp_mod**2 -
-                               obs.instrument.lsf.dispersion.to(u.km/u.s).value**2)
-            disp_mod[~np.isfinite(disp_mod)] = 0   # Set the dispersion to zero when its below
-                                                   # below the instrumental dispersion
+    if obs.data is not None:
+        if (
+            ('inst_corr' in obs.data.data.keys()) 
+            & (obs.model_data.data['dispersion'] is not None)
+        ):
+            if obs.data.data['inst_corr']:
+                disp_mod = np.sqrt(
+                    disp_mod**2 
+                    - obs.instrument.lsf.dispersion.to(u.km/u.s).value**2
+                )
+                disp_mod[~np.isfinite(disp_mod)] = 0   
+                # Set the dispersion to zero when its below
+                # below the instrumental dispersion
+
+    if obs.data is not None:
+        data_mask = obs.data.mask
+    else:
+        data_mask = np.ones(vel_mod.shape)
 
     try:
         spec_unit = obs.instrument.spec_start.unit.to_string()
@@ -182,7 +200,10 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
 
     hdr['CUNIT1'] = ('deg', 'Units of coordinate increment and value')
     hdr['CUNIT2'] = ('deg', 'Units of coordinate increment and value')
-    hdr['CDELT1'] = hdr['CDELT2'] = (hdr['PIXSCALE'], 'Units of coordinate increment and value')
+    hdr['CDELT1'] = hdr['CDELT2'] = (
+        hdr['PIXSCALE'], 
+        'Units of coordinate increment and value'
+    )
 
 
     hdr['CRVAL1'] = (0., '[deg] Coordinate value at reference point')
@@ -198,25 +219,50 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
         ycenter = (vel_mod.shape[0]-1)/2. + 1
 
     if len(model.geometries) > 0:
-        hdr['CRPIX1'] = (xcenter + model.geometries[obs.name].xshift.value, 'Pixel coordinate of reference point')
-        hdr['CRPIX2'] = (ycenter + model.geometries[obs.name].yshift.value, 'Pixel coordinate of reference point')
+        hdr['CRPIX1'] = (
+            xcenter + model.geometries[obs.name].xshift.value, 
+            'Pixel coordinate of reference point'
+        )
+        hdr['CRPIX2'] = (
+            ycenter + model.geometries[obs.name].yshift.value, 
+            'Pixel coordinate of reference point'
+        )
     else:
         key = next(iter(model.higher_order_geometries))
-        hdr['CRPIX1'] = (xcenter + model.higher_order_geometries[key].xshift.value,
-                         'Pixel coordinate of reference point')
-        hdr['CRPIX2'] = (ycenter + model.higher_order_geometries[key].yshift.value,
-                         'Pixel coordinate of reference point')
+        hdr['CRPIX1'] = (
+            xcenter + model.higher_order_geometries[key].xshift.value,
+            'Pixel coordinate of reference point'
+        )
+        hdr['CRPIX2'] = (
+            ycenter + model.higher_order_geometries[key].yshift.value,
+            'Pixel coordinate of reference point'
+            )
 
     hdr['BUNIT'] = (spec_unit, 'Spectral unit')
 
-    hdr['HISTORY'] = 'Written by dysmalpy v{} on {}'.format(__dpy_version__, datetime.datetime.now())
+    hdr['HISTORY'] = 'Written by dysmalpy v{} on {}'.format(
+        __dpy_version__, 
+        datetime.datetime.now()
+    )
 
     hdr_flux = hdr.copy()
     hdr_flux['BUNIT'] = ('', 'Arbitrary flux units')
 
-    hdu_flux = fits.ImageHDU(data=flux_mod * data_mask, header=hdr_flux, name='flux')
-    hdu_vel =  fits.ImageHDU(data=vel_mod * data_mask,  header=hdr, name='velocity')
-    hdu_disp = fits.ImageHDU(data=disp_mod * data_mask, header=hdr, name='dispersion')
+    hdu_flux = fits.ImageHDU(
+        data=flux_mod * data_mask, 
+        header=hdr_flux, 
+        name='flux'
+    )
+    hdu_vel =  fits.ImageHDU(
+        data=vel_mod * data_mask, 
+        header=hdr, 
+        name='velocity'
+    )
+    hdu_disp = fits.ImageHDU(
+        data=disp_mod * data_mask, 
+        header=hdr, 
+        name='dispersion'
+    )
 
     hdul = fits.HDUList()
     hdul.append(hdu_flux)
@@ -233,7 +279,12 @@ def write_model_3d_obs_file(obs=None, fname=None, overwrite=False):
 
     return None
 
-def write_model_0d_obs_file(obs=None, fname=None, overwrite=False, spec_type=None):
+def write_model_0d_obs_file(
+    obs=None, 
+    fname=None, 
+    overwrite=False, 
+    spec_type=None
+):
     if (not overwrite) and (fname is not None):
         if os.path.isfile(fname):
             logger.warning("overwrite={} & File already exists! Will not save file. \n {}".format(overwrite, fname))
