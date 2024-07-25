@@ -145,7 +145,7 @@ Then add the path to this repository to your python path (e.g.,
 `PATH/TO/PARENT/DIRECTORY/dysmalpy` to `$PYTHONPATH` as defined in 
 .bashrc or .bash_profile for bash, or the equivalent for your shell). 
 
-If order to compile the C++ extensions locally please run:
+In order to compile the C++ extensions locally please run:
 
 .. code-block::
 
