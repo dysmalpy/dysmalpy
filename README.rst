@@ -86,7 +86,7 @@ Appendix in `Price et al. 2021`_ as well as Lee et al. 2024, in prep.
 Dependencies
 ------------
 * python (version >= 3.10)
-* numpy (version >= 1.24.3)
+* numpy (version >= 1.24.3, < 2.0.0)
 * scipy (version >=1.9.3)
 * matplotlib
 * pandas
@@ -94,7 +94,7 @@ Dependencies
 * defaults
 * pytest
 * multiprocess
-* astropy (version >= 5.3)
+* astropy (version >= 5.3, < 6.0)
 * multiprocess
 * emcee (version >= 3)
 * dynesty (version >= 2.1.3)
