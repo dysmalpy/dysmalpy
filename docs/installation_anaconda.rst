@@ -303,7 +303,7 @@ From the terminal or an Anaconda prompt, run the following:
 
     .. code-block::
 
-        conda install astropy ipython numpy scipy matplotlib dill pytest ; 
+        conda install "astropy<6.0.0" "ipython" "numpy<2.0.0" "scipy" "matplotlib" "dill" "pytest" ; 
         conda install -c astropy -c defaults h5py pandas ; 
         conda install -c conda-forge -c astropy emcee shapely corner
 
