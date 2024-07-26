@@ -247,6 +247,7 @@ setup_args = {
             'dysmalpy': [
                 'models/cutils.pyx',
                 'data/deprojected_sersic_models_tables/*.fits',
+                'tests/*',
                 'tests/test_data/*', 
                 'tests/test_data_lensing/*', 
                 'tests/test_data_masking/*',
