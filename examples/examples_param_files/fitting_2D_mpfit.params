@@ -221,12 +221,12 @@ halo_profile_type,   NFW
 #    NFW halo
 
 # Initial Values
-mvirial,             11.5       # Halo virial mass in log(Msun)
+mvirial,             11.0       # Halo virial mass in log(Msun)
 halo_conc,           5.0        # Halo concentration parameter
 fdm,                 0.5        # Dark matter fraction at r_eff_disk
 
 # Fixed? True if its a fixed parameter, False otherwise. Also set False if it will be tied (below)
-mvirial_fixed,       False
+mvirial_fixed,       True
 halo_conc_fixed,     True
 fdm_fixed,           False
 
@@ -547,10 +547,10 @@ zheight_tied,        True
 # --------
 
 # Initial Values
-inc,                 62.   # Inclination of galaxy, 0=face-on, 90=edge-on
-pa,                  142.
+inc,                 72.   # Inclination of galaxy, 0=face-on, 90=edge-on
+pa,                  145.
 xshift,              0.        # pixels
-yshift,              0.        # pixels
+yshift,              -0.13        # pixels
 vel_shift,           0.      # km/s
 
 # Fixed? True if its a fixed parameter, False otherwise
