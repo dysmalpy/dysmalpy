@@ -15,7 +15,7 @@ we ask that you cite all of the following papers:
 * Wuyts et al. 2016: `<https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract>`_
 * Lang et al. 2017: `<https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract>`_
 * Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
-* Lee et al. 2024, in prep: 
+* Lee et al. 2024, `<https://arxiv.org/abs/2411.07312>`_
 
 | Export the above citations from ADS to BibTeX format: 
 | `<https://ui.adsabs.harvard.edu/public-libraries/2KcoFK9MQcGjiLTjETZMKw>`_
