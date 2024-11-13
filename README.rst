@@ -20,7 +20,7 @@ tested in previous works (`Davies et al. 2004a`_; `Davies et al. 2004b`_;
 `Cresci et al. 2009`_; `Davies et al. 2011`_) as well as subsequent 
 improvements described by `Wuyts et al. 2016`_; `Lang et al. 2017`_; `Genzel et al. 2017`_;
 `Übler et al. 2018`_. Its Python incarnation and latest developments and 
-testing are presented by `Price et al. 2021`_ and Lee et al. 2024, in prep. 
+testing are presented by `Price et al. 2021`_ and `Lee et al. 2024`_. 
 
 This code employs a set of models that describe the mass distribution and 
 various kinematic components to describe and fit the kinematics of galaxies. 
@@ -81,7 +81,7 @@ Appendix in `Price et al. 2021`_ as well as `Lee et al. 2024`_.
 .. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 .. _Wisnioski et al. 2015: https://ui.adsabs.harvard.edu/abs/2015ApJ...799..209W/abstract
-.. _Lee et al. 2024: https://arxiv.org/abs/2411.07312
+.. _Lee et al. 2024: https://ui.adsabs.harvard.edu/abs/2024arXiv241107312L/abstract
 
 
 Dependencies
