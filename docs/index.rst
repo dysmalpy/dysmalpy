@@ -82,7 +82,7 @@ installation of dysmalpy under examples/notebooks).
 .. _emcee: https://emcee.readthedocs.io
 .. _Dynesty: https://dynesty.readthedocs.io
 .. _installation instructions: https://github.com/dysmalpy/dysmalpy/blob/add_dynesty/docs/installation.rst
-.. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/juan_edits/examples/notebooks
+.. _notebooks: https://github.com/dysmalpy/dysmalpy/tree/main/examples/notebooks
 .. _tutorials: https://www.mpe.mpg.de/resources/IR/DYSMALPY/
 .. _Tacconi et al. 1994: https://ui.adsabs.harvard.edu/abs/1994ApJ...426L..77T/abstract
 .. _Davies et al. 2004a: https://ui.adsabs.harvard.edu/abs/2004ApJ...602..148D/abstract
