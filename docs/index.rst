@@ -122,6 +122,7 @@ installation of dysmalpy under examples/notebooks).
    tutorials/aperture_drawing.rst
    tutorials/models/index.rst
    tutorials/fitting/index.rst
+   More tutorials <https://github.com/dysmalpy/dysmalpy/tree/main/examples/notebooks>
 
 
 Indices and tables
