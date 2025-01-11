@@ -24,6 +24,16 @@ we ask that you cite all of the following papers:
 * Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
 * Lee et al. 2024, in prep:
 
+Acknowledgements:
+DysmalPy is the Python version of the most recent Dysmal modeling
+code, a long-term development of the MPE/IR-Submm Group.
+Preparation and maintenance of the public release was/is funded
+by the European Union (ERC, GALPHYS, 101055023).
+Views and opinions expressed are, however, those of the author(s)
+only and do not necessarily reflect those of the European Union or
+the European Research Council. Neither the European Union nor the
+granting authority can be held responsible for them.
+
 Disclaimer:
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
 AND ANY EXPRESS OR IMPLIED WARRANTIES. IN NO EVENT SHALL THE COPYRIGHT HOLDER 
