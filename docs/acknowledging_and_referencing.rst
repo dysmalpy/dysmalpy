@@ -15,7 +15,7 @@ we ask that you cite all of the following papers:
 * Wuyts et al. 2016: `<https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract>`_
 * Lang et al. 2017: `<https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract>`_
 * Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
-* Lee et al. 2024: `<https://ui.adsabs.harvard.edu/abs/2024arXiv241107312L/abstract>`_
+* Lee et al. 2024: `<https://ui.adsabs.harvard.edu/abs/2025ApJ...978...14L/abstract>`_
 
 | Export the above citations from ADS to BibTeX format: 
 | `<https://ui.adsabs.harvard.edu/public-libraries/2KcoFK9MQcGjiLTjETZMKw>`_
@@ -45,6 +45,14 @@ the European Research Council. Neither the European Union nor the
 granting authority can be held responsible for them.
 
 * Selected work on high-z galaxies featuring key applications of Dysmal/DysmalPy as of 5 Apr 2024:
+
+| **Lee et al. 2025, ApJ, 978, 14**
+| "Disk Kinematics at High Redshift: DysmalPy's Extension to 3D Modeling and Comparison with Different Approaches"
+| https://ui.adsabs.harvard.edu/abs/2025ApJ...978...14L/abstract
+
+| **Liu et al. 2024, Nat.As, 8, 1181L**
+| "Detailed study of a rare hyperluminous rotating disk in an Einstein ring 10 billion years ago"
+| https://ui.adsabs.harvard.edu/abs/2024NatAs...8.1181L/abstract
 
 | **Genzel et al. 2023, ApJ, 957, 48**
 | "Evidence for Large-scale, Rapid Gas Inflows in z~2 Star-forming Disks"

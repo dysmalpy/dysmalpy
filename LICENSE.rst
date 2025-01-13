@@ -22,7 +22,7 @@ we ask that you cite all of the following papers:
 * Wuyts et al. 2016: `<https://ui.adsabs.harvard.edu/abs/2016ApJ...831..149W/abstract>`_
 * Lang et al. 2017: `<https://ui.adsabs.harvard.edu/abs/2017ApJ...840...92L/abstract>`_
 * Price et al. 2021: `<https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract>`_
-* Lee et al. 2024: `<https://ui.adsabs.harvard.edu/abs/2024arXiv241107312L/abstract>`_
+* Lee et al. 2024: `<https://ui.adsabs.harvard.edu/abs/2025ApJ...978...14L/abstract>`_
 
 Acknowledgements:
 DysmalPy is the Python version of the most recent Dysmal modeling
