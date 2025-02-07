@@ -18,6 +18,7 @@ from dysmalpy.data_io import load_pickle, dump_pickle
 from dysmalpy.fitting import utils as fit_utils
 
 from dysmalpy.parameters import UniformLinearPrior
+from dysmalpy.exceptions import NoordermeerFlattenerError
 
 # Third party imports
 import os, copy
@@ -732,7 +733,10 @@ def log_prob(theta, gal, fitter=None):
     """
 
     # Update the parameters
-    gal.model.update_parameters(theta)
+    try:
+        gal.model.update_parameters(theta)
+    except NoordermeerFlattenerError as e:
+        pass 
 
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()

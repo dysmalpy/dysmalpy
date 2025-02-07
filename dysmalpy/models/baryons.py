@@ -29,6 +29,7 @@ from .base import MassModel, _LightMassModel, v_circular, \
                   sersic_mr, _I0_gaussring
 # from .base import menc_from_vcirc
 from dysmalpy.parameters import DysmalParameter
+from dysmalpy.exceptions import NoordermeerFlattenerError
 
 __all__ = ['Sersic', 'DiskBulge', 'LinearDiskBulge', 'ExpDisk', 'BlackHole',
            'GaussianRing',
@@ -265,7 +266,8 @@ class NoordFlat(object):
     @n.setter
     def n(self, value):
         if value < 0:
-            raise ValueError("Sersic index can't be negative!")
+            raise NoordermeerFlattenerError("Sersic index can't be negative!")
+
         self._n = value
 
         # Reset vcirc interp:
@@ -278,7 +280,8 @@ class NoordFlat(object):
     @invq.setter
     def invq(self, value):
         if value < 0:
-            raise ValueError("Invq can't be negative!")
+            raise NoordermeerFlattenerError("Invq can't be negative!")
+        
         self._invq = value
 
         # Reset vcirc interp:
