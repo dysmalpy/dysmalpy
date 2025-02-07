@@ -736,7 +736,13 @@ def log_prob(theta, gal, fitter=None):
     try:
         gal.model.update_parameters(theta)
     except NoordermeerFlattenerError as e:
-        pass 
+        # Invalid parameter in NoordermeerFlattener: 
+        # negative Sersic or invq -> must fail prior.
+        if fitter.blob_name is not None:
+            if isinstance(fitter.blob_name, str):
+                return -np.inf, -np.inf
+            else:
+                return -np.inf, [-np.inf]*len(fitter.blob_name) 
 
     # Evaluate prior prob of theta
     lprior = gal.model.get_log_prior()
