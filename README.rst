@@ -81,7 +81,7 @@ Appendix in `Price et al. 2021`_ as well as `Lee et al. 2024`_.
 .. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 .. _Wisnioski et al. 2015: https://ui.adsabs.harvard.edu/abs/2015ApJ...799..209W/abstract
-.. _Lee et al. 2024: https://ui.adsabs.harvard.edu/abs/2024arXiv241107312L/abstract
+.. _Lee et al. 2025: https://ui.adsabs.harvard.edu/abs/2025ApJ...978...14L/abstract
 
 
 Dependencies
