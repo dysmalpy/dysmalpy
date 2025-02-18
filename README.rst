@@ -62,7 +62,7 @@ line broadening. The model cube can be directly compared to the datacube in 3D,
 but it can also be compared to 1D or 2D kinematic observations by extracting 
 the corresponding one or two-dimensional profiles following the same procedure 
 that was used on the observed data. For detailed information, refer to the 
-Appendix in `Price et al. 2021`_ as well as `Lee et al. 2024`_.
+Appendix in `Price et al. 2021`_ as well as `Lee et al. 2025`_.
 
 .. _MPFIT: https://code.google.com/archive/p/astrolibpy
 .. _emcee: https://emcee.readthedocs.io
