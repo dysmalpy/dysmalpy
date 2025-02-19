@@ -52,7 +52,7 @@ def reload_all_fitting(filename_galmodel=None, filename_results=None, fit_method
     -------
     gal : obj
             Galaxy instance, including model with the current best-fit parameters
-    retults : obj
+    results : obj
             MCMCResults or MPFITResults instance, containing all fit results and analysis
 
     """
