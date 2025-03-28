@@ -63,7 +63,7 @@ line broadening. The model cube can be directly compared to the datacube in 3D,
 but it can also be compared to 1D or 2D kinematic observations by extracting 
 the corresponding one or two-dimensional profiles following the same procedure 
 that was used on the observed data. For detailed information, refer to the 
-Appendix in `Price et al. 2021`_ as well as `Lee et al. 2024`_.
+Appendix in `Price et al. 2021`_ as well as `Lee et al. 2025`_.
 
 The overall basic usage of DYSMALPY can be summarised as follows:
 
@@ -95,7 +95,7 @@ installation of dysmalpy under examples/notebooks).
 .. _Übler et al. 2018: https://ui.adsabs.harvard.edu/abs/2018ApJ...854L..24U/abstract
 .. _Price et al. 2021: https://ui.adsabs.harvard.edu/abs/2021ApJ...922..143P/abstract
 .. _Wisnioski et al. 2015: https://ui.adsabs.harvard.edu/abs/2015ApJ...799..209W/abstract
-.. _Lee et al. 2024: https://ui.adsabs.harvard.edu/abs/2024arXiv241107312L/abstract
+.. _Lee et al. 2025: https://ui.adsabs.harvard.edu/abs/2025ApJ...978...14L/abstract
 
 
 .. toctree::
