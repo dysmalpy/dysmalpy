@@ -952,7 +952,7 @@ def log_like(gal, fitter=None):
             elif blobn.lower() == 'mvirial':
                 blobv = gal.model.get_mvirial()
             elif blobn.lower() == 'alpha':
-                blobv = gal.model.get_haglo_alpha()
+                blobv = gal.model.get_halo_alpha()
             elif blobn.lower() == 'rb':
                 blobv = gal.model.get_halo_rb()
             #
