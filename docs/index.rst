@@ -21,7 +21,7 @@ tested in previous works (`Davies et al. 2004a`_; `Davies et al. 2004b`_;
 `Cresci et al. 2009`_; `Davies et al. 2011`_) as well as subsequent 
 improvements described by `Wuyts et al. 2016`_; `Lang et al. 2017`_; `Genzel et al. 2017`_;
 `Übler et al. 2018`_. Its Python incarnation and latest developments and 
-testing are presented by `Price et al. 2021`_ and `Lee et al. 2024`_.
+testing are presented by `Price et al. 2021`_ and `Lee et al. 2025`_.
 
 This code employs a set of models that describe the mass distribution and 
 various kinematic components to describe and fit the kinematics of galaxies. 
