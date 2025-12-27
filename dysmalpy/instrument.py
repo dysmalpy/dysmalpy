@@ -534,7 +534,7 @@ class Moffat(object):
         if minor_fwhm is None:
             minor_fwhm = major_fwhm
         if (major_fwhm != minor_fwhm) & (pa is None):
-            raise ValueError("Need to specifiy 'pa' to have elliptical PSF!")
+            raise ValueError("Need to specify 'pa' to have elliptical PSF!")
 
 
         if pa is None:
@@ -545,7 +545,7 @@ class Moffat(object):
         self.pa = pa
         self.beta = beta
 
-        self.alpha = self.major_fwhm/(2.*np.sqrt(np.power(2., 1./np.float(self.beta)) - 1 ))
+        self.alpha = self.major_fwhm/(2.*np.sqrt(np.power(2., 1./float(self.beta)) - 1 ))
 
         self.padfac = padfac
 
@@ -595,7 +595,7 @@ class Moffat(object):
         #    -> add extra padding so the Moffat window
         #       isn't much smaller than similar Gaussian PSF.
 
-        npix = np.int(np.ceil(major_fwhm/pixscale/2.35 * 2 * 1./0.7 * padfac))
+        npix = int(np.ceil(major_fwhm/pixscale/2.35 * 2 * 1./0.7 * padfac))
         if npix % 2 == 0:
             npix += 1
 
