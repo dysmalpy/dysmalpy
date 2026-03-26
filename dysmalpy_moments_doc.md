@@ -108,6 +108,71 @@ elif extrac_type == 'moment':
     disp = self.model_cube.data.linewidth_sigma().to(u.km/u.s).value
 ```
 
+## 3. Dynamical Parametrization of Intrinsic Velocity ($v$) and Dispersion ($\sigma$)
+
+As shown in Section 1, the 3D model cube requires an intrinsic rotation velocity $v_{rot}(r)$ and intrinsic velocity dispersion $\sigma(r)$ at every point. In `dysmalpy`, these properties are not arbitrary but are tied dynamically to the underlying mass model parameters (e.g., Sersic index, effective radius, total mass).
+
+### A. Intrinsic Dispersion ($\sigma$)
+
+In `dysmalpy`, the intrinsic velocity dispersion of the gas is modeled independently via a `DispersionProfile` component. The default is a constant dispersion across the disk (`DispersionConst`):
+
+$$ \sigma(r) = \sigma_0 $$
+
+This $\sigma_0$ is a free parameter in the model (e.g., `DispersionConst.sigma0`) and represents the isotropic turbulence/dispersion of the gas.
+
+### B. Circular Velocity ($v_{circ}$)
+
+First, the total *circular* velocity $v_{circ}(r)$ is computed from the gravitational potential of all mass components (baryonic disk, bulge, dark matter halo, etc.).
+
+For each component $i$, the circular velocity squared $v_{circ, i}^2(r)$ is derived from the enclosed mass $M_{enc, i}(r)$:
+$$ v_{circ, i}^2(r) = \frac{G M_{enc, i}(r)}{r} $$
+
+The total circular velocity squared is the sum of the squares:
+$$ v_{circ}^2(r) = \sum_i v_{circ, i}^2(r) $$
+
+*Note:* `dysmalpy` also has an option (`KinematicOptions.adiabatic_contract`) to numerically alter $v_{circ}^2$ to account for adiabatic contraction of the dark matter halo due to the baryonic mass.
+
+### C. Rotation Velocity ($v_{rot}$) with Asymmetric Drift
+
+The actual ordered rotation velocity of the gas, $v_{rot}(r)$, is lower than the theoretical circular velocity $v_{circ}(r)$ due to pressure support (also called *asymmetric drift*). Because the gas has internal turbulence (represented by $\sigma_0$), the pressure gradient partially balances gravity.
+
+In `dysmalpy`, this is handled by `KinematicOptions.apply_pressure_support()`. The relationship is:
+
+$$ v_{rot}^2(r) = v_{circ}^2(r) - v_{asym}^2(r) $$
+
+`dysmalpy` provides three different parametrizations (`pressure_support_type`) for the asymmetric drift $v_{asym}^2(r)$ (following Burkert et al. 2010):
+
+**Type 1 (Default): Exponential Disk Approximation**
+Assuming the gas follows an exponential disk profile:
+$$ v_{asym}^2(r) = 3.36 \left( \frac{r}{R_e} \right) \sigma_0^2 $$
+*(Where $R_e$ is the effective radius).*
+
+**Type 2: Sersic Index Dependence**
+Taking into account the specific Sersic index $n$ of the baryonic disk:
+$$ v_{asym}^2(r) = 2 \left( \frac{b_n}{n} \right) \left( \frac{r}{R_e} \right)^{1/n} \sigma_0^2 $$
+*(Where $b_n \approx 1.9992n - 0.3271$ is the Sersic constant).*
+
+**Type 3: Direct Pressure Gradient**
+Calculating the drift explicitly from the local log-density gradient of the gas:
+$$ v_{asym}^2(r) = -\left( \frac{d\ln\rho_{gas}(r)}{d\ln r} \right) \sigma_0^2 $$
+
+In `dysmalpy` code, this is executed as:
+
+```python
+# From dysmalpy/models/kinematic_options.py
+if pressure_support_type == 1:
+    vel_asymm_drift_sq = 3.36 * (r / Re) * sigma ** 2
+elif pressure_support_type == 2:
+    bn = scipy.special.gammaincinv(2. * n, 0.5)
+    vel_asymm_drift_sq = 2. * (bn/n) * np.power((r/Re), 1./n) * sigma**2
+elif pressure_support_type == 3:
+    dlnrhogas_dlnr = model.get_dlnrhogas_dlnr(r)
+    vel_asymm_drift_sq = - dlnrhogas_dlnr * sigma**2
+
+# Final rotation velocity applied to the cube
+v_rot = np.sqrt(v_circ_sq - vel_asymm_drift_sq)
+```
+
 ## Summary for `GalfitS` Integration
 
 Because `dysmalpy` explicitly generates the full 3D model cube, computing the moment maps is straightforward.
