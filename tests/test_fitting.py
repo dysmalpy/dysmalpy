@@ -251,24 +251,36 @@ class TestFittingWrappers:
     def test_3D_mpfit(self):
         param_filename = 'fitting_3D_mpfit.params'
         params = read_params(param_filename=param_filename)
-        outdir_full = _dir_tests_data+params['outdir']
-        #print("gauss_extract_with_c = {}",format(params['gauss_extract_with_c']))
-        run_fit(param_filename=param_filename)
 
-        # Make sure all files exist:
-        list_files = expected_output_files_3D(params['galID'], param_filename=param_filename,
-                            fit_method=params['fit_method'])
-        check_output_files(outdir_full, list_files)
+        # CHECK THE 3D FILES ARE ACTUALLY AVAILABLE, 
+        # AS THEY ARE NO LONGER SHIPPED IN TEST_DATA
+        if (
+            os.path.exists(_dir_tests_data+params['fdata_cube'])
+            & os.path.exists(_dir_tests_data+params['fdata_err'])
+        ):
 
-        # Load output, check results
-        f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
-                                    params['fit_method'].strip().lower())
-        results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
+            outdir_full = _dir_tests_data+params['outdir']
+            run_fit(param_filename=param_filename)
 
-        dict_bf_values = {'disk+bulge': {'total_mass': 10.6096,
-                                         'r_eff_disk': 2.9857},
-                          'halo': {'fdm': 0.4166},
-                          'dispprof_LINE': {'sigma0': 70.3651}}   
-        
-        # Check that best-fit values are the same
-        check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3)
+            # Make sure all files exist:
+            list_files = expected_output_files_3D(params['galID'], param_filename=param_filename,
+                                fit_method=params['fit_method'])
+            check_output_files(outdir_full, list_files)
+
+            # Load output, check results
+            f_ascii_machine = outdir_full+'{}_{}_bestfit_results.dat'.format(params['galID'],
+                                        params['fit_method'].strip().lower())
+            results = fw_utils_io.read_results_ascii_file(fname=f_ascii_machine)
+
+            dict_bf_values = {'disk+bulge': {'total_mass': 10.6096,
+                                            'r_eff_disk': 2.9857},
+                            'halo': {'fdm': 0.4166},
+                            'dispprof_LINE': {'sigma0': 70.3651}}   
+            
+            # Check that best-fit values are the same
+            check_bestfit_values(results, dict_bf_values, fit_method=params['fit_method'], ndim=3)
+        else:
+            raise FileNotFoundError(
+                "test_3D_mpfit can only be run if the "
+                "test 3D data and noise cubes are downloaded!"
+            )
