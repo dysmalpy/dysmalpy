@@ -20,7 +20,8 @@ import astropy.units as u
 import astropy.constants as c
 from radio_beam import Beam as _RBeam
 
-__all__ = ["Instrument", "GaussianBeam", "DoubleBeam", "Moffat", "LSF"]
+__all__ = ["Instrument", "GaussianBeam", "DoubleBeam",
+           "Moffat", "EmpiricalPSF", "LSF"]
 
 # CONSTANTS
 sig_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
@@ -47,15 +48,10 @@ class Instrument:
 
     Parameters
     ----------
-    beam : 2D array, `~dysmalpy.instrument.GaussianBeam`, `~dysmalpy.instrument.DoubleBeam`, or `~dysmalpy.instrument.Moffat`
-           Object describing the PSF of the instrument
-
-    beam_type : {`'analytic'`, `'empirical'`}
-
-        * `'analytic'` implies the beam is one of the provided beams in `dysmalpy`.
-
-        * `'empirical'` implies the provided beam is a 2D array that describes
-            the convolution kernel.
+    beam : 2D array, 
+           `~dysmalpy.instrument.GaussianBeam`, `~dysmalpy.instrument.DoubleBeam`, 
+           `~dysmalpy.instrument.Moffat`, or `~dysmalpy.instrument.EmpiricalPSF`
+           Object describing the PSF of the instrument.
 
     lsf : LSF object
           Object describing the line spread function of the instrument
@@ -83,7 +79,7 @@ class Instrument:
            
     """
 
-    def __init__(self, beam=None, beam_type=None, lsf=None, pixscale=None,
+    def __init__(self, beam=None, lsf=None, pixscale=None,
                  spec_type='velocity', spec_start=-1000*u.km/u.s,
                  spec_step=10*u.km/u.s, nspec=201,
                  line_center=None,
@@ -93,7 +89,14 @@ class Instrument:
                  integrate_cube=True, slit_width=None, slit_pa=None,
                  fov=None,
                  ndim=None,
-                 name='Instrument'):
+                 name='Instrument',
+                 **kwargs):
+        if getattr(kwargs, "beam_type", None) is not None:
+            logger.warning(
+                "Instrument no longer takes a kwarg 'beam_type'. " \
+                "Empirical PSFs should now be specified using the " \
+                "`EmpiricalPSF` class."
+            )
 
         self.name = name
         self.ndim = ndim
@@ -102,7 +105,6 @@ class Instrument:
 
         # Case of two beams: analytic and empirical: if beam_type==None, assume analytic
         self.beam = beam
-        self.beam_type = beam_type
         self._beam_kernel = None
         self.lsf = lsf
         self._lsf_kernel = None
@@ -131,7 +133,6 @@ class Instrument:
         self.integrate_cube = integrate_cube
         self.slit_width = slit_width
         self.slit_pa = slit_pa
-
 
 
     def convolve(self, cube, spec_center=None):
@@ -248,29 +249,15 @@ class Instrument:
                           size of the kernel
 
         """
-        if (self.beam_type == 'analytic') | (self.beam_type == None):
 
-            if isinstance(self.beam, GaussianBeam):
-                kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
-                kern2D = kernel.array
-            else:
-                kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
+        self._validate_same_pixscales()
 
-            if isinstance(self.beam, DoubleBeam):
-                kern2D = kernel
-            elif isinstance(self.beam, Moffat):
-                kern2D = kernel
+        kernel = self.beam.as_kernel(self.pixscale, support_scaling=support_scaling)
 
-        elif self.beam_type == 'empirical':
-            if len(self.beam.shape) == 1:
-                raise ValueError("1D beam/PSF not currently supported")
-
-            kern2D = self.beam.copy()
-
-            kern2D[~np.isfinite(kern2D)] = 0.               # Replace NaNs/non-finite with zero
-            kern2D[kern2D<0.] = 0.                          # Replace < 0 with zero:
-
-            kern2D /= np.sum(kern2D[np.isfinite(kern2D)])   # need to normalize
+        if isinstance(self.beam, GaussianBeam):
+            kern2D = kernel.array
+        else:
+            kern2D = kernel
 
         kern3D = np.zeros(shape=(1, kern2D.shape[0], kern2D.shape[1],))
         kern3D[0, :, :] = kern2D
@@ -319,14 +306,12 @@ class Instrument:
 
     @beam.setter
     def beam(self, new_beam):
-        if isinstance(new_beam, GaussianBeam) | isinstance(new_beam, Moffat) | isinstance(new_beam, DoubleBeam):
-            self._beam = new_beam
-        elif new_beam is None:
-            self._beam = None
-        else:
-            raise TypeError("Beam must be an instance of "
-                            "instrument.GaussianBeam, instrument.Moffat, or instrument.DoubleBeam")
+        self._validate_beam(new_beam)
+        self._beam = new_beam
 
+        # Reset stashed kernel:
+        self._beam_kernel = None
+        
     @property
     def lsf(self):
         return self._lsf
@@ -335,6 +320,9 @@ class Instrument:
     def lsf(self, new_lsf):
         self._lsf = new_lsf
 
+        # Reset stashed kernel:
+        self._lsf_kernel = None
+        
     @property
     def pixscale(self):
         return self._pixscale
@@ -352,6 +340,56 @@ class Instrument:
             else:
                 raise u.UnitsError("pixscale not in equivalent units to "
                                    "arcseconds.")
+            
+        # Reset stashed kernels:
+        self._clear_kernels()
+        
+    def _validate_beam(self, new_beam):
+
+        _allowed_beam_types = (GaussianBeam, Moffat,
+                               DoubleBeam, EmpiricalPSF)
+
+        # ----------------
+        # ALLOW FOR BACKWARDS COMPATIBILITY FOR NOW!
+        if not (
+            isinstance(new_beam, _allowed_beam_types)
+            | (new_beam is None)
+        ):
+            if isinstance(new_beam, np.ndarray):
+                logger.warning(
+                    "To use empirical PSFs, please pass "
+                    "an EmpiricalPSF instance!\n"
+                    "***** Assuming the input 2D array has " 
+                    "the same pixel scale as the instrument!! *****"
+                )
+                new_beam = EmpiricalPSF(
+                    psf_array=new_beam,
+                    pixscale=self.pixscale
+                )
+        # ----------------
+
+        if not (
+            isinstance(new_beam, _allowed_beam_types)
+            | (new_beam is None)
+        ):
+            emsg = f"Invalid beam: {type(new_beam)}"
+            emsg += "Beam must be an instance of "
+            for i, bt in enumerate(_allowed_beam_types):
+                if i == 0:
+                    emsg += f"instrument.{bt.__name__}"
+                else:
+                    emsg += f", instrument.{bt.__name__}"
+            raise TypeError(emsg)
+
+    def _validate_same_pixscales(self):
+        # If beam is an EmpiricalPSF, check that instrument and beam
+        # have the same pixscales.
+        if isinstance(self.beam, EmpiricalPSF):
+            if self.pixscale != self.beam.pixscale:
+                raise ValueError(
+                    "Cannot set kernel, as EmpiricalPSF beam "
+                    "does not have same pixscale as instrument!"
+                )
 
     @property
     def spec_step(self):
@@ -490,6 +528,9 @@ class DoubleBeam:
         kernel_total = 10. * (kernel1.array * self._scale1 / np.sum(kernel1.array) +
                               kernel2.array * self._scale2 / np.sum(kernel2.array))
 
+        # Normalize total kernel:
+        kernel_total /= np.sum(kernel_total[np.isfinite(kernel_total)]) 
+
         return kernel_total
 
     def __deepcopy__(self, memo):
@@ -617,11 +658,96 @@ class Moffat(object):
 
         kernel = (self.beta-1.)/(np.pi * alpha**2) * np.power( (1. + (r/alpha)**2 ), -1.*self.beta )
 
+        # Normalize kernel:
+        kernel /= np.sum(kernel[np.isfinite(kernel)]) 
+
         return kernel
+    
+
+class EmpiricalPSF(object):
+    """
+    EmpiricalPSF beam class.
+
+    Parameters
+    ----------
+    psf_array : 2D array
+                2D array containing the empirical PSF.
+    pixscale : float or `~astropy.units.Quantity`
+            Angular scale of the ePSF pixels (square pixels are assumed).
+            If no units are used, arcseconds are assumed.
+    """
+    def __init__(self, psf_array=None, pixscale=None):
+
+        self.psf_array = psf_array
+        self.pixscale = pixscale
+
+    @property
+    def psf_array(self):
+        return self._psf_array
+
+    @psf_array.setter
+    def psf_array(self, value):
+        if value is None:
+            raise ValueError('Must specify "psf_array" to use an EmpiricalPSF!')
+        
+        # Ensure input is np.ndarray:
+        value = np.array(value)
+        if len(value.shape) != 2:
+            raise ValueError(f"Empirical PSF must be 2D! psf_array.shape={value.shape}")
+
+        self._psf_array = value
+
+    @property
+    def pixscale(self):
+        return self._pixscale
+
+    @pixscale.setter
+    def pixscale(self, value):
+        if value is None:
+            raise ValueError('"pixscale" must be specified for EmpiricalPSFs!')
+        
+        if not isinstance(value, u.Quantity):
+            logger.warning("No units on pixscale. Assuming arcseconds.")
+            self._pixscale = value*u.arcsec
+        else:
+            if (u.arcsec).is_equivalent(value):
+                self._pixscale = value
+            else:
+                raise u.UnitsError("pixscale not in equivalent units to "
+                                   "arcseconds.")
+            
+        # elif self.beam_type == 'empirical':
+        #     if len(self.beam.shape) == 1:
+        #         raise ValueError("1D beam/PSF not currently supported")
+
+    def as_kernel(self, pixscale, **kwargs):
+        """
+        Return the Empirical PSF array as the kernel.
+
+        Parameters
+        ----------
+        pixscale : `~astropy.units.Quantity`
+                   Pixel scale of image that will be convolved
+
+        Returns
+        -------
+        kernel : 2D array
+                 Convolution kernel for the Moffat PSF
+        """
+        kernel = self.psf_array.copy()
+
+        kernel[~np.isfinite(kernel)] = 0.               # Replace NaNs/non-finite with zero
+        kernel[kernel<0.] = 0.                          # Replace < 0 with zero:
+
+        kernel /= np.sum(kernel[np.isfinite(kernel)])   # need to normalize
+
+        return kernel
+
 
 class LSF(u.Quantity):
     """
-    An object to handle line spread functions.
+    An object to handle line spread functions, 
+    assuming a Gaussian LSF shape.
     """
 
     def __new__(cls, dispersion=None, default_unit=u.km/u.s, meta=None):
