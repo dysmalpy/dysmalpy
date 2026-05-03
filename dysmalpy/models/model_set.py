@@ -779,22 +779,8 @@ class ModelSet:
                             cmpnt_dlnrhogas_dlnr = mcomp.dlnrhogas_dlnr(r)
 
                             # Ensure all finite:
-                            try:
-                                _ = len(r)
-                                _is_arr = True
-                            except:
-                                _is_arr = False 
-
-                            if _is_arr:
-                                whfin = np.where(np.isfinite(cmpnt_dlnrhogas_dlnr))[0]
-                                try:
-                                    if len(whfin) < len(r):
-                                        raise ValueError
-                                except:
-                                    pass
-                            else:
-                                if not np.isfinite(cmpnt_dlnrhogas_dlnr):
-                                    raise ValueError
+                            if not np.all(np.isfinite(cmpnt_dlnrhogas_dlnr)):
+                                raise ValueError
 
                             rhogastot += cmpnt_rhogas
                             rho_dlnrhogas_dlnr_sum += cmpnt_rhogas * cmpnt_dlnrhogas_dlnr
