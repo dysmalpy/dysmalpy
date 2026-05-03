@@ -81,6 +81,7 @@ class TestLensing():
         assert 'lensing_imdec' in self.params
         assert has_lensing_transform_keys_in_params(self.params)
         self.outdir = os.path.join(_dir_tests_data, self.params['outdir'])
+        self.params['outdir'] = self.outdir # Needed for call to gal.create_model_data()
         data_io.ensure_dir(self.outdir)
         assert os.path.isdir(self.outdir)
 
@@ -377,11 +378,19 @@ class TestLensing():
         assert obs0.model_data is not None
         
         logger.debug('type(obs0.model_data): {}'.format(type(obs0.model_data)))
-        fits.PrimaryHDU(data=obs0.model_data.data).writeto('obs0.model_data.fits', overwrite=True)
+        fits.PrimaryHDU(data=obs0.model_data.data).writeto(
+            f'{self.outdir}/obs0.model_data.fits', overwrite=True
+        )
         
         this_lensing_transformer = _get_cached_lensing_transformer()
-        fits.PrimaryHDU(data=this_lensing_transformer.image_plane_data_cube).writeto('obs0.image_plane_data_cube.fits', overwrite=True)
-        fits.PrimaryHDU(data=this_lensing_transformer.source_plane_data_cube).writeto('obs0.source_plane_data_cube.fits', overwrite=True)
+        fits.PrimaryHDU(
+            data=this_lensing_transformer.image_plane_data_cube
+        ).writeto(
+            f'{self.outdir}/obs0.image_plane_data_cube.fits', overwrite=True
+        )
+        fits.PrimaryHDU(
+            data=this_lensing_transformer.source_plane_data_cube
+        ).writeto(f'{self.outdir}/obs0.source_plane_data_cube.fits', overwrite=True)
 
 
     # def test_lensing_transformation_in_a_wrong_way(self):
