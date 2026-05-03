@@ -537,7 +537,7 @@ class NoordFlat(object):
 
         if interp_type.lower().strip() == 'cubic':
             self.rho_interp_func = scp_interp.interp1d(table_rad, table_rho,
-                        fill_value=np.NaN, bounds_error=False, kind='cubic')
+                        fill_value=np.nan, bounds_error=False, kind='cubic')
             self.rho_interp_extrap_func = scp_interp.interp1d(table_rad, table_rho,
                     fill_value='extrapolate', kind='linear')
         elif interp_type.lower().strip() == 'linear':
@@ -568,7 +568,7 @@ class NoordFlat(object):
 
         if interp_type.lower().strip() == 'cubic':
             self.dlnrhodlnr_interp_func = scp_interp.interp1d(table_rad, table_dlnrho_dlnr,
-                    fill_value=np.NaN, bounds_error=False, kind='cubic')
+                    fill_value=np.nan, bounds_error=False, kind='cubic')
             self.dlnrhodlnr_interp_func_extrap = scp_interp.interp1d(table_rad,
                     table_dlnrho_dlnr, fill_value='extrapolate', kind='linear')
 
@@ -792,7 +792,7 @@ class InfThinMassiveGaussianRing(object):
 
             return potential_gradient_interp
         else:
-            return R*np.NaN
+            return R*np.nan
 
     def enclosed_mass(self, R, R_peak, total_mass):
         """
@@ -828,7 +828,7 @@ class InfThinMassiveGaussianRing(object):
 
             return menc
         else:
-            return R*np.NaN
+            return R*np.nan
 
 
 class BlackHole(MassModel):

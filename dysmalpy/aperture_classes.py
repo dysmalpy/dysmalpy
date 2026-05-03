@@ -160,9 +160,9 @@ class Aperture(object):
                 vel1d = best_fit[1]
                 disp1d = best_fit[2]
             except:
-                flux1d = np.NaN
-                vel1d = np.NaN
-                disp1d = np.NaN
+                flux1d = np.nan
+                vel1d = np.nan
+                disp1d = np.nan
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         return flux1d, vel1d, disp1d

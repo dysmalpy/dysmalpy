@@ -30,7 +30,7 @@ def read_fitting_params_input(fname=None):
     df = pd.read_csv(fname, sep=',', comment='#', names=columns, skipinitialspace=True).copy()
 
     for j, key in enumerate(df['keys'].values):
-        if key is np.NaN:
+        if key is np.nan:
             pass
         else:
             valset = False
@@ -409,8 +409,8 @@ def load_single_obs_2D_data(params=None, adjust_error=False,
 
             gal_vel_flat_in = gal_vel.flatten()
             err_vel_flat_in = err_vel.flatten()
-            gal_vel_flat_in[~bool_mask_flat] = np.NaN
-            err_vel_flat_in[~bool_mask_flat] = np.NaN
+            gal_vel_flat_in[~bool_mask_flat] = np.nan
+            err_vel_flat_in[~bool_mask_flat] = np.nan
 
             gal_vel_flat, err_vel_flat = dpy_utils.symmetrize_velfield(xbin, ybin,
                                 gal_vel_flat_in, err_vel_flat_in,
@@ -422,8 +422,8 @@ def load_single_obs_2D_data(params=None, adjust_error=False,
             if params['fitdispersion'+extra]:
                 gal_disp_flat_in = gal_disp.flatten()
                 err_disp_flat_in = err_disp.flatten()
-                gal_disp_flat_in[~bool_mask_flat] = np.NaN
-                err_disp_flat_in[~bool_mask_flat] = np.NaN
+                gal_disp_flat_in[~bool_mask_flat] = np.nan
+                err_disp_flat_in[~bool_mask_flat] = np.nan
                 gal_disp_flat, err_disp_flat = dpy_utils.symmetrize_velfield(xbin, ybin,
                                     gal_disp_flat_in, err_disp_flat_in,
                                     sym=2, pa=params['pa'+extra])
@@ -433,8 +433,8 @@ def load_single_obs_2D_data(params=None, adjust_error=False,
             if params['fitflux'+extra]:
                 gal_flux_flat_in = gal_flux.flatten()
                 err_flux_flat_in = err_flux.flatten()
-                gal_flux_flat_in[~bool_mask_flat] = np.NaN
-                err_flux_flat_in[~bool_mask_flat] = np.NaN
+                gal_flux_flat_in[~bool_mask_flat] = np.nan
+                err_flux_flat_in[~bool_mask_flat] = np.nan
                 gal_flux_flat, err_flux_flat = dpy_utils.symmetrize_velfield(xbin, ybin,
                                     gal_flux_flat_in, err_flux_flat_in,
                                     sym=2, pa=params['pa'+extra])

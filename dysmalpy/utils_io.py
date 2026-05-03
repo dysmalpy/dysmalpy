@@ -147,12 +147,12 @@ def write_model_2d_obs_file(obs=None, model=None, fname=None, overwrite=False):
     if obs.model_data.data['flux'] is not None:
         flux_mod = obs.model_data.data['flux']
     else:
-        flux_mod = np.ones(vel_mod.shape) * np.NaN
+        flux_mod = np.ones(vel_mod.shape) * np.nan
 
     if obs.model_data.data['dispersion'] is not None:
         disp_mod = obs.model_data.data['dispersion']
     else:
-        disp_mod = np.ones(vel_mod.shape) * np.NaN
+        disp_mod = np.ones(vel_mod.shape) * np.nan
 
     # Correct model for instrument dispersion if the data is instrument corrected:
     if ('inst_corr' in obs.data.data.keys()) & (obs.model_data.data['dispersion'] is not None):
@@ -549,7 +549,7 @@ class Report(object):
                     #         l68 = u68 = results.bestfit_parameters_err[whparam]
                     #     else:
                     #         # Fitting failed
-                    #         best = l68 = u68 = np.NaN
+                    #         best = l68 = u68 = np.nan
 
                     whparam = np.where(results.chain_param_names == '{}:{}'.format(cmp_n.lower(),param_n.lower()))[0][0]
                     best = results.bestfit_parameters[whparam]
