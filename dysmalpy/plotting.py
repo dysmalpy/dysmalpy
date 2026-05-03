@@ -1690,7 +1690,7 @@ def plot_spaxel_compare_3D_cubes(obs, datacube=None, errcube=None,
                             best_fit = gaus_fit_apy_mod_fitter(specarr[maskarr_bool], datarr[maskarr_bool],
                                             mom0_dat[i,j], mom1_dat[i,j], mom2_dat[i,j], yerr=errarr[maskarr_bool])
                         except:
-                            best_fit = [np.NaN, np.NaN, np.NaN]
+                            best_fit = [np.nan, np.nan, np.nan]
                         flux1d = best_fit[0] * np.sqrt(2 * np.pi) * best_fit[2]
                         vel1d = best_fit[1]
                         disp1d = best_fit[2]
@@ -2973,7 +2973,7 @@ def plot_single_obs_model_2D(obs, model,
         for ax, k in zip(grid, keyxarr):
             im = copy.deepcopy(obs.model_data.data[keyyarr[j]])
             if apply_mask:
-                im[~msk] = np.NaN
+                im[~msk] = np.nan
             if keyyarr[j] == 'flux':
                 vmin = flux_vmin
                 vmax = flux_vmax
@@ -3274,7 +3274,7 @@ def plot_model_comparison_2D(obs1=None, obs2=None,
                 raise ValueError("key not supported.")
 
             if apply_mask:
-                im[~mask] = np.NaN
+                im[~mask] = np.nan
             imax = ax.imshow(im, cmap=cmaptmp, interpolation=int_mode,
                              vmin=vmin, vmax=vmax, origin=origin)
 
@@ -4319,7 +4319,7 @@ def plot_axes_flux_vel_disp(flux, vel, disp, axes=None,
         yt = label
 
         if apply_mask:
-            im[~mask] = np.NaN
+            im[~mask] = np.nan
 
         if vrange_dict is not None:
             vmin = vrange_dict[keyxarr[i]][0]

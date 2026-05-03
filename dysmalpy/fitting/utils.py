@@ -296,7 +296,7 @@ def find_peak_gaussian_KDE(flatchain, initval, weights=None):
         peakvals = np.zeros(nparams)
         for i in range(nparams):
             kern = gaussian_kde(flatchain[:,i], weights=weights)
-            peakvals[i] = fmin(lambda x: -kern(x), initval[i],disp=False)
+            peakvals[i] = fmin(lambda x: -kern(x), [initval[i]],disp=False)[0]
         return peakvals
     else:
 

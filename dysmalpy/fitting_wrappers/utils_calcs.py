@@ -152,16 +152,14 @@ def auto_gen_3D_mask(cube=None, err=None,
             # Find the max flux seg region:
             segfluxmax = 0.
             for seg in segm.segments:
-                mseg = seg._segment_data.copy()
+                mseg = segm.data.copy()
+                mseg[mseg != seg.label] = 0
                 mseg[mseg>0] = 1
                 mseg_flux = fmap_cube_sn.copy() * mseg
                 if mseg_flux.sum() > segfluxmax:
                     segfluxmax = mseg_flux.sum()
                     mask2D = mseg
 
-
-            #mask2D = segm._data.copy()
-            #mask2D[mask2D>0] = 1
         else:
             do_int_flux_SNR_mask = True
 

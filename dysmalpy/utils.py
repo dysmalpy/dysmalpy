@@ -519,8 +519,8 @@ def symmetrize_1D_profile(rin, vin, errin, sym=1):
     rout = np.linspace(-maxval, maxval, num=rnum, endpoint=True)
 
 
-    vinterp = interpolate.interp1d(rin, vin, kind='cubic', bounds_error=False, fill_value=np.NaN)
-    errinterp = interpolate.interp1d(rin, errin, kind='cubic', bounds_error=False, fill_value=np.NaN)
+    vinterp = interpolate.interp1d(rin, vin, kind='cubic', bounds_error=False, fill_value=np.nan)
+    errinterp = interpolate.interp1d(rin, errin, kind='cubic', bounds_error=False, fill_value=np.nan)
 
     if sym == 1:
         symm_fac = -1.

@@ -232,7 +232,7 @@ class DarkMatterHalo(MassModel):
         """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
-            mvirial = np.NaN
+            mvirial = np.nan
         elif (self.fdm.value == 1.):
             mvirial = np.inf
         elif (self.fdm.value == 0.):
@@ -240,7 +240,7 @@ class DarkMatterHalo(MassModel):
         elif (self.fdm.value < 1.e-10):
             mvirial = -np.inf
         elif (r_fdm < 0.):
-            mvirial = np.NaN
+            mvirial = np.nan
         else:
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
@@ -256,7 +256,7 @@ class DarkMatterHalo(MassModel):
             vsqr_dm_re_target = vsqr_bar_re / (1./self.fdm.value - 1)
 
             if not np.isfinite(vsqr_dm_re_target):
-                mvirial = np.NaN
+                mvirial = np.nan
             else:
                 #mtest = np.arange(-5, 50, 1.0)
                 short_mtest = False
@@ -590,7 +590,7 @@ class TwoPowerHalo(DarkMatterHalo):
         """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
-            alpha = np.NaN
+            alpha = np.nan
         else:
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
@@ -769,7 +769,7 @@ class Burkert(DarkMatterHalo):
         """
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
-            rB = np.NaN
+            rB = np.nan
         else:
             if isinstance(baryons, dict):
                 vsqr_bar_re = 0
@@ -991,7 +991,7 @@ class Einasto(DarkMatterHalo):
         if np.isfinite(nEinasto):
             return 1./nEinasto
         else:
-            return np.NaN
+            return np.nan
 
     def calc_nEinasto_from_fdm(self, baryons, r_fdm):
         """
@@ -1020,7 +1020,7 @@ class Einasto(DarkMatterHalo):
 
         if (self.fdm.value > self.bounds['fdm'][1]) | \
                 ((self.fdm.value < self.bounds['fdm'][0])):
-            nEinasto = np.NaN
+            nEinasto = np.nan
         else:
 
             # NOTE: have not tested this yet
